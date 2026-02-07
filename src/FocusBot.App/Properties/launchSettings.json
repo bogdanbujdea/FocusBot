@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FocusBot.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FocusBot.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
