@@ -8,7 +8,7 @@
 
 ### Core Layer (`FocusBot.Core`)
 
-- `UserTask` entity with `TaskId`, `Description`, `Status` (enum: ToDo, InProgress, Done), `DisplayOrder`, `CreatedAt`
+- `UserTask` entity with `TaskId`, `Description`, `Status` (enum: ToDo, InProgress, Done), `CreatedAt`
 - `ITaskRepository` interface for CRUD operations
 
 ### Infrastructure Layer (`FocusBot.Infrastructure`)

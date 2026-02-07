@@ -1,33 +1,44 @@
-﻿using Microsoft.UI.Xaml;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using FocusBot.App.ViewModels;
+using FocusBot.Core.Interfaces;
+using FocusBot.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 
 namespace FocusBot.App
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App
     {
         private Window? _window;
+        private IServiceProvider? _services;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
         public App()
         {
             InitializeComponent();
+            var dataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "FocusBot",
+                "focusbot.db"
+            );
+            var dir = Path.GetDirectoryName(dataPath);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+
+            _services = new ServiceCollection()
+                .AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"))
+                .AddScoped<ITaskRepository, TaskRepository>()
+                .AddTransient<KanbanBoardViewModel>()
+                .BuildServiceProvider();
+
+            using var scope = _services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Database.Migrate();
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
+            var viewModel = _services!.GetRequiredService<KanbanBoardViewModel>();
+            _window = new MainWindow(viewModel);
             _window.Activate();
         }
     }
