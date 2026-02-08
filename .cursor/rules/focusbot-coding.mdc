@@ -1,0 +1,57 @@
+---
+description: "FocusBot C# and Clean Architecture standards: layers, DI, no tuples, Result pattern, method size, ViewModels (CommunityToolkit.Mvvm), async, XML docs. See docs/coding-guidelines.md for full reference."
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# FocusBot Coding Rules
+
+Reference: `docs/coding-guidelines.md`. Follow these when editing C# code.
+
+## Architecture
+
+- **Clean Architecture**: Core (no deps) → Infrastructure (Core only) → ViewModels (Core only) → App (DI wiring).
+- **Dependency injection**: Constructor injection with interfaces. Primary constructors OK for simple cases.
+
+## C# Style
+
+- **File-scoped namespaces** (single line, no braces).
+- **Nullable reference types**: Explicit—use `string.Empty` or `?`; never leave reference nullability ambiguous.
+- **Expression-bodied members** for simple single-expression methods.
+- **Braces**: Required for multi-line blocks; optional for single-line statements.
+
+## Return Types
+
+- **No tuple returns.** Use named types (e.g. `record ForegroundWindowInfo(string ProcessName, string WindowTitle)`).
+- **No null for failure.** Use `Result<T>` from CSharpFunctionalExtensions. Return `Result.Failure<T>("reason")` or `Result.Success(value)`.
+- **Exceptions** only for programmer errors (invalid args, violated preconditions) or unrecoverable failures (e.g. missing config at startup). Use Result for expected/recoverable failures (e.g. API key not set, validation errors).
+
+## Method and Class Size
+
+- Methods: target 10–20 lines, max ~30. Extract helpers if longer.
+- Classes: target 100–150 lines, max ~200. Single responsibility.
+
+## Readability
+
+- Extract complex conditions into **named methods** that describe intent (e.g. `HasActiveTask()`, `StopMonitoringAndResetFocusState()`).
+- Use **guard clauses** (early returns) to reduce nesting.
+- Prefer **step-by-step assignments** over deep nested calls. Use descriptive variable names; avoid abbreviations.
+
+## ViewModels
+
+- Use **CommunityToolkit.Mvvm**: `[ObservableProperty]`, `[RelayCommand]`, `[NotifyPropertyChangedFor]`.
+- For commands that must not double-fire: `[RelayCommand(AllowConcurrentExecutions = false)]`.
+
+## Async
+
+- Suffix async methods with `Async`. Accept `CancellationToken` for cancellable operations (default parameter OK).
+- Fire-and-forget: `_ = LoadBoardAsync();` and consider logging exceptions in continuations.
+
+## Documentation
+
+- Add **XML documentation** to all public classes/interfaces and to public methods with non-obvious behavior.
+- No emojis in comments. Prefer self-documenting code; comment only when code cannot explain itself.
+
+## Pre-commit Checklist
+
+- No tuple returns; no null for expected failure; methods &lt; 30 lines; classes &lt; 200 lines; complex logic in named methods; descriptive names; `Async` suffix; public API has XML docs; no emojis in comments.

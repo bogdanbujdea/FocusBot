@@ -1,0 +1,48 @@
+---
+description: "FocusBot UI/UX and WinUI 3 design: glassy materials, 3 elevation layers, theme file layout, card structure, accessibility (no color-alone meaning). See docs/design_guidelines.md for full reference."
+globs: "**/*.xaml" "**/Themes/**"
+alwaysApply: false
+---
+
+# FocusBot Design Rules
+
+Reference: `docs/design_guidelines.md`. Follow when editing XAML, themes, or UI behavior.
+
+## UX Decisions (Locked)
+
+- **Hybrid**: Main window for setup, Kanban, review; small overlay for real-time focus status. Overlay is primary "always on" surface.
+- **Passive by default**: Status via overlay/color; no interruption. Optional toast for prolonged misalignment only (configurable).
+- **Default state**: Neutral until classification runs. Green only when clearly aligned; red/amber sparingly for misaligned.
+
+## Materials and Elevation
+
+- **Light/Dark**: Semi-transparent, blurred (Acrylic). Window: `DesktopAcrylicBackdrop`. Page/column/card: `AcrylicBrush` with elevation tint, TintOpacity ~0.65–0.7; set FallbackColor to same solid so inactive/policy still matches.
+- **High Contrast**: All surfaces use `SolidColorBrush` (FbPageBackground, FbColumnBackground, FbCardBackground); no acrylic.
+- **3 elevation layers** (Store-critical): Page (darkest) &lt; Column &lt; Card (lightest). Dark: `#110E1A`, `#1C1730`, `#2A2242`. Light: `#EDE9F5`, `#F5F3FA`, `#FFFFFF`. Use theme resources, not hardcoded hex in views.
+
+## Theme File Layout
+
+- `Themes/Colors.xaml`: ThemeDictionaries with `Fb*` Color resources only.
+- `Themes/Brushes.xaml`: Semantic brushes; ThemeDictionaries for surface brushes (AcrylicBrush in Light/Dark, SolidColorBrush in High Contrast); root holds border, accent, state, text SolidColorBrush resources.
+- `Themes/Styles.xaml`: Shared styles using semantic brushes.
+- Merge in `App.xaml` in order: Colors, Brushes, Styles.
+
+## Card Structure
+
+- **Left accent bar**: 3px width. To Do: neutral (violet); In Progress: green; Done: green 50% opacity.
+- **Content**: Optional status badge → task title (max 3 lines) → 1px divider → actions (primary first).
+- **Actions**: Primary (Start, Done): accent, semibold. Secondary (Stop, Delete): muted; Delete as icon. Never rely on color alone for destructive action.
+
+## Column Headers
+
+- Title uppercase, letter-spaced; count badge next to title; subtle divider below header.
+
+## Accessibility and Store
+
+- **Never encode meaning with color alone.** Pair color with icon, text label, or left accent bar.
+- Preserve **focus indicators** and **keyboard navigation** (Tab/Enter). Use **AutomationProperties.Name** on columns and buttons.
+- **High Contrast**: Solid backgrounds only. Ensure 3 distinct elevation layers and readable text in Light and Dark.
+
+## Design Tokens
+
+- Corner radius: Small 6px, Medium 10px, Large 12px. Spacing: page margin 32px, column 16px, card 10px, card padding 12–14px. Typography: Segoe UI Variable; column headers 12px SemiBold uppercase; task titles 14px Medium.

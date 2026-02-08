@@ -1,0 +1,51 @@
+---
+description: "FocusBot unit test structure, naming (Result_WhenCondition), AAA with explicit comments, one behavior per test, Awesome Assertions. See docs/unit-testing.md for full reference."
+globs: "tests/**/*.cs"
+alwaysApply: false
+---
+
+# FocusBot Test Rules
+
+Reference: `docs/unit-testing.md`. Follow when adding or editing unit tests.
+
+## Test Structure
+
+- **Per method/behavior**, not per class. One file per method or behavior.
+- **Folder**: Name of type under test (e.g. `TaskRepositoryTests`, `UserTaskTests`).
+- **File**: `MethodNameShould.cs` or `BehaviorNameShould.cs` (e.g. `GetByIdAsyncShould.cs`, `NewTaskShould.cs`).
+- **Class**: Same as file name without extension; contains all tests for that one method/behavior.
+
+## Naming
+
+- **Test class**: `MethodNameShould` (single method) or `BehaviorNameShould` (property/defaults).
+- **Test method**: One clear outcome. Pattern **`Result_WhenCondition`** or **`DoSomething_WhenCondition`** (e.g. `ReturnTask_WhenIdExists`, `ReturnNull_WhenIdDoesNotExist`). Avoid `Test*` or vague names so a failure tells you which behavior broke.
+
+## AAA and Structure
+
+- Every test has exactly three parts with **explicit comments**: `// Arrange`, `// Act`, `// Assert`.
+- **Arrange**: Set up data and dependencies. **Act**: One unit of work (one method call or one logical operation). **Assert**: Outcomes only.
+- **No logic in tests**: No `if`, loops, or non-trivial expressions. If you need more scenarios, add more tests.
+
+## Roy Osherove Principles
+
+- **One behavior per test**: One reason to fail. Split so a failing test points to a single broken behavior.
+- **Deterministic**: No dependence on current time, randomness, threading, network, or environment. Use fakes for time/externals.
+- **Fast**: Unit tests in milliseconds. Put slower checks in integration tests.
+- **Isolated**: No order dependency, no shared mutable state. Fresh in-memory DB or new GUID per test when relevant.
+- **Self-describing**: Name and AAA structure make what is tested and why it failed clear without debugging.
+- **Test behavior, not implementation**: Assert inputs, outputs, and observable side effects. Do not assert private methods or internal call order.
+- **No logic in tests**: Tests must be trivial. Logic in tests can be wrong and undermines trust.
+
+## Assertions
+
+- Use **Awesome Assertions** (`.Should()`) for all assertions. Do not use `Assert.*`.
+- One logical assertion per test (or a short chain that expresses one outcome). Rely on fluent failure messages.
+
+## Stack
+
+- xUnit, Awesome Assertions, Microsoft.EntityFrameworkCore.InMemory when needed, Moq when needed.
+
+## What to Test
+
+- **Do**: Business rules, repository CRUD and status transitions, entity defaults and computed properties, error paths (e.g. not found).
+- **Don't**: Private implementation, exact algorithm steps, trivial getters/setters with no logic.
