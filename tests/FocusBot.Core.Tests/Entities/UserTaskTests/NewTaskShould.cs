@@ -8,30 +8,54 @@ public class NewTaskShould
     [Fact]
     public void HaveNonEmptyTaskId()
     {
+        // Arrange
         var task = new UserTask();
-        task.TaskId.Should().NotBeNullOrEmpty();
+
+        // Act
+        var taskId = task.TaskId;
+
+        // Assert
+        taskId.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
     public void HaveParseableGuidTaskId()
     {
+        // Arrange
         var task = new UserTask();
-        Guid.TryParse(task.TaskId, out _).Should().BeTrue();
+
+        // Act
+        var parseable = Guid.TryParse(task.TaskId, out _);
+
+        // Assert
+        parseable.Should().BeTrue();
     }
 
     [Fact]
     public void DefaultStatusToToDo()
     {
+        // Arrange
         var task = new UserTask();
-        task.Status.Should().Be(TaskStatus.ToDo);
+
+        // Act
+        var status = task.Status;
+
+        // Assert
+        status.Should().Be(TaskStatus.ToDo);
     }
 
     [Fact]
     public void HaveUtcCreatedAtSet()
     {
+        // Arrange
         var task = new UserTask();
-        task.CreatedAt.Should().NotBe(default);
-        task.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
+
+        // Act
+        var createdAt = task.CreatedAt;
+
+        // Assert
+        createdAt.Should().NotBe(default);
+        createdAt.Kind.Should().Be(DateTimeKind.Utc);
     }
 
 }

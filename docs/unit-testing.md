@@ -62,6 +62,8 @@ When a test fails, the name should tell you **what behavior** broke, not just wh
 
 Every test has three parts: **Arrange**, **Act**, **Assert**. No logic (no `if`, loops, or complex expressions) in the test.
 
+**Rule:** Every test method must explicitly mark these three sections with comments: `// Arrange`, `// Act`, and `// Assert`. This keeps the AAA structure visible and consistent across all unit tests.
+
 ```csharp
 [Fact]
 public async Task ReturnTask_WhenIdExists()
@@ -277,6 +279,6 @@ Each test has a single focus. When “CreateToDoTaskWithDescription” fails, yo
 
 - **Structure**: Per-method/behavior files under a folder named after the type (`MethodNameShould.cs`, `BehaviorNameShould.cs`).
 - **Naming**: Test methods describe outcome and condition (`Result_WhenCondition`).
-- **AAA**: Arrange, Act, Assert; no logic in tests.
+- **AAA**: Arrange, Act, Assert; every test must use `// Arrange`, `// Act`, `// Assert` comments; no logic in tests.
 - **Osherove**: One behavior per test, deterministic, fast, isolated, self-describing, behavior-focused, no logic, failing test = clear failure.
 - **Assertions**: Use Awesome Assertions (`.Should()`) for readability and better failure messages.

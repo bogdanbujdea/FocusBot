@@ -8,21 +8,39 @@ public class IsActiveShould
     [Fact]
     public void ReturnTrue_WhenStatusIsInProgress()
     {
+        // Arrange
         var task = new UserTask { Status = TaskStatus.InProgress };
-        task.IsActive.Should().BeTrue();
+
+        // Act
+        var isActive = task.IsActive;
+
+        // Assert
+        isActive.Should().BeTrue();
     }
 
     [Fact]
     public void ReturnFalse_WhenStatusIsToDo()
     {
+        // Arrange
         var task = new UserTask { Status = TaskStatus.ToDo };
-        task.IsActive.Should().BeFalse();
+
+        // Act
+        var isActive = task.IsActive;
+
+        // Assert
+        isActive.Should().BeFalse();
     }
 
     [Fact]
     public void ReturnFalse_WhenStatusIsDone()
     {
+        // Arrange
         var task = new UserTask { Status = TaskStatus.Done };
-        task.IsActive.Should().BeFalse();
+
+        // Act
+        var isActive = task.IsActive;
+
+        // Assert
+        isActive.Should().BeFalse();
     }
 }
