@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Debug;
 using Microsoft.UI.Xaml;
 using Windows.Storage;
 
@@ -30,7 +29,8 @@ namespace FocusBot.App
 
             var services = new ServiceCollection();
             services.AddLogging(builder => builder.AddDebug());
-            services.AddDataProtection()
+            services
+                .AddDataProtection()
                 .SetApplicationName("FocusBot")
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
             services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
@@ -38,7 +38,8 @@ namespace FocusBot.App
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),
                 sp.GetRequiredService<ILogger<SettingsService>>(),
-                appDataRoot));
+                appDataRoot
+            ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddTransient<KanbanBoardViewModel>();

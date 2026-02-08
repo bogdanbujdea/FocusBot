@@ -1,4 +1,3 @@
-using FocusBot.App.ViewModels;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
