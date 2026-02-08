@@ -44,12 +44,12 @@ public sealed class WindowMonitorService : IWindowMonitorService
 
     private void Tick(object? _)
     {
-        var (processName, windowTitle) = GetForegroundWindowInfo();
-        if (processName == _lastProcessName && windowTitle == _lastWindowTitle)
+        var info = GetForegroundWindowInfo();
+        if (info.ProcessName == _lastProcessName && info.WindowTitle == _lastWindowTitle)
             return;
-        _lastProcessName = processName;
-        _lastWindowTitle = windowTitle;
-        RaiseForegroundWindowChanged(processName, windowTitle);
+        _lastProcessName = info.ProcessName;
+        _lastWindowTitle = info.WindowTitle;
+        RaiseForegroundWindowChanged(info.ProcessName, info.WindowTitle);
     }
 
     private void RaiseForegroundWindowChanged(string processName, string windowTitle)
@@ -68,17 +68,19 @@ public sealed class WindowMonitorService : IWindowMonitorService
             handler(this, args);
     }
 
-    private static (string ProcessName, string WindowTitle) GetForegroundWindowInfo()
+    private static ForegroundWindowInfo GetForegroundWindowInfo()
     {
         var hwnd = GetForegroundWindow();
         if (hwnd == IntPtr.Zero)
-            return (string.Empty, string.Empty);
+            return new ForegroundWindowInfo(string.Empty, string.Empty);
 
         var title = GetWindowTitle(hwnd);
         GetWindowThreadProcessId(hwnd, out var pid);
         var processName = GetProcessName(pid);
-        return (processName, title);
+        return new ForegroundWindowInfo(processName, title);
     }
+
+    private sealed record ForegroundWindowInfo(string ProcessName, string WindowTitle);
 
     private static string GetWindowTitle(IntPtr hwnd)
     {
