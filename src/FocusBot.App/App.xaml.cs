@@ -43,6 +43,7 @@ namespace FocusBot.App
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddTransient<KanbanBoardViewModel>();
+            services.AddTransient<ApiKeySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
 
             _services = services.BuildServiceProvider();

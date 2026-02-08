@@ -8,16 +8,10 @@ namespace FocusBot.App;
 /// <summary>
 /// Navigates between the Kanban board and Settings by swapping the main window content.
 /// </summary>
-public class MainWindowNavigationService : INavigationService
+public class MainWindowNavigationService(IServiceProvider serviceProvider) : INavigationService
 {
-    private readonly IServiceProvider _serviceProvider;
     private Window? _window;
     private UIElement? _boardContent;
-
-    public MainWindowNavigationService(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
 
     /// <summary>
     /// Sets the main window reference. Must be called after the window is created.
@@ -42,7 +36,7 @@ public class MainWindowNavigationService : INavigationService
             return;
         if (_boardContent == null)
             _boardContent = _window.Content as UIElement;
-        var settingsViewModel = _serviceProvider.GetRequiredService<SettingsViewModel>();
+        var settingsViewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
         _window.Content = new SettingsPage { DataContext = settingsViewModel };
     }
 }

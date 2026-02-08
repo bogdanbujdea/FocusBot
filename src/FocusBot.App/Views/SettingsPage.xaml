@@ -28,29 +28,29 @@
                                TextWrapping="Wrap"/>
 
                     <!-- Configured, view mode: masked key + Edit + Clear -->
-                    <StackPanel Visibility="{x:Bind ViewModel.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                 Spacing="12">
-                        <TextBlock Text="{x:Bind ViewModel.MaskedApiKeyDisplay, Mode=OneWay}"
+                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.MaskedApiKeyDisplay, Mode=OneWay}"
                                    Style="{StaticResource FbSecondaryTextStyle}"
                                    FontFamily="Consolas"
                                    automation:AutomationProperties.Name="Masked API key"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Edit"
                                     Style="{StaticResource FbAccentButtonStyle}"
-                                    Command="{x:Bind ViewModel.OpenEditCommand}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.OpenEditCommand}"
                                     automation:AutomationProperties.Name="Edit API key"/>
                             <Button Content="Clear Key"
                                     Style="{StaticResource FbOutlineButtonStyle}"
-                                    Command="{x:Bind ViewModel.ClearApiKeyCommand}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.ClearApiKeyCommand}"
                                     automation:AutomationProperties.Name="Clear API key"/>
                         </StackPanel>
                     </StackPanel>
 
                     <!-- Input mode: no key yet or editing -->
-                    <StackPanel Visibility="{x:Bind ViewModel.ShowInputArea, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                 Spacing="12">
                         <TextBox x:Name="ApiKeyInput"
-                                 Text="{x:Bind ViewModel.ApiKey, Mode=TwoWay}"
+                                 Text="{x:Bind ViewModel.ApiKeySection.ApiKey, Mode=TwoWay}"
                                  TextChanged="ApiKeyInput_TextChanged"
                                  PlaceholderText="Enter your OpenAI API key"
                                  CornerRadius="{StaticResource FbCornerRadiusSmall}"
@@ -58,17 +58,17 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Save Key"
                                     Style="{StaticResource FbAccentButtonStyle}"
-                                    Command="{x:Bind ViewModel.SaveApiKeyCommand}"
-                                    IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.SaveApiKeyCommand}"
+                                    IsEnabled="{x:Bind ViewModel.ApiKeySection.CanSave, Mode=OneWay}"
                                     automation:AutomationProperties.Name="Save API key"/>
                             <Button Content="Cancel"
                                     Style="{StaticResource FbOutlineButtonStyle}"
-                                    Command="{x:Bind ViewModel.CancelEditCommand}"
-                                    Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.CancelEditCommand}"
+                                    Visibility="{x:Bind ViewModel.ApiKeySection.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                     automation:AutomationProperties.Name="Cancel edit"/>
                         </StackPanel>
                     </StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
                                Foreground="{StaticResource FbTextSecondaryBrush}"
                                FontSize="12"/>
                 </StackPanel>
