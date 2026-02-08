@@ -35,13 +35,17 @@ namespace FocusBot.App
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
             services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
             services.AddScoped<ITaskRepository, TaskRepository>();
+            services.AddScoped<IAlignmentCacheRepository, AlignmentCacheRepository>();
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),
                 sp.GetRequiredService<ILogger<SettingsService>>(),
                 appDataRoot
             ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
-            services.AddSingleton<IOpenAIService, OpenAIService>();
+            services.AddSingleton<OpenAIService>();
+            services.AddSingleton<IOpenAIService>(sp => new AlignmentClassificationCacheDecorator(
+                sp.GetRequiredService<OpenAIService>(),
+                sp.GetRequiredService<IServiceScopeFactory>()));
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();

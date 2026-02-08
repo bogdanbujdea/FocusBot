@@ -97,17 +97,13 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         if (InProgressTasks.Count == 0)
             return;
-        var taskDescription = InProgressTasks[0].Description;
-        _ = ClassifyAndUpdateFocusAsync(taskDescription, e.ProcessName, e.WindowTitle);
+        var task = InProgressTasks[0];
+        _ = ClassifyAndUpdateFocusAsync(task.Description, task.Context, e.ProcessName, e.WindowTitle);
     }
 
-    private async Task ClassifyAndUpdateFocusAsync(string taskDescription, string processName, string windowTitle)
+    private async Task ClassifyAndUpdateFocusAsync(string taskDescription, string? taskContext, string processName, string windowTitle)
     {
-        var apiKey = await _settingsService.GetApiKeyAsync();
-        if (string.IsNullOrWhiteSpace(apiKey))
-            return;
-
-        var result = await _openAIService.ClassifyAlignmentAsync(taskDescription, processName, windowTitle);
+        var result = await _openAIService.ClassifyAlignmentAsync(taskDescription, taskContext, processName, windowTitle);
         if (result != null)
         {
             FocusScore = result.Score;
