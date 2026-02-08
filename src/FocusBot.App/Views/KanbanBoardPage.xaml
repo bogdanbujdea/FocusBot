@@ -142,16 +142,22 @@
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
                                                 <!-- Task title -->
                                                 <TextBlock Grid.Row="0" 
                                                            Text="{x:Bind Description}" 
                                                            Style="{StaticResource FbTaskTitleStyle}"
                                                            MaxLines="3"/>
+                                                <!-- Total time on task (from previous sessions) -->
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
+                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           automation:AutomationProperties.Name="Task total time"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
                                                     <Button Content="Start" 
                                                             Style="{StaticResource FbCardPrimaryActionStyle}"
                                                             automation:AutomationProperties.Name="Start task" 
@@ -219,6 +225,7 @@
                                             <Grid Margin="14,12,12,12" RowSpacing="10">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
@@ -230,15 +237,20 @@
                                                     <TextBlock Text="Active" 
                                                                Style="{StaticResource FbSecondaryTextStyle}"/>
                                                 </StackPanel>
+                                                <!-- Task timer (total time on this task) -->
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding DataContext.TaskElapsedTime, ElementName=KanbanPage}"
+                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           automation:AutomationProperties.Name="Task elapsed time"/>
                                                 <!-- Task title -->
-                                                <TextBlock Grid.Row="1" 
+                                                <TextBlock Grid.Row="2" 
                                                            Text="{x:Bind Description}" 
                                                            Style="{StaticResource FbTaskTitleStyle}"
                                                            MaxLines="3"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="3" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
                                                     <Button Content="Done" 
                                                             Style="{StaticResource FbCardPrimaryActionStyle}"
                                                             automation:AutomationProperties.Name="Mark done" 
@@ -266,7 +278,7 @@
                 </Grid>
             </Border>
 
-            <!-- Done Column -->
+            <!-- Done Column (timer uses TotalElapsedSeconds via converter) -->
             <Border Grid.Column="2" 
                     automation:AutomationProperties.Name="Done column" 
                     Style="{StaticResource ColumnStyle}" 
@@ -309,6 +321,7 @@
                                             <Grid Margin="14,12,12,12" RowSpacing="10">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
@@ -320,16 +333,21 @@
                                                     <TextBlock Text="Completed" 
                                                                Style="{StaticResource FbSecondaryTextStyle}"/>
                                                 </StackPanel>
+                                                <!-- Total time on task -->
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
+                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           automation:AutomationProperties.Name="Task total time"/>
                                                 <!-- Task title (slightly muted) -->
-                                                <TextBlock Grid.Row="1" 
+                                                <TextBlock Grid.Row="2" 
                                                            Text="{x:Bind Description}" 
                                                            Style="{StaticResource FbTaskTitleStyle}"
                                                            Opacity="0.8"
                                                            MaxLines="3"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="3" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <Button Grid.Row="3"
+                                                <Button Grid.Row="4"
                                                         Style="{StaticResource FbCardActionButtonStyle}"
                                                         automation:AutomationProperties.Name="Delete task" 
                                                         Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"

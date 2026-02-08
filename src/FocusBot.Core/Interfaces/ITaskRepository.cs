@@ -11,7 +11,8 @@ public interface ITaskRepository
     Task<UserTask?> GetByIdAsync(string taskId);
     Task UpdateTaskDescriptionAsync(string taskId, string newDescription);
     Task DeleteTaskAsync(string taskId);
-    Task SetStatusToAsync(string taskId, FocusBot.Core.Entities.TaskStatus status);
+    Task SetStatusToAsync(string taskId, Entities.TaskStatus status);
+    Task UpdateElapsedTimeAsync(string taskId, long totalElapsedSeconds);
     Task<IEnumerable<UserTask>> GetToDoTasksAsync();
     Task<UserTask?> GetInProgressTaskAsync();
     Task<IEnumerable<UserTask>> GetDoneTasksAsync();

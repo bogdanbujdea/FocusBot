@@ -16,7 +16,8 @@ public sealed partial class KanbanBoardPage : Page
 
     private void OnPageLoaded(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not KanbanBoardViewModel vm) return;
+        if (DataContext is not KanbanBoardViewModel vm)
+            return;
         UpdateAddTaskPanelVisibility(vm.ShowAddTaskInput);
         vm.PropertyChanged += (_, args) =>
         {
@@ -35,7 +36,7 @@ public sealed partial class KanbanBoardPage : Page
         AddTaskPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void TaskCard_DragStarting(Microsoft.UI.Xaml.UIElement sender, Microsoft.UI.Xaml.DragStartingEventArgs e)
+    private void TaskCard_DragStarting(UIElement sender, DragStartingEventArgs e)
     {
         if (!TryGetTaskId(sender, out var taskId))
             return;
@@ -44,27 +45,28 @@ public sealed partial class KanbanBoardPage : Page
 
     private static bool TryGetTaskId(object sender, out string? taskId)
     {
-        taskId = (sender as Microsoft.UI.Xaml.FrameworkElement)?.Tag as string;
+        taskId = (sender as FrameworkElement)?.Tag as string;
         return taskId != null;
     }
 
-    private void Column_DragOver(object sender, Microsoft.UI.Xaml.DragEventArgs e)
+    private void Column_DragOver(object sender, DragEventArgs e)
     {
         e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
     }
 
-    private async void Column_Drop(object sender, Microsoft.UI.Xaml.DragEventArgs e)
+    private async void Column_Drop(object sender, DragEventArgs e)
     {
         if (!TryGetDropTargetStatus(sender, out var status))
             return;
         var text = await e.DataView.GetTextAsync();
-        if (string.IsNullOrEmpty(text)) return;
+        if (string.IsNullOrEmpty(text))
+            return;
         await ViewModel.MoveToStatusAsync(text, status!);
     }
 
     private static bool TryGetDropTargetStatus(object sender, out string? status)
     {
-        status = (sender as Microsoft.UI.Xaml.FrameworkElement)?.Tag as string;
+        status = (sender as FrameworkElement)?.Tag as string;
         return status != null;
     }
 }

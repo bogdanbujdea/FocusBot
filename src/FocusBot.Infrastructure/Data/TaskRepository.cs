@@ -62,6 +62,16 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         }
     }
 
+    public async Task UpdateElapsedTimeAsync(string taskId, long totalElapsedSeconds)
+    {
+        var task = await context.UserTasks.FindAsync(taskId);
+        if (task != null)
+        {
+            task.TotalElapsedSeconds = totalElapsedSeconds;
+            await context.SaveChangesAsync();
+        }
+    }
+
     public async Task<IEnumerable<UserTask>> GetToDoTasksAsync() =>
         await context.UserTasks
             .Where(t => t.Status == TaskStatus.ToDo)

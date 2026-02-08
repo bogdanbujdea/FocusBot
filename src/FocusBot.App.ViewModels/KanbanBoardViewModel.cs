@@ -12,9 +12,14 @@ public partial class KanbanBoardViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
+    private readonly ITimeTrackingService _timeTracking;
     private readonly INavigationService _navigationService;
     private readonly IOpenAIService _openAIService;
     private readonly ISettingsService _settingsService;
+
+    private long _taskElapsedSeconds;
+    private int _secondsSinceLastPersist;
+    private const int PersistIntervalSeconds = 5;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -71,20 +76,59 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public bool IsFocusScoreVisible => IsMonitoring && HasValidFocusData();
 
+    private string _taskElapsedTime = "00:00:00";
+    public string TaskElapsedTime
+    {
+        get => _taskElapsedTime;
+        set => SetProperty(ref _taskElapsedTime, value);
+    }
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
+        ITimeTrackingService timeTracking,
         INavigationService navigationService,
         IOpenAIService openAIService,
-        ISettingsService settingsService)
+        ISettingsService settingsService
+    )
     {
         _repo = repo;
         _windowMonitor = windowMonitor;
+        _timeTracking = timeTracking;
         _navigationService = navigationService;
         _openAIService = openAIService;
         _settingsService = settingsService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
+        _timeTracking.Tick += OnTimeTrackingTick;
         _ = LoadBoardAsync();
+    }
+
+    private static string FormatElapsed(long totalSeconds)
+    {
+        var hours = (int)(totalSeconds / 3600);
+        var minutes = (int)((totalSeconds % 3600) / 60);
+        var seconds = (int)(totalSeconds % 60);
+        return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
+    }
+
+    private void OnTimeTrackingTick(object? sender, EventArgs e)
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+        _taskElapsedSeconds++;
+        TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+        _secondsSinceLastPersist++;
+        if (_secondsSinceLastPersist >= PersistIntervalSeconds)
+        {
+            _secondsSinceLastPersist = 0;
+            var taskId = InProgressTasks[0].TaskId;
+            _ = PersistElapsedTimeAsync(taskId);
+        }
+    }
+
+    private async Task PersistElapsedTimeAsync(string taskId)
+    {
+        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
     }
 
     private void OnForegroundWindowChanged(object? sender, ForegroundWindowChangedEventArgs e)
@@ -98,12 +142,27 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (InProgressTasks.Count == 0)
             return;
         var task = InProgressTasks[0];
-        _ = ClassifyAndUpdateFocusAsync(task.Description, task.Context, e.ProcessName, e.WindowTitle);
+        _ = ClassifyAndUpdateFocusAsync(
+            task.Description,
+            task.Context,
+            e.ProcessName,
+            e.WindowTitle
+        );
     }
 
-    private async Task ClassifyAndUpdateFocusAsync(string taskDescription, string? taskContext, string processName, string windowTitle)
+    private async Task ClassifyAndUpdateFocusAsync(
+        string taskDescription,
+        string? taskContext,
+        string processName,
+        string windowTitle
+    )
     {
-        var result = await _openAIService.ClassifyAlignmentAsync(taskDescription, taskContext, processName, windowTitle);
+        var result = await _openAIService.ClassifyAlignmentAsync(
+            taskDescription,
+            taskContext,
+            processName,
+            windowTitle
+        );
         if (result != null)
         {
             FocusScore = result.Score;
@@ -127,7 +186,12 @@ public partial class KanbanBoardViewModel : ObservableObject
             DoneTasks.Add(t);
 
         if (HasActiveTask())
+        {
+            _taskElapsedSeconds = InProgressTasks[0].TotalElapsedSeconds;
+            TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+            _secondsSinceLastPersist = 0;
             StartMonitoring();
+        }
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
@@ -169,7 +233,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
-        await _repo.SetStatusToAsync(taskId, TaskStatus.Done);
+        await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
         await LoadBoardAsync();
     }
 
@@ -178,6 +242,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
         await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
         await LoadBoardAsync();
     }
@@ -196,20 +261,40 @@ public partial class KanbanBoardViewModel : ObservableObject
     /// </summary>
     public async Task MoveToStatusAsync(string taskId, string status)
     {
+        var task = await _repo.GetByIdAsync(taskId);
+        if (task == null)
+            return;
         var statusEnum = Enum.Parse<TaskStatus>(status);
-        await _repo.SetStatusToAsync(taskId, statusEnum);
+        var isMovingCurrentInProgress = HasActiveTask() && InProgressTasks[0].TaskId == taskId;
+        if (!isMovingCurrentInProgress)
+            _taskElapsedSeconds = task.TotalElapsedSeconds;
+        await UpdateTaskStatusAndDuration(taskId, statusEnum);
         await LoadBoardAsync();
+    }
+
+    private async Task UpdateTaskStatusAndDuration(string taskId, TaskStatus statusEnum)
+    {
+        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
+        await _repo.SetStatusToAsync(taskId, statusEnum);
     }
 
     private bool HasValidFocusData() => FocusScore > 0 || !string.IsNullOrEmpty(FocusReason);
 
     private bool HasActiveTask() => InProgressTasks.Count > 0;
 
-    private void StartMonitoring() => _windowMonitor.Start();
+    private void StartMonitoring()
+    {
+        _windowMonitor.Start();
+        _timeTracking.Start();
+    }
 
     private void StopMonitoringAndResetFocusState()
     {
         _windowMonitor.Stop();
+        _timeTracking.Stop();
+        _taskElapsedSeconds = 0;
+        TaskElapsedTime = FormatElapsed(0);
+        _secondsSinceLastPersist = 0;
         ResetFocusState();
     }
 

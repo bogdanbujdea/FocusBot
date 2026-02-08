@@ -18,12 +18,14 @@ public class InitializeShould
         var navMock = new Mock<INavigationService>();
         var openAIMock = new Mock<IOpenAIService>();
         var settingsMock = new Mock<ISettingsService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
+        var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
 
         // Act
 
         // Assert
         monitorMock.Verify(x => x.Start(), Times.Once);
+        timeTrackingMock.Verify(x => x.Start(), Times.Once);
     }
 
     [Fact]
@@ -36,7 +38,8 @@ public class InitializeShould
         var navMock = new Mock<INavigationService>();
         var openAIMock = new Mock<IOpenAIService>();
         var settingsMock = new Mock<ISettingsService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
+        var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
 
         await vm.MoveToInProgressCommand.ExecuteAsync(task.TaskId);
         var eventArgs = new ForegroundWindowChangedEventArgs

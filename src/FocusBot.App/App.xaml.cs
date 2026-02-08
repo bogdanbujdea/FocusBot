@@ -42,6 +42,7 @@ namespace FocusBot.App
                 appDataRoot
             ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
+            services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
             services.AddSingleton<OpenAIService>();
             services.AddSingleton<IOpenAIService>(sp => new AlignmentClassificationCacheDecorator(
                 sp.GetRequiredService<OpenAIService>(),

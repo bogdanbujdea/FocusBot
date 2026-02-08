@@ -12,6 +12,7 @@ public class UserTask
     public string? Context { get; set; }
     public TaskStatus Status { get; set; } = TaskStatus.ToDo;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public long TotalElapsedSeconds { get; set; } = 0;
 
     public bool IsActive => Status == TaskStatus.InProgress;
 }
