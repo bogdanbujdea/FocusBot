@@ -37,11 +37,11 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
-    public bool ShowMaskedDisplay => IsApiKeyConfigured && !IsEditing;
+    public bool ShowMaskedDisplay => ShouldShowMaskedDisplay();
 
-    public bool ShowInputArea => !IsApiKeyConfigured || IsEditing;
+    public bool ShowInputArea => ShouldShowInputArea();
 
-    public bool CanSave => !IsSaving && !string.IsNullOrWhiteSpace(ApiKey);
+    public bool CanSave => CanSaveApiKey();
 
     public ApiKeySettingsViewModel(
         ISettingsService settingsService,
@@ -62,9 +62,9 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             IsEditing = false;
             ApiKey = string.Empty;
 
-            if (IsApiKeyConfigured && existingKey!.Length >= 4)
+            if (CanShowMaskedKey(existingKey))
             {
-                MaskedApiKeyDisplay = "********" + existingKey[^4..];
+                MaskedApiKeyDisplay = "********" + existingKey![^4..];
             }
             else
             {
@@ -154,4 +154,14 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             IsSaving = false;
         }
     }
+
+    private bool ShouldShowMaskedDisplay() => IsApiKeyConfigured && !IsEditing;
+
+    private bool ShouldShowInputArea() => !IsApiKeyConfigured || IsEditing;
+
+    private bool CanSaveApiKey() => !IsSaving && HasValidApiKey();
+
+    private bool HasValidApiKey() => !string.IsNullOrWhiteSpace(ApiKey);
+
+    private bool CanShowMaskedKey(string? key) => IsApiKeyConfigured && key != null && key.Length >= 4;
 }

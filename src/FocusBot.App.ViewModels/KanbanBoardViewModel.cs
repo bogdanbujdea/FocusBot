@@ -69,7 +69,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _focusReason, value);
     }
 
-    public bool IsFocusScoreVisible => IsMonitoring && (FocusScore > 0 || !string.IsNullOrEmpty(FocusReason));
+    public bool IsFocusScoreVisible => IsMonitoring && HasValidFocusData();
 
     public KanbanBoardViewModel(
         ITaskRepository repo,
@@ -130,17 +130,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         foreach (var t in await _repo.GetDoneTasksAsync())
             DoneTasks.Add(t);
 
-        if (InProgressTasks.Count > 0)
-            _windowMonitor.Start();
+        if (HasActiveTask())
+            StartMonitoring();
         else
-        {
-            _windowMonitor.Stop();
-            CurrentProcessName = string.Empty;
-            CurrentWindowTitle = string.Empty;
-            FocusScore = 0;
-            FocusReason = string.Empty;
-            OnPropertyChanged(nameof(IsFocusScoreVisible));
-        }
+            StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
     }
 
@@ -210,5 +203,26 @@ public partial class KanbanBoardViewModel : ObservableObject
         var statusEnum = Enum.Parse<TaskStatus>(status);
         await _repo.SetStatusToAsync(taskId, statusEnum);
         await LoadBoardAsync();
+    }
+
+    private bool HasValidFocusData() => FocusScore > 0 || !string.IsNullOrEmpty(FocusReason);
+
+    private bool HasActiveTask() => InProgressTasks.Count > 0;
+
+    private void StartMonitoring() => _windowMonitor.Start();
+
+    private void StopMonitoringAndResetFocusState()
+    {
+        _windowMonitor.Stop();
+        ResetFocusState();
+    }
+
+    private void ResetFocusState()
+    {
+        CurrentProcessName = string.Empty;
+        CurrentWindowTitle = string.Empty;
+        FocusScore = 0;
+        FocusReason = string.Empty;
+        OnPropertyChanged(nameof(IsFocusScoreVisible));
     }
 }

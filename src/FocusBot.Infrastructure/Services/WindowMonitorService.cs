@@ -45,12 +45,15 @@ public sealed class WindowMonitorService : IWindowMonitorService
     private void Tick(object? _)
     {
         var info = GetForegroundWindowInfo();
-        if (info.ProcessName == _lastProcessName && info.WindowTitle == _lastWindowTitle)
+        if (!HasWindowChanged(info))
             return;
         _lastProcessName = info.ProcessName;
         _lastWindowTitle = info.WindowTitle;
         RaiseForegroundWindowChanged(info.ProcessName, info.WindowTitle);
     }
+
+    private bool HasWindowChanged(ForegroundWindowInfo info) =>
+        info.ProcessName != _lastProcessName || info.WindowTitle != _lastWindowTitle;
 
     private void RaiseForegroundWindowChanged(string processName, string windowTitle)
     {

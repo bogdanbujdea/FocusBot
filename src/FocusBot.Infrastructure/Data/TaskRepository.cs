@@ -50,8 +50,8 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
             var existing = await context.UserTasks
                 .Where(t => t.Status == TaskStatus.InProgress)
                 .FirstOrDefaultAsync();
-            if (existing != null && existing.TaskId != taskId)
-                existing.Status = TaskStatus.ToDo;
+            if (IsDifferentTask(existing, taskId))
+                existing!.Status = TaskStatus.ToDo;
         }
 
         var task = await context.UserTasks.FindAsync(taskId);
@@ -78,4 +78,7 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
             .Where(t => t.Status == TaskStatus.Done)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
+
+    private static bool IsDifferentTask(UserTask? existing, string taskId) =>
+        existing != null && existing.TaskId != taskId;
 }

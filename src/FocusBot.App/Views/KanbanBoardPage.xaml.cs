@@ -37,8 +37,15 @@ public sealed partial class KanbanBoardPage : Page
 
     private void TaskCard_DragStarting(Microsoft.UI.Xaml.UIElement sender, Microsoft.UI.Xaml.DragStartingEventArgs e)
     {
-        if (sender is Microsoft.UI.Xaml.FrameworkElement fe && fe.Tag is string taskId)
-            e.Data.SetText(taskId);
+        if (!TryGetTaskId(sender, out var taskId))
+            return;
+        e.Data.SetText(taskId!);
+    }
+
+    private static bool TryGetTaskId(object sender, out string? taskId)
+    {
+        taskId = (sender as Microsoft.UI.Xaml.FrameworkElement)?.Tag as string;
+        return taskId != null;
     }
 
     private void Column_DragOver(object sender, Microsoft.UI.Xaml.DragEventArgs e)
@@ -48,10 +55,16 @@ public sealed partial class KanbanBoardPage : Page
 
     private async void Column_Drop(object sender, Microsoft.UI.Xaml.DragEventArgs e)
     {
-        if (sender is not Microsoft.UI.Xaml.FrameworkElement column || column.Tag is not string status)
+        if (!TryGetDropTargetStatus(sender, out var status))
             return;
         var text = await e.DataView.GetTextAsync();
         if (string.IsNullOrEmpty(text)) return;
-        await ViewModel.MoveToStatusAsync(text, status);
+        await ViewModel.MoveToStatusAsync(text, status!);
+    }
+
+    private static bool TryGetDropTargetStatus(object sender, out string? status)
+    {
+        status = (sender as Microsoft.UI.Xaml.FrameworkElement)?.Tag as string;
+        return status != null;
     }
 }

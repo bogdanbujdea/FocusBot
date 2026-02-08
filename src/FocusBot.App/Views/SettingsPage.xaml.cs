@@ -14,9 +14,15 @@ public sealed partial class SettingsPage : Page
 
     private void ApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox box && DataContext is SettingsViewModel vm && box.Text != vm.ApiKeySection.ApiKey)
-        {
-            vm.ApiKeySection.ApiKey = box.Text;
-        }
+        if (!TryGetApiKeyUpdateContext(sender, out var box, out var vm))
+            return;
+        vm!.ApiKeySection.ApiKey = box!.Text;
+    }
+
+    private bool TryGetApiKeyUpdateContext(object sender, out TextBox? box, out SettingsViewModel? vm)
+    {
+        box = sender as TextBox;
+        vm = DataContext as SettingsViewModel;
+        return box != null && vm != null && box.Text != vm.ApiKeySection.ApiKey;
     }
 }
