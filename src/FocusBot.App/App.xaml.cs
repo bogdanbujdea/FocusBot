@@ -1,6 +1,7 @@
 using FocusBot.App.ViewModels;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
+using FocusBot.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -27,6 +28,7 @@ namespace FocusBot.App
             _services = new ServiceCollection()
                 .AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"))
                 .AddScoped<ITaskRepository, TaskRepository>()
+                .AddSingleton<IWindowMonitorService, WindowMonitorService>()
                 .AddTransient<KanbanBoardViewModel>()
                 .BuildServiceProvider();
 

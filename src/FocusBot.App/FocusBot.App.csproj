@@ -46,6 +46,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FocusBot.App.ViewModels\FocusBot.App.ViewModels.csproj" />
     <ProjectReference Include="..\FocusBot.Core\FocusBot.Core.csproj" />
     <ProjectReference Include="..\FocusBot.Infrastructure\FocusBot.Infrastructure.csproj" />
   </ItemGroup>

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Entities;
+using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
@@ -10,6 +11,7 @@ namespace FocusBot.App.ViewModels;
 public partial class KanbanBoardViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
+    private readonly IWindowMonitorService _windowMonitor;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -29,10 +31,39 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _showAddTaskInput, value);
     }
 
-    public KanbanBoardViewModel(ITaskRepository repo)
+    private string _currentProcessName = string.Empty;
+    public string CurrentProcessName
+    {
+        get => _currentProcessName;
+        set => SetProperty(ref _currentProcessName, value);
+    }
+
+    private string _currentWindowTitle = string.Empty;
+    public string CurrentWindowTitle
+    {
+        get => _currentWindowTitle;
+        set => SetProperty(ref _currentWindowTitle, value);
+    }
+
+    private bool _isMonitoring;
+    public bool IsMonitoring
+    {
+        get => _isMonitoring;
+        set => SetProperty(ref _isMonitoring, value);
+    }
+
+    public KanbanBoardViewModel(ITaskRepository repo, IWindowMonitorService windowMonitor)
     {
         _repo = repo;
+        _windowMonitor = windowMonitor;
+        _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _ = LoadBoardAsync();
+    }
+
+    private void OnForegroundWindowChanged(object? sender, ForegroundWindowChangedEventArgs e)
+    {
+        CurrentProcessName = e.ProcessName;
+        CurrentWindowTitle = e.WindowTitle;
     }
 
     private async Task LoadBoardAsync()
@@ -48,6 +79,16 @@ public partial class KanbanBoardViewModel : ObservableObject
             InProgressTasks.Add(inProgress);
         foreach (var t in await _repo.GetDoneTasksAsync())
             DoneTasks.Add(t);
+
+        if (InProgressTasks.Count > 0)
+            _windowMonitor.Start();
+        else
+        {
+            _windowMonitor.Stop();
+            CurrentProcessName = string.Empty;
+            CurrentWindowTitle = string.Empty;
+        }
+        IsMonitoring = InProgressTasks.Count > 0;
     }
 
     [RelayCommand]

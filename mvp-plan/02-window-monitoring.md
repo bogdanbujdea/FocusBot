@@ -8,7 +8,7 @@
 
 ### Core Layer
 
-- `WindowContext` entity: `ContextId` (hash), `ProcessName`, `WindowTitle`, `FirstSeen`, `LastSeen`
+- `WindowContext` entity: `ContextId` (hash of ProcessName and WindowTitle), `ProcessName`, `WindowTitle`, `FirstSeen`, `LastSeen`
 - `IWindowContextRepository` interface
 - `IWindowMonitorService` interface
 

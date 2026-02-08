@@ -15,11 +15,25 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Current foreground window (visible when a task is in progress) -->
+        <Border Grid.Row="0" x:Name="CurrentWindowBar"
+                Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                automation:AutomationProperties.Name="Current foreground window"
+                Padding="0,0,0,8">
+            <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                <Run Text="Process: "/>
+                <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}"/>
+                <Run Text=" | Window: "/>
+                <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}"/>
+            </TextBlock>
+        </Border>
+
         <!-- Header with Add Task button -->
-        <Button x:Name="AddTaskButton" Grid.Row="0" 
+        <Button x:Name="AddTaskButton" Grid.Row="1" 
                 Content="+ Add Task" 
                 Style="{StaticResource FbAccentButtonStyle}"
                 automation:AutomationProperties.Name="Add task" 
@@ -28,7 +42,7 @@
                 HorizontalAlignment="Left"/>
 
         <!-- Add Task Panel -->
-        <Border x:Name="AddTaskPanel" Grid.Row="1" 
+        <Border x:Name="AddTaskPanel" Grid.Row="2" 
                 Background="{StaticResource FbCardBackgroundBrush}"
                 BorderBrush="{StaticResource FbCardBorderBrush}"
                 BorderThickness="1"
@@ -56,7 +70,7 @@
         </Border>
 
         <!-- Kanban Columns -->
-        <Grid Grid.Row="2" ColumnSpacing="16">
+        <Grid Grid.Row="3" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
