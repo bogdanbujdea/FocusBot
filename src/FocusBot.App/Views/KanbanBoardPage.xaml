@@ -7,46 +7,55 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:entities="using:FocusBot.Core.Entities"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     mc:Ignorable="d"
-    Background="Transparent">
+    Background="{StaticResource FbPageBackgroundBrush}">
 
-    <Page.Resources>
-        <SolidColorBrush x:Key="CardBorder" Color="#D0D0D0"/>
-        <SolidColorBrush x:Key="CardBackground" Color="#F8F8F8"/>
-        <Style x:Key="ColumnStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="MinHeight" Value="200"/>
-        </Style>
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
-    </Page.Resources>
-
-    <Grid Margin="24" RowSpacing="16">
+    <Grid Margin="32" RowSpacing="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Button x:Name="AddTaskButton" Grid.Row="0" Content="+ Add Task" Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
+        <!-- Header with Add Task button -->
+        <Button x:Name="AddTaskButton" Grid.Row="0" 
+                Content="+ Add Task" 
+                Style="{StaticResource FbAccentButtonStyle}"
+                automation:AutomationProperties.Name="Add task" 
+                Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
                 Click="AddTaskButton_Click"
-                HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                HorizontalAlignment="Left"/>
 
-        <StackPanel x:Name="AddTaskPanel" Grid.Row="1" Visibility="Collapsed" Margin="0,0,0,8">
-            <TextBox Text="{x:Bind ViewModel.NewTaskDescription, Mode=TwoWay}" PlaceholderText="Description" Margin="0,0,0,4"/>
-            <Button Content="Add" Command="{x:Bind ViewModel.AddTaskCommand}" HorizontalAlignment="Left"/>
-        </StackPanel>
+        <!-- Add Task Panel -->
+        <Border x:Name="AddTaskPanel" Grid.Row="1" 
+                Background="{StaticResource FbCardBackgroundBrush}"
+                BorderBrush="{StaticResource FbCardBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                Padding="16"
+                Visibility="Collapsed" 
+                HorizontalAlignment="Left"
+                MinWidth="320">
+            <StackPanel Spacing="12">
+                <TextBox automation:AutomationProperties.Name="Task description" 
+                         Text="{x:Bind ViewModel.NewTaskDescription, Mode=TwoWay}" 
+                         PlaceholderText="What are you working on?"
+                         CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Add Task" 
+                            Style="{StaticResource FbAccentButtonStyle}"
+                            automation:AutomationProperties.Name="Add task" 
+                            Command="{x:Bind ViewModel.AddTaskCommand}"/>
+                    <Button Content="Cancel" 
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            automation:AutomationProperties.Name="Cancel"
+                            Command="{x:Bind ViewModel.ToggleAddTaskCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
+        <!-- Kanban Columns -->
         <Grid Grid.Row="2" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -54,29 +63,77 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource ColumnStyle}" Tag="ToDo"
-                    AllowDrop="True" DragOver="Column_DragOver" Drop="Column_Drop">
-                <Grid>
+            <!-- To Do Column -->
+            <Border Grid.Column="0" 
+                    automation:AutomationProperties.Name="To Do column" 
+                    Style="{StaticResource ColumnStyle}" 
+                    Tag="ToDo"
+                    AllowDrop="True" 
+                    DragOver="Column_DragOver" 
+                    Drop="Column_Drop">
+                <Grid RowSpacing="12">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="To Do" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                    <!-- Column Header with Count -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="TO DO" Style="{StaticResource FbColumnHeaderStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.ToDoTasks.Count, Mode=OneWay}" 
+                                   Style="{StaticResource FbColumnCountStyle}"/>
+                    </StackPanel>
+                    <!-- Header Divider -->
+                    <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
+                    <!-- Task List -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{x:Bind ViewModel.ToDoTasks, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="entities:UserTask">
-                                    <Border Style="{StaticResource CardStyle}" Tag="{x:Bind TaskId}"
-                                            CanDrag="True" DragStarting="TaskCard_DragStarting">
-                                        <StackPanel>
-                                            <TextBlock Text="{x:Bind Description}" TextWrapping="Wrap" MaxHeight="60"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <Button Content="Start" Command="{Binding DataContext.MoveToInProgressCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}" Margin="0,0,4,0"/>
-                                                <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}"/>
-                                            </StackPanel>
-                                        </StackPanel>
+                                    <!-- Card with left accent bar -->
+                                    <Border Style="{StaticResource CardStyle}" 
+                                            Tag="{x:Bind TaskId}"
+                                            CanDrag="True" 
+                                            DragStarting="TaskCard_DragStarting">
+                                        <Grid>
+                                            <!-- Left accent bar (neutral) -->
+                                            <Border Width="3" 
+                                                    Background="{StaticResource FbNeutralAccentBrush}"
+                                                    CornerRadius="3,0,0,3"
+                                                    HorizontalAlignment="Left"/>
+                                            <!-- Card content -->
+                                            <Grid Margin="14,12,12,12" RowSpacing="10">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <!-- Task title -->
+                                                <TextBlock Grid.Row="0" 
+                                                           Text="{x:Bind Description}" 
+                                                           Style="{StaticResource FbTaskTitleStyle}"
+                                                           MaxLines="3"/>
+                                                <!-- Action divider -->
+                                                <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}"/>
+                                                <!-- Actions -->
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                                                    <Button Content="Start" 
+                                                            Style="{StaticResource FbCardPrimaryActionStyle}"
+                                                            automation:AutomationProperties.Name="Start task" 
+                                                            Command="{Binding DataContext.MoveToInProgressCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}"/>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Delete task" 
+                                                            Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                            <TextBlock Text="Delete" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -85,31 +142,87 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Style="{StaticResource ColumnStyle}" Tag="InProgress"
-                    AllowDrop="True" DragOver="Column_DragOver" Drop="Column_Drop">
-                <Grid>
+            <!-- In Progress Column -->
+            <Border Grid.Column="1" 
+                    automation:AutomationProperties.Name="In Progress column" 
+                    Style="{StaticResource ColumnStyle}" 
+                    Tag="InProgress"
+                    AllowDrop="True" 
+                    DragOver="Column_DragOver" 
+                    Drop="Column_Drop">
+                <Grid RowSpacing="12">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="In Progress" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                    <!-- Column Header with Count -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="IN PROGRESS" Style="{StaticResource FbColumnHeaderStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.InProgressTasks.Count, Mode=OneWay}" 
+                                   Style="{StaticResource FbColumnCountStyle}"/>
+                    </StackPanel>
+                    <!-- Header Divider -->
+                    <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
+                    <!-- Task List -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{x:Bind ViewModel.InProgressTasks, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="entities:UserTask">
-                                    <Border Style="{StaticResource CardStyle}" Tag="{x:Bind TaskId}"
-                                            CanDrag="True" DragStarting="TaskCard_DragStarting">
-                                        <StackPanel>
-                                            <TextBlock Text="{x:Bind Description}" TextWrapping="Wrap" FontWeight="SemiBold" MaxHeight="60"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <Button Content="Done" Command="{Binding DataContext.MoveToDoneCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}" Margin="0,0,4,0"/>
-                                                <Button Content="Stop" Command="{Binding DataContext.MoveToToDoCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}" Margin="0,0,4,0"/>
-                                                <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}"/>
-                                            </StackPanel>
-                                        </StackPanel>
+                                    <!-- Card with left accent bar (active/aligned) -->
+                                    <Border Style="{StaticResource CardStyle}" 
+                                            Tag="{x:Bind TaskId}"
+                                            CanDrag="True" 
+                                            DragStarting="TaskCard_DragStarting">
+                                        <Grid>
+                                            <!-- Left accent bar (active - green) -->
+                                            <Border Width="3" 
+                                                    Background="{StaticResource FbAlignedAccentBrush}"
+                                                    CornerRadius="3,0,0,3"
+                                                    HorizontalAlignment="Left"/>
+                                            <!-- Card content -->
+                                            <Grid Margin="14,12,12,12" RowSpacing="10">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <!-- Status badge -->
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="6" Height="6" 
+                                                             Fill="{StaticResource FbAlignedAccentBrush}"/>
+                                                    <TextBlock Text="Active" 
+                                                               Style="{StaticResource FbSecondaryTextStyle}"/>
+                                                </StackPanel>
+                                                <!-- Task title -->
+                                                <TextBlock Grid.Row="1" 
+                                                           Text="{x:Bind Description}" 
+                                                           Style="{StaticResource FbTaskTitleStyle}"
+                                                           MaxLines="3"/>
+                                                <!-- Action divider -->
+                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
+                                                <!-- Actions -->
+                                                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                                                    <Button Content="Done" 
+                                                            Style="{StaticResource FbCardPrimaryActionStyle}"
+                                                            automation:AutomationProperties.Name="Mark done" 
+                                                            Command="{Binding DataContext.MoveToDoneCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}"/>
+                                                    <Button Content="Stop" 
+                                                            Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Stop task" 
+                                                            Command="{Binding DataContext.MoveToToDoCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}"/>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Delete task" 
+                                                            Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -118,25 +231,82 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource ColumnStyle}" Tag="Done"
-                    AllowDrop="True" DragOver="Column_DragOver" Drop="Column_Drop">
-                <Grid>
+            <!-- Done Column -->
+            <Border Grid.Column="2" 
+                    automation:AutomationProperties.Name="Done column" 
+                    Style="{StaticResource ColumnStyle}" 
+                    Tag="Done"
+                    AllowDrop="True" 
+                    DragOver="Column_DragOver" 
+                    Drop="Column_Drop">
+                <Grid RowSpacing="12">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Done" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                    <!-- Column Header with Count -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="DONE" Style="{StaticResource FbColumnHeaderStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.DoneTasks.Count, Mode=OneWay}" 
+                                   Style="{StaticResource FbColumnCountStyle}"/>
+                    </StackPanel>
+                    <!-- Header Divider -->
+                    <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
+                    <!-- Task List -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{x:Bind ViewModel.DoneTasks, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="entities:UserTask">
-                                    <Border Style="{StaticResource CardStyle}" Tag="{x:Bind TaskId}"
-                                            CanDrag="True" DragStarting="TaskCard_DragStarting">
-                                        <StackPanel>
-                                            <TextBlock Text="{x:Bind Description}" TextWrapping="Wrap" MaxHeight="60" Opacity="0.9"/>
-                                            <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
-                                                    CommandParameter="{Binding TaskId}" HorizontalAlignment="Left" Margin="0,4,0,0"/>
-                                        </StackPanel>
+                                    <!-- Card with left accent bar (completed) -->
+                                    <Border Style="{StaticResource CardStyle}" 
+                                            Tag="{x:Bind TaskId}"
+                                            CanDrag="True" 
+                                            DragStarting="TaskCard_DragStarting">
+                                        <Grid>
+                                            <!-- Left accent bar (completed - muted green) -->
+                                            <Border Width="3" 
+                                                    Background="{StaticResource FbAlignedAccentBrush}"
+                                                    Opacity="0.5"
+                                                    CornerRadius="3,0,0,3"
+                                                    HorizontalAlignment="Left"/>
+                                            <!-- Card content -->
+                                            <Grid Margin="14,12,12,12" RowSpacing="10">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <!-- Completed badge -->
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
+                                                    <FontIcon Glyph="&#xE73E;" FontSize="10"
+                                                              Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                                    <TextBlock Text="Completed" 
+                                                               Style="{StaticResource FbSecondaryTextStyle}"/>
+                                                </StackPanel>
+                                                <!-- Task title (slightly muted) -->
+                                                <TextBlock Grid.Row="1" 
+                                                           Text="{x:Bind Description}" 
+                                                           Style="{StaticResource FbTaskTitleStyle}"
+                                                           Opacity="0.8"
+                                                           MaxLines="3"/>
+                                                <!-- Action divider -->
+                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
+                                                <!-- Actions -->
+                                                <Button Grid.Row="3"
+                                                        Style="{StaticResource FbCardActionButtonStyle}"
+                                                        automation:AutomationProperties.Name="Delete task" 
+                                                        Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
+                                                        CommandParameter="{Binding TaskId}"
+                                                        HorizontalAlignment="Left">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                        <TextBlock Text="Delete" FontSize="12"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </Grid>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

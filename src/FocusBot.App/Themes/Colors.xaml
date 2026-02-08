@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <!-- Surface colors - 3 elevation layers (page darkest, column medium, card lightest) -->
+            <Color x:Key="FbPageBackground">#EDE9F5</Color>
+            <Color x:Key="FbColumnBackground">#F5F3FA</Color>
+            <Color x:Key="FbCardBackground">#FFFFFF</Color>
+            <Color x:Key="FbCardBorder">#D8D0E8</Color>
+            <Color x:Key="FbColumnBorder">#E0DAF0</Color>
+            <!-- Primary accent - purple -->
+            <Color x:Key="FbAccentColor">#7C3AED</Color>
+            <Color x:Key="FbAccentColorHover">#6D28D9</Color>
+            <Color x:Key="FbAccentColorPressed">#5B21B6</Color>
+            <!-- State colors (muted, for fills) -->
+            <Color x:Key="FbAlignedColor">#DCFCE7</Color>
+            <Color x:Key="FbNeutralColor">#EDE9FE</Color>
+            <Color x:Key="FbMisalignedColor">#FEF3C7</Color>
+            <!-- State accent colors (higher saturation, for indicators) -->
+            <Color x:Key="FbAlignedAccent">#22C55E</Color>
+            <Color x:Key="FbNeutralAccent">#8B5CF6</Color>
+            <Color x:Key="FbMisalignedAccent">#F97316</Color>
+            <!-- Text colors -->
+            <Color x:Key="FbTextPrimary">#1F1F1F</Color>
+            <Color x:Key="FbTextSecondary">#6B7280</Color>
+            <Color x:Key="FbTextOnAccent">#FFFFFF</Color>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+            <!-- Surface colors - 3 elevation layers (page darkest, column medium, card lightest) -->
+            <Color x:Key="FbPageBackground">#110E1A</Color>
+            <Color x:Key="FbColumnBackground">#1C1730</Color>
+            <Color x:Key="FbCardBackground">#2A2242</Color>
+            <Color x:Key="FbCardBorder">#3A3058</Color>
+            <Color x:Key="FbColumnBorder">#2A2444</Color>
+            <!-- Primary accent - purple -->
+            <Color x:Key="FbAccentColor">#A78BFA</Color>
+            <Color x:Key="FbAccentColorHover">#8B5CF6</Color>
+            <Color x:Key="FbAccentColorPressed">#7C3AED</Color>
+            <!-- State colors (muted, for fills) -->
+            <Color x:Key="FbAlignedColor">#14532D</Color>
+            <Color x:Key="FbNeutralColor">#312E81</Color>
+            <Color x:Key="FbMisalignedColor">#78350F</Color>
+            <!-- State accent colors (higher saturation, for indicators) -->
+            <Color x:Key="FbAlignedAccent">#4ADE80</Color>
+            <Color x:Key="FbNeutralAccent">#A78BFA</Color>
+            <Color x:Key="FbMisalignedAccent">#FB923C</Color>
+            <!-- Text colors -->
+            <Color x:Key="FbTextPrimary">#FFFFFF</Color>
+            <Color x:Key="FbTextSecondary">#A1A1AA</Color>
+            <Color x:Key="FbTextOnAccent">#FFFFFF</Color>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="HighContrast">
+            <!-- Defer to system; use same structure so bindings resolve -->
+            <Color x:Key="FbPageBackground">#000000</Color>
+            <Color x:Key="FbCardBackground">#000000</Color>
+            <Color x:Key="FbColumnBackground">#000000</Color>
+            <Color x:Key="FbCardBorder">#FFFFFF</Color>
+            <Color x:Key="FbColumnBorder">#FFFFFF</Color>
+            <Color x:Key="FbAccentColor">#FFFF00</Color>
+            <Color x:Key="FbAccentColorHover">#FFFF00</Color>
+            <Color x:Key="FbAccentColorPressed">#FFFF00</Color>
+            <Color x:Key="FbAlignedColor">#000000</Color>
+            <Color x:Key="FbNeutralColor">#000000</Color>
+            <Color x:Key="FbMisalignedColor">#000000</Color>
+            <Color x:Key="FbAlignedAccent">#00FF00</Color>
+            <Color x:Key="FbNeutralAccent">#FFFF00</Color>
+            <Color x:Key="FbMisalignedAccent">#FF0000</Color>
+            <Color x:Key="FbTextPrimary">#FFFFFF</Color>
+            <Color x:Key="FbTextSecondary">#FFFFFF</Color>
+            <Color x:Key="FbTextOnAccent">#000000</Color>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

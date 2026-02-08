@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Surface brushes (page, column, card) are theme-specific: Acrylic in Light/Dark, Solid in HighContrast -->
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <AcrylicBrush x:Key="FbPageBackgroundBrush"
+                          TintColor="#EDE9F5"
+                          TintOpacity="0.65"
+                          FallbackColor="#EDE9F5"/>
+            <AcrylicBrush x:Key="FbColumnBackgroundBrush"
+                          TintColor="#F5F3FA"
+                          TintOpacity="0.65"
+                          FallbackColor="#F5F3FA"/>
+            <AcrylicBrush x:Key="FbCardBackgroundBrush"
+                          TintColor="#FFFFFF"
+                          TintOpacity="0.7"
+                          FallbackColor="#FFFFFF"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <AcrylicBrush x:Key="FbPageBackgroundBrush"
+                          TintColor="#110E1A"
+                          TintOpacity="0.65"
+                          FallbackColor="#110E1A"/>
+            <AcrylicBrush x:Key="FbColumnBackgroundBrush"
+                          TintColor="#1C1730"
+                          TintOpacity="0.65"
+                          FallbackColor="#1C1730"/>
+            <AcrylicBrush x:Key="FbCardBackgroundBrush"
+                          TintColor="#2A2242"
+                          TintOpacity="0.7"
+                          FallbackColor="#2A2242"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="FbPageBackgroundBrush" Color="{ThemeResource FbPageBackground}"/>
+            <SolidColorBrush x:Key="FbColumnBackgroundBrush" Color="{ThemeResource FbColumnBackground}"/>
+            <SolidColorBrush x:Key="FbCardBackgroundBrush" Color="{ThemeResource FbCardBackground}"/>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- Border brushes (unchanged) -->
+    <SolidColorBrush x:Key="FbCardBorderBrush" Color="{ThemeResource FbCardBorder}"/>
+    <SolidColorBrush x:Key="FbColumnBorderBrush" Color="{ThemeResource FbColumnBorder}"/>
+
+    <!-- Primary accent brushes -->
+    <SolidColorBrush x:Key="FbAccentBrush" Color="{ThemeResource FbAccentColor}"/>
+    <SolidColorBrush x:Key="FbAccentHoverBrush" Color="{ThemeResource FbAccentColorHover}"/>
+    <SolidColorBrush x:Key="FbAccentPressedBrush" Color="{ThemeResource FbAccentColorPressed}"/>
+
+    <!-- State brushes (muted, for fills) -->
+    <SolidColorBrush x:Key="FbAlignedBrush" Color="{ThemeResource FbAlignedColor}"/>
+    <SolidColorBrush x:Key="FbNeutralBrush" Color="{ThemeResource FbNeutralColor}"/>
+    <SolidColorBrush x:Key="FbMisalignedBrush" Color="{ThemeResource FbMisalignedColor}"/>
+
+    <!-- State accent brushes (for indicators: dot, left border, badge) -->
+    <SolidColorBrush x:Key="FbAlignedAccentBrush" Color="{ThemeResource FbAlignedAccent}"/>
+    <SolidColorBrush x:Key="FbNeutralAccentBrush" Color="{ThemeResource FbNeutralAccent}"/>
+    <SolidColorBrush x:Key="FbMisalignedAccentBrush" Color="{ThemeResource FbMisalignedAccent}"/>
+
+    <!-- Text brushes -->
+    <SolidColorBrush x:Key="FbTextPrimaryBrush" Color="{ThemeResource FbTextPrimary}"/>
+    <SolidColorBrush x:Key="FbTextSecondaryBrush" Color="{ThemeResource FbTextSecondary}"/>
+    <SolidColorBrush x:Key="FbTextOnAccentBrush" Color="{ThemeResource FbTextOnAccent}"/>
+</ResourceDictionary>
