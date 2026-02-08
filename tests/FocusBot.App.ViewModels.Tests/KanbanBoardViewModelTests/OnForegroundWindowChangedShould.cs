@@ -1,3 +1,4 @@
+using FocusBot.App.ViewModels;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -12,7 +13,8 @@ public class OnForegroundWindowChangedShould
         // Arrange
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object);
+        var navMock = new Mock<INavigationService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",

@@ -6,7 +6,7 @@ namespace FocusBot.App
 {
     public sealed partial class MainWindow : Window
     {
-        public MainWindow(KanbanBoardViewModel viewModel)
+        public MainWindow(KanbanBoardViewModel viewModel, INavigationService navigationService)
         {
             InitializeComponent();
             Content = new KanbanBoardPage { DataContext = viewModel };

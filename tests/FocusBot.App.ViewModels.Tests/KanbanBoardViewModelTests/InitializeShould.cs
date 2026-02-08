@@ -1,3 +1,4 @@
+using FocusBot.App.ViewModels;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -15,7 +16,8 @@ public class InitializeShould
         var task = await ctx.Repo.AddTaskAsync("In progress task");
         await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object);
+        var navMock = new Mock<INavigationService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
 
         // Act
 
@@ -30,7 +32,8 @@ public class InitializeShould
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
         var task = await ctx.Repo.AddTaskAsync("Task to stop");
         var monitorMock = new Mock<IWindowMonitorService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object);
+        var navMock = new Mock<INavigationService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
 
         await vm.MoveToInProgressCommand.ExecuteAsync(task.TaskId);
         var eventArgs = new ForegroundWindowChangedEventArgs

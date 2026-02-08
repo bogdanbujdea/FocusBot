@@ -32,14 +32,25 @@
             </TextBlock>
         </Border>
 
-        <!-- Header with Add Task button -->
-        <Button x:Name="AddTaskButton" Grid.Row="1" 
-                Content="+ Add Task" 
-                Style="{StaticResource FbAccentButtonStyle}"
-                automation:AutomationProperties.Name="Add task" 
-                Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
-                Click="AddTaskButton_Click"
-                HorizontalAlignment="Left"/>
+        <!-- Header with Add Task and Settings -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="AddTaskButton" Grid.Column="0"
+                    Content="+ Add Task"
+                    Style="{StaticResource FbAccentButtonStyle}"
+                    automation:AutomationProperties.Name="Add task"
+                    Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
+                    Click="AddTaskButton_Click"/>
+            <Button Grid.Column="2"
+                    Content="Settings"
+                    Style="{StaticResource FbOutlineButtonStyle}"
+                    automation:AutomationProperties.Name="Settings"
+                    Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+        </Grid>
 
         <!-- Add Task Panel -->
         <Border x:Name="AddTaskPanel" Grid.Row="2" 

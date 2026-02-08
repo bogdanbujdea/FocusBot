@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FocusBot.App.Views.SettingsPage"
+    x:Name="SettingsPageRoot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    mc:Ignorable="d"
+    Background="{StaticResource FbPageBackgroundBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32" Spacing="24">
+            <!-- API Key Section -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="OpenAI API Key"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <TextBlock Text="Required for AI-powered alignment classification (to be used later)."
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+
+                    <!-- Configured, view mode: masked key + Edit + Clear -->
+                    <StackPanel Visibility="{x:Bind ViewModel.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Spacing="12">
+                        <TextBlock Text="{x:Bind ViewModel.MaskedApiKeyDisplay, Mode=OneWay}"
+                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                   FontFamily="Consolas"
+                                   automation:AutomationProperties.Name="Masked API key"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Edit"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.OpenEditCommand}"
+                                    automation:AutomationProperties.Name="Edit API key"/>
+                            <Button Content="Clear Key"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    Command="{x:Bind ViewModel.ClearApiKeyCommand}"
+                                    automation:AutomationProperties.Name="Clear API key"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Input mode: no key yet or editing -->
+                    <StackPanel Visibility="{x:Bind ViewModel.ShowInputArea, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Spacing="12">
+                        <TextBox x:Name="ApiKeyInput"
+                                 Text="{x:Bind ViewModel.ApiKey, Mode=TwoWay}"
+                                 TextChanged="ApiKeyInput_TextChanged"
+                                 PlaceholderText="Enter your OpenAI API key"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 automation:AutomationProperties.Name="OpenAI API key"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Save Key"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.SaveApiKeyCommand}"
+                                    IsEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}"
+                                    automation:AutomationProperties.Name="Save API key"/>
+                            <Button Content="Cancel"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    Command="{x:Bind ViewModel.CancelEditCommand}"
+                                    Visibility="{x:Bind ViewModel.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    automation:AutomationProperties.Name="Cancel edit"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="12"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Back to Board -->
+            <Button Content="Back to Board"
+                    Style="{StaticResource FbOutlineButtonStyle}"
+                    Command="{x:Bind ViewModel.BackCommand}"
+                    HorizontalAlignment="Left"
+                    automation:AutomationProperties.Name="Back to board"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

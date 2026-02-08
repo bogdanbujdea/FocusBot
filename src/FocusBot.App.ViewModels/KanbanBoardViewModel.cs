@@ -12,6 +12,7 @@ public partial class KanbanBoardViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
+    private readonly INavigationService _navigationService;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -52,10 +53,11 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _isMonitoring, value);
     }
 
-    public KanbanBoardViewModel(ITaskRepository repo, IWindowMonitorService windowMonitor)
+    public KanbanBoardViewModel(ITaskRepository repo, IWindowMonitorService windowMonitor, INavigationService navigationService)
     {
         _repo = repo;
         _windowMonitor = windowMonitor;
+        _navigationService = navigationService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _ = LoadBoardAsync();
     }
@@ -93,6 +95,9 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;
+
+    [RelayCommand]
+    private void OpenSettings() => _navigationService.NavigateToSettings();
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task AddTaskAsync()
