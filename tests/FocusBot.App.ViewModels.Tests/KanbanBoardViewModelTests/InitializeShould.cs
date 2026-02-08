@@ -16,7 +16,9 @@ public class InitializeShould
         await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
+        var openAIMock = new Mock<IOpenAIService>();
+        var settingsMock = new Mock<ISettingsService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
 
         // Act
 
@@ -32,7 +34,9 @@ public class InitializeShould
         var task = await ctx.Repo.AddTaskAsync("Task to stop");
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
+        var openAIMock = new Mock<IOpenAIService>();
+        var settingsMock = new Mock<ISettingsService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
 
         await vm.MoveToInProgressCommand.ExecuteAsync(task.TaskId);
         var eventArgs = new ForegroundWindowChangedEventArgs

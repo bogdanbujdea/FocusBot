@@ -17,12 +17,17 @@ public sealed class WindowMonitorService : IWindowMonitorService
     private SynchronizationContext? _syncContext;
     private const int PollIntervalMs = 1000;
 
+    private string _lastProcessName = string.Empty;
+    private string _lastWindowTitle = string.Empty;
+
     public event EventHandler<ForegroundWindowChangedEventArgs>? ForegroundWindowChanged;
 
     public void Start()
     {
         Stop();
         _syncContext = SynchronizationContext.Current;
+        _lastProcessName = string.Empty;
+        _lastWindowTitle = string.Empty;
         _timer = new Timer(Tick, null, 0, PollIntervalMs);
     }
 
@@ -40,6 +45,10 @@ public sealed class WindowMonitorService : IWindowMonitorService
     private void Tick(object? _)
     {
         var (processName, windowTitle) = GetForegroundWindowInfo();
+        if (processName == _lastProcessName && windowTitle == _lastWindowTitle)
+            return;
+        _lastProcessName = processName;
+        _lastWindowTitle = windowTitle;
         RaiseForegroundWindowChanged(processName, windowTitle);
     }
 

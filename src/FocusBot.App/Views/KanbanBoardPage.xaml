@@ -24,12 +24,22 @@
                 Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                 automation:AutomationProperties.Name="Current foreground window"
                 Padding="0,0,0,8">
-            <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
-                <Run Text="Process: "/>
-                <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}"/>
-                <Run Text=" | Window: "/>
-                <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}"/>
-            </TextBlock>
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                    <Run Text="Process: "/>
+                    <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}"/>
+                    <Run Text=" | Window: "/>
+                    <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
+                           Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                           automation:AutomationProperties.Name="Focus score">
+                    <Run Text="Focus Score: "/>
+                    <Run Text="{x:Bind ViewModel.FocusScore, Mode=OneWay}"/>
+                    <Run Text="/10 - "/>
+                    <Run Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"/>
+                </TextBlock>
+            </StackPanel>
         </Border>
 
         <!-- Header with Add Task and Settings -->

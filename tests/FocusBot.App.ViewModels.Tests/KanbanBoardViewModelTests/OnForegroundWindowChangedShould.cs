@@ -13,7 +13,9 @@ public class OnForegroundWindowChangedShould
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object);
+        var openAIMock = new Mock<IOpenAIService>();
+        var settingsMock = new Mock<ISettingsService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",
