@@ -32,6 +32,16 @@
                     <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}"/>
                 </TextBlock>
                 <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
+                           automation:AutomationProperties.Name="Time on this window">
+                    <Run Text="Time on this window (this visit): "/>
+                    <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
+                           automation:AutomationProperties.Name="Total time on this window">
+                    <Run Text="Total on this window: "/>
+                    <Run Text="{x:Bind ViewModel.WindowTotalElapsedTime, Mode=OneWay}"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
                            Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                            automation:AutomationProperties.Name="Focus score">
                     <Run Text="Focus Score: "/>

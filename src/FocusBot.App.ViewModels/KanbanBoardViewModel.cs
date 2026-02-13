@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -83,6 +84,22 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _taskElapsedTime, value);
     }
 
+    private long _windowElapsedSeconds;
+    private string _windowElapsedTime = "00:00:00";
+    public string WindowElapsedTime
+    {
+        get => _windowElapsedTime;
+        set => SetProperty(ref _windowElapsedTime, value);
+    }
+
+    private readonly Dictionary<string, long> _perWindowTotalSeconds = new();
+    private string _windowTotalElapsedTime = "00:00:00";
+    public string WindowTotalElapsedTime
+    {
+        get => _windowTotalElapsedTime;
+        set => SetProperty(ref _windowTotalElapsedTime, value);
+    }
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -117,6 +134,15 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         _taskElapsedSeconds++;
         TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+        _windowElapsedSeconds++;
+        WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
+        var windowKey = GetCurrentWindowKey();
+        if (!string.IsNullOrEmpty(windowKey))
+        {
+            var total = _perWindowTotalSeconds.GetValueOrDefault(windowKey, 0) + 1;
+            _perWindowTotalSeconds[windowKey] = total;
+            WindowTotalElapsedTime = FormatElapsed(total);
+        }
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
@@ -126,6 +152,12 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
     }
 
+    private static string GetCurrentWindowKey(string processName, string windowTitle) =>
+        $"{processName ?? string.Empty}|{windowTitle ?? string.Empty}";
+
+    private string GetCurrentWindowKey() =>
+        GetCurrentWindowKey(CurrentProcessName, CurrentWindowTitle);
+
     private async Task PersistElapsedTimeAsync(string taskId)
     {
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
@@ -133,8 +165,20 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     private void OnForegroundWindowChanged(object? sender, ForegroundWindowChangedEventArgs e)
     {
+        if (!string.IsNullOrEmpty(CurrentProcessName) && _windowElapsedSeconds > 0)
+        {
+            var previousKey = GetCurrentWindowKey(CurrentProcessName, CurrentWindowTitle);
+            var previousTotal = _perWindowTotalSeconds.GetValueOrDefault(previousKey, 0) + _windowElapsedSeconds;
+            _perWindowTotalSeconds[previousKey] = previousTotal;
+        }
+
         CurrentProcessName = e.ProcessName;
         CurrentWindowTitle = e.WindowTitle;
+        _windowElapsedSeconds = 0;
+        WindowElapsedTime = FormatElapsed(0);
+        var newKey = GetCurrentWindowKey(e.ProcessName, e.WindowTitle);
+        var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
+        WindowTotalElapsedTime = FormatElapsed(newTotal);
         FocusScore = 0;
         FocusReason = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
@@ -189,6 +233,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             _taskElapsedSeconds = InProgressTasks[0].TotalElapsedSeconds;
             TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+            _windowElapsedSeconds = 0;
+            WindowElapsedTime = FormatElapsed(0);
+            _perWindowTotalSeconds.Clear();
+            WindowTotalElapsedTime = FormatElapsed(0);
             _secondsSinceLastPersist = 0;
             StartMonitoring();
         }
@@ -294,6 +342,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         _timeTracking.Stop();
         _taskElapsedSeconds = 0;
         TaskElapsedTime = FormatElapsed(0);
+        _windowElapsedSeconds = 0;
+        WindowElapsedTime = FormatElapsed(0);
+        _perWindowTotalSeconds.Clear();
+        WindowTotalElapsedTime = FormatElapsed(0);
         _secondsSinceLastPersist = 0;
         ResetFocusState();
     }
