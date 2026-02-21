@@ -16,6 +16,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
     private readonly ITimeTrackingService _timeTracking;
+    private readonly IIdleDetectionService _idleDetection;
     private readonly INavigationService _navigationService;
     private readonly IOpenAIService _openAIService;
     private readonly ISettingsService _settingsService;
@@ -153,6 +154,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
         ITimeTrackingService timeTracking,
+        IIdleDetectionService idleDetection,
         INavigationService navigationService,
         IOpenAIService openAIService,
         ISettingsService settingsService,
@@ -162,12 +164,15 @@ public partial class KanbanBoardViewModel : ObservableObject
         _repo = repo;
         _windowMonitor = windowMonitor;
         _timeTracking = timeTracking;
+        _idleDetection = idleDetection;
         _navigationService = navigationService;
         _openAIService = openAIService;
         _settingsService = settingsService;
         _focusScoreService = focusScoreService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
+        _idleDetection.UserBecameIdle += OnUserBecameIdle;
+        _idleDetection.UserBecameActive += OnUserBecameActive;
         _ = LoadBoardAsync();
     }
 
@@ -216,6 +221,25 @@ public partial class KanbanBoardViewModel : ObservableObject
             _ = PersistElapsedTimeAsync(taskId);
             _ = _focusScoreService.PersistSegmentsAsync();
         }
+    }
+
+    private void OnUserBecameIdle(object? sender, EventArgs e)
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _focusScoreService.PauseCurrentSegment();
+        _timeTracking.Stop();
+        _windowMonitor.Stop();
+    }
+
+    private void OnUserBecameActive(object? sender, EventArgs e)
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _timeTracking.Start();
+        _windowMonitor.Start();
     }
 
     private static string GetCurrentWindowKey(string processName, string windowTitle) =>
@@ -475,12 +499,14 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         _windowMonitor.Start();
         _timeTracking.Start();
+        _idleDetection.Start();
     }
 
     private void StopMonitoringAndResetFocusState()
     {
         _windowMonitor.Stop();
         _timeTracking.Stop();
+        _idleDetection.Stop();
         _taskElapsedSeconds = 0;
         TaskElapsedTime = FormatElapsed(0);
         _windowElapsedSeconds = 0;

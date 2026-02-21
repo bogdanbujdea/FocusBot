@@ -16,8 +16,9 @@ public class OnForegroundWindowChangedShould
         var openAIMock = new Mock<IOpenAIService>();
         var settingsMock = new Mock<ISettingsService>();
         var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",
