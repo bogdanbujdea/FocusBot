@@ -14,4 +14,9 @@ public interface INavigationService
     /// Navigates to the Settings view.
     /// </summary>
     void NavigateToSettings();
+
+    /// <summary>
+    /// Navigates to the Task Detail view for the specified task.
+    /// </summary>
+    void NavigateToTaskDetail(string taskId);
 }

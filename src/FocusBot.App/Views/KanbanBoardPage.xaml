@@ -127,11 +127,16 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <!-- Task title -->
-                                                <TextBlock Grid.Row="0" 
-                                                           Text="{x:Bind Description}" 
-                                                           Style="{StaticResource FbTaskTitleStyle}"
-                                                           MaxLines="3"/>
+                                                <!-- Task title (clickable) -->
+                                                <HyperlinkButton Grid.Row="0"
+                                                                 Padding="0"
+                                                                 Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                                 CommandParameter="{Binding TaskId}"
+                                                                 automation:AutomationProperties.Name="View task details">
+                                                    <TextBlock Text="{x:Bind Description}" 
+                                                               Style="{StaticResource FbTaskTitleStyle}"
+                                                               MaxLines="3"/>
+                                                </HyperlinkButton>
                                                 <!-- Total time on task (from previous sessions) -->
                                                 <TextBlock Grid.Row="1"
                                                            Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
@@ -146,6 +151,15 @@
                                                             automation:AutomationProperties.Name="Start task" 
                                                             Command="{Binding DataContext.MoveToInProgressCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}"/>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="View task"
+                                                            Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
+                                                            <TextBlock Text="View" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
                                                     <Button Style="{StaticResource FbCardActionButtonStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">
@@ -247,11 +261,16 @@
                                                         </Binding>
                                                     </TextBlock.Text>
                                                 </TextBlock>
-                                                <!-- Task title -->
-                                                <TextBlock Grid.Row="3" 
-                                                           Text="{x:Bind Description}" 
-                                                           Style="{StaticResource FbTaskTitleStyle}"
-                                                           MaxLines="3"/>
+                                                <!-- Task title (clickable) -->
+                                                <HyperlinkButton Grid.Row="3"
+                                                                 Padding="0"
+                                                                 Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                                 CommandParameter="{Binding TaskId}"
+                                                                 automation:AutomationProperties.Name="View task details">
+                                                    <TextBlock Text="{x:Bind Description}" 
+                                                               Style="{StaticResource FbTaskTitleStyle}"
+                                                               MaxLines="3"/>
+                                                </HyperlinkButton>
                                                 <!-- Action divider -->
                                                 <Border Grid.Row="4" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
@@ -266,6 +285,12 @@
                                                             automation:AutomationProperties.Name="Stop task" 
                                                             Command="{Binding DataContext.MoveToToDoCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}"/>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="View task"
+                                                            Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
+                                                    </Button>
                                                     <Button Style="{StaticResource FbCardActionButtonStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">
@@ -362,16 +387,30 @@
                                                         </Binding>
                                                     </TextBlock.Text>
                                                 </TextBlock>
-                                                <!-- Task title (slightly muted) -->
-                                                <TextBlock Grid.Row="3" 
-                                                           Text="{x:Bind Description}" 
-                                                           Style="{StaticResource FbTaskTitleStyle}"
-                                                           Opacity="0.8"
-                                                           MaxLines="3"/>
+                                                <!-- Task title (clickable, slightly muted) -->
+                                                <HyperlinkButton Grid.Row="3"
+                                                                 Padding="0"
+                                                                 Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                                 CommandParameter="{Binding TaskId}"
+                                                                 automation:AutomationProperties.Name="View task details">
+                                                    <TextBlock Text="{x:Bind Description}" 
+                                                               Style="{StaticResource FbTaskTitleStyle}"
+                                                               Opacity="0.8"
+                                                               MaxLines="3"/>
+                                                </HyperlinkButton>
                                                 <!-- Action divider -->
                                                 <Border Grid.Row="4" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
                                                 <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="View task"
+                                                            Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
+                                                            <TextBlock Text="View" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
                                                     <Button Style="{StaticResource FbCardActionButtonStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">

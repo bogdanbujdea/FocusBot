@@ -332,6 +332,14 @@ public partial class KanbanBoardViewModel : ObservableObject
     [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();
 
+    [RelayCommand]
+    private void ViewTaskDetail(string? taskId)
+    {
+        if (string.IsNullOrEmpty(taskId))
+            return;
+        _navigationService.NavigateToTaskDetail(taskId);
+    }
+
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task AddTaskAsync()
     {
