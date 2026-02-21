@@ -1,17 +1,20 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Interfaces;
+using FocusBot.Core.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FocusBot.App.ViewModels;
 
 /// <summary>
-/// ViewModel for the API key settings section (load, save, clear, edit).
+/// ViewModel for the API key settings section (load, save, clear, edit) and provider/model selection.
 /// </summary>
 public partial class ApiKeySettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settingsService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
+    private bool _isLoading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
@@ -37,6 +40,24 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _apiKeyLabel = "Enter your API key";
+
+    [ObservableProperty]
+    private string _apiKeyHelpUrl = string.Empty;
+
+    [ObservableProperty]
+    private Uri? _apiKeyHelpUri;
+
+    public ObservableCollection<ProviderInfo> Providers { get; } = new(LlmProviderConfig.Providers);
+    public ObservableCollection<ModelInfo> AvailableModels { get; } = new();
+
+    [ObservableProperty]
+    private ProviderInfo? _selectedProvider;
+
+    [ObservableProperty]
+    private ModelInfo? _selectedModel;
+
     public bool ShowMaskedDisplay => ShouldShowMaskedDisplay();
 
     public bool ShowInputArea => ShouldShowInputArea();
@@ -55,8 +76,17 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     private async Task LoadSettingsAsync()
     {
+        _isLoading = true;
         try
         {
+            var savedProviderId = await _settingsService.GetProviderAsync();
+            SelectedProvider = Providers.FirstOrDefault(p => p.ProviderId == savedProviderId)
+                ?? Providers.First();
+
+            var savedModelId = await _settingsService.GetModelAsync();
+            SelectedModel = AvailableModels.FirstOrDefault(m => m.ModelId == savedModelId)
+                ?? AvailableModels.FirstOrDefault();
+
             var existingKey = await _settingsService.GetApiKeyAsync();
             IsApiKeyConfigured = !string.IsNullOrWhiteSpace(existingKey);
             IsEditing = false;
@@ -76,6 +106,39 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             _logger.LogError(ex, "Error loading settings");
             StatusMessage = "Error loading settings";
         }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    partial void OnSelectedProviderChanged(ProviderInfo? value)
+    {
+        if (value == null) return;
+
+        AvailableModels.Clear();
+        foreach (var model in LlmProviderConfig.Models[value.ProviderId])
+            AvailableModels.Add(model);
+
+        SelectedModel = AvailableModels.FirstOrDefault();
+        ApiKeyLabel = $"Enter your {value.DisplayName} API key";
+        ApiKeyHelpUrl = value.ApiKeyUrl;
+        ApiKeyHelpUri = string.IsNullOrEmpty(value.ApiKeyUrl) ? null : new Uri(value.ApiKeyUrl);
+
+        if (!_isLoading)
+        {
+            ApiKey = string.Empty;
+            IsApiKeyConfigured = false;
+            MaskedApiKeyDisplay = string.Empty;
+        }
+
+        _ = _settingsService.SetProviderAsync(value.ProviderId);
+    }
+
+    partial void OnSelectedModelChanged(ModelInfo? value)
+    {
+        if (value != null)
+            _ = _settingsService.SetModelAsync(value.ModelId);
     }
 
     [RelayCommand]

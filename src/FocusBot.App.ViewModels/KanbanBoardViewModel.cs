@@ -18,7 +18,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ITimeTrackingService _timeTracking;
     private readonly IIdleDetectionService _idleDetection;
     private readonly INavigationService _navigationService;
-    private readonly IOpenAIService _openAIService;
+    private readonly ILlmService _llmService;
     private readonly ISettingsService _settingsService;
     private readonly IFocusScoreService _focusScoreService;
 
@@ -32,155 +32,144 @@ public partial class KanbanBoardViewModel : ObservableObject
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
     public ObservableCollection<UserTask> DoneTasks { get; } = new();
 
-    private string _newTaskDescription = string.Empty;
     public string NewTaskDescription
     {
-        get => _newTaskDescription;
-        set => SetProperty(ref _newTaskDescription, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _newTaskContext = string.Empty;
     public string NewTaskContext
     {
-        get => _newTaskContext;
-        set => SetProperty(ref _newTaskContext, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private bool _showAddTaskInput;
     public bool ShowAddTaskInput
     {
-        get => _showAddTaskInput;
-        set => SetProperty(ref _showAddTaskInput, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private bool _showEditTaskInput;
     public bool ShowEditTaskInput
     {
-        get => _showEditTaskInput;
-        set => SetProperty(ref _showEditTaskInput, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private string? _editingTaskId;
     public string? EditingTaskId
     {
-        get => _editingTaskId;
-        set => SetProperty(ref _editingTaskId, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private string _editTaskDescription = string.Empty;
     public string EditTaskDescription
     {
-        get => _editTaskDescription;
-        set => SetProperty(ref _editTaskDescription, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _editTaskContext = string.Empty;
     public string EditTaskContext
     {
-        get => _editTaskContext;
-        set => SetProperty(ref _editTaskContext, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _currentProcessName = string.Empty;
     public string CurrentProcessName
     {
-        get => _currentProcessName;
-        set => SetProperty(ref _currentProcessName, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _currentWindowTitle = string.Empty;
     public string CurrentWindowTitle
     {
-        get => _currentWindowTitle;
-        set => SetProperty(ref _currentWindowTitle, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private bool _isMonitoring;
     public bool IsMonitoring
     {
-        get => _isMonitoring;
-        set => SetProperty(ref _isMonitoring, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private int _focusScore;
     public int FocusScore
     {
-        get => _focusScore;
-        set => SetProperty(ref _focusScore, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
-    private string _focusReason = string.Empty;
     public string FocusReason
     {
-        get => _focusReason;
-        set => SetProperty(ref _focusReason, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private bool _isClassifying;
     public bool IsClassifying
     {
-        get => _isClassifying;
+        get;
         set
         {
-            if (SetProperty(ref _isClassifying, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(IsFocusResultVisible));
             }
         }
     }
 
-    public bool IsFocusScoreVisible => IsMonitoring && (IsClassifying || HasValidFocusData());
+    public bool IsFocusScoreVisible => IsMonitoring;
 
-    public bool IsFocusResultVisible => !IsClassifying && HasValidFocusData();
+    public bool IsFocusResultVisible => true;
 
     public string FocusScoreCategory =>
-        FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
+        FocusScore >= 6 ? "Focused"
+        : FocusScore >= 4 ? "Unclear"
+        : "Distracted";
 
-    public string FocusStatusIcon => FocusScore switch
-    {
-        >= 6 => "ms-appx:///Assets/icon-focused.svg",
-        >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-        _ => "ms-appx:///Assets/icon-distracted.svg"
-    };
+    public string FocusStatusIcon =>
+        FocusScore switch
+        {
+            >= 6 => "ms-appx:///Assets/icon-focused.svg",
+            >= 4 => "ms-appx:///Assets/icon-unclear.svg",
+            _ => "ms-appx:///Assets/icon-distracted.svg",
+        };
 
-    public string FocusAccentBrushKey => FocusScore switch
-    {
-        >= 6 => "FbAlignedAccentBrush",
-        >= 4 => "FbNeutralAccentBrush",
-        _ => "FbMisalignedAccentBrush"
-    };
+    public string FocusAccentBrushKey =>
+        FocusScore switch
+        {
+            >= 6 => "FbAlignedAccentBrush",
+            >= 4 => "FbNeutralAccentBrush",
+            _ => "FbMisalignedAccentBrush",
+        };
 
-    private int _currentFocusScorePercent;
     public int CurrentFocusScorePercent
     {
-        get => _currentFocusScorePercent;
-        private set => SetProperty(ref _currentFocusScorePercent, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
     public bool IsFocusScorePercentVisible => IsMonitoring && _focusScoreService.HasRealScore;
 
-    private string _taskElapsedTime = "00:00:00";
     public string TaskElapsedTime
     {
-        get => _taskElapsedTime;
-        set => SetProperty(ref _taskElapsedTime, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "00:00:00";
 
     private long _windowElapsedSeconds;
-    private string _windowElapsedTime = "00:00:00";
+
     public string WindowElapsedTime
     {
-        get => _windowElapsedTime;
-        set => SetProperty(ref _windowElapsedTime, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "00:00:00";
 
     private readonly Dictionary<string, long> _perWindowTotalSeconds = new();
-    private string _windowTotalElapsedTime = "00:00:00";
+
     public string WindowTotalElapsedTime
     {
-        get => _windowTotalElapsedTime;
-        set => SetProperty(ref _windowTotalElapsedTime, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = "00:00:00";
 
     public KanbanBoardViewModel(
         ITaskRepository repo,
@@ -188,7 +177,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         ITimeTrackingService timeTracking,
         IIdleDetectionService idleDetection,
         INavigationService navigationService,
-        IOpenAIService openAIService,
+        ILlmService llmService,
         ISettingsService settingsService,
         IFocusScoreService focusScoreService
     )
@@ -198,7 +187,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         _timeTracking = timeTracking;
         _idleDetection = idleDetection;
         _navigationService = navigationService;
-        _openAIService = openAIService;
+        _llmService = llmService;
         _settingsService = settingsService;
         _focusScoreService = focusScoreService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
@@ -290,7 +279,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (!string.IsNullOrEmpty(CurrentProcessName) && _windowElapsedSeconds > 0)
         {
             var previousKey = GetCurrentWindowKey(CurrentProcessName, CurrentWindowTitle);
-            var previousTotal = _perWindowTotalSeconds.GetValueOrDefault(previousKey, 0) + _windowElapsedSeconds;
+            var previousTotal =
+                _perWindowTotalSeconds.GetValueOrDefault(previousKey, 0) + _windowElapsedSeconds;
             _perWindowTotalSeconds[previousKey] = previousTotal;
         }
 
@@ -319,7 +309,11 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
 
         var task = InProgressTasks[0];
-        var isViewingFocusBot = string.Equals(e.ProcessName, FocusBotProcessName, StringComparison.OrdinalIgnoreCase);
+        var isViewingFocusBot = string.Equals(
+            e.ProcessName,
+            FocusBotProcessName,
+            StringComparison.OrdinalIgnoreCase
+        );
 
         if (isViewingFocusBot)
         {
@@ -346,7 +340,12 @@ public partial class KanbanBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
-        _focusScoreService.StartPendingSegment(task.TaskId, contextHash, e.WindowTitle, e.ProcessName);
+        _focusScoreService.StartPendingSegment(
+            task.TaskId,
+            contextHash,
+            e.WindowTitle,
+            e.ProcessName
+        );
         _ = ClassifyAndUpdateFocusAsync(
             task.Description,
             task.Context,
@@ -365,7 +364,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         IsClassifying = true;
         try
         {
-            var result = await _openAIService.ClassifyAlignmentAsync(
+            var result = await _llmService.ClassifyAlignmentAsync(
                 taskDescription,
                 taskContext,
                 processName,

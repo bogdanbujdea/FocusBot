@@ -6,14 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
-/// Decorator that adds cache-first behavior to IOpenAIService. Checks cache before calling the inner service.
+/// Decorator that adds cache-first behavior to ILlmService. Checks cache before calling the inner service.
 /// </summary>
-public class AlignmentClassificationCacheDecorator : IOpenAIService
+public class AlignmentClassificationCacheDecorator : ILlmService
 {
-    private readonly IOpenAIService _inner;
+    private readonly ILlmService _inner;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public AlignmentClassificationCacheDecorator(IOpenAIService inner, IServiceScopeFactory scopeFactory)
+    public AlignmentClassificationCacheDecorator(ILlmService inner, IServiceScopeFactory scopeFactory)
     {
         _inner = inner;
         _scopeFactory = scopeFactory;

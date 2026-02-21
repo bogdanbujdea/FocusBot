@@ -6,12 +6,12 @@ namespace FocusBot.Core.Interfaces;
 public interface ISettingsService
 {
     /// <summary>
-    /// Gets the encrypted OpenAI API key.
+    /// Gets the encrypted LLM API key.
     /// </summary>
     Task<string?> GetApiKeyAsync();
 
     /// <summary>
-    /// Sets and encrypts the OpenAI API key.
+    /// Sets and encrypts the LLM API key.
     /// </summary>
     Task SetApiKeyAsync(string apiKey);
 
@@ -19,6 +19,26 @@ public interface ISettingsService
     /// Clears the stored API key.
     /// </summary>
     Task ClearApiKeyAsync();
+
+    /// <summary>
+    /// Gets the selected LLM provider ID.
+    /// </summary>
+    Task<string?> GetProviderAsync();
+
+    /// <summary>
+    /// Sets the selected LLM provider ID.
+    /// </summary>
+    Task SetProviderAsync(string provider);
+
+    /// <summary>
+    /// Gets the selected LLM model ID.
+    /// </summary>
+    Task<string?> GetModelAsync();
+
+    /// <summary>
+    /// Sets the selected LLM model ID.
+    /// </summary>
+    Task SetModelAsync(string model);
 
     /// <summary>
     /// Gets a setting value.

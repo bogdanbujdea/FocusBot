@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CSharpFunctionalExtensions" Version="3.6.0" />
-    <PackageReference Include="OpenAI" Version="2.8.0" />
+    <PackageReference Include="LlmTornado" Version="3.8.49" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">

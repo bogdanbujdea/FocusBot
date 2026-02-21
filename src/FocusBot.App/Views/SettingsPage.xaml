@@ -12,20 +12,44 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32" Spacing="24">
-            <!-- API Key Section -->
+            <!-- AI Provider and API Key Section -->
             <Border Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
                     Padding="16">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="OpenAI API Key"
+                    <TextBlock Text="AI Provider"
                                Style="{StaticResource FbColumnHeaderStyle}"
                                FontSize="14"/>
-                    <TextBlock Text="Required for AI-powered alignment classification (to be used later)."
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
-                               FontSize="12"
-                               TextWrapping="Wrap"/>
+                    <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.Providers, Mode=OneWay}"
+                              SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedProvider, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              HorizontalAlignment="Stretch"
+                              automation:AutomationProperties.Name="AI provider"/>
+
+                    <TextBlock Text="AI Model"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.AvailableModels, Mode=OneWay}"
+                              SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedModel, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              HorizontalAlignment="Stretch"
+                              automation:AutomationProperties.Name="AI model"/>
+
+                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.ApiKeyLabel, Mode=OneWay}"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Required for AI-powered alignment classification."
+                                   Foreground="{StaticResource FbTextSecondaryBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center"/>
+                        <HyperlinkButton Content="Get API key"
+                                         NavigateUri="{x:Bind ViewModel.ApiKeySection.ApiKeyHelpUri, Mode=OneWay}"
+                                         automation:AutomationProperties.Name="Get API key"/>
+                    </StackPanel>
 
                     <!-- Configured, view mode: masked key + Edit + Clear -->
                     <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -52,9 +76,9 @@
                         <TextBox x:Name="ApiKeyInput"
                                  Text="{x:Bind ViewModel.ApiKeySection.ApiKey, Mode=TwoWay}"
                                  TextChanged="ApiKeyInput_TextChanged"
-                                 PlaceholderText="Enter your OpenAI API key"
+                                 PlaceholderText="Enter API key"
                                  CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                                 automation:AutomationProperties.Name="OpenAI API key"/>
+                                 automation:AutomationProperties.Name="API key"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="Save Key"
                                     Style="{StaticResource FbAccentButtonStyle}"

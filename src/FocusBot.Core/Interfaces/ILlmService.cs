@@ -5,7 +5,7 @@ namespace FocusBot.Core.Interfaces;
 /// <summary>
 /// Service for classifying how aligned the current window is with the user's task.
 /// </summary>
-public interface IOpenAIService
+public interface ILlmService
 {
     /// <summary>
     /// Classifies alignment of the given window/process with the task description.

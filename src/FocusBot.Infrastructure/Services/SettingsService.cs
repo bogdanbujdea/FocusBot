@@ -16,6 +16,8 @@ public class SettingsService : ISettingsService
     private Dictionary<string, JsonElement> _settings;
 
     private const string ApiKeySettingName = "OpenAI_ApiKey";
+    private const string LlmProviderSettingName = "LLM_Provider";
+    private const string LlmModelSettingName = "LLM_Model";
 
     /// <summary>
     /// Creates the settings service. Use the app data root from ApplicationData for Store/packaged apps.
@@ -82,6 +84,14 @@ public class SettingsService : ISettingsService
         await SaveSettingsAsync();
         _logger.LogInformation("API key cleared");
     }
+
+    public Task<string?> GetProviderAsync() => GetSettingAsync<string>(LlmProviderSettingName);
+
+    public Task SetProviderAsync(string provider) => SetSettingAsync(LlmProviderSettingName, provider);
+
+    public Task<string?> GetModelAsync() => GetSettingAsync<string>(LlmModelSettingName);
+
+    public Task SetModelAsync(string model) => SetSettingAsync(LlmModelSettingName, model);
 
     public Task<T?> GetSettingAsync<T>(string key)
     {

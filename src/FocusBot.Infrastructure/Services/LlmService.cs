@@ -1,19 +1,20 @@
 using System.Text.Json;
+using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
+using FocusBot.Infrastructure.Configuration;
+using LlmTornado;
+using LlmTornado.Chat;
+using LlmTornado.Code;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 
 namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
-/// Service that classifies window/task alignment using the OpenAI API (no caching).
+/// Service that classifies window/task alignment using an LLM (provider and model from settings).
 /// </summary>
-public class OpenAIService(ISettingsService settingsService, ILogger<OpenAIService> logger)
-    : IOpenAIService
+public class LlmService(ISettingsService settingsService, ILogger<LlmService> logger) : ILlmService
 {
-    private const string ModelName = "gpt-4o-mini";
-
     private const string SystemPrompt = """
         You are a focus alignment classifier for a Windows productivity app. The app tracks the user's currently active (foreground) window and asks you to determine if it aligns with their current task.
 
@@ -51,25 +52,32 @@ public class OpenAIService(ISettingsService settingsService, ILogger<OpenAIServi
         if (string.IsNullOrWhiteSpace(apiKey))
             return null;
 
+        var providerId =
+            await settingsService.GetProviderAsync()
+            ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultProvider.ProviderId;
+        var model =
+            await settingsService.GetModelAsync()
+            ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultModel(providerId).ModelId;
+
         try
         {
             var userMessage = string.IsNullOrWhiteSpace(taskContext)
                 ? $"Task: {taskDescription}\n\nCurrent window: Application = {processName}, Title = {windowTitle}"
                 : $"Task: {taskDescription}\n\nContext provided by the user: {taskContext}\n\nCurrent window: Application = {processName}, Title = {windowTitle}";
 
-            var client = new ChatClient(ModelName, apiKey);
-            var messages = new List<ChatMessage>
-            {
-                new SystemChatMessage(SystemPrompt),
-                new UserChatMessage(userMessage),
-            };
+            var provider = Configuration.LlmProviderConfig.ToLlmProvider(providerId);
+            var api = new TornadoApi(provider, apiKey);
 
-            var completion = await client.CompleteChatAsync(messages, cancellationToken: ct);
-            var text = completion.Value.Content?[0].Text;
-            if (string.IsNullOrWhiteSpace(text))
+            var response = await api
+                .Chat.CreateConversation(model)
+                .AppendSystemMessage(SystemPrompt)
+                .AppendUserInput(userMessage)
+                .GetResponse(ct);
+
+            if (string.IsNullOrWhiteSpace(response))
                 return null;
 
-            return ParseResponse(text);
+            return ParseResponse(response);
         }
         catch (Exception ex)
         {

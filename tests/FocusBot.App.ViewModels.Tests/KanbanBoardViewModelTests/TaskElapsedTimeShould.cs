@@ -17,10 +17,10 @@ public class TaskElapsedTimeShould
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var openAIMock = new Mock<IOpenAIService>();
+        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         // Act
@@ -48,10 +48,10 @@ public class TaskElapsedTimeShould
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var openAIMock = new Mock<IOpenAIService>();
+        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         // Assert
@@ -67,10 +67,10 @@ public class TaskElapsedTimeShould
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var openAIMock = new Mock<IOpenAIService>();
+        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         // Assert
@@ -89,10 +89,10 @@ public class TaskElapsedTimeShould
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var openAIMock = new Mock<IOpenAIService>();
+        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         vm.TaskElapsedTime.Should().Be("00:01:00");
