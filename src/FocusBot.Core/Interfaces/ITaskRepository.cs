@@ -10,6 +10,7 @@ public interface ITaskRepository
     Task<UserTask> AddTaskAsync(string description, string? taskContext = null);
     Task<UserTask?> GetByIdAsync(string taskId);
     Task UpdateTaskDescriptionAsync(string taskId, string newDescription);
+    Task UpdateTaskAsync(string taskId, string description, string? taskContext);
     Task DeleteTaskAsync(string taskId);
     Task SetStatusToAsync(string taskId, Entities.TaskStatus status);
     Task UpdateElapsedTimeAsync(string taskId, long totalElapsedSeconds);

@@ -34,6 +34,17 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         }
     }
 
+    public async Task UpdateTaskAsync(string taskId, string description, string? taskContext)
+    {
+        var task = await context.UserTasks.FindAsync(taskId);
+        if (task != null)
+        {
+            task.Description = description;
+            task.Context = string.IsNullOrWhiteSpace(taskContext) ? null : taskContext.Trim();
+            await context.SaveChangesAsync();
+        }
+    }
+
     public async Task DeleteTaskAsync(string taskId)
     {
         var task = await context.UserTasks.FindAsync(taskId);

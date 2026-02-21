@@ -147,6 +147,14 @@
                                                             Command="{Binding DataContext.MoveToInProgressCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}"/>
                                                     <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Edit task"
+                                                            Click="EditTaskButton_Click">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="12"/>
+                                                            <TextBlock Text="Edit" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
                                                             automation:AutomationProperties.Name="Delete task" 
                                                             Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
@@ -259,6 +267,11 @@
                                                             Command="{Binding DataContext.MoveToToDoCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}"/>
                                                     <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Edit task"
+                                                            Click="EditTaskButton_Click">
+                                                        <FontIcon Glyph="&#xE70F;" FontSize="12"/>
+                                                    </Button>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
                                                             automation:AutomationProperties.Name="Delete task" 
                                                             Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
@@ -358,17 +371,25 @@
                                                 <!-- Action divider -->
                                                 <Border Grid.Row="4" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <Button Grid.Row="5"
-                                                        Style="{StaticResource FbCardActionButtonStyle}"
-                                                        automation:AutomationProperties.Name="Delete task" 
-                                                        Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
-                                                        CommandParameter="{Binding TaskId}"
-                                                        HorizontalAlignment="Left">
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                                                        <TextBlock Text="Delete" FontSize="12"/>
-                                                    </StackPanel>
-                                                </Button>
+                                                <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Edit task"
+                                                            Click="EditTaskButton_Click">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="12"/>
+                                                            <TextBlock Text="Edit" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                            automation:AutomationProperties.Name="Delete task" 
+                                                            Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
+                                                            CommandParameter="{Binding TaskId}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                            <TextBlock Text="Delete" FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
                                             </Grid>
                                         </Grid>
                                     </Border>
@@ -410,6 +431,41 @@
                                 Style="{StaticResource FbOutlineButtonStyle}"
                                 automation:AutomationProperties.Name="Cancel"
                                 Command="{x:Bind ViewModel.ToggleAddTaskCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </primitives:Popup>
+
+        <!-- Edit Task Popup (light dismiss, draft preserved when closed) -->
+        <primitives:Popup x:Name="EditTaskPopup"
+                          Grid.Row="0"
+                          Grid.RowSpan="3"
+                          IsLightDismissEnabled="True"
+                          VerticalOffset="8">
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16"
+                    MinWidth="320">
+                <StackPanel Spacing="12">
+                    <TextBox automation:AutomationProperties.Name="Edit task description"
+                             Text="{x:Bind ViewModel.EditTaskDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="What are you working on?"
+                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
+                    <TextBox automation:AutomationProperties.Name="Edit task context"
+                             Text="{x:Bind ViewModel.EditTaskContext, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="Context (optional)"
+                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Save"
+                                Style="{StaticResource FbAccentButtonStyle}"
+                                automation:AutomationProperties.Name="Save task"
+                                Command="{x:Bind ViewModel.SaveEditTaskCommand}"/>
+                        <Button Content="Cancel"
+                                Style="{StaticResource FbOutlineButtonStyle}"
+                                automation:AutomationProperties.Name="Cancel"
+                                Command="{x:Bind ViewModel.CloseEditTaskCommand}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

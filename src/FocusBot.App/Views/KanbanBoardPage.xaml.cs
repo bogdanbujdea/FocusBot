@@ -1,4 +1,5 @@
 using FocusBot.App.ViewModels;
+using FocusBot.Core.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -20,12 +21,16 @@ public sealed partial class KanbanBoardPage : Page
         if (DataContext is not KanbanBoardViewModel vm)
             return;
         SyncPopupToViewModel(vm.ShowAddTaskInput);
+        SyncEditPopupToViewModel(vm.ShowEditTaskInput);
         vm.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(KanbanBoardViewModel.ShowAddTaskInput))
                 SyncPopupToViewModel(vm.ShowAddTaskInput);
+            else if (args.PropertyName == nameof(KanbanBoardViewModel.ShowEditTaskInput))
+                SyncEditPopupToViewModel(vm.ShowEditTaskInput);
         };
         AddTaskPopup.Closed += OnAddTaskPopupClosed;
+        EditTaskPopup.Closed += OnEditTaskPopupClosed;
     }
 
     private void AddTaskButton_Click(object sender, RoutedEventArgs e)
@@ -51,6 +56,38 @@ public sealed partial class KanbanBoardPage : Page
     {
         if (DataContext is KanbanBoardViewModel vm)
             vm.ShowAddTaskInput = false;
+    }
+
+    private FrameworkElement? _editPopupPlacementTarget;
+
+    private void SyncEditPopupToViewModel(bool show)
+    {
+        if (show && _editPopupPlacementTarget != null)
+        {
+            EditTaskPopup.PlacementTarget = _editPopupPlacementTarget;
+            EditTaskPopup.XamlRoot = _editPopupPlacementTarget.XamlRoot;
+            EditTaskPopup.IsOpen = true;
+        }
+        else
+        {
+            EditTaskPopup.IsOpen = false;
+        }
+    }
+
+    private void OnEditTaskPopupClosed(object? sender, object e)
+    {
+        if (DataContext is KanbanBoardViewModel vm)
+            vm.ShowEditTaskInput = false;
+    }
+
+    private void EditTaskButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element)
+            return;
+        if (element.DataContext is not UserTask task)
+            return;
+        _editPopupPlacementTarget = element;
+        _ = ViewModel.BeginEditTaskCommand.ExecuteAsync(task.TaskId);
     }
 
     private void TaskCard_DragStarting(UIElement sender, DragStartingEventArgs e)

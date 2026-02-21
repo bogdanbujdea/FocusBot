@@ -52,6 +52,34 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _showAddTaskInput, value);
     }
 
+    private bool _showEditTaskInput;
+    public bool ShowEditTaskInput
+    {
+        get => _showEditTaskInput;
+        set => SetProperty(ref _showEditTaskInput, value);
+    }
+
+    private string? _editingTaskId;
+    public string? EditingTaskId
+    {
+        get => _editingTaskId;
+        set => SetProperty(ref _editingTaskId, value);
+    }
+
+    private string _editTaskDescription = string.Empty;
+    public string EditTaskDescription
+    {
+        get => _editTaskDescription;
+        set => SetProperty(ref _editTaskDescription, value);
+    }
+
+    private string _editTaskContext = string.Empty;
+    public string EditTaskContext
+    {
+        get => _editTaskContext;
+        set => SetProperty(ref _editTaskContext, value);
+    }
+
     private string _currentProcessName = string.Empty;
     public string CurrentProcessName
     {
@@ -320,6 +348,42 @@ public partial class KanbanBoardViewModel : ObservableObject
         NewTaskDescription = string.Empty;
         NewTaskContext = string.Empty;
         ShowAddTaskInput = false;
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task BeginEditTaskAsync(string? taskId)
+    {
+        if (string.IsNullOrEmpty(taskId))
+            return;
+        var task = await _repo.GetByIdAsync(taskId);
+        if (task == null)
+            return;
+        EditingTaskId = taskId;
+        EditTaskDescription = task.Description;
+        EditTaskContext = task.Context ?? string.Empty;
+        ShowEditTaskInput = true;
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task SaveEditTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EditTaskDescription) || string.IsNullOrEmpty(EditingTaskId))
+            return;
+        var context = string.IsNullOrWhiteSpace(EditTaskContext) ? null : EditTaskContext.Trim();
+        await _repo.UpdateTaskAsync(EditingTaskId, EditTaskDescription.Trim(), context);
+        CloseEditTaskPopup();
+        await LoadBoardAsync();
+    }
+
+    [RelayCommand]
+    private void CloseEditTask() => ShowEditTaskInput = false;
+
+    private void CloseEditTaskPopup()
+    {
+        EditTaskDescription = string.Empty;
+        EditTaskContext = string.Empty;
+        EditingTaskId = null;
+        ShowEditTaskInput = false;
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
