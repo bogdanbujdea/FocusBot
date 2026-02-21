@@ -118,6 +118,9 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public bool IsFocusScoreVisible => IsMonitoring && HasValidFocusData();
 
+    public string FocusScoreCategory =>
+        FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
+
     private int _currentFocusScorePercent;
     public int CurrentFocusScorePercent
     {
@@ -274,6 +277,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         FocusScore = 0;
         FocusReason = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(FocusScoreCategory));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
 
         if (InProgressTasks.Count == 0)
@@ -313,6 +317,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             _focusScoreService.UpdatePendingSegmentScore(result.Score);
         }
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(FocusScoreCategory));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
     }
 

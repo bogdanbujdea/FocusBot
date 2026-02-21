@@ -2,7 +2,7 @@
 
 **User Feature**: See if your current window is aligned with your task, powered by OpenAI.
 
-**End State**: User enters API key in settings, app classifies windows as Aligned/Neutral/Misaligned with visual indicator.
+**End State**: User enters API key in settings, app classifies windows as Focused/Unclear/Distracted with visual indicator.
 
 ## What to Build
 
@@ -23,9 +23,9 @@
 
 - Settings page with API key input (password field) and test connection button
 - Focus indicator overlay (small floating window, always-on-top)
-  - Green = Aligned (score 6-10)
-  - Yellow = Neutral (score 4-5)
-  - Red = Misaligned (score 1-3)
+  - Green = Focused (score 6-10)
+  - Yellow = Unclear (score 4-5)
+  - Red = Distracted (score 1-3)
 - Task edit dialog: add "Relevant windows hint" field
 - Navigation to Settings from main shell
 

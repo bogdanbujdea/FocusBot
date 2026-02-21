@@ -45,9 +45,9 @@
                 <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
                            Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                            automation:AutomationProperties.Name="Focus score">
-                    <Run Text="Focus Score: "/>
-                    <Run Text="{x:Bind ViewModel.FocusScore, Mode=OneWay}"/>
-                    <Run Text="/10 - "/>
+                    <Run Text="Focus: "/>
+                    <Run Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"/>
+                    <Run Text=" - "/>
                     <Run Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"/>
                 </TextBlock>
             </StackPanel>

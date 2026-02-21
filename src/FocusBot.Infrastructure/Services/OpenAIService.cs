@@ -15,16 +15,28 @@ public class OpenAIService(ISettingsService settingsService, ILogger<OpenAIServi
     private const string ModelName = "gpt-4o-mini";
 
     private const string SystemPrompt = """
-        You are a focus alignment classifier. Given a user's task and their current window/application, determine how aligned the window is with the task.
+        You are a focus alignment classifier for a Windows productivity app. The app tracks the user's currently active (foreground) window and asks you to determine if it aligns with their current task.
+
+        You will receive:
+        - Task: What the user is trying to accomplish
+        - Context (optional): Additional hints provided by the user about relevant apps, websites, or keywords
+        - Process name: The Windows executable (e.g., "msedge", "notepad", "code")
+        - Window title: The title bar text of the active window
+
+        RULES:
+        1. User-provided context is authoritative. If context mentions specific websites, apps, locations, or keywords, look for ANY connection in the window title - including abbreviations, codes, partial matches, or domain-specific shorthand.
+        2. Apply domain knowledge liberally. Window titles often use abbreviated forms, industry codes, or shorthand that relate to the task even when not an exact match.
+        3. When in doubt and context was provided, favor a higher score - the user knows their task better than you do.
+        4. For browsers (chrome, msedge, firefox, brave, opera), the window title shows the current page/tab. Infer meaning even if the website name isn't explicitly shown.
 
         Respond with valid JSON only: {"score": N, "reason": "brief explanation"}
 
         Score guidelines (1-10):
-        - 1-4: Window does not support the stated task
-        - 5: Ambiguous or unclear relationship
-        - 6-10: Window supports or directly relates to the task
-
-        For BROWSERS (chrome, msedge, firefox, opera, brave): Use ONLY the window title to determine alignment since it shows the current page/tab content.
+        - 9-10: Directly executing the task or on a resource explicitly mentioned in context
+        - 7-8: Strongly supports the task (related tools, research, reference material)
+        - 5-6: Possibly related but connection is unclear
+        - 3-4: Unlikely to be related
+        - 1-2: Clearly off-task (entertainment, social media unrelated to work)
         """;
 
     public async Task<AlignmentResult?> ClassifyAlignmentAsync(
