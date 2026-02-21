@@ -26,6 +26,7 @@
                               SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedProvider, Mode=TwoWay}"
                               DisplayMemberPath="DisplayName"
                               HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
                               automation:AutomationProperties.Name="AI provider"/>
 
                     <TextBlock Text="AI Model"
@@ -35,6 +36,7 @@
                               SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedModel, Mode=TwoWay}"
                               DisplayMemberPath="DisplayName"
                               HorizontalAlignment="Stretch"
+                              IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
                               automation:AutomationProperties.Name="AI model"/>
 
                     <TextBlock Text="{x:Bind ViewModel.ApiKeySection.ApiKeyLabel, Mode=OneWay}"
@@ -80,11 +82,11 @@
                                  CornerRadius="{StaticResource FbCornerRadiusSmall}"
                                  automation:AutomationProperties.Name="API key"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Save Key"
+                            <Button Content="Save"
                                     Style="{StaticResource FbAccentButtonStyle}"
                                     Command="{x:Bind ViewModel.ApiKeySection.SaveApiKeyCommand}"
                                     IsEnabled="{x:Bind ViewModel.ApiKeySection.CanSave, Mode=OneWay}"
-                                    automation:AutomationProperties.Name="Save API key"/>
+                                    automation:AutomationProperties.Name="Save"/>
                             <Button Content="Cancel"
                                     Style="{StaticResource FbOutlineButtonStyle}"
                                     Command="{x:Bind ViewModel.ApiKeySection.CancelEditCommand}"

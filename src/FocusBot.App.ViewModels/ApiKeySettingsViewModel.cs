@@ -120,7 +120,8 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         foreach (var model in LlmProviderConfig.Models[value.ProviderId])
             AvailableModels.Add(model);
 
-        SelectedModel = AvailableModels.FirstOrDefault();
+        if (!_isLoading)
+            SelectedModel = AvailableModels.FirstOrDefault();
         ApiKeyLabel = $"Enter your {value.DisplayName} API key";
         ApiKeyHelpUrl = value.ApiKeyUrl;
         ApiKeyHelpUri = string.IsNullOrEmpty(value.ApiKeyUrl) ? null : new Uri(value.ApiKeyUrl);
@@ -156,6 +157,10 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         try
         {
             await _settingsService.SetApiKeyAsync(ApiKey);
+            if (SelectedProvider != null)
+                await _settingsService.SetProviderAsync(SelectedProvider.ProviderId);
+            if (SelectedModel != null)
+                await _settingsService.SetModelAsync(SelectedModel.ModelId);
             MaskedApiKeyDisplay = "********" + ApiKey[^4..];
             IsApiKeyConfigured = true;
             IsEditing = false;
@@ -176,10 +181,11 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenEdit()
+    private async Task OpenEditAsync()
     {
+        var existingKey = await _settingsService.GetApiKeyAsync();
+        ApiKey = existingKey ?? string.Empty;
         IsEditing = true;
-        ApiKey = string.Empty;
         StatusMessage = string.Empty;
     }
 
