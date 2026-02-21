@@ -7,12 +7,13 @@ namespace FocusBot.Infrastructure.Data;
 
 public class TaskRepository(AppDbContext context) : ITaskRepository
 {
-    public async Task<UserTask> AddTaskAsync(string description)
+    public async Task<UserTask> AddTaskAsync(string description, string? taskContext = null)
     {
         var task = new UserTask
         {
             TaskId = Guid.NewGuid().ToString(),
             Description = description,
+            Context = string.IsNullOrWhiteSpace(taskContext) ? null : taskContext.Trim(),
             Status = TaskStatus.ToDo,
         };
         context.UserTasks.Add(task);

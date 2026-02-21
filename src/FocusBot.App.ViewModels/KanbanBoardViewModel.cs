@@ -38,6 +38,13 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _newTaskDescription, value);
     }
 
+    private string _newTaskContext = string.Empty;
+    public string NewTaskContext
+    {
+        get => _newTaskContext;
+        set => SetProperty(ref _newTaskContext, value);
+    }
+
     private bool _showAddTaskInput;
     public bool ShowAddTaskInput
     {
@@ -302,7 +309,8 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(NewTaskDescription))
             return;
-        var task = await _repo.AddTaskAsync(NewTaskDescription.Trim());
+        var context = string.IsNullOrWhiteSpace(NewTaskContext) ? null : NewTaskContext.Trim();
+        var task = await _repo.AddTaskAsync(NewTaskDescription.Trim(), context);
         ToDoTasks.Add(task);
         CloseNewTaskPopup();
     }
@@ -310,6 +318,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private void CloseNewTaskPopup()
     {
         NewTaskDescription = string.Empty;
+        NewTaskContext = string.Empty;
         ShowAddTaskInput = false;
     }
 

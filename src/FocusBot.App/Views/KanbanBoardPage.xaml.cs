@@ -1,6 +1,7 @@
 using FocusBot.App.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace FocusBot.App.Views;
 
@@ -18,22 +19,38 @@ public sealed partial class KanbanBoardPage : Page
     {
         if (DataContext is not KanbanBoardViewModel vm)
             return;
-        UpdateAddTaskPanelVisibility(vm.ShowAddTaskInput);
+        SyncPopupToViewModel(vm.ShowAddTaskInput);
         vm.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(KanbanBoardViewModel.ShowAddTaskInput))
-                UpdateAddTaskPanelVisibility(vm.ShowAddTaskInput);
+                SyncPopupToViewModel(vm.ShowAddTaskInput);
         };
+        AddTaskPopup.Closed += OnAddTaskPopupClosed;
     }
 
     private void AddTaskButton_Click(object sender, RoutedEventArgs e)
     {
-        UpdateAddTaskPanelVisibility(ViewModel.ShowAddTaskInput);
+        SyncPopupToViewModel(ViewModel.ShowAddTaskInput);
     }
 
-    private void UpdateAddTaskPanelVisibility(bool show)
+    private void SyncPopupToViewModel(bool show)
     {
-        AddTaskPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show)
+        {
+            AddTaskPopup.PlacementTarget = AddTaskButton;
+            AddTaskPopup.XamlRoot = AddTaskButton.XamlRoot;
+            AddTaskPopup.IsOpen = true;
+        }
+        else
+        {
+            AddTaskPopup.IsOpen = false;
+        }
+    }
+
+    private void OnAddTaskPopupClosed(object? sender, object e)
+    {
+        if (DataContext is KanbanBoardViewModel vm)
+            vm.ShowAddTaskInput = false;
     }
 
     private void TaskCard_DragStarting(UIElement sender, DragStartingEventArgs e)
