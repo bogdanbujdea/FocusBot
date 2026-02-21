@@ -18,102 +18,153 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
                     Padding="16">
-                <StackPanel Spacing="12">
+                <StackPanel Spacing="16">
                     <TextBlock Text="AI Provider"
                                Style="{StaticResource FbColumnHeaderStyle}"
                                FontSize="14"/>
-                    <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.Providers, Mode=OneWay}"
-                              SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedProvider, Mode=TwoWay}"
-                              DisplayMemberPath="DisplayName"
-                              HorizontalAlignment="Stretch"
-                              IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
-                              automation:AutomationProperties.Name="AI provider"/>
-
-                    <TextBlock Text="AI Model"
+                    <TextBlock Text="How do you want to use AI features?"
                                Style="{StaticResource FbColumnHeaderStyle}"
                                FontSize="14"/>
-                    <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.AvailableModels, Mode=OneWay}"
-                              SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedModel, Mode=TwoWay}"
-                              DisplayMemberPath="DisplayName"
-                              HorizontalAlignment="Stretch"
-                              IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
-                              automation:AutomationProperties.Name="AI model"/>
 
-                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.ApiKeyLabel, Mode=OneWay}"
-                               Style="{StaticResource FbColumnHeaderStyle}"
-                               FontSize="14"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Required for AI-powered alignment classification."
-                                   Foreground="{StaticResource FbTextSecondaryBrush}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   VerticalAlignment="Center"/>
-                        <HyperlinkButton Content="Get API key"
-                                         NavigateUri="{x:Bind ViewModel.ApiKeySection.ApiKeyHelpUri, Mode=OneWay}"
-                                         automation:AutomationProperties.Name="Get API key"/>
-                    </StackPanel>
+                    <!-- Own Key Mode -->
+                    <RadioButton x:Name="OwnKeyRadio"
+                                 GroupName="ApiKeyMode"
+                                 IsChecked="{x:Bind ViewModel.ApiKeySection.IsOwnKeyMode, Mode=OneWay}"
+                                 Command="{x:Bind ViewModel.ApiKeySection.SelectOwnKeyModeCommand}"
+                                 automation:AutomationProperties.Name="Use my own API key">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Use my own API key (Free)"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="You provide an API key from OpenAI, Anthropic, etc."
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </RadioButton>
 
-                    <!-- Configured, view mode: masked key + Edit + Clear -->
-                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    <!-- API Key Fields (visible when Own mode selected) -->
+                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsOwnKeyMode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Margin="28,0,0,0"
                                 Spacing="12">
-                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.MaskedApiKeyDisplay, Mode=OneWay}"
-                                   Style="{StaticResource FbSecondaryTextStyle}"
-                                   FontFamily="Consolas"
-                                   automation:AutomationProperties.Name="Masked API key"/>
+                        <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.Providers, Mode=OneWay}"
+                                  SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedProvider, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName"
+                                  HorizontalAlignment="Stretch"
+                                  IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
+                                  automation:AutomationProperties.Name="AI provider"/>
+
+                        <TextBlock Text="AI Model"
+                                   Style="{StaticResource FbColumnHeaderStyle}"
+                                   FontSize="14"/>
+                        <ComboBox ItemsSource="{x:Bind ViewModel.ApiKeySection.AvailableModels, Mode=OneWay}"
+                                  SelectedItem="{x:Bind ViewModel.ApiKeySection.SelectedModel, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName"
+                                  HorizontalAlignment="Stretch"
+                                  IsEnabled="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay}"
+                                  automation:AutomationProperties.Name="AI model"/>
+
+                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.ApiKeyLabel, Mode=OneWay}"
+                                   Style="{StaticResource FbColumnHeaderStyle}"
+                                   FontSize="14"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Edit"
-                                    Style="{StaticResource FbAccentButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.OpenEditCommand}"
-                                    automation:AutomationProperties.Name="Edit API key"/>
-                            <Button Content="Clear Key"
-                                    Style="{StaticResource FbOutlineButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.ClearApiKeyCommand}"
-                                    automation:AutomationProperties.Name="Clear API key"/>
+                            <TextBlock Text="Required for AI-powered alignment classification."
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
+                            <HyperlinkButton Content="Get API key"
+                                             NavigateUri="{x:Bind ViewModel.ApiKeySection.ApiKeyHelpUri, Mode=OneWay}"
+                                             automation:AutomationProperties.Name="Get API key"/>
+                        </StackPanel>
+
+                        <!-- Configured, view mode: masked key + Edit + Clear -->
+                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowMaskedDisplay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Spacing="12">
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.MaskedApiKeyDisplay, Mode=OneWay}"
+                                       Style="{StaticResource FbSecondaryTextStyle}"
+                                       FontFamily="Consolas"
+                                       automation:AutomationProperties.Name="Masked API key"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Edit"
+                                        Style="{StaticResource FbAccentButtonStyle}"
+                                        Command="{x:Bind ViewModel.ApiKeySection.OpenEditCommand}"
+                                        automation:AutomationProperties.Name="Edit API key"/>
+                                <Button Content="Clear Key"
+                                        Style="{StaticResource FbOutlineButtonStyle}"
+                                        Command="{x:Bind ViewModel.ApiKeySection.ClearApiKeyCommand}"
+                                        automation:AutomationProperties.Name="Clear API key"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Input mode: no key yet or editing -->
+                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Spacing="12">
+                            <TextBox x:Name="ApiKeyInput"
+                                     Text="{x:Bind ViewModel.ApiKeySection.ApiKey, Mode=TwoWay}"
+                                     TextChanged="ApiKeyInput_TextChanged"
+                                     PlaceholderText="Enter API key"
+                                     CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                     automation:AutomationProperties.Name="API key"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Save"
+                                        Style="{StaticResource FbAccentButtonStyle}"
+                                        Command="{x:Bind ViewModel.ApiKeySection.SaveApiKeyCommand}"
+                                        IsEnabled="{x:Bind ViewModel.ApiKeySection.CanSave, Mode=OneWay}"
+                                        automation:AutomationProperties.Name="Save"/>
+                                <Button Content="Cancel"
+                                        Style="{StaticResource FbOutlineButtonStyle}"
+                                        Command="{x:Bind ViewModel.ApiKeySection.CancelEditCommand}"
+                                        Visibility="{x:Bind ViewModel.ApiKeySection.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        automation:AutomationProperties.Name="Cancel edit"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7BA;"
+                                      FontSize="16"
+                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                      VerticalAlignment="Center"
+                                      Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      automation:AutomationProperties.Name="Error"/>
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Input mode: no key yet or editing -->
-                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowInputArea, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                Spacing="12">
-                        <TextBox x:Name="ApiKeyInput"
-                                 Text="{x:Bind ViewModel.ApiKeySection.ApiKey, Mode=TwoWay}"
-                                 TextChanged="ApiKeyInput_TextChanged"
-                                 PlaceholderText="Enter API key"
-                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                                 automation:AutomationProperties.Name="API key"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Save"
-                                    Style="{StaticResource FbAccentButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.SaveApiKeyCommand}"
-                                    IsEnabled="{x:Bind ViewModel.ApiKeySection.CanSave, Mode=OneWay}"
-                                    automation:AutomationProperties.Name="Save"/>
-                            <Button Content="Cancel"
-                                    Style="{StaticResource FbOutlineButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.CancelEditCommand}"
-                                    Visibility="{x:Bind ViewModel.ApiKeySection.IsEditing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                    automation:AutomationProperties.Name="Cancel edit"/>
+                    <!-- Subscription Mode -->
+                    <RadioButton x:Name="SubscriptionRadio"
+                                 GroupName="ApiKeyMode"
+                                 IsChecked="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay}"
+                                 Command="{x:Bind ViewModel.ApiKeySection.SelectSubscriptionModeCommand}"
+                                 automation:AutomationProperties.Name="Subscribe to FocusBot Pro">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Subscribe to FocusBot Pro ($4.99/month)"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="No API key needed - we handle everything"
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"/>
                         </StackPanel>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE7BA;"
-                                  FontSize="16"
-                                  Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                  VerticalAlignment="Center"
-                                  Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                  automation:AutomationProperties.Name="Error"/>
-                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
-                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                   TextWrapping="Wrap"
-                                   VerticalAlignment="Center"
-                                   Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
-                                   FontSize="13"
-                                   Foreground="{StaticResource FbTextSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   VerticalAlignment="Center"
-                                   Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                    </RadioButton>
+
+                    <!-- Subscription Placeholder (visible when Subscription mode selected) -->
+                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Margin="28,0,0,0">
+                        <InfoBar IsOpen="True"
+                                 IsClosable="False"
+                                 Severity="Informational"
+                                 Title="Coming Soon"
+                                 Message="Subscription support is coming soon. Please use your own API key for now."/>
                     </StackPanel>
                 </StackPanel>
             </Border>

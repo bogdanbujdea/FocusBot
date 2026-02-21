@@ -48,6 +48,13 @@ public class LlmService(ISettingsService settingsService, ILogger<LlmService> lo
         CancellationToken ct = default
     )
     {
+        var mode = await settingsService.GetApiKeyModeAsync();
+        if (mode == ApiKeyMode.Managed)
+        {
+            return new ClassifyAlignmentResponse(null,
+                "Subscription coming soon. Please use your own API key for now.");
+        }
+
         var apiKey = await settingsService.GetApiKeyAsync();
         if (string.IsNullOrWhiteSpace(apiKey))
             return new ClassifyAlignmentResponse(null, null);

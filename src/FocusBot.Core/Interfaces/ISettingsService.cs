@@ -1,3 +1,5 @@
+using FocusBot.Core.Entities;
+
 namespace FocusBot.Core.Interfaces;
 
 /// <summary>
@@ -5,6 +7,16 @@ namespace FocusBot.Core.Interfaces;
 /// </summary>
 public interface ISettingsService
 {
+    /// <summary>
+    /// Gets the current API key mode (Own or Managed).
+    /// </summary>
+    Task<ApiKeyMode> GetApiKeyModeAsync();
+
+    /// <summary>
+    /// Sets the API key mode.
+    /// </summary>
+    Task SetApiKeyModeAsync(ApiKeyMode mode);
+
     /// <summary>
     /// Gets the encrypted LLM API key.
     /// </summary>

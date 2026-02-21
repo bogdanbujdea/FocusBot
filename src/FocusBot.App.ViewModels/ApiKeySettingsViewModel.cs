@@ -1,8 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FocusBot.Core.Interfaces;
 using FocusBot.Core.Configuration;
+using FocusBot.Core.Entities;
+using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace FocusBot.App.ViewModels;
@@ -16,6 +17,15 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private readonly ILlmService _llmService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
+
+    [ObservableProperty]
+    private ApiKeyMode _apiKeyMode = ApiKeyMode.Own;
+
+    [ObservableProperty]
+    private bool _isOwnKeyMode = true;
+
+    [ObservableProperty]
+    private bool _isSubscriptionMode = false;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
@@ -80,11 +90,33 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         _ = LoadSettingsAsync();
     }
 
+    partial void OnApiKeyModeChanged(ApiKeyMode value)
+    {
+        IsOwnKeyMode = value == ApiKeyMode.Own;
+        IsSubscriptionMode = value == ApiKeyMode.Managed;
+    }
+
+    [RelayCommand]
+    private async Task SelectOwnKeyModeAsync()
+    {
+        ApiKeyMode = ApiKeyMode.Own;
+        await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Own);
+    }
+
+    [RelayCommand]
+    private async Task SelectSubscriptionModeAsync()
+    {
+        ApiKeyMode = ApiKeyMode.Managed;
+        await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Managed);
+    }
+
     private async Task LoadSettingsAsync()
     {
         _isLoading = true;
         try
         {
+            ApiKeyMode = await _settingsService.GetApiKeyModeAsync();
+
             var savedProviderId = await _settingsService.GetProviderAsync();
             SelectedProvider = Providers.FirstOrDefault(p => p.ProviderId == savedProviderId)
                 ?? Providers.First();
