@@ -13,6 +13,7 @@ namespace FocusBot.App.ViewModels;
 public partial class ApiKeySettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settingsService;
+    private readonly ILlmService _llmService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
 
@@ -41,6 +42,9 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
+    private bool _isStatusError;
+
+    [ObservableProperty]
     private string _apiKeyLabel = "Enter your API key";
 
     [ObservableProperty]
@@ -66,9 +70,11 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     public ApiKeySettingsViewModel(
         ISettingsService settingsService,
+        ILlmService llmService,
         ILogger<ApiKeySettingsViewModel> logger)
     {
         _settingsService = settingsService;
+        _llmService = llmService;
         _logger = logger;
 
         _ = LoadSettingsAsync();
@@ -105,6 +111,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "Error loading settings");
             StatusMessage = "Error loading settings";
+            IsStatusError = true;
         }
         finally
         {
@@ -148,24 +155,47 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(ApiKey))
         {
             StatusMessage = "Please enter a valid API key";
+            IsStatusError = true;
+            return;
+        }
+
+        if (SelectedProvider == null || SelectedModel == null)
+        {
+            StatusMessage = "Please select a provider and model.";
+            IsStatusError = true;
             return;
         }
 
         IsSaving = true;
-        StatusMessage = "Saving...";
+        IsStatusError = false;
+        StatusMessage = "Checking API key...";
 
         try
         {
+            var validation = await _llmService.ValidateCredentialsAsync(
+                ApiKey.Trim(),
+                SelectedProvider.ProviderId,
+                SelectedModel.ModelId);
+
+            if (validation.ErrorMessage != null)
+            {
+                StatusMessage = validation.ErrorMessage;
+                IsStatusError = true;
+                return;
+            }
+
+            StatusMessage = "Saving...";
+            IsStatusError = false;
+
             await _settingsService.SetApiKeyAsync(ApiKey);
-            if (SelectedProvider != null)
-                await _settingsService.SetProviderAsync(SelectedProvider.ProviderId);
-            if (SelectedModel != null)
-                await _settingsService.SetModelAsync(SelectedModel.ModelId);
+            await _settingsService.SetProviderAsync(SelectedProvider.ProviderId);
+            await _settingsService.SetModelAsync(SelectedModel.ModelId);
             MaskedApiKeyDisplay = "********" + ApiKey[^4..];
             IsApiKeyConfigured = true;
             IsEditing = false;
             ApiKey = string.Empty;
             StatusMessage = "API key saved.";
+            IsStatusError = false;
 
             _logger.LogInformation("API key saved");
         }
@@ -173,6 +203,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "Error saving API key");
             StatusMessage = "Error saving API key";
+            IsStatusError = true;
         }
         finally
         {
@@ -187,6 +218,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         ApiKey = existingKey ?? string.Empty;
         IsEditing = true;
         StatusMessage = string.Empty;
+        IsStatusError = false;
     }
 
     [RelayCommand]
@@ -195,6 +227,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         IsEditing = false;
         ApiKey = string.Empty;
         StatusMessage = string.Empty;
+        IsStatusError = false;
     }
 
     [RelayCommand]
@@ -210,6 +243,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             MaskedApiKeyDisplay = string.Empty;
             ApiKey = string.Empty;
             StatusMessage = "API key cleared";
+            IsStatusError = false;
 
             _logger.LogInformation("API key cleared");
         }
@@ -217,6 +251,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "Error clearing API key");
             StatusMessage = "Error clearing API key";
+            IsStatusError = true;
         }
         finally
         {

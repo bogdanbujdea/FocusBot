@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
@@ -170,6 +172,41 @@ public partial class KanbanBoardViewModel : ObservableObject
         get;
         set => SetProperty(ref field, value);
     } = "00:00:00";
+
+    private string _aiProviderDisplay = string.Empty;
+    public string AiProviderDisplay
+    {
+        get => _aiProviderDisplay;
+        set => SetProperty(ref _aiProviderDisplay, value);
+    }
+
+    private string _aiModelDisplay = string.Empty;
+    public string AiModelDisplay
+    {
+        get => _aiModelDisplay;
+        set => SetProperty(ref _aiModelDisplay, value);
+    }
+
+    private string _aiRequestError = string.Empty;
+    public string AiRequestError
+    {
+        get => _aiRequestError;
+        set
+        {
+            if (SetProperty(ref _aiRequestError, value))
+            {
+                OnPropertyChanged(nameof(HasAiRequestError));
+                OnPropertyChanged(nameof(IsAiStatusOk));
+            }
+        }
+    }
+
+    public bool HasAiRequestError => !string.IsNullOrEmpty(_aiRequestError);
+
+    public bool IsAiStatusOk => !HasAiRequestError;
+
+    public string AiProviderAndModelDisplay =>
+        string.IsNullOrEmpty(AiModelDisplay) ? AiProviderDisplay : $"{AiProviderDisplay} · {AiModelDisplay}";
 
     public KanbanBoardViewModel(
         ITaskRepository repo,
@@ -362,19 +399,23 @@ public partial class KanbanBoardViewModel : ObservableObject
     )
     {
         IsClassifying = true;
+        AiRequestError = string.Empty;
         try
         {
-            var result = await _llmService.ClassifyAlignmentAsync(
+            var response = await _llmService.ClassifyAlignmentAsync(
                 taskDescription,
                 taskContext,
                 processName,
                 windowTitle
             );
-            if (result != null)
+            if (response.ErrorMessage != null)
+                AiRequestError = response.ErrorMessage;
+            if (response.Result != null)
             {
-                FocusScore = result.Score;
-                FocusReason = result.Reason;
-                _focusScoreService.UpdatePendingSegmentScore(result.Score);
+                FocusScore = response.Result.Score;
+                FocusReason = response.Result.Reason;
+                _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
+                AiRequestError = string.Empty;
             }
         }
         finally
@@ -421,6 +462,33 @@ public partial class KanbanBoardViewModel : ObservableObject
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
+        await RefreshAiSettingsAsync();
+    }
+
+    /// <summary>
+    /// Refreshes the displayed AI provider and model from settings. Call when returning to the board so the corner label is up to date.
+    /// </summary>
+    public async Task RefreshAiSettingsAsync()
+    {
+        var providerId = await _settingsService.GetProviderAsync()
+            ?? LlmProviderConfig.DefaultProvider.ProviderId;
+        var modelId = await _settingsService.GetModelAsync();
+        var provider = LlmProviderConfig.Providers.FirstOrDefault(p => p.ProviderId == providerId)
+            ?? LlmProviderConfig.DefaultProvider;
+        AiProviderDisplay = provider.DisplayName;
+        if (string.IsNullOrEmpty(modelId))
+        {
+            AiModelDisplay = LlmProviderConfig.Models.TryGetValue(providerId, out var models) && models.Count > 0
+                ? models[0].DisplayName
+                : string.Empty;
+        }
+        else
+        {
+            AiModelDisplay = LlmProviderConfig.Models.TryGetValue(providerId, out var models)
+                ? models.FirstOrDefault(m => m.ModelId == modelId)?.DisplayName ?? modelId
+                : modelId;
+        }
+        OnPropertyChanged(nameof(AiProviderAndModelDisplay));
     }
 
     [RelayCommand]

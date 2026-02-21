@@ -9,16 +9,26 @@ public interface ILlmService
 {
     /// <summary>
     /// Classifies alignment of the given window/process with the task description.
-    /// Returns null if API key is not set or on error.
+    /// Result is null when API key is not set or on error; ErrorMessage is set when the failure was due to an API/request error.
     /// </summary>
     /// <param name="taskDescription">Task description.</param>
     /// <param name="taskContext">Optional alignment hints (e.g. "Outlook is work email"). Passed to the prompt.</param>
     /// <param name="processName">Current window process name.</param>
     /// <param name="windowTitle">Current window title.</param>
-    Task<AlignmentResult?> ClassifyAlignmentAsync(
+    Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         string taskDescription,
         string? taskContext,
         string processName,
         string windowTitle,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Validates that the given API key and provider/model can be used to call the API.
+    /// Makes a minimal request; does not use stored settings.
+    /// </summary>
+    Task<ClassifyAlignmentResponse> ValidateCredentialsAsync(
+        string apiKey,
+        string providerId,
+        string modelId,
         CancellationToken ct = default);
 }

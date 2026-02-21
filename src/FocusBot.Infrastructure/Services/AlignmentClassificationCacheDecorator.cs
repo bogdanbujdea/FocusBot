@@ -19,7 +19,7 @@ public class AlignmentClassificationCacheDecorator : ILlmService
         _scopeFactory = scopeFactory;
     }
 
-    public async Task<AlignmentResult?> ClassifyAlignmentAsync(
+    public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         string taskDescription,
         string? taskContext,
         string processName,
@@ -34,13 +34,14 @@ public class AlignmentClassificationCacheDecorator : ILlmService
             var cache = scope.ServiceProvider.GetRequiredService<IAlignmentCacheRepository>();
             var cached = await cache.GetAsync(contextHash, taskContentHash);
             if (cached != null)
-                return new AlignmentResult { Score = cached.Score, Reason = cached.Reason };
+                return new ClassifyAlignmentResponse(new AlignmentResult { Score = cached.Score, Reason = cached.Reason }, null);
         }
 
-        var result = await _inner.ClassifyAlignmentAsync(taskDescription, taskContext, processName, windowTitle, ct);
-        if (result == null)
-            return null;
+        var response = await _inner.ClassifyAlignmentAsync(taskDescription, taskContext, processName, windowTitle, ct);
+        if (response.Result == null)
+            return response;
 
+        var result = response.Result;
         var normalizedTitle = HashHelper.NormalizeWindowTitle(windowTitle);
         var windowContext = new WindowContext
         {
@@ -63,6 +64,13 @@ public class AlignmentClassificationCacheDecorator : ILlmService
             await cache.SaveAsync(windowContext, entry);
         }
 
-        return result;
+        return response;
     }
+
+    public Task<ClassifyAlignmentResponse> ValidateCredentialsAsync(
+        string apiKey,
+        string providerId,
+        string modelId,
+        CancellationToken ct = default) =>
+        _inner.ValidateCredentialsAsync(apiKey, providerId, modelId, ct);
 }

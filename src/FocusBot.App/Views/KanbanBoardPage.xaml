@@ -48,56 +48,50 @@
                 </TextBlock>
             </StackPanel>
 
-            <!-- Focus Status Bar (prominent, fixed height) -->
+            <!-- Focus Status Bar (prominent, fixed height); status always visible, spinner only when classifying -->
             <Border Grid.Row="1" Style="{StaticResource FbFocusStatusBarStyle}"
                     Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Focus status">
                 <Grid>
-                    <!-- Loading state (while classifying) -->
-                    <StackPanel Orientation="Horizontal" Spacing="12"
-                                Visibility="{x:Bind ViewModel.IsClassifying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                VerticalAlignment="Center">
-                        <ProgressRing IsActive="{x:Bind ViewModel.IsClassifying, Mode=OneWay}" 
-                                      Width="24" Height="24"/>
-                        <TextBlock Text="Evaluating focus..." 
-                                   Style="{StaticResource FbFocusStatusTextStyle}"
-                                   Foreground="{StaticResource FbTextSecondaryBrush}"
-                                   VerticalAlignment="Center"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Status icon (last known state always shown) -->
+                    <Image Grid.Column="0" 
+                           Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
+                           Width="40" Height="36"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"/>
+
+                    <!-- Spinner only when classifying (replaces nothing, just adds indicator) -->
+                    <ProgressRing Grid.Column="1"
+                                  IsActive="{x:Bind ViewModel.IsClassifying, Mode=OneWay}"
+                                  Visibility="{x:Bind ViewModel.IsClassifying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                  Width="24" Height="24"
+                                  Margin="0,0,12,0"
+                                  VerticalAlignment="Center"/>
+
+                    <!-- Status text and reason (always visible) -->
+                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
+                                   Style="{StaticResource FbFocusStatusTextStyle}">
+                            <TextBlock.Foreground>
+                                <Binding Path="ViewModel.FocusScore" Mode="OneWay">
+                                    <Binding.Converter>
+                                        <converters:FocusScoreToTextColorConverter/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </TextBlock.Foreground>
+                        </TextBlock>
+                        <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
+                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2"
+                                   TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
-
-                    <!-- Result state (when classification is complete) -->
-                    <Grid Visibility="{x:Bind ViewModel.IsFocusResultVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Status icon -->
-                        <Image Grid.Column="0" 
-                               Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
-                               Width="40" Height="36"
-                               Margin="0,0,12,0"
-                               VerticalAlignment="Center"/>
-
-                        <!-- Status text and reason -->
-                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
-                                       Style="{StaticResource FbFocusStatusTextStyle}">
-                                <TextBlock.Foreground>
-                                    <Binding Path="ViewModel.FocusScore" Mode="OneWay">
-                                        <Binding.Converter>
-                                            <converters:FocusScoreToTextColorConverter/>
-                                        </Binding.Converter>
-                                    </Binding>
-                                </TextBlock.Foreground>
-                            </TextBlock>
-                            <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       TextWrapping="Wrap"
-                                       MaxLines="2"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </Grid>
                 </Grid>
             </Border>
         </Grid>
@@ -506,6 +500,38 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <!-- AI provider/model and error indicator (farthest top-right, above header) -->
+        <StackPanel Grid.Row="0"
+                    Grid.RowSpan="3"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="6"
+                    automation:AutomationProperties.Name="AI provider and model">
+            <TextBlock Text="{x:Bind ViewModel.AiProviderAndModelDisplay, Mode=OneWay}"
+                       FontSize="11"
+                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                       MaxLines="1"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center"/>
+            <Ellipse Width="8" Height="8"
+                    Fill="{StaticResource FbAlignedAccentBrush}"
+                    Visibility="{x:Bind ViewModel.IsAiStatusOk, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    VerticalAlignment="Center"
+                    automation:AutomationProperties.Name="AI status OK"/>
+            <FontIcon Glyph="&#xE7BA;"
+                      FontSize="14"
+                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                      Visibility="{x:Bind ViewModel.HasAiRequestError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                      VerticalAlignment="Center"
+                      automation:AutomationProperties.Name="AI request error">
+                <ToolTipService.ToolTip>
+                    <ToolTip Content="{x:Bind ViewModel.AiRequestError, Mode=OneWay}"/>
+                </ToolTipService.ToolTip>
+            </FontIcon>
+        </StackPanel>
 
         <!-- Add Task Popup (light dismiss, draft preserved when closed) -->
         <primitives:Popup x:Name="AddTaskPopup"

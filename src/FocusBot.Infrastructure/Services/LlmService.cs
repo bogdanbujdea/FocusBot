@@ -40,7 +40,7 @@ public class LlmService(ISettingsService settingsService, ILogger<LlmService> lo
         - 1-2: Clearly off-task (entertainment, social media unrelated to work)
         """;
 
-    public async Task<AlignmentResult?> ClassifyAlignmentAsync(
+    public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         string taskDescription,
         string? taskContext,
         string processName,
@@ -50,7 +50,7 @@ public class LlmService(ISettingsService settingsService, ILogger<LlmService> lo
     {
         var apiKey = await settingsService.GetApiKeyAsync();
         if (string.IsNullOrWhiteSpace(apiKey))
-            return null;
+            return new ClassifyAlignmentResponse(null, null);
 
         var providerId =
             await settingsService.GetProviderAsync()
@@ -75,15 +75,79 @@ public class LlmService(ISettingsService settingsService, ILogger<LlmService> lo
                 .GetResponse(ct);
 
             if (string.IsNullOrWhiteSpace(response))
-                return null;
+                return new ClassifyAlignmentResponse(null, null);
 
-            return ParseResponse(response);
+            var result = ParseResponse(response);
+            return result != null
+                ? new ClassifyAlignmentResponse(result, null)
+                : new ClassifyAlignmentResponse(null, "Invalid response from AI.");
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Alignment classification failed");
-            return null;
+            var userMessage = ToUserFriendlyErrorMessage(ex.Message);
+            return new ClassifyAlignmentResponse(null, userMessage);
         }
+    }
+
+    public async Task<ClassifyAlignmentResponse> ValidateCredentialsAsync(
+        string apiKey,
+        string providerId,
+        string modelId,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return new ClassifyAlignmentResponse(null, "Please enter an API key.");
+
+        try
+        {
+            var provider = Configuration.LlmProviderConfig.ToLlmProvider(providerId);
+            var api = new TornadoApi(provider, apiKey);
+            var userMessage = "Ping";
+
+            var response = await api
+                .Chat.CreateConversation(modelId)
+                .AppendUserInput(userMessage)
+                .GetResponse(ct);
+
+            if (string.IsNullOrWhiteSpace(response))
+                return new ClassifyAlignmentResponse(null, "No response from API.");
+            return new ClassifyAlignmentResponse(new AlignmentResult(), null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Credentials validation failed");
+            var userMessage = ToUserFriendlyErrorMessage(ex.Message);
+            return new ClassifyAlignmentResponse(null, userMessage);
+        }
+    }
+
+    private static string ToUserFriendlyErrorMessage(string rawMessage)
+    {
+        if (string.IsNullOrWhiteSpace(rawMessage))
+            return rawMessage ?? string.Empty;
+        if (rawMessage.Contains("429", StringComparison.Ordinal))
+            return "You've exceeded your API quota. Check your plan and billing in your provider's dashboard.";
+        if (LooksLikeApiKeyOrRequestError(rawMessage))
+            return "The API key may be incorrect or you may not have sufficient funds. Check your key and billing in your provider's dashboard.";
+        return rawMessage;
+    }
+
+    private static bool LooksLikeApiKeyOrRequestError(string rawMessage)
+    {
+        if (rawMessage.Contains("invalid_api_key", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (rawMessage.Contains("Incorrect API key", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (rawMessage.Contains("invalid_request_error", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (
+            rawMessage.IndexOf('{') >= 0
+            && rawMessage.Contains("\"error\"", StringComparison.Ordinal)
+        )
+            return true;
+        return false;
     }
 
     private static AlignmentResult? ParseResponse(string json)

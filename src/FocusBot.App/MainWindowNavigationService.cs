@@ -28,6 +28,8 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
         if (_window == null || _boardContent == null)
             return;
         _window.Content = _boardContent;
+        if (_boardContent is KanbanBoardPage page && page.DataContext is KanbanBoardViewModel vm)
+            _ = vm.RefreshAiSettingsAsync();
     }
 
     /// <inheritdoc />

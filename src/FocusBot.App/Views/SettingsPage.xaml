@@ -94,9 +94,27 @@
                                     automation:AutomationProperties.Name="Cancel edit"/>
                         </StackPanel>
                     </StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
-                               FontSize="12"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE7BA;"
+                                  FontSize="16"
+                                  Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                  VerticalAlignment="Center"
+                                  Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                  automation:AutomationProperties.Name="Error"/>
+                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center"
+                                   Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource FbTextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center"
+                                   Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
