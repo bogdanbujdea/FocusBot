@@ -89,6 +89,51 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
+    public async Task UpsertFocusSegmentsAsync(IEnumerable<FocusSegment> segments)
+    {
+        foreach (var segment in segments)
+        {
+            var existing = await context.FocusSegments
+                .FirstOrDefaultAsync(s =>
+                    s.TaskId == segment.TaskId &&
+                    s.ContextHash == segment.ContextHash &&
+                    s.AlignmentScore == segment.AlignmentScore);
+            if (existing != null)
+            {
+                existing.DurationSeconds = segment.DurationSeconds;
+                existing.WindowTitle = segment.WindowTitle;
+                existing.ProcessName = segment.ProcessName;
+            }
+            else
+            {
+                context.FocusSegments.Add(segment);
+            }
+        }
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<FocusSegment>> GetFocusSegmentsForTaskAsync(string taskId) =>
+        await context.FocusSegments
+            .Where(s => s.TaskId == taskId)
+            .ToListAsync();
+
+    public async Task UpdateFocusScoreAsync(string taskId, int scorePercent)
+    {
+        var task = await context.UserTasks.FindAsync(taskId);
+        if (task != null)
+        {
+            task.FocusScorePercent = scorePercent;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task DeleteFocusSegmentsForTaskAsync(string taskId)
+    {
+        var segments = await context.FocusSegments.Where(s => s.TaskId == taskId).ToListAsync();
+        context.FocusSegments.RemoveRange(segments);
+        await context.SaveChangesAsync();
+    }
+
     private static bool IsDifferentTask(UserTask? existing, string taskId) =>
         existing != null && existing.TaskId != taskId;
 }

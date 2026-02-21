@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserTask> UserTasks => Set<UserTask>();
     public DbSet<WindowContext> WindowContexts => Set<WindowContext>();
     public DbSet<AlignmentCacheEntry> AlignmentCacheEntries => Set<AlignmentCacheEntry>();
+    public DbSet<FocusSegment> FocusSegments => Set<FocusSegment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,6 +42,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(e => e.ContextHash)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FocusSegment>(entity =>
+        {
+            entity.HasIndex(e => new { e.TaskId, e.ContextHash, e.AlignmentScore })
+                .IsUnique();
+            entity.HasIndex(e => e.TaskId);
+            entity.Property(e => e.TaskId).HasMaxLength(64);
+            entity.Property(e => e.ContextHash).HasMaxLength(64);
+            entity.Property(e => e.WindowTitle).HasMaxLength(512);
+            entity.Property(e => e.ProcessName).HasMaxLength(256);
         });
     }
 }

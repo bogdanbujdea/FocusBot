@@ -19,7 +19,8 @@ public class WindowElapsedTimeShould
         var navMock = new Mock<INavigationService>();
         var openAIMock = new Mock<IOpenAIService>();
         var settingsMock = new Mock<ISettingsService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
+        var focusScoreMock = new Mock<IFocusScoreService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
@@ -49,7 +50,8 @@ public class WindowElapsedTimeShould
         var navMock = new Mock<INavigationService>();
         var openAIMock = new Mock<IOpenAIService>();
         var settingsMock = new Mock<ISettingsService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object);
+        var focusScoreMock = new Mock<IFocusScoreService>();
+        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, navMock.Object, openAIMock.Object, settingsMock.Object, focusScoreMock.Object);
         await Task.Delay(150);
 
         // Act

@@ -13,6 +13,7 @@ public class UserTask
     public TaskStatus Status { get; set; } = TaskStatus.ToDo;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public long TotalElapsedSeconds { get; set; } = 0;
+    public int? FocusScorePercent { get; set; }
 
     public bool IsActive => Status == TaskStatus.InProgress;
 }

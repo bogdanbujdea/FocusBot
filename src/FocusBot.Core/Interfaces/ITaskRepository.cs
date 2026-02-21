@@ -16,4 +16,8 @@ public interface ITaskRepository
     Task<IEnumerable<UserTask>> GetToDoTasksAsync();
     Task<UserTask?> GetInProgressTaskAsync();
     Task<IEnumerable<UserTask>> GetDoneTasksAsync();
+    Task UpsertFocusSegmentsAsync(IEnumerable<FocusSegment> segments);
+    Task<IEnumerable<FocusSegment>> GetFocusSegmentsForTaskAsync(string taskId);
+    Task UpdateFocusScoreAsync(string taskId, int scorePercent);
+    Task DeleteFocusSegmentsForTaskAsync(string taskId);
 }

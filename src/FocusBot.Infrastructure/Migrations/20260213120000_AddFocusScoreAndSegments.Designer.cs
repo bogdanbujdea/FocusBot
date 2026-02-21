@@ -3,6 +3,7 @@ using System;
 using FocusBot.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FocusBot.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260213120000_AddFocusScoreAndSegments")]
+    partial class AddFocusScoreAndSegments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
@@ -43,40 +46,6 @@ namespace FocusBot.Infrastructure.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.ToTable("AlignmentCacheEntries");
-                });
-
-            modelBuilder.Entity("FocusBot.Core.Entities.UserTask", b =>
-                {
-                    b.Property<string>("TaskId")
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Context")
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("TotalElapsedSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("FocusScorePercent")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("TaskId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("UserTasks");
                 });
 
             modelBuilder.Entity("FocusBot.Core.Entities.FocusSegment", b =>
@@ -117,6 +86,40 @@ namespace FocusBot.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("FocusSegments");
+                });
+
+            modelBuilder.Entity("FocusBot.Core.Entities.UserTask", b =>
+                {
+                    b.Property<string>("TaskId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Context")
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FocusScorePercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("TotalElapsedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TaskId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("UserTasks");
                 });
 
             modelBuilder.Entity("FocusBot.Core.Entities.WindowContext", b =>

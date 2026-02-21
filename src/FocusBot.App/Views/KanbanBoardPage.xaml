@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:entities="using:FocusBot.Core.Entities"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    xmlns:converters="using:FocusBot.App.Converters"
     mc:Ignorable="d"
     Background="{StaticResource FbPageBackgroundBrush}">
 
@@ -236,6 +237,7 @@
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
@@ -252,15 +254,28 @@
                                                            Text="{Binding DataContext.TaskElapsedTime, ElementName=KanbanPage}"
                                                            Style="{StaticResource FbSecondaryTextStyle}"
                                                            automation:AutomationProperties.Name="Task elapsed time"/>
+                                                <!-- Focus score (visible when we have real score) -->
+                                                <TextBlock Grid.Row="2"
+                                                           Visibility="{Binding DataContext.IsFocusScorePercentVisible, ElementName=KanbanPage, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           automation:AutomationProperties.Name="Focus score">
+                                                    <TextBlock.Text>
+                                                        <Binding Path="DataContext.CurrentFocusScorePercent" ElementName="KanbanPage" Mode="OneWay">
+                                                            <Binding.Converter>
+                                                                <converters:FocusScorePercentFormatConverter/>
+                                                            </Binding.Converter>
+                                                        </Binding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
                                                 <!-- Task title -->
-                                                <TextBlock Grid.Row="2" 
+                                                <TextBlock Grid.Row="3" 
                                                            Text="{x:Bind Description}" 
                                                            Style="{StaticResource FbTaskTitleStyle}"
                                                            MaxLines="3"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="3" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="4" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
                                                     <Button Content="Done" 
                                                             Style="{StaticResource FbCardPrimaryActionStyle}"
                                                             automation:AutomationProperties.Name="Mark done" 
@@ -332,6 +347,7 @@
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
@@ -348,16 +364,29 @@
                                                            Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
                                                            Style="{StaticResource FbSecondaryTextStyle}"
                                                            automation:AutomationProperties.Name="Task total time"/>
+                                                <!-- Focus score (visible when task has focus score) -->
+                                                <TextBlock Grid.Row="2"
+                                                           Visibility="{x:Bind FocusScorePercent, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
+                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           automation:AutomationProperties.Name="Focus score">
+                                                    <TextBlock.Text>
+                                                        <Binding Path="FocusScorePercent" Mode="OneWay">
+                                                            <Binding.Converter>
+                                                                <converters:NullableIntToFocusScoreFormatConverter/>
+                                                            </Binding.Converter>
+                                                        </Binding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
                                                 <!-- Task title (slightly muted) -->
-                                                <TextBlock Grid.Row="2" 
+                                                <TextBlock Grid.Row="3" 
                                                            Text="{x:Bind Description}" 
                                                            Style="{StaticResource FbTaskTitleStyle}"
                                                            Opacity="0.8"
                                                            MaxLines="3"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="3" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="4" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <Button Grid.Row="4"
+                                                <Button Grid.Row="5"
                                                         Style="{StaticResource FbCardActionButtonStyle}"
                                                         automation:AutomationProperties.Name="Delete task" 
                                                         Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"

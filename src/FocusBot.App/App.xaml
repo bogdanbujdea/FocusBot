@@ -10,6 +10,7 @@
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <converters:ElapsedSecondsToTimeStringConverter x:Key="ElapsedSecondsToTimeStringConverter" />
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <ResourceDictionary Source="Themes/Colors.xaml" />

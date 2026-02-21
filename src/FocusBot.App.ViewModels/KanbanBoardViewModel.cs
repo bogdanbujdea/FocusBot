@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
+using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
@@ -17,6 +19,9 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly IOpenAIService _openAIService;
     private readonly ISettingsService _settingsService;
+    private readonly IFocusScoreService _focusScoreService;
+
+    private static readonly string FocusBotProcessName = GetFocusBotProcessName();
 
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
@@ -77,6 +82,15 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public bool IsFocusScoreVisible => IsMonitoring && HasValidFocusData();
 
+    private int _currentFocusScorePercent;
+    public int CurrentFocusScorePercent
+    {
+        get => _currentFocusScorePercent;
+        private set => SetProperty(ref _currentFocusScorePercent, value);
+    }
+
+    public bool IsFocusScorePercentVisible => IsMonitoring && _focusScoreService.HasRealScore;
+
     private string _taskElapsedTime = "00:00:00";
     public string TaskElapsedTime
     {
@@ -106,7 +120,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         ITimeTrackingService timeTracking,
         INavigationService navigationService,
         IOpenAIService openAIService,
-        ISettingsService settingsService
+        ISettingsService settingsService,
+        IFocusScoreService focusScoreService
     )
     {
         _repo = repo;
@@ -115,9 +130,22 @@ public partial class KanbanBoardViewModel : ObservableObject
         _navigationService = navigationService;
         _openAIService = openAIService;
         _settingsService = settingsService;
+        _focusScoreService = focusScoreService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _ = LoadBoardAsync();
+    }
+
+    private static string GetFocusBotProcessName()
+    {
+        try
+        {
+            return Process.GetCurrentProcess().ProcessName ?? "FocusBot.App";
+        }
+        catch
+        {
+            return "FocusBot.App";
+        }
     }
 
     private static string FormatElapsed(long totalSeconds)
@@ -143,12 +171,15 @@ public partial class KanbanBoardViewModel : ObservableObject
             _perWindowTotalSeconds[windowKey] = total;
             WindowTotalElapsedTime = FormatElapsed(total);
         }
+        var taskId = InProgressTasks[0].TaskId;
+        CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
             _secondsSinceLastPersist = 0;
-            var taskId = InProgressTasks[0].TaskId;
             _ = PersistElapsedTimeAsync(taskId);
+            _ = _focusScoreService.PersistSegmentsAsync();
         }
     }
 
@@ -172,6 +203,8 @@ public partial class KanbanBoardViewModel : ObservableObject
             _perWindowTotalSeconds[previousKey] = previousTotal;
         }
 
+        _focusScoreService.PauseCurrentSegment();
+
         CurrentProcessName = e.ProcessName;
         CurrentWindowTitle = e.WindowTitle;
         _windowElapsedSeconds = 0;
@@ -182,10 +215,17 @@ public partial class KanbanBoardViewModel : ObservableObject
         FocusScore = 0;
         FocusReason = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
 
         if (InProgressTasks.Count == 0)
             return;
         var task = InProgressTasks[0];
+
+        if (string.Equals(e.ProcessName, FocusBotProcessName, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
+        _focusScoreService.StartPendingSegment(task.TaskId, contextHash, e.WindowTitle, e.ProcessName);
         _ = ClassifyAndUpdateFocusAsync(
             task.Description,
             task.Context,
@@ -211,8 +251,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             FocusScore = result.Score;
             FocusReason = result.Reason;
+            _focusScoreService.UpdatePendingSegmentScore(result.Score);
         }
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
     }
 
     private async Task LoadBoardAsync()
@@ -231,13 +273,17 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         if (HasActiveTask())
         {
-            _taskElapsedSeconds = InProgressTasks[0].TotalElapsedSeconds;
+            var task = InProgressTasks[0];
+            _taskElapsedSeconds = task.TotalElapsedSeconds;
             TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
             _windowElapsedSeconds = 0;
             WindowElapsedTime = FormatElapsed(0);
             _perWindowTotalSeconds.Clear();
             WindowTotalElapsedTime = FormatElapsed(0);
             _secondsSinceLastPersist = 0;
+            await _focusScoreService.LoadSegmentsForTaskAsync(task.TaskId);
+            CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(task.TaskId);
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             StartMonitoring();
         }
         else
@@ -276,11 +322,20 @@ public partial class KanbanBoardViewModel : ObservableObject
         await LoadBoardAsync();
     }
 
+    private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
+    {
+        _focusScoreService.PauseCurrentSegment();
+        await _focusScoreService.PersistSegmentsAsync();
+        var scorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
+        await _repo.UpdateFocusScoreAsync(taskId, scorePercent);
+    }
+
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task MoveToDoneAsync(string? taskId)
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await FinalizeFocusScoreAndPersistAsync(taskId);
         await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
         await LoadBoardAsync();
     }
@@ -290,6 +345,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await FinalizeFocusScoreAndPersistAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
         await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
         await LoadBoardAsync();
@@ -300,6 +356,8 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        _focusScoreService.ClearTaskSegments(taskId);
+        await _repo.DeleteFocusSegmentsForTaskAsync(taskId);
         await _repo.DeleteTaskAsync(taskId);
         await LoadBoardAsync();
     }
@@ -322,6 +380,8 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     private async Task UpdateTaskStatusAndDuration(string taskId, TaskStatus statusEnum)
     {
+        if (HasActiveTask() && InProgressTasks[0].TaskId == taskId)
+            await FinalizeFocusScoreAndPersistAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
         await _repo.SetStatusToAsync(taskId, statusEnum);
     }

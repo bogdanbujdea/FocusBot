@@ -48,6 +48,7 @@ namespace FocusBot.App
                 sp.GetRequiredService<OpenAIService>(),
                 sp.GetRequiredService<IServiceScopeFactory>()));
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
+            services.AddSingleton<IFocusScoreService, FocusScoreService>();
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
