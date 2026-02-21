@@ -113,7 +113,7 @@
                         <TextBlock Grid.Column="0" Text="Process" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
                         <TextBlock Grid.Column="1" Text="Window Title" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
                         <TextBlock Grid.Column="2" Text="Time" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
-                        <TextBlock Grid.Column="3" Text="Align" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Focus Score" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" HorizontalAlignment="Center"/>
                     </Grid>
 
                     <Border Style="{StaticResource FbDividerStyle}"/>

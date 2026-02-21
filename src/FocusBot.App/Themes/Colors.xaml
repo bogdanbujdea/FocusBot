@@ -23,6 +23,12 @@
             <Color x:Key="FbAlignedAccent">#22C55E</Color>
             <Color x:Key="FbNeutralAccent">#8B5CF6</Color>
             <Color x:Key="FbMisalignedAccent">#F97316</Color>
+            <Color x:Key="FbToDoAccent">#0EA5E9</Color>
+            <Color x:Key="FbCompletedBadge">#16A34A</Color>
+            <!-- Column header tinted backgrounds -->
+            <Color x:Key="FbColumnHeaderToDoBg">#DCE9F8</Color>
+            <Color x:Key="FbColumnHeaderInProgressBg">#FFEDD5</Color>
+            <Color x:Key="FbColumnHeaderDoneBg">#DCFCE7</Color>
             <!-- Text colors -->
             <Color x:Key="FbTextPrimary">#1F1F1F</Color>
             <Color x:Key="FbTextSecondary">#6B7280</Color>
@@ -48,6 +54,12 @@
             <Color x:Key="FbAlignedAccent">#4ADE80</Color>
             <Color x:Key="FbNeutralAccent">#A78BFA</Color>
             <Color x:Key="FbMisalignedAccent">#FB923C</Color>
+            <Color x:Key="FbToDoAccent">#0284C7</Color>
+            <Color x:Key="FbCompletedBadge">#15803D</Color>
+            <!-- Column header tinted backgrounds -->
+            <Color x:Key="FbColumnHeaderToDoBg">#1A2438</Color>
+            <Color x:Key="FbColumnHeaderInProgressBg">#352818</Color>
+            <Color x:Key="FbColumnHeaderDoneBg">#1C2E24</Color>
             <!-- Text colors -->
             <Color x:Key="FbTextPrimary">#FFFFFF</Color>
             <Color x:Key="FbTextSecondary">#A1A1AA</Color>
@@ -70,6 +82,11 @@
             <Color x:Key="FbAlignedAccent">#00FF00</Color>
             <Color x:Key="FbNeutralAccent">#FFFF00</Color>
             <Color x:Key="FbMisalignedAccent">#FF0000</Color>
+            <Color x:Key="FbToDoAccent">#00BFFF</Color>
+            <Color x:Key="FbCompletedBadge">#008000</Color>
+            <Color x:Key="FbColumnHeaderToDoBg">#001a33</Color>
+            <Color x:Key="FbColumnHeaderInProgressBg">#331900</Color>
+            <Color x:Key="FbColumnHeaderDoneBg">#001a00</Color>
             <Color x:Key="FbTextPrimary">#FFFFFF</Color>
             <Color x:Key="FbTextSecondary">#FFFFFF</Color>
             <Color x:Key="FbTextOnAccent">#000000</Color>

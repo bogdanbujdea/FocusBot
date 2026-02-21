@@ -80,20 +80,47 @@
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
+    <!-- Column header area (tinted strip with rounded top, use Background per column) -->
+    <Style x:Key="FbColumnHeaderAreaStyle" TargetType="Border">
+        <Setter Property="CornerRadius" Value="12,12,0,0"/>
+        <Setter Property="Padding" Value="0,12,0,12"/>
+        <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+
     <!-- Column header text style -->
     <Style x:Key="FbColumnHeaderStyle" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource FbTextSecondaryBrush}"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="CharacterSpacing" Value="80"/>
     </Style>
 
-    <!-- Column count badge style -->
+    <!-- Status badge pill styles (top-left of task cards) -->
+    <Style x:Key="FbStatusBadgeToDoStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource FbToDoAccentBrush}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+    <Style x:Key="FbStatusBadgeInProgressStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource FbMisalignedAccentBrush}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+    <Style x:Key="FbStatusBadgeCompletedStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource FbCompletedBadgeBrush}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <!-- Column count badge style (used inside column header area) -->
     <Style x:Key="FbColumnCountStyle" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource FbTextSecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="Normal"/>
-        <Setter Property="Opacity" Value="0.7"/>
+        <Setter Property="Opacity" Value="0.85"/>
     </Style>
 
     <!-- Task title text style -->
@@ -116,5 +143,29 @@
         <Setter Property="Background" Value="{StaticResource FbCardBorderBrush}"/>
         <Setter Property="Height" Value="1"/>
         <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <!-- Focus Status Bar container style -->
+    <Style x:Key="FbFocusStatusBarStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource FbCardBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource FbCardBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource FbCornerRadiusMedium}"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="MinHeight" Value="72"/>
+    </Style>
+
+    <!-- Focus Status large text style -->
+    <Style x:Key="FbFocusStatusTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="CharacterSpacing" Value="40"/>
+    </Style>
+
+    <!-- Window info compact text style -->
+    <Style x:Key="FbWindowInfoTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource FbTextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
 </ResourceDictionary>

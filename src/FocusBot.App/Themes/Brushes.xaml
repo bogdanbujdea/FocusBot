@@ -58,6 +58,13 @@
     <SolidColorBrush x:Key="FbAlignedAccentBrush" Color="{ThemeResource FbAlignedAccent}"/>
     <SolidColorBrush x:Key="FbNeutralAccentBrush" Color="{ThemeResource FbNeutralAccent}"/>
     <SolidColorBrush x:Key="FbMisalignedAccentBrush" Color="{ThemeResource FbMisalignedAccent}"/>
+    <SolidColorBrush x:Key="FbToDoAccentBrush" Color="{ThemeResource FbToDoAccent}"/>
+    <SolidColorBrush x:Key="FbCompletedBadgeBrush" Color="{ThemeResource FbCompletedBadge}"/>
+
+    <!-- Column header background brushes (tinted by status) -->
+    <SolidColorBrush x:Key="FbColumnHeaderToDoBrush" Color="{ThemeResource FbColumnHeaderToDoBg}"/>
+    <SolidColorBrush x:Key="FbColumnHeaderInProgressBrush" Color="{ThemeResource FbColumnHeaderInProgressBg}"/>
+    <SolidColorBrush x:Key="FbColumnHeaderDoneBrush" Color="{ThemeResource FbColumnHeaderDoneBg}"/>
 
     <!-- Text brushes -->
     <SolidColorBrush x:Key="FbTextPrimaryBrush" Color="{ThemeResource FbTextPrimary}"/>

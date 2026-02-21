@@ -20,38 +20,87 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Current foreground window (visible when a task is in progress) -->
-        <Border Grid.Row="0" x:Name="CurrentWindowBar"
-                Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                automation:AutomationProperties.Name="Current foreground window"
-                Padding="0,0,0,8">
-            <StackPanel Spacing="4">
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+        <!-- Current foreground window and Focus Status Bar (visible when a task is in progress) -->
+        <Grid Grid.Row="0" x:Name="CurrentWindowBar"
+              Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+              automation:AutomationProperties.Name="Current foreground window"
+              RowSpacing="8"
+              Margin="0,0,0,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Window info (compact) -->
+            <StackPanel Grid.Row="0" Spacing="2">
+                <TextBlock Style="{StaticResource FbWindowInfoTextStyle}" MaxLines="1">
                     <Run Text="Process: "/>
-                    <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}"/>
+                    <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
                     <Run Text=" | Window: "/>
-                    <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}"/>
+                    <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
                 </TextBlock>
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
+                <TextBlock Style="{StaticResource FbWindowInfoTextStyle}"
                            automation:AutomationProperties.Name="Time on this window">
                     <Run Text="Time on this window (this visit): "/>
                     <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
-                </TextBlock>
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
-                           automation:AutomationProperties.Name="Total time on this window">
-                    <Run Text="Total on this window: "/>
+                    <Run Text=" | Total on this window: "/>
                     <Run Text="{x:Bind ViewModel.WindowTotalElapsedTime, Mode=OneWay}"/>
                 </TextBlock>
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}"
-                           Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                           automation:AutomationProperties.Name="Focus score">
-                    <Run Text="Focus: "/>
-                    <Run Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"/>
-                    <Run Text=" - "/>
-                    <Run Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"/>
-                </TextBlock>
             </StackPanel>
-        </Border>
+
+            <!-- Focus Status Bar (prominent, fixed height) -->
+            <Border Grid.Row="1" Style="{StaticResource FbFocusStatusBarStyle}"
+                    Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Focus status">
+                <Grid>
+                    <!-- Loading state (while classifying) -->
+                    <StackPanel Orientation="Horizontal" Spacing="12"
+                                Visibility="{x:Bind ViewModel.IsClassifying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                VerticalAlignment="Center">
+                        <ProgressRing IsActive="{x:Bind ViewModel.IsClassifying, Mode=OneWay}" 
+                                      Width="24" Height="24"/>
+                        <TextBlock Text="Evaluating focus..." 
+                                   Style="{StaticResource FbFocusStatusTextStyle}"
+                                   Foreground="{StaticResource FbTextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Result state (when classification is complete) -->
+                    <Grid Visibility="{x:Bind ViewModel.IsFocusResultVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Status icon -->
+                        <Image Grid.Column="0" 
+                               Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
+                               Width="40" Height="36"
+                               Margin="0,0,12,0"
+                               VerticalAlignment="Center"/>
+
+                        <!-- Status text and reason -->
+                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
+                                       Style="{StaticResource FbFocusStatusTextStyle}">
+                                <TextBlock.Foreground>
+                                    <Binding Path="ViewModel.FocusScore" Mode="OneWay">
+                                        <Binding.Converter>
+                                            <converters:FocusScoreToTextColorConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Foreground>
+                            </TextBlock>
+                            <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
+                                       Style="{StaticResource FbSecondaryTextStyle}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- Header with Add Task and Settings -->
         <Grid Grid.Row="1">
@@ -95,12 +144,14 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <!-- Column Header with Count -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="TO DO" Style="{StaticResource FbColumnHeaderStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.ToDoTasks.Count, Mode=OneWay}" 
-                                   Style="{StaticResource FbColumnCountStyle}"/>
-                    </StackPanel>
+                    <!-- Column Header with Count (tinted background) -->
+                    <Border Grid.Row="0" Style="{StaticResource FbColumnHeaderAreaStyle}" Background="{StaticResource FbColumnHeaderToDoBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
+                            <TextBlock Text="TO DO" Style="{StaticResource FbColumnHeaderStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.ToDoTasks.Count, Mode=OneWay}" 
+                                       Style="{StaticResource FbColumnCountStyle}"/>
+                        </StackPanel>
+                    </Border>
                     <!-- Header Divider -->
                     <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
                     <!-- Task List -->
@@ -122,13 +173,18 @@
                                             <!-- Card content -->
                                             <Grid Margin="14,12,12,12" RowSpacing="10">
                                                 <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
+                                                <!-- Status badge -->
+                                                <Border Grid.Row="0" Style="{StaticResource FbStatusBadgeToDoStyle}" Margin="0,0,0,6">
+                                                    <TextBlock Text="To Do" Foreground="{StaticResource FbTextOnAccentBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                </Border>
                                                 <!-- Task title (clickable) -->
-                                                <HyperlinkButton Grid.Row="0"
+                                                <HyperlinkButton Grid.Row="1"
                                                                  Padding="0"
                                                                  Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
                                                                  CommandParameter="{Binding TaskId}"
@@ -138,14 +194,14 @@
                                                                MaxLines="3"/>
                                                 </HyperlinkButton>
                                                 <!-- Total time on task (from previous sessions) -->
-                                                <TextBlock Grid.Row="1"
+                                                <TextBlock Grid.Row="2"
                                                            Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
                                                            Style="{StaticResource FbSecondaryTextStyle}"
                                                            automation:AutomationProperties.Name="Task total time"/>
                                                 <!-- Action divider -->
-                                                <Border Grid.Row="2" Style="{StaticResource FbDividerStyle}"/>
+                                                <Border Grid.Row="3" Style="{StaticResource FbDividerStyle}"/>
                                                 <!-- Actions -->
-                                                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
                                                     <Button Content="Start" 
                                                             Style="{StaticResource FbCardPrimaryActionStyle}"
                                                             automation:AutomationProperties.Name="Start task" 
@@ -202,12 +258,14 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <!-- Column Header with Count -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="IN PROGRESS" Style="{StaticResource FbColumnHeaderStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.InProgressTasks.Count, Mode=OneWay}" 
-                                   Style="{StaticResource FbColumnCountStyle}"/>
-                    </StackPanel>
+                    <!-- Column Header with Count (tinted background) -->
+                    <Border Grid.Row="0" Style="{StaticResource FbColumnHeaderAreaStyle}" Background="{StaticResource FbColumnHeaderInProgressBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
+                            <TextBlock Text="IN PROGRESS" Style="{StaticResource FbColumnHeaderStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.InProgressTasks.Count, Mode=OneWay}" 
+                                       Style="{StaticResource FbColumnCountStyle}"/>
+                        </StackPanel>
+                    </Border>
                     <!-- Header Divider -->
                     <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
                     <!-- Task List -->
@@ -221,11 +279,18 @@
                                             CanDrag="True" 
                                             DragStarting="TaskCard_DragStarting">
                                         <Grid>
-                                            <!-- Left accent bar (active - green) -->
+                                            <!-- Left accent bar (dynamic based on focus state) -->
                                             <Border Width="3" 
-                                                    Background="{StaticResource FbAlignedAccentBrush}"
                                                     CornerRadius="3,0,0,3"
-                                                    HorizontalAlignment="Left"/>
+                                                    HorizontalAlignment="Left">
+                                                <Border.Background>
+                                                    <Binding Path="DataContext.FocusScore" ElementName="KanbanPage" Mode="OneWay">
+                                                        <Binding.Converter>
+                                                            <converters:FocusScoreToBrushConverter/>
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </Border.Background>
+                                            </Border>
                                             <!-- Card content -->
                                             <Grid Margin="14,12,12,12" RowSpacing="10">
                                                 <Grid.RowDefinitions>
@@ -236,13 +301,13 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <!-- Status badge -->
-                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
-                                                    <Ellipse Width="6" Height="6" 
-                                                             Fill="{StaticResource FbAlignedAccentBrush}"/>
-                                                    <TextBlock Text="Active" 
-                                                               Style="{StaticResource FbSecondaryTextStyle}"/>
-                                                </StackPanel>
+                                                <!-- Status badge (In Progress with fire icon) -->
+                                                <Border Grid.Row="0" Style="{StaticResource FbStatusBadgeInProgressStyle}" Margin="0,0,0,6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <FontIcon Glyph="&#xF0B2;" FontFamily="Segoe Fluent Icons" FontSize="11" Foreground="{StaticResource FbTextOnAccentBrush}"/>
+                                                        <TextBlock Text="In Progress" Foreground="{StaticResource FbTextOnAccentBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </Border>
                                                 <!-- Task timer (total time on this task) -->
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding DataContext.TaskElapsedTime, ElementName=KanbanPage}"
@@ -327,12 +392,14 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <!-- Column Header with Count -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="DONE" Style="{StaticResource FbColumnHeaderStyle}"/>
-                        <TextBlock Text="{x:Bind ViewModel.DoneTasks.Count, Mode=OneWay}" 
-                                   Style="{StaticResource FbColumnCountStyle}"/>
-                    </StackPanel>
+                    <!-- Column Header with Count (tinted background) -->
+                    <Border Grid.Row="0" Style="{StaticResource FbColumnHeaderAreaStyle}" Background="{StaticResource FbColumnHeaderDoneBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
+                            <TextBlock Text="DONE" Style="{StaticResource FbColumnHeaderStyle}"/>
+                            <TextBlock Text="{x:Bind ViewModel.DoneTasks.Count, Mode=OneWay}" 
+                                       Style="{StaticResource FbColumnCountStyle}"/>
+                        </StackPanel>
+                    </Border>
                     <!-- Header Divider -->
                     <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
                     <!-- Task List -->
@@ -363,12 +430,12 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
                                                 <!-- Completed badge -->
-                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
-                                                    <FontIcon Glyph="&#xE73E;" FontSize="10"
-                                                              Foreground="{StaticResource FbTextSecondaryBrush}"/>
-                                                    <TextBlock Text="Completed" 
-                                                               Style="{StaticResource FbSecondaryTextStyle}"/>
-                                                </StackPanel>
+                                                <Border Grid.Row="0" Style="{StaticResource FbStatusBadgeCompletedStyle}" Margin="0,0,0,6">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <FontIcon Glyph="&#xE73E;" FontSize="11" Foreground="{StaticResource FbTextOnAccentBrush}"/>
+                                                        <TextBlock Text="Completed" Foreground="{StaticResource FbTextOnAccentBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                </Border>
                                                 <!-- Total time on task -->
                                                 <TextBlock Grid.Row="1"
                                                            Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"

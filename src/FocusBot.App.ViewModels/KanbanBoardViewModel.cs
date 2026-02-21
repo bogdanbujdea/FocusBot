@@ -116,10 +116,39 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _focusReason, value);
     }
 
-    public bool IsFocusScoreVisible => IsMonitoring && HasValidFocusData();
+    private bool _isClassifying;
+    public bool IsClassifying
+    {
+        get => _isClassifying;
+        set
+        {
+            if (SetProperty(ref _isClassifying, value))
+            {
+                OnPropertyChanged(nameof(IsFocusResultVisible));
+            }
+        }
+    }
+
+    public bool IsFocusScoreVisible => IsMonitoring && (IsClassifying || HasValidFocusData());
+
+    public bool IsFocusResultVisible => !IsClassifying && HasValidFocusData();
 
     public string FocusScoreCategory =>
         FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
+
+    public string FocusStatusIcon => FocusScore switch
+    {
+        >= 6 => "ms-appx:///Assets/icon-focused.svg",
+        >= 4 => "ms-appx:///Assets/icon-unclear.svg",
+        _ => "ms-appx:///Assets/icon-distracted.svg"
+    };
+
+    public string FocusAccentBrushKey => FocusScore switch
+    {
+        >= 6 => "FbAlignedAccentBrush",
+        >= 4 => "FbNeutralAccentBrush",
+        _ => "FbMisalignedAccentBrush"
+    };
 
     private int _currentFocusScorePercent;
     public int CurrentFocusScorePercent
@@ -274,18 +303,47 @@ public partial class KanbanBoardViewModel : ObservableObject
         var newKey = GetCurrentWindowKey(e.ProcessName, e.WindowTitle);
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = FormatElapsed(newTotal);
-        FocusScore = 0;
-        FocusReason = string.Empty;
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
-        OnPropertyChanged(nameof(FocusScoreCategory));
-        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
 
         if (InProgressTasks.Count == 0)
+        {
+            FocusScore = 0;
+            FocusReason = string.Empty;
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(IsFocusResultVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             return;
-        var task = InProgressTasks[0];
+        }
 
-        if (string.Equals(e.ProcessName, FocusBotProcessName, StringComparison.OrdinalIgnoreCase))
+        var task = InProgressTasks[0];
+        var isViewingFocusBot = string.Equals(e.ProcessName, FocusBotProcessName, StringComparison.OrdinalIgnoreCase);
+
+        if (isViewingFocusBot)
+        {
+            FocusScore = 4;
+            FocusReason = "Viewing FocusBot";
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(IsFocusResultVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             return;
+        }
+
+        FocusScore = 0;
+        FocusReason = string.Empty;
+        IsClassifying = false;
+        OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusResultVisible));
+        OnPropertyChanged(nameof(FocusScoreCategory));
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(FocusAccentBrushKey));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
         _focusScoreService.StartPendingSegment(task.TaskId, contextHash, e.WindowTitle, e.ProcessName);
@@ -304,21 +362,32 @@ public partial class KanbanBoardViewModel : ObservableObject
         string windowTitle
     )
     {
-        var result = await _openAIService.ClassifyAlignmentAsync(
-            taskDescription,
-            taskContext,
-            processName,
-            windowTitle
-        );
-        if (result != null)
+        IsClassifying = true;
+        try
         {
-            FocusScore = result.Score;
-            FocusReason = result.Reason;
-            _focusScoreService.UpdatePendingSegmentScore(result.Score);
+            var result = await _openAIService.ClassifyAlignmentAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                windowTitle
+            );
+            if (result != null)
+            {
+                FocusScore = result.Score;
+                FocusReason = result.Reason;
+                _focusScoreService.UpdatePendingSegmentScore(result.Score);
+            }
         }
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
-        OnPropertyChanged(nameof(FocusScoreCategory));
-        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        finally
+        {
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(IsFocusResultVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        }
     }
 
     private async Task LoadBoardAsync()
