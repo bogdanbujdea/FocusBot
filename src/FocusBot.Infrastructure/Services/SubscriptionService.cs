@@ -11,13 +11,14 @@ namespace FocusBot.Infrastructure.Services;
 public class SubscriptionService : ISubscriptionService
 {
     /// <summary>
-    /// Must be the Store ID from Partner Center (StoreProduct.StoreId, typically 9N... format).
-    /// Override with env FOCUSBOT_SUBSCRIPTION_STORE_ID for testing. Replace before production.
+    /// Store ID from Partner Center (Subscription overview). Override with env FOCUSBOT_SUBSCRIPTION_STORE_ID for testing.
     /// </summary>
+    private const string DefaultSubscriptionStoreId = "9P6D9DGTVXLR";
+
     private static string GetSubscriptionStoreId()
     {
         var env = Environment.GetEnvironmentVariable("FOCUSBOT_SUBSCRIPTION_STORE_ID");
-        return !string.IsNullOrWhiteSpace(env) ? env.Trim() : "focusbot.subscription.monthly";
+        return !string.IsNullOrWhiteSpace(env) ? env.Trim() : DefaultSubscriptionStoreId;
     }
 
     private readonly ILogger<SubscriptionService> _logger;
