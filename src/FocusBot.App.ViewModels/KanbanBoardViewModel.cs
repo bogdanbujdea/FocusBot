@@ -24,7 +24,14 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFocusScoreService _focusScoreService;
 
+    private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
+
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
+
+    /// <summary>
+    /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
+    /// </summary>
+    public event EventHandler? ShowHowItWorksRequested;
 
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
@@ -496,6 +503,24 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();
+
+    [RelayCommand]
+    private void OpenHowItWorks() => ShowHowItWorksRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Returns true if the user has not yet seen the How it works guide (first run).
+    /// </summary>
+    public async Task<bool> GetHasSeenHowItWorksGuideAsync()
+    {
+        var value = await _settingsService.GetSettingAsync<bool>(HasSeenHowItWorksGuideKey);
+        return value == true;
+    }
+
+    /// <summary>
+    /// Marks the How it works guide as seen so it is not shown automatically again.
+    /// </summary>
+    public Task SetHasSeenHowItWorksGuideAsync() =>
+        _settingsService.SetSettingAsync(HasSeenHowItWorksGuideKey, true);
 
     [RelayCommand]
     private void ViewTaskDetail(string? taskId)

@@ -30,10 +30,31 @@ public sealed partial class KanbanBoardPage : Page
             else if (args.PropertyName == nameof(KanbanBoardViewModel.ShowEditTaskInput))
                 SyncEditPopupToViewModel(vm.ShowEditTaskInput);
         };
+        vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         AddTaskPopup.Closed += OnAddTaskPopupClosed;
         AddTaskPopup.Opened += OnAddTaskPopupOpened;
         EditTaskPopup.Closed += OnEditTaskPopupClosed;
         EditTaskPopup.Opened += OnEditTaskPopupOpened;
+        _ = TryShowFirstRunGuideAsync(vm);
+    }
+
+    private async Task TryShowFirstRunGuideAsync(KanbanBoardViewModel vm)
+    {
+        var hasSeen = await vm.GetHasSeenHowItWorksGuideAsync();
+        if (hasSeen)
+            return;
+        await ShowHowItWorksDialogAsync();
+        await vm.SetHasSeenHowItWorksGuideAsync();
+    }
+
+    private void OnShowHowItWorksRequested(object? sender, EventArgs e) => _ = ShowHowItWorksDialogAsync();
+
+    private async Task ShowHowItWorksDialogAsync()
+    {
+        if (XamlRoot == null)
+            return;
+        var dialog = new HowItWorksDialog { XamlRoot = XamlRoot };
+        await dialog.ShowAsync();
     }
 
     private void OnAddTaskPopupOpened(object? sender, object e)

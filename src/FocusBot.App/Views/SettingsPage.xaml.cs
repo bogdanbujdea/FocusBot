@@ -1,4 +1,5 @@
 using FocusBot.App.ViewModels;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace FocusBot.App.Views;
@@ -10,6 +11,14 @@ public sealed partial class SettingsPage : Page
     public SettingsPage()
     {
         InitializeComponent();
+    }
+
+    private async void HowItWorksButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot == null)
+            return;
+        var dialog = new HowItWorksDialog { XamlRoot = XamlRoot };
+        await dialog.ShowAsync();
     }
 
     private void ApiKeyInput_TextChanged(object sender, TextChangedEventArgs e)

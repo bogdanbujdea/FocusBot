@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="FocusBot.App.Views.HowItWorksDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="How Focus Bot works"
+    PrimaryButtonText="Got it"
+    DefaultButton="Primary"
+    Background="{StaticResource FbCardBackgroundBrush}"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    automation:AutomationProperties.Name="How Focus Bot works">
+
+    <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+            <TextBlock Text="What Focus Bot does"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You organize work on the Kanban board (To Do, In Progress, Done). When you start a task, Focus Bot monitors which app and window you're using. An AI classifies whether you're focused, unclear, or distracted and shows a live Focus Score (0–100%) for that session."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Your data stays local"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="All tasks, focus scores, and history are stored in a local SQLite database on your device. No cloud sync, no telemetry. Only the current window context (app name, window title, and your task description) is sent to the AI provider to get the alignment label. Results are cached so revisiting the same window does not send new requests."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Bring your own key or subscribe"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You can use your own API key (OpenAI, Anthropic, or Google) or subscribe to FocusBot Pro so we manage the key for you. If you bring your own key, we recommend a cheap model such as gpt-4o-mini: it works great for this task and keeps cost low. More expensive models add cost per request without a real benefit for alignment classification."/>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

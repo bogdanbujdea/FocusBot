@@ -87,7 +87,7 @@
                             </TextBlock.Foreground>
                         </TextBlock>
                         <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
-                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                   Style="{StaticResource FbFocusStatusReasonStyle}"
                                    TextWrapping="Wrap"
                                    MaxLines="2"
                                    TextTrimming="CharacterEllipsis"/>
@@ -109,11 +109,16 @@
                     automation:AutomationProperties.Name="Add task"
                     Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
                     Click="AddTaskButton_Click"/>
-            <Button Grid.Column="2"
-                    Content="Settings"
-                    Style="{StaticResource FbOutlineButtonStyle}"
-                    automation:AutomationProperties.Name="Settings"
-                    Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <Button Content="?"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        automation:AutomationProperties.Name="How it works"
+                        Command="{x:Bind ViewModel.OpenHowItWorksCommand}"/>
+                <Button Content="Settings"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        automation:AutomationProperties.Name="Settings"
+                        Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+            </StackPanel>
         </Grid>
 
         <!-- Kanban Columns -->
@@ -302,10 +307,10 @@
                                                         <TextBlock Text="In Progress" Foreground="{StaticResource FbTextOnAccentBrush}" FontSize="11" FontWeight="SemiBold"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <!-- Task timer (total time on this task) -->
+                                                <!-- Task timer (total time on this task), large for visibility -->
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding DataContext.TaskElapsedTime, ElementName=KanbanPage}"
-                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                           Style="{StaticResource FbTaskTimerInProgressStyle}"
                                                            automation:AutomationProperties.Name="Task elapsed time"/>
                                                 <!-- Focus score (visible when we have real score) with color indicator -->
                                                 <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6"

@@ -223,6 +223,28 @@
                 </StackPanel>
             </Border>
 
+            <!-- How it works -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Help"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <TextBlock Text="Learn how Focus Bot works and how your data is stored locally."
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                    <Button Content="How it works"
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Click="HowItWorksButton_Click"
+                            automation:AutomationProperties.Name="How it works"/>
+                </StackPanel>
+            </Border>
+
             <!-- Back to Board -->
             <Button Content="Back to Board"
                     Style="{StaticResource FbOutlineButtonStyle}"
