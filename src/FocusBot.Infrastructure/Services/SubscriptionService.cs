@@ -1,0 +1,141 @@
+using Windows.Services.Store;
+using FocusBot.Core.Entities;
+using FocusBot.Core.Interfaces;
+using Microsoft.Extensions.Logging;
+
+namespace FocusBot.Infrastructure.Services;
+
+/// <summary>
+/// Manages subscription status using Windows Store APIs.
+/// </summary>
+public class SubscriptionService : ISubscriptionService
+{
+    /// <summary>
+    /// Must be the Store ID from Partner Center (StoreProduct.StoreId, typically 9N... format).
+    /// Override with env FOCUSBOT_SUBSCRIPTION_STORE_ID for testing. Replace before production.
+    /// </summary>
+    private static string GetSubscriptionStoreId()
+    {
+        var env = Environment.GetEnvironmentVariable("FOCUSBOT_SUBSCRIPTION_STORE_ID");
+        return !string.IsNullOrWhiteSpace(env) ? env.Trim() : "focusbot.subscription.monthly";
+    }
+
+    private readonly ILogger<SubscriptionService> _logger;
+    private readonly StoreContextHolder _contextHolder;
+    private readonly IUIThreadDispatcher _uiDispatcher;
+
+    public SubscriptionService(
+        ILogger<SubscriptionService> logger,
+        StoreContextHolder contextHolder,
+        IUIThreadDispatcher uiDispatcher)
+    {
+        _logger = logger;
+        _contextHolder = contextHolder;
+        _uiDispatcher = uiDispatcher;
+    }
+
+    private StoreContext GetStoreContext()
+    {
+        if (_contextHolder.Context != null)
+            return _contextHolder.Context;
+        var ctx = StoreContext.GetDefault();
+        _logger.LogWarning("StoreContext was not initialized with window HWND; purchase UI may not display correctly");
+        return ctx;
+    }
+
+    public async Task<bool> IsSubscribedAsync()
+    {
+        try
+        {
+            var info = await GetSubscriptionInfoAsync();
+            return info?.IsActive ?? false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check subscription status");
+            return false;
+        }
+    }
+
+    public async Task<SubscriptionInfo?> GetSubscriptionInfoAsync()
+    {
+        try
+        {
+            var context = GetStoreContext();
+            var license = await context.GetAppLicenseAsync();
+
+            var storeId = GetSubscriptionStoreId();
+            if (!license.AddOnLicenses.TryGetValue(storeId, out var addOnLicense))
+                return null;
+
+            var isTrial = TryGetIsTrialFromLicense(addOnLicense);
+
+            return new SubscriptionInfo
+            {
+                IsActive = addOnLicense.IsActive,
+                ExpirationDate = addOnLicense.ExpirationDate,
+                WillAutoRenew = null,
+                IsTrialPeriod = isTrial
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get subscription info");
+            return null;
+        }
+    }
+
+    public async Task<PurchaseResult> PurchaseSubscriptionAsync()
+    {
+        try
+        {
+            var storeId = GetSubscriptionStoreId();
+            StorePurchaseResult? purchaseResult = null;
+            await _uiDispatcher.RunOnUIThreadAsync(async () =>
+            {
+                var context = GetStoreContext();
+                purchaseResult = await context.RequestPurchaseAsync(storeId);
+            });
+
+            return purchaseResult!.Status switch
+            {
+                StorePurchaseStatus.Succeeded => PurchaseResult.Success,
+                StorePurchaseStatus.AlreadyPurchased => PurchaseResult.AlreadyOwned,
+                StorePurchaseStatus.NotPurchased => PurchaseResult.Cancelled,
+                StorePurchaseStatus.NetworkError => PurchaseResult.NetworkError,
+                StorePurchaseStatus.ServerError => PurchaseResult.Error,
+                _ => PurchaseResult.Error
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to purchase subscription");
+            return PurchaseResult.Error;
+        }
+    }
+
+    public Task OpenManageSubscriptionAsync()
+    {
+        var uri = new Uri("ms-windows-store://account/subscriptions");
+        return Windows.System.Launcher.LaunchUriAsync(uri).AsTask();
+    }
+
+    private static bool TryGetIsTrialFromLicense(StoreLicense license)
+    {
+        try
+        {
+            var json = license.ExtendedJsonData;
+            if (string.IsNullOrWhiteSpace(json))
+                return false;
+            if (json.IndexOf("isTrial", StringComparison.OrdinalIgnoreCase) >= 0
+                && (json.Contains("\"isTrial\":true", StringComparison.Ordinal) || json.Contains("'isTrial':true", StringComparison.Ordinal)))
+                return true;
+        }
+        catch
+        {
+            // ignore parse errors
+        }
+
+        return false;
+    }
+}

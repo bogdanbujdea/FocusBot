@@ -13,7 +13,10 @@ namespace FocusBot.Infrastructure.Services;
 /// <summary>
 /// Service that classifies window/task alignment using an LLM (provider and model from settings).
 /// </summary>
-public class LlmService(ISettingsService settingsService, ILogger<LlmService> logger) : ILlmService
+public class LlmService(
+    ISettingsService settingsService,
+    ISubscriptionService subscriptionService,
+    ILogger<LlmService> logger) : ILlmService
 {
     private const string SystemPrompt = """
         You are a focus alignment classifier for a Windows productivity app. The app tracks the user's currently active (foreground) window and asks you to determine if it aligns with their current task.
@@ -51,8 +54,14 @@ public class LlmService(ISettingsService settingsService, ILogger<LlmService> lo
         var mode = await settingsService.GetApiKeyModeAsync();
         if (mode == ApiKeyMode.Managed)
         {
+            var isSubscribed = await subscriptionService.IsSubscribedAsync();
+            if (!isSubscribed)
+            {
+                return new ClassifyAlignmentResponse(null,
+                    "Please subscribe to use FocusBot Pro, or switch to using your own API key.");
+            }
             return new ClassifyAlignmentResponse(null,
-                "Subscription coming soon. Please use your own API key for now.");
+                "Your subscription is active! Managed API key support coming soon.");
         }
 
         var apiKey = await settingsService.GetApiKeyAsync();

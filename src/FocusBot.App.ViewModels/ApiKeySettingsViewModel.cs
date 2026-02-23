@@ -14,6 +14,7 @@ namespace FocusBot.App.ViewModels;
 public partial class ApiKeySettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settingsService;
+    private readonly ISubscriptionService _subscriptionService;
     private readonly ILlmService _llmService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
@@ -72,6 +73,24 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private ModelInfo? _selectedModel;
 
+    [ObservableProperty]
+    private bool _isSubscribed;
+
+    [ObservableProperty]
+    private SubscriptionInfo? _subscriptionInfo;
+
+    [ObservableProperty]
+    private bool _isLoadingSubscription;
+
+    [ObservableProperty]
+    private string? _subscriptionStatusText;
+
+    [ObservableProperty]
+    private bool _showSubscribeButton = true;
+
+    [ObservableProperty]
+    private bool _showManageButton;
+
     public bool ShowMaskedDisplay => ShouldShowMaskedDisplay();
 
     public bool ShowInputArea => ShouldShowInputArea();
@@ -80,14 +99,17 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     public ApiKeySettingsViewModel(
         ISettingsService settingsService,
+        ISubscriptionService subscriptionService,
         ILlmService llmService,
         ILogger<ApiKeySettingsViewModel> logger)
     {
         _settingsService = settingsService;
+        _subscriptionService = subscriptionService;
         _llmService = llmService;
         _logger = logger;
 
         _ = LoadSettingsAsync();
+        _ = LoadSubscriptionStatusAsync();
     }
 
     partial void OnApiKeyModeChanged(ApiKeyMode value)
@@ -108,6 +130,75 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     {
         ApiKeyMode = ApiKeyMode.Managed;
         await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Managed);
+    }
+
+    [RelayCommand]
+    private async Task LoadSubscriptionStatusAsync()
+    {
+        IsLoadingSubscription = true;
+        try
+        {
+            SubscriptionInfo = await _subscriptionService.GetSubscriptionInfoAsync();
+            IsSubscribed = SubscriptionInfo?.IsActive ?? false;
+
+            if (IsSubscribed && SubscriptionInfo != null)
+            {
+                var renewText = SubscriptionInfo.WillAutoRenew == true ? "Renews" : "Expires";
+                SubscriptionStatusText = $"{renewText} on {SubscriptionInfo.ExpirationDate:MMMM d, yyyy}";
+                ShowManageButton = true;
+                ShowSubscribeButton = false;
+            }
+            else
+            {
+                SubscriptionStatusText = null;
+                ShowManageButton = false;
+                ShowSubscribeButton = true;
+            }
+        }
+        finally
+        {
+            IsLoadingSubscription = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SubscribeAsync()
+    {
+        IsLoadingSubscription = true;
+        IsStatusError = false;
+        StatusMessage = string.Empty;
+        try
+        {
+            var result = await _subscriptionService.PurchaseSubscriptionAsync();
+
+            switch (result)
+            {
+                case PurchaseResult.Success:
+                case PurchaseResult.AlreadyOwned:
+                    await LoadSubscriptionStatusAsync();
+                    break;
+                case PurchaseResult.Cancelled:
+                    break;
+                case PurchaseResult.NetworkError:
+                    StatusMessage = "Network error. Please check your connection and try again.";
+                    IsStatusError = true;
+                    break;
+                case PurchaseResult.Error:
+                    StatusMessage = "Something went wrong. Please try again later.";
+                    IsStatusError = true;
+                    break;
+            }
+        }
+        finally
+        {
+            IsLoadingSubscription = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ManageSubscriptionAsync()
+    {
+        await _subscriptionService.OpenManageSubscriptionAsync();
     }
 
     private async Task LoadSettingsAsync()

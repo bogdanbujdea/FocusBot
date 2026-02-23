@@ -157,14 +157,69 @@
                         </StackPanel>
                     </RadioButton>
 
-                    <!-- Subscription Placeholder (visible when Subscription mode selected) -->
+                    <!-- Subscription Mode Content -->
                     <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                Margin="28,0,0,0">
-                        <InfoBar IsOpen="True"
-                                 IsClosable="False"
-                                 Severity="Informational"
-                                 Title="Coming Soon"
-                                 Message="Subscription support is coming soon. Please use your own API key for now."/>
+                                Margin="28,0,0,0"
+                                Spacing="12">
+                        <ProgressRing IsActive="{x:Bind ViewModel.ApiKeySection.IsLoadingSubscription, Mode=OneWay}"
+                                      Width="24" Height="24"
+                                      Visibility="{x:Bind ViewModel.ApiKeySection.IsLoadingSubscription, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowSubscribeButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Spacing="12">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="{StaticResource FbTextSecondaryBrush}">
+                                Unlock AI-powered focus tracking without managing API keys.
+                                $4.99/month, cancel anytime.
+                            </TextBlock>
+                            <Button Content="Subscribe Now"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.SubscribeCommand}"
+                                    automation:AutomationProperties.Name="Subscribe Now"/>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsSubscribed, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE73E;"
+                                          Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="Active subscription"
+                                           FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.SubscriptionStatusText, Mode=OneWay}"
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                            <Button Content="Manage Subscription"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    Command="{x:Bind ViewModel.ApiKeySection.ManageSubscriptionCommand}"
+                                    automation:AutomationProperties.Name="Manage Subscription"/>
+                            <InfoBar IsOpen="True"
+                                     IsClosable="False"
+                                     Severity="Informational"
+                                     Title="Almost Ready"
+                                     Message="Your subscription is active! Managed API key support is coming soon. You can continue using your own API key in the meantime."/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7BA;"
+                                      FontSize="16"
+                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                      VerticalAlignment="Center"
+                                      Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                      automation:AutomationProperties.Name="Error"/>
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource FbTextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
