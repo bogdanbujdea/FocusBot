@@ -1,11 +1,7 @@
 using System.Text.Json;
-using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
-using FocusBot.Infrastructure.Configuration;
 using LlmTornado;
-using LlmTornado.Chat;
-using LlmTornado.Code;
 using Microsoft.Extensions.Logging;
 
 namespace FocusBot.Infrastructure.Services;
@@ -17,7 +13,8 @@ public class LlmService(
     ISettingsService settingsService,
     ISubscriptionService subscriptionService,
     IManagedKeyProvider managedKeyProvider,
-    ILogger<LlmService> logger) : ILlmService
+    ILogger<LlmService> logger
+) : ILlmService
 {
     private const string SystemPrompt = """
         You are a focus alignment classifier for a Windows productivity app. The app tracks the user's currently active (foreground) window and asks you to determine if it aligns with their current task.
@@ -62,16 +59,20 @@ public class LlmService(
             var isSubscribed = await subscriptionService.IsSubscribedAsync();
             if (!isSubscribed)
             {
-                return new ClassifyAlignmentResponse(null,
-                    "Please subscribe to use FocusBot Pro, or switch to using your own API key.");
+                return new ClassifyAlignmentResponse(
+                    null,
+                    "Please subscribe to use FocusBot Pro, or switch to using your own API key."
+                );
             }
 
             var managedKey = await managedKeyProvider.GetApiKeyAsync();
             if (string.IsNullOrWhiteSpace(managedKey))
             {
                 logger.LogError("Managed key provider returned null or empty key");
-                return new ClassifyAlignmentResponse(null,
-                    "Unable to access AI service. Please try again or use your own API key.");
+                return new ClassifyAlignmentResponse(
+                    null,
+                    "Unable to access AI service. Please try again or use your own API key."
+                );
             }
 
             apiKey = managedKey;

@@ -206,25 +206,25 @@
                                                             Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
-                                                            <TextBlock Text="View" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE8A5;" FontSize="13"/>
+                                                            <TextBlock Text="View" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionEditStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE70F;" FontSize="12"/>
-                                                            <TextBlock Text="Edit" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="13"/>
+                                                            <TextBlock Text="Edit" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionDeleteStyle}"
                                                             automation:AutomationProperties.Name="Delete task" 
                                                             Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                                                            <TextBlock Text="Delete" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="13"/>
+                                                            <TextBlock Text="Delete" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
                                                 </StackPanel>
@@ -307,19 +307,30 @@
                                                            Text="{Binding DataContext.TaskElapsedTime, ElementName=KanbanPage}"
                                                            Style="{StaticResource FbSecondaryTextStyle}"
                                                            automation:AutomationProperties.Name="Task elapsed time"/>
-                                                <!-- Focus score (visible when we have real score) -->
-                                                <TextBlock Grid.Row="2"
-                                                           Visibility="{Binding DataContext.IsFocusScorePercentVisible, ElementName=KanbanPage, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                                           automation:AutomationProperties.Name="Focus score">
-                                                    <TextBlock.Text>
-                                                        <Binding Path="DataContext.CurrentFocusScorePercent" ElementName="KanbanPage" Mode="OneWay">
-                                                            <Binding.Converter>
-                                                                <converters:FocusScorePercentFormatConverter/>
-                                                            </Binding.Converter>
-                                                        </Binding>
-                                                    </TextBlock.Text>
-                                                </TextBlock>
+                                                <!-- Focus score (visible when we have real score) with color indicator -->
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6"
+                                                            Visibility="{Binding DataContext.IsFocusScorePercentVisible, ElementName=KanbanPage, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center">
+                                                        <Ellipse.Fill>
+                                                            <Binding Path="DataContext.FocusScore" ElementName="KanbanPage" Mode="OneWay">
+                                                                <Binding.Converter>
+                                                                    <converters:FocusScoreToBrushConverter/>
+                                                                </Binding.Converter>
+                                                            </Binding>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               Style="{StaticResource FbSecondaryTextStyle}"
+                                                               automation:AutomationProperties.Name="Focus score">
+                                                        <TextBlock.Text>
+                                                            <Binding Path="DataContext.CurrentFocusScorePercent" ElementName="KanbanPage" Mode="OneWay">
+                                                                <Binding.Converter>
+                                                                    <converters:FocusScorePercentFormatConverter/>
+                                                                </Binding.Converter>
+                                                            </Binding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </StackPanel>
                                                 <!-- Task title (clickable) -->
                                                 <HyperlinkButton Grid.Row="3"
                                                                  Padding="0"
@@ -348,18 +359,18 @@
                                                             automation:AutomationProperties.Name="View task"
                                                             Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
-                                                        <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
+                                                        <FontIcon Glyph="&#xE8A5;" FontSize="13"/>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionEditStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">
-                                                        <FontIcon Glyph="&#xE70F;" FontSize="12"/>
+                                                        <FontIcon Glyph="&#xE70F;" FontSize="13"/>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionDeleteStyle}"
                                                             automation:AutomationProperties.Name="Delete task" 
                                                             Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
-                                                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                        <FontIcon Glyph="&#xE74D;" FontSize="13"/>
                                                     </Button>
                                                 </StackPanel>
                                             </Grid>
@@ -401,18 +412,24 @@
                         <ItemsControl ItemsSource="{x:Bind ViewModel.DoneTasks, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="entities:UserTask">
-                                    <!-- Card with left accent bar (completed) -->
+                                    <!-- Card with left accent bar (completed; color by focus score when present) -->
                                     <Border Style="{StaticResource CardStyle}" 
                                             Tag="{x:Bind TaskId}"
                                             CanDrag="True" 
                                             DragStarting="TaskCard_DragStarting">
                                         <Grid>
-                                            <!-- Left accent bar (completed - muted green) -->
+                                            <!-- Left accent bar (focus score color when present, else muted green) -->
                                             <Border Width="3" 
-                                                    Background="{StaticResource FbAlignedAccentBrush}"
-                                                    Opacity="0.5"
                                                     CornerRadius="3,0,0,3"
-                                                    HorizontalAlignment="Left"/>
+                                                    HorizontalAlignment="Left">
+                                                <Border.Background>
+                                                    <Binding Path="FocusScorePercent" Mode="OneWay">
+                                                        <Binding.Converter>
+                                                            <converters:NullableFocusScorePercentToBrushConverter/>
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </Border.Background>
+                                            </Border>
                                             <!-- Card content -->
                                             <Grid Margin="14,12,12,12" RowSpacing="10">
                                                 <Grid.RowDefinitions>
@@ -435,19 +452,30 @@
                                                            Text="{x:Bind TotalElapsedSeconds, Mode=OneWay, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
                                                            Style="{StaticResource FbSecondaryTextStyle}"
                                                            automation:AutomationProperties.Name="Task total time"/>
-                                                <!-- Focus score (visible when task has focus score) -->
-                                                <TextBlock Grid.Row="2"
-                                                           Visibility="{x:Bind FocusScorePercent, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
-                                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                                           automation:AutomationProperties.Name="Focus score">
-                                                    <TextBlock.Text>
-                                                        <Binding Path="FocusScorePercent" Mode="OneWay">
-                                                            <Binding.Converter>
-                                                                <converters:NullableIntToFocusScoreFormatConverter/>
-                                                            </Binding.Converter>
-                                                        </Binding>
-                                                    </TextBlock.Text>
-                                                </TextBlock>
+                                                <!-- Focus score (visible when task has focus score) with color indicator -->
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6"
+                                                            Visibility="{x:Bind FocusScorePercent, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center">
+                                                        <Ellipse.Fill>
+                                                            <Binding Path="FocusScorePercent" Mode="OneWay">
+                                                                <Binding.Converter>
+                                                                    <converters:NullableFocusScorePercentToBrushConverter/>
+                                                                </Binding.Converter>
+                                                            </Binding>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               Style="{StaticResource FbSecondaryTextStyle}"
+                                                               automation:AutomationProperties.Name="Focus score">
+                                                        <TextBlock.Text>
+                                                            <Binding Path="FocusScorePercent" Mode="OneWay">
+                                                                <Binding.Converter>
+                                                                    <converters:NullableIntToFocusScoreFormatConverter/>
+                                                                </Binding.Converter>
+                                                            </Binding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </StackPanel>
                                                 <!-- Task title (clickable, slightly muted) -->
                                                 <HyperlinkButton Grid.Row="3"
                                                                  Padding="0"
@@ -468,25 +496,25 @@
                                                             Command="{Binding DataContext.ViewTaskDetailCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE8A5;" FontSize="12"/>
-                                                            <TextBlock Text="View" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE8A5;" FontSize="13"/>
+                                                            <TextBlock Text="View" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionEditStyle}"
                                                             automation:AutomationProperties.Name="Edit task"
                                                             Click="EditTaskButton_Click">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE70F;" FontSize="12"/>
-                                                            <TextBlock Text="Edit" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="13"/>
+                                                            <TextBlock Text="Edit" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
-                                                    <Button Style="{StaticResource FbCardActionButtonStyle}"
+                                                    <Button Style="{StaticResource FbCardActionDeleteStyle}"
                                                             automation:AutomationProperties.Name="Delete task" 
                                                             Command="{Binding DataContext.DeleteTaskCommand, ElementName=KanbanPage}"
                                                             CommandParameter="{Binding TaskId}">
                                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                                                            <TextBlock Text="Delete" FontSize="12"/>
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="13"/>
+                                                            <TextBlock Text="Delete" FontSize="13"/>
                                                         </StackPanel>
                                                     </Button>
                                                 </StackPanel>

@@ -25,6 +25,8 @@
             <Color x:Key="FbMisalignedAccent">#F97316</Color>
             <Color x:Key="FbToDoAccent">#0EA5E9</Color>
             <Color x:Key="FbCompletedBadge">#16A34A</Color>
+            <Color x:Key="FbEditAccent">#D97706</Color>
+            <Color x:Key="FbDeleteAccent">#DC2626</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#DCE9F8</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#FFEDD5</Color>
@@ -56,6 +58,8 @@
             <Color x:Key="FbMisalignedAccent">#FB923C</Color>
             <Color x:Key="FbToDoAccent">#0284C7</Color>
             <Color x:Key="FbCompletedBadge">#15803D</Color>
+            <Color x:Key="FbEditAccent">#F59E0B</Color>
+            <Color x:Key="FbDeleteAccent">#EF4444</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#1A2438</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#352818</Color>
@@ -84,6 +88,8 @@
             <Color x:Key="FbMisalignedAccent">#FF0000</Color>
             <Color x:Key="FbToDoAccent">#00BFFF</Color>
             <Color x:Key="FbCompletedBadge">#008000</Color>
+            <Color x:Key="FbEditAccent">#FFA500</Color>
+            <Color x:Key="FbDeleteAccent">#FF0000</Color>
             <Color x:Key="FbColumnHeaderToDoBg">#001a33</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#331900</Color>
             <Color x:Key="FbColumnHeaderDoneBg">#001a00</Color>

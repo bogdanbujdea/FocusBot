@@ -60,6 +60,8 @@
     <SolidColorBrush x:Key="FbMisalignedAccentBrush" Color="{ThemeResource FbMisalignedAccent}"/>
     <SolidColorBrush x:Key="FbToDoAccentBrush" Color="{ThemeResource FbToDoAccent}"/>
     <SolidColorBrush x:Key="FbCompletedBadgeBrush" Color="{ThemeResource FbCompletedBadge}"/>
+    <SolidColorBrush x:Key="FbEditAccentBrush" Color="{ThemeResource FbEditAccent}"/>
+    <SolidColorBrush x:Key="FbDeleteAccentBrush" Color="{ThemeResource FbDeleteAccent}"/>
 
     <!-- Column header background brushes (tinted by status) -->
     <SolidColorBrush x:Key="FbColumnHeaderToDoBrush" Color="{ThemeResource FbColumnHeaderToDoBg}"/>
