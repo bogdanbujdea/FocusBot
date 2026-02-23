@@ -13,7 +13,7 @@
     mc:Ignorable="d"
     Background="{StaticResource FbPageBackgroundBrush}">
 
-    <Grid Margin="32" RowSpacing="20">
+    <Grid x:Name="RootGrid" Margin="32" RowSpacing="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -533,74 +533,102 @@
             </FontIcon>
         </StackPanel>
 
-        <!-- Add Task Popup (light dismiss, draft preserved when closed) -->
+        <!-- Add Task Popup (light dismiss, draft preserved when closed, centered) -->
         <primitives:Popup x:Name="AddTaskPopup"
                           Grid.Row="0"
                           Grid.RowSpan="3"
-                          IsLightDismissEnabled="True"
-                          VerticalOffset="8">
-            <Border Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="16"
-                    MinWidth="320">
-                <StackPanel Spacing="12">
-                    <TextBox automation:AutomationProperties.Name="Task description"
-                             Text="{x:Bind ViewModel.NewTaskDescription, Mode=TwoWay}"
-                             PlaceholderText="What are you working on?"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
-                    <TextBox automation:AutomationProperties.Name="Task context"
-                             Text="{x:Bind ViewModel.NewTaskContext, Mode=TwoWay}"
-                             PlaceholderText="Context (optional)"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Add Task"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                automation:AutomationProperties.Name="Add task"
-                                Command="{x:Bind ViewModel.AddTaskCommand}"/>
-                        <Button Content="Cancel"
-                                Style="{StaticResource FbOutlineButtonStyle}"
-                                automation:AutomationProperties.Name="Cancel"
-                                Command="{x:Bind ViewModel.ToggleAddTaskCommand}"/>
+                          IsLightDismissEnabled="True">
+            <Grid x:Name="AddTaskOverlay"
+                  Background="#40000000"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+                <Border Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                        Padding="16"
+                        MinWidth="320"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel Spacing="12">
+                        <TextBox x:Name="AddTaskDescriptionBox"
+                                 TabIndex="0"
+                                 automation:AutomationProperties.Name="Task description"
+                                 Text="{x:Bind ViewModel.NewTaskDescription, Mode=TwoWay}"
+                                 PlaceholderText="What are you working on?"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 KeyDown="AddTaskPopup_KeyDown"/>
+                        <TextBox x:Name="AddTaskContextBox"
+                                 TabIndex="1"
+                                 automation:AutomationProperties.Name="Task context"
+                                 Text="{x:Bind ViewModel.NewTaskContext, Mode=TwoWay}"
+                                 PlaceholderText="Context (optional)"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 KeyDown="AddTaskPopup_KeyDown"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Add Task"
+                                    TabIndex="2"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    automation:AutomationProperties.Name="Add task"
+                                    Command="{x:Bind ViewModel.AddTaskCommand}"/>
+                            <Button Content="Cancel"
+                                    TabIndex="3"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    automation:AutomationProperties.Name="Cancel"
+                                    Command="{x:Bind ViewModel.ToggleAddTaskCommand}"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </Border>
+            </Grid>
         </primitives:Popup>
 
-        <!-- Edit Task Popup (light dismiss, draft preserved when closed) -->
+        <!-- Edit Task Popup (light dismiss, draft preserved when closed, centered) -->
         <primitives:Popup x:Name="EditTaskPopup"
                           Grid.Row="0"
                           Grid.RowSpan="3"
-                          IsLightDismissEnabled="True"
-                          VerticalOffset="8">
-            <Border Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="16"
-                    MinWidth="320">
-                <StackPanel Spacing="12">
-                    <TextBox automation:AutomationProperties.Name="Edit task description"
-                             Text="{x:Bind ViewModel.EditTaskDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="What are you working on?"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
-                    <TextBox automation:AutomationProperties.Name="Edit task context"
-                             Text="{x:Bind ViewModel.EditTaskContext, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="Context (optional)"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Save"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                automation:AutomationProperties.Name="Save task"
-                                Command="{x:Bind ViewModel.SaveEditTaskCommand}"/>
-                        <Button Content="Cancel"
-                                Style="{StaticResource FbOutlineButtonStyle}"
-                                automation:AutomationProperties.Name="Cancel"
-                                Command="{x:Bind ViewModel.CloseEditTaskCommand}"/>
+                          IsLightDismissEnabled="True">
+            <Grid x:Name="EditTaskOverlay"
+                  Background="#40000000"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+                <Border Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                        Padding="16"
+                        MinWidth="320"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel Spacing="12">
+                        <TextBox x:Name="EditTaskDescriptionBox"
+                                 TabIndex="0"
+                                 automation:AutomationProperties.Name="Edit task description"
+                                 Text="{x:Bind ViewModel.EditTaskDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="What are you working on?"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 KeyDown="EditTaskPopup_KeyDown"/>
+                        <TextBox x:Name="EditTaskContextBox"
+                                 TabIndex="1"
+                                 automation:AutomationProperties.Name="Edit task context"
+                                 Text="{x:Bind ViewModel.EditTaskContext, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="Context (optional)"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 KeyDown="EditTaskPopup_KeyDown"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Save"
+                                    TabIndex="2"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    automation:AutomationProperties.Name="Save task"
+                                    Command="{x:Bind ViewModel.SaveEditTaskCommand}"/>
+                            <Button Content="Cancel"
+                                    TabIndex="3"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    automation:AutomationProperties.Name="Cancel"
+                                    Command="{x:Bind ViewModel.CloseEditTaskCommand}"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </Border>
+            </Grid>
         </primitives:Popup>
     </Grid>
 </Page>

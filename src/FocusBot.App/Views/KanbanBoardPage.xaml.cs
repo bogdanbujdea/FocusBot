@@ -3,6 +3,7 @@ using FocusBot.Core.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 
 namespace FocusBot.App.Views;
 
@@ -30,7 +31,16 @@ public sealed partial class KanbanBoardPage : Page
                 SyncEditPopupToViewModel(vm.ShowEditTaskInput);
         };
         AddTaskPopup.Closed += OnAddTaskPopupClosed;
+        AddTaskPopup.Opened += OnAddTaskPopupOpened;
         EditTaskPopup.Closed += OnEditTaskPopupClosed;
+        EditTaskPopup.Opened += OnEditTaskPopupOpened;
+    }
+
+    private void OnAddTaskPopupOpened(object? sender, object e)
+    {
+        AddTaskOverlay.Width = RootGrid.ActualWidth;
+        AddTaskOverlay.Height = RootGrid.ActualHeight;
+        AddTaskDescriptionBox.Focus(FocusState.Programmatic);
     }
 
     private void AddTaskButton_Click(object sender, RoutedEventArgs e)
@@ -42,8 +52,8 @@ public sealed partial class KanbanBoardPage : Page
     {
         if (show)
         {
-            AddTaskPopup.PlacementTarget = AddTaskButton;
-            AddTaskPopup.XamlRoot = AddTaskButton.XamlRoot;
+            AddTaskPopup.PlacementTarget = RootGrid;
+            AddTaskPopup.XamlRoot = RootGrid.XamlRoot;
             AddTaskPopup.IsOpen = true;
         }
         else
@@ -52,10 +62,35 @@ public sealed partial class KanbanBoardPage : Page
         }
     }
 
+    private void AddTaskPopup_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter)
+            return;
+        e.Handled = true;
+        if (ViewModel.AddTaskCommand.CanExecute(null))
+            ViewModel.AddTaskCommand.Execute(null);
+    }
+
     private void OnAddTaskPopupClosed(object? sender, object e)
     {
         if (DataContext is KanbanBoardViewModel vm)
             vm.ShowAddTaskInput = false;
+    }
+
+    private void OnEditTaskPopupOpened(object? sender, object e)
+    {
+        EditTaskOverlay.Width = RootGrid.ActualWidth;
+        EditTaskOverlay.Height = RootGrid.ActualHeight;
+        EditTaskDescriptionBox.Focus(FocusState.Programmatic);
+    }
+
+    private void EditTaskPopup_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Enter)
+            return;
+        e.Handled = true;
+        if (ViewModel.SaveEditTaskCommand.CanExecute(null))
+            ViewModel.SaveEditTaskCommand.Execute(null);
     }
 
     private FrameworkElement? _editPopupPlacementTarget;
@@ -64,8 +99,8 @@ public sealed partial class KanbanBoardPage : Page
     {
         if (show && _editPopupPlacementTarget != null)
         {
-            EditTaskPopup.PlacementTarget = _editPopupPlacementTarget;
-            EditTaskPopup.XamlRoot = _editPopupPlacementTarget.XamlRoot;
+            EditTaskPopup.PlacementTarget = RootGrid;
+            EditTaskPopup.XamlRoot = RootGrid.XamlRoot;
             EditTaskPopup.IsOpen = true;
         }
         else
