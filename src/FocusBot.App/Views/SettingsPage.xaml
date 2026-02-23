@@ -192,11 +192,10 @@
                                     Style="{StaticResource FbOutlineButtonStyle}"
                                     Command="{x:Bind ViewModel.ApiKeySection.ManageSubscriptionCommand}"
                                     automation:AutomationProperties.Name="Manage Subscription"/>
-                            <InfoBar IsOpen="True"
-                                     IsClosable="False"
-                                     Severity="Informational"
-                                     Title="Almost Ready"
-                                     Message="Your subscription is active! Managed API key support is coming soon. You can continue using your own API key in the meantime."/>
+                            <TextBlock TextWrapping="Wrap"
+                                      Foreground="{StaticResource FbTextSecondaryBrush}">
+                                Your AI-powered focus tracking is active. No setup required - we handle everything!
+                            </TextBlock>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="8">

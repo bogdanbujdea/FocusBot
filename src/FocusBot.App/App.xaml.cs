@@ -50,11 +50,13 @@ namespace FocusBot.App
             services.AddSingleton<IUIThreadDispatcher>(sp =>
                 sp.GetRequiredService<AppUIThreadDispatcher>()
             );
+
 #if DEBUG
             services.AddSingleton<ISubscriptionService, MockSubscriptionService>();
 #else
             services.AddSingleton<ISubscriptionService, SubscriptionService>();
 #endif
+            services.AddSingleton<IManagedKeyProvider, EmbeddedManagedKeyProvider>();
             services.AddSingleton<LlmService>();
             services.AddSingleton<ILlmService>(sp => new AlignmentClassificationCacheDecorator(
                 sp.GetRequiredService<LlmService>(),

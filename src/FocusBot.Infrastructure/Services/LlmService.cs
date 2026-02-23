@@ -16,6 +16,7 @@ namespace FocusBot.Infrastructure.Services;
 public class LlmService(
     ISettingsService settingsService,
     ISubscriptionService subscriptionService,
+    IManagedKeyProvider managedKeyProvider,
     ILogger<LlmService> logger) : ILlmService
 {
     private const string SystemPrompt = """
@@ -52,6 +53,10 @@ public class LlmService(
     )
     {
         var mode = await settingsService.GetApiKeyModeAsync();
+        string apiKey;
+        string providerId;
+        string model;
+
         if (mode == ApiKeyMode.Managed)
         {
             var isSubscribed = await subscriptionService.IsSubscribedAsync();
@@ -60,20 +65,32 @@ public class LlmService(
                 return new ClassifyAlignmentResponse(null,
                     "Please subscribe to use FocusBot Pro, or switch to using your own API key.");
             }
-            return new ClassifyAlignmentResponse(null,
-                "Your subscription is active! Managed API key support coming soon.");
+
+            var managedKey = await managedKeyProvider.GetApiKeyAsync();
+            if (string.IsNullOrWhiteSpace(managedKey))
+            {
+                logger.LogError("Managed key provider returned null or empty key");
+                return new ClassifyAlignmentResponse(null,
+                    "Unable to access AI service. Please try again or use your own API key.");
+            }
+
+            apiKey = managedKey;
+            providerId = managedKeyProvider.ProviderId;
+            model = managedKeyProvider.ModelId;
         }
+        else
+        {
+            apiKey = await settingsService.GetApiKeyAsync() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(apiKey))
+                return new ClassifyAlignmentResponse(null, null);
 
-        var apiKey = await settingsService.GetApiKeyAsync();
-        if (string.IsNullOrWhiteSpace(apiKey))
-            return new ClassifyAlignmentResponse(null, null);
-
-        var providerId =
-            await settingsService.GetProviderAsync()
-            ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultProvider.ProviderId;
-        var model =
-            await settingsService.GetModelAsync()
-            ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultModel(providerId).ModelId;
+            providerId =
+                await settingsService.GetProviderAsync()
+                ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultProvider.ProviderId;
+            model =
+                await settingsService.GetModelAsync()
+                ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultModel(providerId).ModelId;
+        }
 
         try
         {
