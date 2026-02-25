@@ -73,4 +73,6 @@ public class AlignmentClassificationCacheDecorator : ILlmService
         string modelId,
         CancellationToken ct = default) =>
         _inner.ValidateCredentialsAsync(apiKey, providerId, modelId, ct);
+
+    public Task<bool> IsConfiguredAsync() => _inner.IsConfiguredAsync();
 }

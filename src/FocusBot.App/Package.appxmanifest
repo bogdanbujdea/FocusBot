@@ -10,7 +10,7 @@
   <Identity
     Name="19960BogdanB.FocusBot"
     Publisher="CN=4E87F883-6FEA-4B8F-9088-5E5336A782BD"
-    Version="1.0.0.0" />
+    Version="1.0.1.0" />
 
   <mp:PhoneIdentity PhoneProductId="7aa63249-c9c9-46ab-9ffd-f86b14a384f3" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

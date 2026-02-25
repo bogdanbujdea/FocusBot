@@ -124,6 +124,21 @@ public class LlmService(
         }
     }
 
+    public async Task<bool> IsConfiguredAsync()
+    {
+        var mode = await settingsService.GetApiKeyModeAsync();
+        if (mode == ApiKeyMode.Managed)
+        {
+            if (!await subscriptionService.IsSubscribedAsync())
+                return false;
+            var managedKey = await managedKeyProvider.GetApiKeyAsync();
+            return !string.IsNullOrWhiteSpace(managedKey);
+        }
+
+        var apiKey = await settingsService.GetApiKeyAsync();
+        return !string.IsNullOrWhiteSpace(apiKey);
+    }
+
     public async Task<ClassifyAlignmentResponse> ValidateCredentialsAsync(
         string apiKey,
         string providerId,

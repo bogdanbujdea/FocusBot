@@ -43,18 +43,22 @@ public sealed partial class KanbanBoardPage : Page
         var hasSeen = await vm.GetHasSeenHowItWorksGuideAsync();
         if (hasSeen)
             return;
-        await ShowHowItWorksDialogAsync();
+        var result = await ShowHowItWorksDialogAsync();
         await vm.SetHasSeenHowItWorksGuideAsync();
+        if (result == ContentDialogResult.Secondary)
+            vm.OpenSettingsCommand.Execute(null);
+        else if (!vm.IsAiConfigured)
+            vm.OpenSettingsCommand.Execute(null);
     }
 
     private void OnShowHowItWorksRequested(object? sender, EventArgs e) => _ = ShowHowItWorksDialogAsync();
 
-    private async Task ShowHowItWorksDialogAsync()
+    private async Task<ContentDialogResult> ShowHowItWorksDialogAsync()
     {
         if (XamlRoot == null)
-            return;
+            return ContentDialogResult.None;
         var dialog = new HowItWorksDialog { XamlRoot = XamlRoot };
-        await dialog.ShowAsync();
+        return await dialog.ShowAsync();
     }
 
     private void OnAddTaskPopupOpened(object? sender, object e)

@@ -31,4 +31,9 @@ public interface ILlmService
         string providerId,
         string modelId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns whether the app has a valid AI configuration (own key or active subscription with managed key).
+    /// </summary>
+    Task<bool> IsConfiguredAsync();
 }

@@ -121,11 +121,12 @@ public partial class KanbanBoardViewModel : ObservableObject
             if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(IsFocusResultVisible));
+                OnPropertyChanged(nameof(ShowCheckingMessage));
             }
         }
     }
 
-    public bool IsFocusScoreVisible => IsMonitoring;
+    public bool IsFocusScoreVisible => IsMonitoring && IsAiConfigured;
 
     public bool IsFocusResultVisible => true;
 
@@ -156,7 +157,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    public bool IsFocusScorePercentVisible => IsMonitoring && _focusScoreService.HasRealScore;
+    public bool IsFocusScorePercentVisible => IsMonitoring && _focusScoreService.HasRealScore && IsAiConfigured;
 
     public string TaskElapsedTime
     {
@@ -214,6 +215,26 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public string AiProviderAndModelDisplay =>
         string.IsNullOrEmpty(AiModelDisplay) ? AiProviderDisplay : $"{AiProviderDisplay} · {AiModelDisplay}";
+
+    private bool _isAiConfigured;
+    public bool IsAiConfigured
+    {
+        get => _isAiConfigured;
+        private set => SetProperty(ref _isAiConfigured, value);
+    }
+
+    private bool _hasCurrentFocusResult;
+    public bool HasCurrentFocusResult
+    {
+        get => _hasCurrentFocusResult;
+        private set
+        {
+            if (SetProperty(ref _hasCurrentFocusResult, value))
+                OnPropertyChanged(nameof(ShowCheckingMessage));
+        }
+    }
+
+    public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
 
     public KanbanBoardViewModel(
         ITaskRepository repo,
@@ -364,24 +385,28 @@ public partial class KanbanBoardViewModel : ObservableObject
             FocusScore = 4;
             FocusReason = "Viewing FocusBot";
             IsClassifying = false;
+            HasCurrentFocusResult = true;
             OnPropertyChanged(nameof(IsFocusScoreVisible));
             OnPropertyChanged(nameof(IsFocusResultVisible));
             OnPropertyChanged(nameof(FocusScoreCategory));
             OnPropertyChanged(nameof(FocusStatusIcon));
             OnPropertyChanged(nameof(FocusAccentBrushKey));
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            OnPropertyChanged(nameof(ShowCheckingMessage));
             return;
         }
 
         FocusScore = 0;
         FocusReason = string.Empty;
         IsClassifying = false;
+        HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusResultVisible));
         OnPropertyChanged(nameof(FocusScoreCategory));
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(FocusAccentBrushKey));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
         _focusScoreService.StartPendingSegment(
@@ -423,6 +448,7 @@ public partial class KanbanBoardViewModel : ObservableObject
                 FocusReason = response.Result.Reason;
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
+                HasCurrentFocusResult = true;
             }
         }
         finally
@@ -434,6 +460,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             OnPropertyChanged(nameof(FocusStatusIcon));
             OnPropertyChanged(nameof(FocusAccentBrushKey));
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            OnPropertyChanged(nameof(ShowCheckingMessage));
         }
     }
 
@@ -496,6 +523,11 @@ public partial class KanbanBoardViewModel : ObservableObject
                 : modelId;
         }
         OnPropertyChanged(nameof(AiProviderAndModelDisplay));
+        IsAiConfigured = await _llmService.IsConfiguredAsync();
+        if (IsAiConfigured)
+            AiRequestError = string.Empty;
+        OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
     }
 
     [RelayCommand]
@@ -689,6 +721,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         CurrentWindowTitle = string.Empty;
         FocusScore = 0;
         FocusReason = string.Empty;
+        HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
     }
 }
