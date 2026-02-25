@@ -2,6 +2,7 @@ using Windows.Services.Store;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -66,7 +67,22 @@ public class SubscriptionService : ISubscriptionService
             var license = await context.GetAppLicenseAsync();
 
             var storeId = GetSubscriptionStoreId();
-            if (!license.AddOnLicenses.TryGetValue(storeId, out var addOnLicense))
+            _logger.LogDebug("AddOnLicenses keys: {Keys}", string.Join(", ", license.AddOnLicenses.Keys));
+
+            StoreLicense? addOnLicense = null;
+
+            // First try exact match (bare product ID)
+            if (!license.AddOnLicenses.TryGetValue(storeId, out addOnLicense))
+            {
+                // Fallback: find by prefix (handles productId/skuId keys)
+                var match = license.AddOnLicenses
+                    .FirstOrDefault(kvp => kvp.Key.StartsWith(storeId + "/", StringComparison.OrdinalIgnoreCase));
+
+                if (!string.IsNullOrEmpty(match.Key))
+                    addOnLicense = match.Value;
+            }
+
+            if (addOnLicense == null)
                 return null;
 
             var isTrial = TryGetIsTrialFromLicense(addOnLicense);
