@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using FocusBot.App.ViewModels;
 using FocusBot.App.Views;
 using FocusBot.Core.Interfaces;
@@ -13,6 +14,9 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
 {
     private Window? _window;
     private UIElement? _boardContent;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     /// <summary>
     /// Sets the main window reference. Must be called after the window is created.
@@ -57,5 +61,15 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
         var page = new TaskDetailPage { DataContext = viewModel };
         _window.Content = page;
         _ = viewModel.InitializeAsync(taskId);
+    }
+
+    /// <inheritdoc />
+    public void ActivateMainWindow()
+    {
+        if (_window == null)
+            return;
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
+        SetForegroundWindow(hwnd);
+        _window.Activate();
     }
 }

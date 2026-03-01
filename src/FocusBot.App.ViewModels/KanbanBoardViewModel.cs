@@ -33,6 +33,11 @@ public partial class KanbanBoardViewModel : ObservableObject
     /// </summary>
     public event EventHandler? ShowHowItWorksRequested;
 
+    /// <summary>
+    /// Raised when focus overlay state changes (score, status, or active task).
+    /// </summary>
+    public event EventHandler<FocusOverlayStateChangedEventArgs>? FocusOverlayStateChanged;
+
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
     private const int PersistIntervalSeconds = 5;
@@ -300,6 +305,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         var taskId = InProgressTasks[0].TaskId;
         CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        RaiseFocusOverlayStateChanged();
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
@@ -449,6 +455,7 @@ public partial class KanbanBoardViewModel : ObservableObject
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
+                RaiseFocusOverlayStateChanged();
             }
         }
         finally
@@ -723,5 +730,23 @@ public partial class KanbanBoardViewModel : ObservableObject
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        RaiseFocusOverlayStateChanged();
+    }
+
+    private void RaiseFocusOverlayStateChanged()
+    {
+        var hasActive = HasActiveTask();
+        var status = FocusScore switch
+        {
+            >= 6 => FocusStatus.Focused,
+            >= 4 => FocusStatus.Neutral,
+            _ => FocusStatus.Distracted
+        };
+        FocusOverlayStateChanged?.Invoke(this, new FocusOverlayStateChangedEventArgs
+        {
+            HasActiveTask = hasActive,
+            FocusScorePercent = hasActive ? CurrentFocusScorePercent : 0,
+            Status = status
+        });
     }
 }

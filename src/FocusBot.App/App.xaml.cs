@@ -1,4 +1,7 @@
+using System.Runtime.InteropServices;
 using FocusBot.App.ViewModels;
+using FocusBot.App.Views;
+using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
 using FocusBot.Infrastructure.Services;
@@ -15,11 +18,15 @@ namespace FocusBot.App
     public partial class App
     {
         private Window? _window;
+        private FocusOverlayWindow? _overlayWindow;
         private IServiceProvider? _services;
+        private KanbanBoardViewModel? _viewModel;
 
         public App()
         {
             InitializeComponent();
+
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 
             var appDataRoot = ApplicationData.Current.LocalFolder.Path;
             Directory.CreateDirectory(appDataRoot);
@@ -77,9 +84,9 @@ namespace FocusBot.App
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            var viewModel = _services!.GetRequiredService<KanbanBoardViewModel>();
+            _viewModel = _services!.GetRequiredService<KanbanBoardViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
-            _window = new MainWindow(viewModel, navigationService);
+            _window = new MainWindow(_viewModel, navigationService);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
 
@@ -92,6 +99,39 @@ namespace FocusBot.App
             contextHolder.Context = storeContext;
 
             _window.Activate();
+
+            try
+            {
+                _overlayWindow = new FocusOverlayWindow(navigationService);
+                _overlayWindow.Show();
+
+                // Subscribe to ViewModel state changes
+                _viewModel.FocusOverlayStateChanged += OnFocusOverlayStateChanged;
+            }
+            catch (Exception ex)
+            {
+                ShowExceptionMessage("Focus overlay failed", ex);
+            }
         }
+
+        private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
+        {
+            _overlayWindow?.UpdateState(e.HasActiveTask, e.FocusScorePercent, e.Status);
+        }
+
+        private static void OnUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception ex)
+                ShowExceptionMessage("Unhandled exception", ex);
+        }
+
+        private static void ShowExceptionMessage(string title, Exception ex)
+        {
+            var message = ex.ToString();
+            MessageBoxW(IntPtr.Zero, message, title, 0x10); // MB_ICONERROR
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
     }
 }

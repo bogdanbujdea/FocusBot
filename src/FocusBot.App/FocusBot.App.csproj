@@ -29,6 +29,9 @@
     <Content Include="Assets\icon-focused.svg" />
     <Content Include="Assets\icon-unclear.svg" />
     <Content Include="Assets\icon-distracted.svg" />
+    <Content Include="Assets\Overlay\circle-focused.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Overlay\circle-neutral.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Overlay\circle-distracted.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
@@ -53,6 +56,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7463" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FocusBot.App.ViewModels\FocusBot.App.ViewModels.csproj" />

@@ -19,4 +19,9 @@ public interface INavigationService
     /// Navigates to the Task Detail view for the specified task.
     /// </summary>
     void NavigateToTaskDetail(string taskId);
+
+    /// <summary>
+    /// Brings the main window to the foreground.
+    /// </summary>
+    void ActivateMainWindow();
 }
