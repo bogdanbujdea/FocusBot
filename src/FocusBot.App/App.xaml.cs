@@ -102,7 +102,9 @@ namespace FocusBot.App
 
             try
             {
-                _overlayWindow = new FocusOverlayWindow(navigationService);
+                _overlayWindow = new FocusOverlayWindow(
+                    navigationService,
+                    onPausePlayClicked: () => _viewModel.ToggleTaskPause());
                 _overlayWindow.Show();
 
                 // Subscribe to ViewModel state changes
@@ -116,7 +118,7 @@ namespace FocusBot.App
 
         private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
         {
-            _overlayWindow?.UpdateState(e.HasActiveTask, e.FocusScorePercent, e.Status);
+            _overlayWindow?.UpdateState(e.HasActiveTask, e.FocusScorePercent, e.Status, e.IsTaskPaused);
         }
 
         private static void OnUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)

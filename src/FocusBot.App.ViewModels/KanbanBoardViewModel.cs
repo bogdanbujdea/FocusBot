@@ -41,6 +41,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
     private const int PersistIntervalSeconds = 5;
+    private bool _isTaskPaused;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -130,6 +131,11 @@ public partial class KanbanBoardViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// Gets whether the current task is paused (time tracking and monitoring stopped).
+    /// </summary>
+    public bool IsTaskPaused => _isTaskPaused;
 
     public bool IsFocusScoreVisible => IsMonitoring && IsAiConfigured;
 
@@ -507,6 +513,32 @@ public partial class KanbanBoardViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Toggles the task pause state. When paused, time tracking, window monitoring, and classification are stopped.
+    /// </summary>
+    public void ToggleTaskPause()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _isTaskPaused = !_isTaskPaused;
+        OnPropertyChanged(nameof(IsTaskPaused));
+
+        if (_isTaskPaused)
+        {
+            _focusScoreService.PauseCurrentSegment();
+            _timeTracking.Stop();
+            _windowMonitor.Stop();
+        }
+        else
+        {
+            _timeTracking.Start();
+            _windowMonitor.Start();
+        }
+
+        RaiseFocusOverlayStateChanged();
+    }
+
+    /// <summary>
     /// Refreshes the displayed AI provider and model from settings. Call when returning to the board so the corner label is up to date.
     /// </summary>
     public async Task RefreshAiSettingsAsync()
@@ -712,6 +744,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         _windowMonitor.Stop();
         _timeTracking.Stop();
         _idleDetection.Stop();
+        _isTaskPaused = false;
+        OnPropertyChanged(nameof(IsTaskPaused));
         _taskElapsedSeconds = 0;
         TaskElapsedTime = FormatElapsed(0);
         _windowElapsedSeconds = 0;
@@ -746,7 +780,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             HasActiveTask = hasActive,
             FocusScorePercent = hasActive ? CurrentFocusScorePercent : 0,
-            Status = status
+            Status = status,
+            IsTaskPaused = _isTaskPaused
         });
     }
 }

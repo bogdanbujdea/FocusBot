@@ -28,4 +28,7 @@ public class FocusOverlayStateChangedEventArgs : EventArgs
 
     /// <summary>The current focus status (Distracted/Neutral/Focused). Only meaningful when HasActiveTask is true.</summary>
     public required FocusStatus Status { get; init; }
+
+    /// <summary>Whether the task is currently paused.</summary>
+    public bool IsTaskPaused { get; init; }
 }
