@@ -86,7 +86,7 @@ This ensures:
 | Primary Accent | Violet | `#7C3AED` |
 | Aligned/Active | Green | `#22C55E` |
 | Neutral | Violet | `#8B5CF6` |
-| Misaligned | Orange | `#F97316` |
+| Misaligned | Red | `#EF4444` |
 | Text Primary | Dark Gray | `#1F1F1F` |
 | Text Secondary | Gray | `#6B7280` |
 

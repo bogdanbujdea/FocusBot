@@ -27,7 +27,7 @@ public sealed class FocusOverlayWindow : IDisposable
     // Theme colors (RGB format for GDI+)
     private static readonly Color ColorFocused = Color.FromArgb(255, 0x22, 0xC5, 0x5E);    // Green #22C55E
     private static readonly Color ColorNeutral = Color.FromArgb(255, 0x8B, 0x5C, 0xF6);    // Purple #8B5CF6
-    private static readonly Color ColorDistracted = Color.FromArgb(255, 0xF9, 0x73, 0x16); // Orange #F97316
+    private static readonly Color ColorDistracted = Color.FromArgb(255, 0xEF, 0x44, 0x44); // Red #EF4444
 
     private static readonly uint WndClassAtom;
     private static readonly IntPtr HInstance;

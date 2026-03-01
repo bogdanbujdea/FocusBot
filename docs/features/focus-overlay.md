@@ -24,7 +24,7 @@ The Focus Overlay is a circular indicator that stays on top of all windows and s
 - **Dynamic colors:** Changes color based on focus status:
   - **Focused (score ≥ 6):** Green `#22C55E`
   - **Neutral (score 4-5):** Purple `#8B5CF6`
-  - **Distracted (score < 4):** Orange `#F97316`
+  - **Distracted (score < 4):** Red `#EF4444`
 - **Score display:** Shows the focus score percentage (0-100) centered in the circle when a task is active and running.
 - **Pause indicator:** When a task is paused, the overlay shows a pause icon (⏸) instead of the score, so you know at a glance the task is paused.
 - **Hover controls:** When the user hovers over the overlay and a task is active:
