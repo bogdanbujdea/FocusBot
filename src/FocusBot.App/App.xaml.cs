@@ -64,6 +64,7 @@ namespace FocusBot.App
             services.AddSingleton<ISubscriptionService, SubscriptionService>();
 #endif
             services.AddSingleton<IManagedKeyProvider, EmbeddedManagedKeyProvider>();
+            services.AddSingleton<ITrialService, TrialService>();
             services.AddSingleton<LlmService>();
             services.AddSingleton<ILlmService>(sp => new AlignmentClassificationCacheDecorator(
                 sp.GetRequiredService<LlmService>(),

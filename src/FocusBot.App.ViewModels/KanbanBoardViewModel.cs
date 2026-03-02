@@ -23,6 +23,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ILlmService _llmService;
     private readonly ISettingsService _settingsService;
     private readonly IFocusScoreService _focusScoreService;
+    private readonly ITrialService _trialService;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
@@ -37,6 +38,11 @@ public partial class KanbanBoardViewModel : ObservableObject
     /// Raised when focus overlay state changes (score, status, or active task).
     /// </summary>
     public event EventHandler<FocusOverlayStateChangedEventArgs>? FocusOverlayStateChanged;
+
+    /// <summary>
+    /// Raised when the trial expires while the app is running. The view shows an expiration dialog.
+    /// </summary>
+    public event EventHandler? TrialExpired;
 
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
@@ -234,6 +240,36 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref _isAiConfigured, value);
     }
 
+    private bool _isTrialActive;
+    public bool IsTrialActive
+    {
+        get => _isTrialActive;
+        private set => SetProperty(ref _isTrialActive, value);
+    }
+
+    private bool _isTrialExpired;
+    public bool IsTrialExpired
+    {
+        get => _isTrialExpired;
+        private set => SetProperty(ref _isTrialExpired, value);
+    }
+
+    private DateTime? _trialEndTime;
+    public DateTime? TrialEndTime
+    {
+        get => _trialEndTime;
+        private set => SetProperty(ref _trialEndTime, value);
+    }
+
+    private string _trialTimeRemainingFormatted = string.Empty;
+    public string TrialTimeRemainingFormatted
+    {
+        get => _trialTimeRemainingFormatted;
+        private set => SetProperty(ref _trialTimeRemainingFormatted, value);
+    }
+
+    public bool ShowTrialBanner => IsTrialActive && !IsTrialExpired;
+
     private bool _hasCurrentFocusResult;
     public bool HasCurrentFocusResult
     {
@@ -255,7 +291,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         INavigationService navigationService,
         ILlmService llmService,
         ISettingsService settingsService,
-        IFocusScoreService focusScoreService
+        IFocusScoreService focusScoreService,
+        ITrialService trialService
     )
     {
         _repo = repo;
@@ -266,6 +303,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         _llmService = llmService;
         _settingsService = settingsService;
         _focusScoreService = focusScoreService;
+        _trialService = trialService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
@@ -568,6 +606,77 @@ public partial class KanbanBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
     }
+
+    /// <summary>
+    /// Starts the 24-hour free trial if not already started.
+    /// </summary>
+    public async Task StartTrialAsync()
+    {
+        await _trialService.StartTrialAsync();
+        await RefreshTrialStateAsync();
+        await RefreshAiSettingsAsync();
+    }
+
+    /// <summary>
+    /// Refreshes the trial state properties from the trial service.
+    /// </summary>
+    public async Task RefreshTrialStateAsync()
+    {
+        // Hide trial UI if user has configured their own API key or has an active subscription
+        var mode = await _settingsService.GetApiKeyModeAsync();
+        if (mode == ApiKeyMode.Own)
+        {
+            var ownKey = await _settingsService.GetApiKeyAsync();
+            if (!string.IsNullOrWhiteSpace(ownKey))
+            {
+                IsTrialActive = false;
+                IsTrialExpired = false;
+                TrialEndTime = null;
+                TrialTimeRemainingFormatted = string.Empty;
+                OnPropertyChanged(nameof(ShowTrialBanner));
+                return;
+            }
+        }
+
+        // Check actual trial status
+        IsTrialActive = await _trialService.IsTrialActiveAsync();
+        IsTrialExpired = await _trialService.IsTrialExpiredAsync();
+        TrialEndTime = await _trialService.GetTrialEndTimeAsync();
+        await UpdateTrialTimeRemainingAsync();
+        OnPropertyChanged(nameof(ShowTrialBanner));
+    }
+
+    /// <summary>
+    /// Updates the trial countdown display. Called every second by the view's timer.
+    /// </summary>
+    public async Task UpdateTrialTimeRemainingAsync()
+    {
+        var remaining = await _trialService.GetTrialTimeRemainingAsync();
+        if (remaining <= TimeSpan.Zero)
+        {
+            if (IsTrialActive && !IsTrialExpired)
+            {
+                // Trial just expired - raise event for view to show popup
+                IsTrialActive = false;
+                IsTrialExpired = true;
+                OnPropertyChanged(nameof(ShowTrialBanner));
+                TrialExpired?.Invoke(this, EventArgs.Empty);
+                await RefreshAiSettingsAsync();
+            }
+            TrialTimeRemainingFormatted = "Expired";
+            return;
+        }
+
+        var hours = (int)remaining.TotalHours;
+        var minutes = remaining.Minutes;
+        var seconds = remaining.Seconds;
+        TrialTimeRemainingFormatted = $"{hours:D2}:{minutes:D2}:{seconds:D2}";
+    }
+
+    /// <summary>
+    /// Gets whether the trial has already been started.
+    /// </summary>
+    public Task<bool> HasTrialStartedAsync() => _trialService.HasTrialStartedAsync();
 
     [RelayCommand]
     private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;

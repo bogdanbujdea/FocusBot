@@ -11,10 +11,13 @@ public sealed partial class KanbanBoardPage : Page
 {
     public KanbanBoardViewModel ViewModel => (KanbanBoardViewModel)DataContext;
 
+    private DispatcherTimer? _trialTimer;
+
     public KanbanBoardPage()
     {
         InitializeComponent();
         Loaded += OnPageLoaded;
+        Unloaded += OnPageUnloaded;
     }
 
     private void OnPageLoaded(object sender, RoutedEventArgs e)
@@ -31,24 +34,96 @@ public sealed partial class KanbanBoardPage : Page
                 SyncEditPopupToViewModel(vm.ShowEditTaskInput);
         };
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
+        vm.TrialExpired += OnTrialExpired;
         AddTaskPopup.Closed += OnAddTaskPopupClosed;
         AddTaskPopup.Opened += OnAddTaskPopupOpened;
         EditTaskPopup.Closed += OnEditTaskPopupClosed;
         EditTaskPopup.Opened += OnEditTaskPopupOpened;
-        _ = TryShowFirstRunGuideAsync(vm);
+        _ = InitializeTrialAndFirstRunAsync(vm);
     }
 
-    private async Task TryShowFirstRunGuideAsync(KanbanBoardViewModel vm)
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        StopTrialTimer();
+        if (DataContext is KanbanBoardViewModel vm)
+        {
+            vm.TrialExpired -= OnTrialExpired;
+        }
+    }
+
+    private async Task InitializeTrialAndFirstRunAsync(KanbanBoardViewModel vm)
     {
         var hasSeen = await vm.GetHasSeenHowItWorksGuideAsync();
-        if (hasSeen)
+        if (!hasSeen)
+        {
+            var result = await ShowHowItWorksDialogAsync();
+            await vm.SetHasSeenHowItWorksGuideAsync();
+
+            // Start trial automatically on first run if no API key is configured
+            if (!vm.IsAiConfigured)
+            {
+                await vm.StartTrialAsync();
+            }
+
+            if (result == ContentDialogResult.Secondary)
+                vm.OpenSettingsCommand.Execute(null);
+            else if (!vm.IsAiConfigured && !vm.IsTrialActive)
+                vm.OpenSettingsCommand.Execute(null);
+        }
+
+        // Always refresh trial state and start timer if trial is active
+        await vm.RefreshTrialStateAsync();
+        if (vm.IsTrialActive)
+        {
+            StartTrialTimer(vm);
+        }
+    }
+
+    private void StartTrialTimer(KanbanBoardViewModel vm)
+    {
+        StopTrialTimer();
+        _trialTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _trialTimer.Tick += async (_, _) =>
+        {
+            await vm.UpdateTrialTimeRemainingAsync();
+            if (!vm.IsTrialActive)
+            {
+                StopTrialTimer();
+            }
+        };
+        _trialTimer.Start();
+    }
+
+    private void StopTrialTimer()
+    {
+        _trialTimer?.Stop();
+        _trialTimer = null;
+    }
+
+    private async void OnTrialExpired(object? sender, EventArgs e)
+    {
+        StopTrialTimer();
+        if (XamlRoot == null)
             return;
-        var result = await ShowHowItWorksDialogAsync();
-        await vm.SetHasSeenHowItWorksGuideAsync();
-        if (result == ContentDialogResult.Secondary)
-            vm.OpenSettingsCommand.Execute(null);
-        else if (!vm.IsAiConfigured)
-            vm.OpenSettingsCommand.Execute(null);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Free Trial Expired",
+            Content = "Your 24-hour free trial has ended. To continue using AI-powered focus tracking, please subscribe to FocusBot Pro or enter your own API key.",
+            PrimaryButtonText = "Open Settings",
+            CloseButtonText = "Later",
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            ViewModel.OpenSettingsCommand.Execute(null);
+        }
     }
 
     private void OnShowHowItWorksRequested(object? sender, EventArgs e) => _ = ShowHowItWorksDialogAsync();

@@ -13,6 +13,7 @@ public class LlmService(
     ISettingsService settingsService,
     ISubscriptionService subscriptionService,
     IManagedKeyProvider managedKeyProvider,
+    ITrialService trialService,
     ILogger<LlmService> logger
 ) : ILlmService
 {
@@ -54,7 +55,24 @@ public class LlmService(
         string providerId;
         string model;
 
-        if (mode == ApiKeyMode.Managed)
+        // Check if trial is active first - use managed key during trial
+        if (await trialService.IsTrialActiveAsync())
+        {
+            var managedKey = await managedKeyProvider.GetApiKeyAsync();
+            if (string.IsNullOrWhiteSpace(managedKey))
+            {
+                logger.LogError("Managed key provider returned null or empty key during trial");
+                return new ClassifyAlignmentResponse(
+                    null,
+                    "Unable to access AI service. Please try again or use your own API key."
+                );
+            }
+
+            apiKey = managedKey;
+            providerId = managedKeyProvider.ProviderId;
+            model = managedKeyProvider.ModelId;
+        }
+        else if (mode == ApiKeyMode.Managed)
         {
             var isSubscribed = await subscriptionService.IsSubscribedAsync();
             if (!isSubscribed)
@@ -126,6 +144,13 @@ public class LlmService(
 
     public async Task<bool> IsConfiguredAsync()
     {
+        // Trial is always considered configured (uses managed key)
+        if (await trialService.IsTrialActiveAsync())
+        {
+            var managedKey = await managedKeyProvider.GetApiKeyAsync();
+            return !string.IsNullOrWhiteSpace(managedKey);
+        }
+
         var mode = await settingsService.GetApiKeyModeAsync();
         if (mode == ApiKeyMode.Managed)
         {

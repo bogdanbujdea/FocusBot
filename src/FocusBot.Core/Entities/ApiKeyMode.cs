@@ -13,5 +13,10 @@ public enum ApiKeyMode
     /// <summary>
     /// User subscribes and uses a managed API key provided by the app.
     /// </summary>
-    Managed
+    Managed,
+
+    /// <summary>
+    /// User is in the 24-hour free trial period using the managed key.
+    /// </summary>
+    Trial
 }

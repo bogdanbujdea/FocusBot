@@ -16,6 +16,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly ISubscriptionService _subscriptionService;
     private readonly ILlmService _llmService;
+    private readonly ITrialService _trialService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
 
@@ -91,6 +92,17 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _showManageButton;
 
+    [ObservableProperty]
+    private bool _isTrialActive;
+
+    [ObservableProperty]
+    private bool _isTrialExpired;
+
+    [ObservableProperty]
+    private string _trialStatusText = string.Empty;
+
+    public bool ShowTrialStatus => IsTrialActive || IsTrialExpired;
+
     public bool ShowMaskedDisplay => ShouldShowMaskedDisplay();
 
     public bool ShowInputArea => ShouldShowInputArea();
@@ -101,15 +113,18 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         ISettingsService settingsService,
         ISubscriptionService subscriptionService,
         ILlmService llmService,
+        ITrialService trialService,
         ILogger<ApiKeySettingsViewModel> logger)
     {
         _settingsService = settingsService;
         _subscriptionService = subscriptionService;
         _llmService = llmService;
+        _trialService = trialService;
         _logger = logger;
 
         _ = LoadSettingsAsync();
         _ = LoadSubscriptionStatusAsync();
+        _ = LoadTrialStatusAsync();
     }
 
     partial void OnApiKeyModeChanged(ApiKeyMode value)
@@ -161,6 +176,57 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         }
     }
 
+    private async Task LoadTrialStatusAsync()
+    {
+        // Hide trial UI if user has configured their own API key
+        var mode = await _settingsService.GetApiKeyModeAsync();
+        if (mode == ApiKeyMode.Own)
+        {
+            var ownKey = await _settingsService.GetApiKeyAsync();
+            if (!string.IsNullOrWhiteSpace(ownKey))
+            {
+                IsTrialActive = false;
+                IsTrialExpired = false;
+                TrialStatusText = string.Empty;
+                OnPropertyChanged(nameof(ShowTrialStatus));
+                return;
+            }
+        }
+
+        // Also hide if user has active subscription
+        if (IsSubscribed)
+        {
+            IsTrialActive = false;
+            IsTrialExpired = false;
+            TrialStatusText = string.Empty;
+            OnPropertyChanged(nameof(ShowTrialStatus));
+            return;
+        }
+
+        IsTrialActive = await _trialService.IsTrialActiveAsync();
+        IsTrialExpired = await _trialService.IsTrialExpiredAsync();
+
+        if (IsTrialActive)
+        {
+            var endTime = await _trialService.GetTrialEndTimeAsync();
+            if (endTime.HasValue)
+            {
+                var localEndTime = endTime.Value.ToLocalTime();
+                TrialStatusText = $"Free trial ends {localEndTime:MMM d, h:mm tt}";
+            }
+        }
+        else if (IsTrialExpired)
+        {
+            TrialStatusText = "Free trial has expired. Subscribe or enter your own API key to continue.";
+        }
+        else
+        {
+            TrialStatusText = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(ShowTrialStatus));
+    }
+
     [RelayCommand]
     private async Task SubscribeAsync()
     {
@@ -176,6 +242,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
                 case PurchaseResult.Success:
                 case PurchaseResult.AlreadyOwned:
                     await LoadSubscriptionStatusAsync();
+                    await LoadTrialStatusAsync(); // Hide trial UI now that user is subscribed
                     break;
                 case PurchaseResult.Cancelled:
                     break;
@@ -319,6 +386,9 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             ApiKey = string.Empty;
             StatusMessage = "API key saved.";
             IsStatusError = false;
+
+            // Hide trial UI now that user has their own key
+            await LoadTrialStatusAsync();
 
             _logger.LogInformation("API key saved");
         }

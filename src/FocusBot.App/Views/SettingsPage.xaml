@@ -12,6 +12,48 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32" Spacing="24">
+            <!-- Trial Status Banner -->
+            <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                    BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16"
+                    Visibility="{x:Bind ViewModel.ApiKeySection.IsTrialActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Free Trial Active" FontWeight="SemiBold" FontSize="14"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.TrialStatusText, Mode=OneWay}"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="Subscribe or enter your own API key before the trial ends to continue using AI features."
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Trial Expired Banner -->
+            <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                    BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16"
+                    Visibility="{x:Bind ViewModel.ApiKeySection.IsTrialExpired, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Free Trial Expired" FontWeight="SemiBold" FontSize="14"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.TrialStatusText, Mode=OneWay}"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- AI Provider and API Key Section -->
             <Border Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"

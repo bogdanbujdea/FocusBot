@@ -18,11 +18,48 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- AI not configured warning (visible when no key / not subscribed) -->
+        <!-- Trial banner (visible during active trial) -->
         <Border Grid.Row="0"
+                Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
+                BorderThickness="0,0,0,2"
+                Padding="12,10"
+                Margin="0,0,0,8"
+                Visibility="{x:Bind ViewModel.ShowTrialBanner, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                automation:AutomationProperties.Name="Free trial banner">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <Run Text="Free trial:"/>
+                        <Run Text="{x:Bind ViewModel.TrialTimeRemainingFormatted, Mode=OneWay}" FontWeight="SemiBold"/>
+                        <Run Text="remaining. Ends at"/>
+                        <Run Text="{x:Bind ViewModel.TrialEndTime, Mode=OneWay, Converter={StaticResource TrialEndTimeConverter}}" FontWeight="SemiBold"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Subscribe"
+                            Style="{StaticResource FbAccentButtonStyle}"
+                            automation:AutomationProperties.Name="Subscribe"
+                            Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+                    <Button Content="Enter API Key"
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            automation:AutomationProperties.Name="Enter API Key"
+                            Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- AI not configured warning (visible when no key / not subscribed) -->
+        <Border Grid.Row="1"
                 Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                 BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
                 BorderThickness="0,0,0,2"
@@ -44,7 +81,7 @@
         </Border>
 
         <!-- Current foreground window and Focus Status Bar (visible when a task is in progress) -->
-        <Grid Grid.Row="1" x:Name="CurrentWindowBar"
+        <Grid Grid.Row="2" x:Name="CurrentWindowBar"
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
               RowSpacing="8"
@@ -127,7 +164,7 @@
         </Grid>
 
         <!-- Header with Add Task and Settings -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -152,7 +189,7 @@
         </Grid>
 
         <!-- Kanban Columns -->
-        <Grid Grid.Row="3" ColumnSpacing="16">
+        <Grid Grid.Row="4" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
