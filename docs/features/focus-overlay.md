@@ -27,10 +27,11 @@ The Focus Overlay is a circular indicator that stays on top of all windows and s
   - **Distracted (score < 4):** Red `#EF4444`
 - **Score display:** Shows the focus score percentage (0-100) centered in the circle when a task is active and running.
 - **Pause indicator:** When a task is paused, the overlay shows a pause icon (⏸) instead of the score, so you know at a glance the task is paused.
-- **Hover controls:** When the user hovers over the overlay and a task is active:
-  - **When running:** Hover shows pause icon (⏸); click to pause the task.
-  - **When paused:** Hover shows play icon (▶); click to resume the task.
-- **Click to activate:** Clicking the overlay (outside the button area) brings the main window to the foreground.
+- **Hover controls:** When the user hovers over the overlay and a task is active, two side-by-side icons appear:
+  - **Left half (pause/play icon):** Click to pause or resume the task. Shows ⏸ when running, ▶ when paused.
+  - **Right half (expand arrow ↗):** Click to bring the main window to the foreground.
+- **Click to activate:** When no task is active, clicking anywhere on the overlay brings the main window to the foreground.
+- **Visibility toggle:** Users can show or hide the overlay from the Settings page under the "Overlay" section. The preference is saved and persists across sessions.
 - **Real-time updates:** The overlay updates every second as the focus score changes.
 - **Status change glow:** When the focus status changes (e.g., distracted → focused), the overlay becomes fully opaque and displays a glowing ring effect for 3 seconds to draw attention.
 
@@ -44,17 +45,20 @@ The overlay is a **pure Win32 layered window** (not a WinUI 3 window) using `Upd
 4. **Per-pixel transparency:** `UpdateLayeredWindow` with `ULW_ALPHA` composites the bitmap with per-pixel alpha, producing smooth circular edges.
 5. **Opacity control:** `BLENDFUNCTION.SourceConstantAlpha` controls overall opacity (179 = 70% normal, 255 = full during highlight).
 6. **Painting:** The bitmap is rendered with the current status color circle, glow rings (when highlighted), and score text or pause/play icon, then passed to `UpdateLayeredWindow`.
-7. **Hover detection:** `WM_MOUSEMOVE`, `WM_MOUSELEAVE`, and `TrackMouseEvent` detect when the mouse enters/leaves to show/hide the pause/play button.
-8. **Pause/play callback:** `OnPausePlayClicked` action is invoked when the button is clicked, allowing the ViewModel to toggle classification.
-9. **State updates:** `KanbanBoardViewModel` raises `FocusOverlayStateChanged` events which trigger `UpdateLayeredBitmap()` to re-render.
-10. **Highlight timer:** A `System.Threading.Timer` restores normal opacity after 3 seconds when status changes.
+7. **Hover detection:** `WM_MOUSEMOVE`, `WM_MOUSELEAVE`, and `TrackMouseEvent` detect when the mouse enters/leaves to show/hide the two-button hover UI.
+8. **Hit zone detection:** When hovering with an active task, click position is compared against the circle's horizontal center to determine whether to invoke pause/play (left half) or activate the main window (right half).
+9. **Pause/play callback:** `OnPausePlayClicked` action is invoked when the left half is clicked, allowing the ViewModel to toggle classification.
+10. **State updates:** `KanbanBoardViewModel` raises `FocusOverlayStateChanged` events which trigger `UpdateLayeredBitmap()` to re-render.
+11. **Highlight timer:** A `System.Threading.Timer` restores normal opacity after 3 seconds when status changes.
+12. **Visibility setting:** `OverlaySettingsViewModel` exposes `IsOverlayEnabled` property bound to the Settings page toggle, persisted via `ISettingsService`. Changes fire `OverlayVisibilityChanged` event handled by `App.xaml.cs` to show/hide the overlay.
 
 ## Architecture
 
-- **App:** `App.xaml.cs` creates `FocusOverlayWindow` in `OnLaunched`, passing `INavigationService` and a pause/play callback, and subscribes to `FocusOverlayStateChanged` from `KanbanBoardViewModel`.
-- **Views:** `FocusOverlayWindow` in `FocusBot.App/Views/FocusOverlayWindow.cs` implements the Win32 window with `UpdateState()` method for dynamic updates and hover state tracking.
+- **App:** `App.xaml.cs` creates `FocusOverlayWindow` in `OnLaunched`, passing `INavigationService` and a pause/play callback, and subscribes to `FocusOverlayStateChanged` from `KanbanBoardViewModel`. Also subscribes to `OverlayVisibilityChanged` from `OverlaySettingsViewModel` to show/hide the overlay based on user preference.
+- **ViewModels:** `OverlaySettingsViewModel` in `FocusBot.App.ViewModels` exposes `IsOverlayEnabled` property and `OverlayVisibilityChanged` event, persisting the setting via `ISettingsService`.
+- **Views:** `FocusOverlayWindow` in `FocusBot.App/Views/FocusOverlayWindow.cs` implements the Win32 window with `UpdateState()` method for dynamic updates, hover state tracking, and two-button hit zone detection.
 - **Events:** `FocusOverlayStateChangedEventArgs` in `FocusBot.Core/Events` carries active task state, score, status, and `IsTaskPaused` flag.
-- **Navigation:** `INavigationService.ActivateMainWindow()` brings the main window to foreground when the overlay is clicked with no active task.
+- **Navigation:** `INavigationService.ActivateMainWindow()` brings the main window to foreground when the expand arrow is clicked or when no task is active.
 - **Task control:** `KanbanBoardViewModel` exposes `ToggleTaskPause()` which is called via the overlay's pause/play button callback.
 
 ## Future Enhancements

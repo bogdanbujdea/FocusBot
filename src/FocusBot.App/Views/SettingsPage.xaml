@@ -265,6 +265,28 @@
                 </StackPanel>
             </Border>
 
+            <!-- Overlay Settings -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Overlay"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <ToggleSwitch Header="Show Focus Overlay"
+                                  IsOn="{x:Bind ViewModel.OverlaySection.IsOverlayEnabled, Mode=TwoWay}"
+                                  OnContent="Visible"
+                                  OffContent="Hidden"
+                                  automation:AutomationProperties.Name="Show focus overlay"/>
+                    <TextBlock Text="The overlay shows your focus score and lets you pause/resume tracking without switching windows."
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- How it works -->
             <Border Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"

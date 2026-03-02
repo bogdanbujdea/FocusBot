@@ -74,6 +74,7 @@ namespace FocusBot.App
             services.AddSingleton<IFocusScoreService, FocusScoreService>();
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
+            services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
 
             _services = services.BuildServiceProvider();
@@ -106,7 +107,13 @@ namespace FocusBot.App
                 _overlayWindow = new FocusOverlayWindow(
                     navigationService,
                     onPausePlayClicked: () => _viewModel.ToggleTaskPause());
-                _overlayWindow.Show();
+
+                // Check initial overlay visibility setting
+                var overlaySettings = _services!.GetRequiredService<OverlaySettingsViewModel>();
+                overlaySettings.OverlayVisibilityChanged += OnOverlayVisibilityChanged;
+
+                if (overlaySettings.IsOverlayEnabled)
+                    _overlayWindow.Show();
 
                 // Subscribe to ViewModel state changes
                 _viewModel.FocusOverlayStateChanged += OnFocusOverlayStateChanged;
@@ -120,6 +127,14 @@ namespace FocusBot.App
         private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
         {
             _overlayWindow?.UpdateState(e.HasActiveTask, e.FocusScorePercent, e.Status, e.IsTaskPaused);
+        }
+
+        private void OnOverlayVisibilityChanged(object? sender, bool isVisible)
+        {
+            if (isVisible)
+                _overlayWindow?.Show();
+            else
+                _overlayWindow?.Hide();
         }
 
         private static void OnUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)

@@ -227,23 +227,31 @@ public sealed class FocusOverlayWindow : IDisposable
 
             // Draw content based on state:
             // - Paused + not hovering: show pause icon (current state)
-            // - Paused + hovering: show play icon (action to take)
+            // - Paused + hovering: show play icon (left) + expand arrow (right)
             // - Running + not hovering: show score
-            // - Running + hovering: show pause icon (action to take)
+            // - Running + hovering: show pause icon (left) + expand arrow (right)
             if (_hasActiveTask)
             {
                 if (_isTaskPaused)
                 {
-                    // Task is paused - show pause icon normally, play icon on hover
+                    // Task is paused
                     if (_isHovering)
-                        DrawPlayButton(graphics);
+                    {
+                        // Show two buttons: play (left) + expand (right)
+                        DrawPlayButtonLeft(graphics);
+                        DrawExpandArrowRight(graphics);
+                    }
                     else
+                    {
+                        // Show pause icon centered (indicates paused state)
                         DrawPauseButton(graphics);
+                    }
                 }
                 else if (_isHovering)
                 {
-                    // Running + hovering: show pause button
-                    DrawPauseButton(graphics);
+                    // Running + hovering: show two buttons: pause (left) + expand (right)
+                    DrawPauseButtonLeft(graphics);
+                    DrawExpandArrowRight(graphics);
                 }
                 else
                 {
@@ -309,6 +317,28 @@ public sealed class FocusOverlayWindow : IDisposable
     }
 
     /// <summary>
+    /// Draws a pause button (two vertical bars) on the left side of the overlay (for two-button hover mode).
+    /// </summary>
+    private void DrawPauseButtonLeft(Graphics graphics)
+    {
+        var centerX = GlowPadding + SizePx / 2 - 18; // Offset left
+        var centerY = GlowPadding + SizePx / 2;
+        const int iconSize = 24;
+        const int barWidth = 6;
+        const int barGap = 5;
+
+        using var iconBrush = new SolidBrush(Color.White);
+
+        var barHeight = iconSize;
+        var leftBarX = centerX - barGap / 2 - barWidth;
+        var rightBarX = centerX + barGap / 2;
+        var barY = centerY - barHeight / 2;
+
+        graphics.FillRectangle(iconBrush, leftBarX, barY, barWidth, barHeight);
+        graphics.FillRectangle(iconBrush, rightBarX, barY, barWidth, barHeight);
+    }
+
+    /// <summary>
     /// Draws a play button (triangle pointing right) in the center of the overlay.
     /// </summary>
     private void DrawPlayButton(Graphics graphics)
@@ -326,6 +356,62 @@ public sealed class FocusOverlayWindow : IDisposable
             new(centerX + iconSize / 2, centerY)
         };
         graphics.FillPolygon(iconBrush, trianglePoints);
+    }
+
+    /// <summary>
+    /// Draws a play button (triangle pointing right) on the left side of the overlay (for two-button hover mode).
+    /// </summary>
+    private void DrawPlayButtonLeft(Graphics graphics)
+    {
+        var centerX = GlowPadding + SizePx / 2 - 18; // Offset left
+        var centerY = GlowPadding + SizePx / 2;
+        const int iconSize = 24;
+
+        using var iconBrush = new SolidBrush(Color.White);
+
+        var trianglePoints = new PointF[]
+        {
+            new(centerX - iconSize / 3, centerY - iconSize / 2),
+            new(centerX - iconSize / 3, centerY + iconSize / 2),
+            new(centerX + iconSize / 2, centerY)
+        };
+        graphics.FillPolygon(iconBrush, trianglePoints);
+    }
+
+    /// <summary>
+    /// Draws an expand arrow (↗) on the right side of the overlay (for two-button hover mode).
+    /// </summary>
+    private void DrawExpandArrowRight(Graphics graphics)
+    {
+        var centerX = GlowPadding + SizePx / 2 + 18; // Offset right
+        var centerY = GlowPadding + SizePx / 2;
+        const int iconSize = 20;
+        const int strokeWidth = 3;
+
+        using var pen = new Pen(Color.White, strokeWidth)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+
+        // Draw diagonal line from bottom-left to top-right
+        var startX = centerX - iconSize / 2;
+        var startY = centerY + iconSize / 2;
+        var endX = centerX + iconSize / 2;
+        var endY = centerY - iconSize / 2;
+
+        graphics.DrawLine(pen, startX, startY, endX, endY);
+
+        // Draw arrowhead at top-right
+        const int arrowSize = 8;
+        var arrowPoints = new PointF[]
+        {
+            new(endX, endY),
+            new(endX - arrowSize, endY),
+            new(endX, endY + arrowSize)
+        };
+        graphics.DrawLines(pen, arrowPoints);
     }
 
     /// <summary>
@@ -409,14 +495,25 @@ public sealed class FocusOverlayWindow : IDisposable
                     var dy = Math.Abs(y - _dragStartY);
                     if (dx < 5 && dy < 5)
                     {
-                        // If hovering with active task, toggle pause/play
+                        // Determine action based on hover state and click position
                         if (_isHovering && _hasActiveTask)
                         {
-                            _onPausePlayClicked?.Invoke();
+                            // Two-button mode: left half = pause/play, right half = open window
+                            var circleCenterX = GlowPadding + SizePx / 2;
+                            if (x < circleCenterX)
+                            {
+                                // Left side - toggle pause/play
+                                _onPausePlayClicked?.Invoke();
+                            }
+                            else
+                            {
+                                // Right side - open main window
+                                _navigationService?.ActivateMainWindow();
+                            }
                         }
                         else
                         {
-                            // Clicked without dragging - activate main window
+                            // No active task or not hovering - activate main window
                             _navigationService?.ActivateMainWindow();
                         }
                     }
