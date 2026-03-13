@@ -301,6 +301,30 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
+    public string TodayDateLabel
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
+
+    public double TodayFocusedPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public double TodayUnclearPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public double TodayDistractedPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
     public string TodayFocusedTimeText
     {
         get;
@@ -330,6 +354,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         get;
         private set => SetProperty(ref field, value);
     }
+
+    public bool ShowTodayFocusScoreChip =>
+        HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
 
     public KanbanBoardViewModel(
         ITaskRepository repo,
@@ -733,6 +760,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             AiRequestError = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
     }
 
     /// <summary>
@@ -788,6 +816,11 @@ public partial class KanbanBoardViewModel : ObservableObject
             TodayDistractedTimeText = "00:00:00";
             TodayDistractionCount = 0;
             TodayAverageDistractionCostText = "—";
+            TodayDateLabel = string.Empty;
+            TodayFocusedPercent = 0;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = 0;
+            OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
             return;
         }
 
@@ -800,6 +833,24 @@ public partial class KanbanBoardViewModel : ObservableObject
             summary.AverageDistractionDuration.HasValue
                 ? FormatTimeSpan(summary.AverageDistractionDuration.Value)
                 : "—";
+        TodayDateLabel = summary.AnalyticsDateLocal.ToDateTime(TimeOnly.MinValue).ToString("ddd, MMM d");
+
+        var totalSeconds = summary.FocusedTime.TotalSeconds
+            + summary.DistractedTime.TotalSeconds;
+        if (totalSeconds <= 0)
+        {
+            TodayFocusedPercent = 0;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = 0;
+        }
+        else
+        {
+            TodayFocusedPercent = summary.FocusedTime.TotalSeconds / totalSeconds;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = summary.DistractedTime.TotalSeconds / totalSeconds;
+        }
+
+        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
     }
 
     /// <summary>

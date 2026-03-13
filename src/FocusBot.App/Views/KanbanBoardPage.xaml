@@ -23,34 +23,146 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Today's Focus Summary (compact strip at very top) -->
+        <!-- Today's Focus Analytics (prominent dashboard card) -->
         <Border Grid.Row="0"
                 Background="{StaticResource FbCardBackgroundBrush}"
                 BorderBrush="{StaticResource FbCardBorderBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="12,8"
+                Padding="16,12"
                 Margin="0,0,0,8"
-                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                automation:AutomationProperties.Name="Today's focus summary">
-            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
-                    <Run Text="Today’s focus score: "/>
-                    <Run Text="{x:Bind ViewModel.TodayFocusScoreBucket, Mode=OneWay}"/>
-                    <Run Text="/10"/>
-                </TextBlock>
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
-                    <Run Text="Focused: "/>
-                    <Run Text="{x:Bind ViewModel.TodayFocusedTimeText, Mode=OneWay}"/>
-                    <Run Text=" · Distracted: "/>
-                    <Run Text="{x:Bind ViewModel.TodayDistractedTimeText, Mode=OneWay}"/>
-                </TextBlock>
-                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
-                    <Run Text="Distractions: "/>
-                    <Run Text="{x:Bind ViewModel.TodayDistractionCount, Mode=OneWay}"/>
-                    <Run Text=" · Avg cost: "/>
-                    <Run Text="{x:Bind ViewModel.TodayAverageDistractionCostText, Mode=OneWay}"/>
-                </TextBlock>
-            </StackPanel>
+                CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                automation:AutomationProperties.Name="Today's focus analytics">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Title, date, and optional score chip -->
+                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="Today's Focus Analytics"
+                               Style="{StaticResource FbTaskTitleStyle}"
+                               FontSize="15"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{x:Bind ViewModel.TodayDateLabel, Mode=OneWay}"
+                                   Style="{StaticResource FbSecondaryTextStyle}"/>
+                        <Border Background="{StaticResource FbAlignedAccentBrush}"
+                                CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                Padding="6,2"
+                                Visibility="{x:Bind ViewModel.ShowTodayFocusScoreChip, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Foreground="{StaticResource FbTextOnAccentBrush}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold">
+                                <Run Text="Focus score "/>
+                                <Run Text="{x:Bind ViewModel.TodayFocusScoreBucket, Mode=OneWay}"/>
+                                <Run Text="/10"/>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Metrics and progress bar -->
+                <Grid Grid.Column="1"
+                      Margin="24,0,0,0"
+                      VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Empty state -->
+                    <TextBlock Grid.Row="0"
+                               Grid.ColumnSpan="3"
+                               Text="No analytics for today yet. Start a task to begin tracking."
+                               Style="{StaticResource FbSecondaryTextStyle}"
+                               Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                    <!-- Focused metric -->
+                    <StackPanel Grid.Row="0"
+                                Grid.Column="0"
+                                Spacing="4"
+                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE81E;"
+                                      FontSize="14"
+                                      Foreground="{StaticResource FbAlignedAccentBrush}"/>
+                            <TextBlock Text="Focused"
+                                       Style="{StaticResource FbSecondaryTextStyle}"/>
+                        </StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.TodayFocusedTimeText, Mode=OneWay}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Distracted metric -->
+                    <StackPanel Grid.Row="0"
+                                Grid.Column="1"
+                                Spacing="4"
+                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE7BA;"
+                                      FontSize="14"
+                                      Foreground="{StaticResource FbMisalignedAccentBrush}"/>
+                            <TextBlock Text="Distracted"
+                                       Style="{StaticResource FbSecondaryTextStyle}"/>
+                        </StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.TodayDistractedTimeText, Mode=OneWay}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Distractions metric -->
+                    <StackPanel Grid.Row="0"
+                                Grid.Column="2"
+                                Spacing="4"
+                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xEBE8;"
+                                      FontSize="14"
+                                      Foreground="{StaticResource FbNeutralAccentBrush}"/>
+                            <TextBlock Text="Distractions"
+                                       Style="{StaticResource FbSecondaryTextStyle}"/>
+                        </StackPanel>
+                        <TextBlock FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}">
+                            <Run Text="{x:Bind ViewModel.TodayDistractionCount, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                            <Run Text="Avg cost "/>
+                            <Run Text="{x:Bind ViewModel.TodayAverageDistractionCostText, Mode=OneWay}"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Segmented progress bar -->
+                    <Grid Grid.Row="1"
+                          Grid.ColumnSpan="3"
+                          Margin="0,12,0,0"
+                          Height="6"
+                          CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                          Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{x:Bind ViewModel.TodayFocusedPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                            <ColumnDefinition Width="{x:Bind ViewModel.TodayUnclearPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                            <ColumnDefinition Width="{x:Bind ViewModel.TodayDistractedPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0"
+                                Background="{StaticResource FbAlignedAccentBrush}"/>
+                        <Border Grid.Column="1"
+                                Background="{StaticResource FbNeutralAccentBrush}"/>
+                        <Border Grid.Column="2"
+                                Background="{StaticResource FbMisalignedAccentBrush}"/>
+                    </Grid>
+                </Grid>
+            </Grid>
         </Border>
 
         <!-- Trial banner (visible during active trial) -->

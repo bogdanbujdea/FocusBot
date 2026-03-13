@@ -31,6 +31,31 @@ Add a new panel on `KanbanBoardPage` (or equivalent dashboard surface):
   - Distractions count
 - section: `Top distracting apps` (top 3-5)
 
+### Implemented Header Layout (Current App)
+
+The implemented top-of-board header presents today's analytics as a dashboard-style card:
+
+- **Left side (context)**:
+  - Title: `Today's Focus Analytics`.
+  - `TodayDateLabel` formatted as `ddd, MMM d` (for example `Fri, Mar 13`).
+  - Optional focus score chip (`ShowTodayFocusScoreChip`) that shows `Focus score {TodayFocusScoreBucket}/10` only when AI is configured and today's summary is available.
+- **Right side (metrics row)**:
+  - Three metric tiles with icons and large typography:
+    - **Focused**: clock icon + `TodayFocusedTimeText`.
+    - **Distracted**: warning icon + `TodayDistractedTimeText`.
+    - **Distractions**: impact icon + `TodayDistractionCount` and a caption `Avg cost {TodayAverageDistractionCostText}`.
+  - All metrics use existing theme brushes (`FbAlignedAccentBrush`, `FbNeutralAccentBrush`, `FbMisalignedAccentBrush`, `FbTextPrimaryBrush`) and explicit text labels so meaning is not encoded by color alone.
+- **Balance bar**:
+  - A thin horizontal segmented bar under the tiles shows the balance of focused vs distracted time for today using:
+    - `TodayFocusedPercent`
+    - `TodayUnclearPercent`
+    - `TodayDistractedPercent`
+  - Each segment uses a star-sized `GridLength` column (via `PercentToGridLengthConverter`) to visually represent the relative share of time.
+- **Empty state behavior**:
+  - When no daily analytics are available (`HasTodayAnalytics == false`), the card still renders but:
+    - shows the message `No analytics for today yet. Start a task to begin tracking.`,
+    - hides metric tiles and the balance bar.
+
 ## Update Behavior
 - panel updates live or near-live as tracking data changes,
 - values should remain stable and not flicker when order ties occur.
