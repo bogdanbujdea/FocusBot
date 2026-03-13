@@ -18,5 +18,7 @@ public interface IDailyAnalyticsService
     Task<DailyFocusSummary?> GetTodaySummaryAsync(
         DateTime nowLocal,
         CancellationToken cancellationToken = default);
+
+    Task ReloadTodayFromDbAsync(CancellationToken cancellationToken = default);
 }
 

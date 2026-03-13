@@ -989,6 +989,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (string.IsNullOrEmpty(taskId))
             return;
         await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -1008,6 +1009,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         await FinalizeFocusScoreAndPersistAsync(taskId);
         await ShowSessionDistractionSummaryAsync(taskId);
         await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -1020,6 +1022,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         await ShowSessionDistractionSummaryAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
         await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -1030,7 +1033,9 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         _focusScoreService.ClearTaskSegments(taskId);
         await _repo.DeleteFocusSegmentsForTaskAsync(taskId);
+        await _distractionEventRepository.DeleteDistractionEventsForTaskAsync(taskId);
         await _repo.DeleteTaskAsync(taskId);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 

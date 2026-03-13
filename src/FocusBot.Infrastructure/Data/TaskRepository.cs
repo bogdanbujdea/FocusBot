@@ -109,7 +109,8 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
                 .FirstOrDefaultAsync(s =>
                     s.TaskId == segment.TaskId &&
                     s.ContextHash == segment.ContextHash &&
-                    s.AlignmentScore == segment.AlignmentScore);
+                    s.AlignmentScore == segment.AlignmentScore &&
+                    s.AnalyticsDateLocal == segment.AnalyticsDateLocal);
             if (existing != null)
             {
                 existing.DurationSeconds = segment.DurationSeconds;

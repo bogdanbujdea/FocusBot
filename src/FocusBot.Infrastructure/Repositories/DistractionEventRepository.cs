@@ -24,5 +24,19 @@ public class DistractionEventRepository(AppDbContext context) : IDistractionEven
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public async Task DeleteDistractionEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default)
+    {
+        var events = await context.DistractionEvents
+            .Where(e => e.TaskId == taskId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (events.Count > 0)
+        {
+            context.DistractionEvents.RemoveRange(events);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 }
 

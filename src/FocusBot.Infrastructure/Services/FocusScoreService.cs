@@ -34,7 +34,8 @@ public sealed class FocusScoreService : IFocusScoreService
         _currentTaskId = taskId;
         _hasPendingSegment = false;
         _hasReceivedRealScore = true;
-        var key = BuildKey(taskId, contextHash, alignmentScore);
+        var date = DateOnly.FromDateTime(DateTime.Now);
+        var key = BuildKey(taskId, contextHash, alignmentScore, date);
         if (!_segments.TryGetValue(key, out _))
         {
             _segments[key] = new FocusSegment
@@ -45,6 +46,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = 0,
                 WindowTitle = windowTitle,
                 ProcessName = processName,
+                AnalyticsDateLocal = date,
             };
         }
         _currentSegmentKey = key;
@@ -73,11 +75,12 @@ public sealed class FocusScoreService : IFocusScoreService
         var contextHash = _pendingContextHash;
         var windowTitle = _pendingWindowTitle;
         var processName = _pendingProcessName;
+        var date = DateOnly.FromDateTime(DateTime.Now);
 
         _hasPendingSegment = false;
         _hasReceivedRealScore = true;
 
-        var key = BuildKey(taskId, contextHash, alignmentScore);
+        var key = BuildKey(taskId, contextHash, alignmentScore, date);
         if (!_segments.TryGetValue(key, out var segment))
         {
             segment = new FocusSegment
@@ -88,6 +91,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = 0,
                 WindowTitle = windowTitle,
                 ProcessName = processName,
+                AnalyticsDateLocal = date,
             };
             _segments[key] = segment;
         }
@@ -147,7 +151,7 @@ public sealed class FocusScoreService : IFocusScoreService
             {
                 var duration = s.DurationSeconds;
                 if (_currentSegmentKey != null &&
-                    BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore) == _currentSegmentKey)
+                    BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore, s.AnalyticsDateLocal) == _currentSegmentKey)
                 {
                     duration += currentDuration;
                 }
@@ -159,6 +163,7 @@ public sealed class FocusScoreService : IFocusScoreService
                     DurationSeconds = duration,
                     WindowTitle = s.WindowTitle,
                     ProcessName = s.ProcessName,
+                    AnalyticsDateLocal = s.AnalyticsDateLocal,
                 };
             })
             .Where(s => s.DurationSeconds > 0)
@@ -177,7 +182,7 @@ public sealed class FocusScoreService : IFocusScoreService
         _segments.Clear();
         foreach (var s in existing)
         {
-            var key = BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore);
+            var key = BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore, s.AnalyticsDateLocal);
             _segments[key] = new FocusSegment
             {
                 Id = s.Id,
@@ -187,6 +192,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = s.DurationSeconds,
                 WindowTitle = s.WindowTitle,
                 ProcessName = s.ProcessName,
+                AnalyticsDateLocal = s.AnalyticsDateLocal,
             };
         }
         _currentTaskId = taskId;
@@ -210,6 +216,6 @@ public sealed class FocusScoreService : IFocusScoreService
         }
     }
 
-    private static string BuildKey(string taskId, string contextHash, int score) =>
-        $"{taskId}|{contextHash}|{score}";
+    private static string BuildKey(string taskId, string contextHash, int score, DateOnly date) =>
+        $"{taskId}|{contextHash}|{score}|{date:yyyy-MM-dd}";
 }

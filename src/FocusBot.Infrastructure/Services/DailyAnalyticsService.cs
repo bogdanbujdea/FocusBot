@@ -10,12 +10,18 @@ namespace FocusBot.Infrastructure.Services;
 public sealed class DailyAnalyticsService : IDailyAnalyticsService
 {
     private readonly AppDbContext _context;
-    private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(5);
 
-    private DateOnly? _currentDate;
-    private DailyFocusAnalytics? _currentEntity;
-    private bool _isDirty;
-    private DateTime _lastFlushUtc = DateTime.MinValue;
+    private class TodayAccumulator
+    {
+        public DateOnly Date { get; set; }
+        public long FocusedSeconds { get; set; }
+        public long UnclearSeconds { get; set; }
+        public long DistractedSeconds { get; set; }
+        public long TotalTrackedSeconds { get; set; }
+        public int DistractionCount { get; set; }
+    }
+
+    private TodayAccumulator? _accumulator;
 
     public DailyAnalyticsService(AppDbContext context)
     {
@@ -29,28 +35,26 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
     {
         var localDate = GetLocalDate(sampleTimeUtc);
 
-        if (_currentDate is not null && _currentDate != localDate)
-            await FlushIfNeededAsync(force: true, cancellationToken).ConfigureAwait(false);
+        if (_accumulator is null || _accumulator.Date != localDate)
+            await ReloadTodayFromDbAsync(cancellationToken).ConfigureAwait(false);
 
-        var entity = await GetOrCreateAsync(localDate, cancellationToken).ConfigureAwait(false);
+        if (_accumulator is null || _accumulator.Date != localDate)
+            _accumulator = new TodayAccumulator { Date = localDate };
 
-        entity.TotalTrackedSeconds++;
+        _accumulator.TotalTrackedSeconds++;
 
         switch (status)
         {
             case FocusStatus.Focused:
-                entity.FocusedSeconds++;
+                _accumulator.FocusedSeconds++;
                 break;
             case FocusStatus.Neutral:
-                entity.UnclearSeconds++;
+                _accumulator.UnclearSeconds++;
                 break;
             case FocusStatus.Distracted:
-                entity.DistractedSeconds++;
+                _accumulator.DistractedSeconds++;
                 break;
         }
-
-        _isDirty = true;
-        await FlushIfNeededAsync(force: false, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RegisterDistractionEventAsync(
@@ -59,23 +63,13 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
     {
         var localDate = GetLocalDate(distractionEvent.OccurredAtUtc);
 
-        if (_currentDate is not null && _currentDate != localDate)
-            await FlushIfNeededAsync(force: true, cancellationToken).ConfigureAwait(false);
+        if (_accumulator is null || _accumulator.Date != localDate)
+            await ReloadTodayFromDbAsync(cancellationToken).ConfigureAwait(false);
 
-        var entity = await GetOrCreateAsync(localDate, cancellationToken).ConfigureAwait(false);
+        if (_accumulator is null || _accumulator.Date != localDate)
+            _accumulator = new TodayAccumulator { Date = localDate };
 
-        entity.DistractionCount++;
-
-        if (distractionEvent.DistractedDurationSecondsAtEmit > 0)
-        {
-            var previousTotal = entity.DistractedSeconds;
-            entity.DistractedSeconds = Math.Max(
-                entity.DistractedSeconds,
-                previousTotal + distractionEvent.DistractedDurationSecondsAtEmit);
-        }
-
-        _isDirty = true;
-        await FlushIfNeededAsync(force: false, cancellationToken).ConfigureAwait(false);
+        _accumulator.DistractionCount++;
     }
 
     public async Task<DailyFocusSummary?> GetTodaySummaryAsync(
@@ -84,44 +78,59 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
     {
         var localDate = DateOnly.FromDateTime(nowLocal);
 
-        DailyFocusAnalytics? entity;
-        if (_currentEntity is not null && _currentDate == localDate)
-        {
-            entity = _currentEntity;
-        }
-        else
-        {
-            entity = await _context.DailyFocusAnalytics
-                .AsNoTracking()
-                .SingleOrDefaultAsync(x => x.AnalyticsDateLocal == localDate, cancellationToken)
-                .ConfigureAwait(false);
-        }
+        if (_accumulator is null || _accumulator.Date != localDate)
+            await ReloadTodayFromDbAsync(cancellationToken).ConfigureAwait(false);
 
-        if (entity is null || entity.TotalTrackedSeconds <= 0)
+        if (_accumulator is null || _accumulator.Date != localDate)
             return null;
 
-        var focusRatio = entity.TotalTrackedSeconds == 0
-            ? 0d
-            : (double)entity.FocusedSeconds / entity.TotalTrackedSeconds;
+        return BuildSummaryFromAccumulator(localDate, _accumulator);
+    }
 
-        var focusScoreBucket = (int)Math.Round(focusRatio * 10, MidpointRounding.AwayFromZero);
-        focusScoreBucket = Math.Clamp(focusScoreBucket, 0, 10);
+    public async Task ReloadTodayFromDbAsync(CancellationToken cancellationToken = default)
+    {
+        var localDate = DateOnly.FromDateTime(DateTime.Now);
 
-        TimeSpan? averageDistraction = null;
-        if (entity.DistractionCount > 0 && entity.DistractedSeconds > 0)
+        var segments = await _context.FocusSegments
+            .AsNoTracking()
+            .Where(s => s.AnalyticsDateLocal == localDate)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var focusedSeconds = segments
+            .Where(s => s.AlignmentScore >= 6)
+            .Sum(s => (long)s.DurationSeconds);
+
+        var unclearSeconds = segments
+            .Where(s => s.AlignmentScore >= 4 && s.AlignmentScore < 6)
+            .Sum(s => (long)s.DurationSeconds);
+
+        var distractedSeconds = segments
+            .Where(s => s.AlignmentScore < 4)
+            .Sum(s => (long)s.DurationSeconds);
+
+        var totalSeconds = focusedSeconds + unclearSeconds + distractedSeconds;
+
+        var today = DateTime.Now;
+        var startOfDayUtc = localDate.ToDateTime(TimeOnly.MinValue).ToUniversalTime();
+        var endOfDayUtc = localDate.AddDays(1).ToDateTime(TimeOnly.MinValue).ToUniversalTime();
+
+        var distractionEvents = await _context.DistractionEvents
+            .AsNoTracking()
+            .Where(e => e.OccurredAtUtc >= startOfDayUtc && e.OccurredAtUtc < endOfDayUtc)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var distractionCount = distractionEvents.Count;
+
+        _accumulator = new TodayAccumulator
         {
-            var averageSeconds = (double)entity.DistractedSeconds / entity.DistractionCount;
-            averageDistraction = TimeSpan.FromSeconds(averageSeconds);
-        }
-
-        return new DailyFocusSummary
-        {
-            AnalyticsDateLocal = entity.AnalyticsDateLocal,
-            FocusScoreBucket = focusScoreBucket,
-            FocusedTime = TimeSpan.FromSeconds(entity.FocusedSeconds),
-            DistractedTime = TimeSpan.FromSeconds(entity.DistractedSeconds),
-            DistractionCount = entity.DistractionCount,
-            AverageDistractionDuration = averageDistraction
+            Date = localDate,
+            FocusedSeconds = focusedSeconds,
+            UnclearSeconds = unclearSeconds,
+            DistractedSeconds = distractedSeconds,
+            TotalTrackedSeconds = totalSeconds,
+            DistractionCount = distractionCount,
         };
     }
 
@@ -134,51 +143,34 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
         return DateOnly.FromDateTime(local);
     }
 
-    private async Task<DailyFocusAnalytics> GetOrCreateAsync(
-        DateOnly localDate,
-        CancellationToken cancellationToken)
+    private DailyFocusSummary? BuildSummaryFromAccumulator(DateOnly localDate, TodayAccumulator acc)
     {
-        if (_currentEntity is not null && _currentDate == localDate)
-            return _currentEntity;
+        if (acc.TotalTrackedSeconds <= 0)
+            return null;
 
-        var existing = await _context.DailyFocusAnalytics
-            .SingleOrDefaultAsync(x => x.AnalyticsDateLocal == localDate, cancellationToken)
-            .ConfigureAwait(false);
+        var totalSeconds = acc.FocusedSeconds + acc.UnclearSeconds + acc.DistractedSeconds;
+        if (totalSeconds <= 0)
+            return null;
 
-        if (existing is not null)
+        var focusRatio = (double)acc.FocusedSeconds / totalSeconds;
+        var focusScoreBucket = (int)Math.Round(focusRatio * 10, MidpointRounding.AwayFromZero);
+        focusScoreBucket = Math.Clamp(focusScoreBucket, 0, 10);
+
+        TimeSpan? averageDistraction = null;
+        if (acc.DistractionCount > 0 && acc.DistractedSeconds > 0)
         {
-            _currentDate = localDate;
-            _currentEntity = existing;
-            return existing;
+            var averageSeconds = (double)acc.DistractedSeconds / acc.DistractionCount;
+            averageDistraction = TimeSpan.FromSeconds(averageSeconds);
         }
 
-        var entity = new DailyFocusAnalytics
+        return new DailyFocusSummary
         {
-            AnalyticsDateLocal = localDate
+            AnalyticsDateLocal = localDate,
+            FocusScoreBucket = focusScoreBucket,
+            FocusedTime = TimeSpan.FromSeconds(acc.FocusedSeconds),
+            DistractedTime = TimeSpan.FromSeconds(acc.DistractedSeconds),
+            DistractionCount = acc.DistractionCount,
+            AverageDistractionDuration = averageDistraction
         };
-
-        _context.DailyFocusAnalytics.Add(entity);
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        _currentDate = localDate;
-        _currentEntity = entity;
-        return entity;
-    }
-
-    private async Task FlushIfNeededAsync(
-        bool force,
-        CancellationToken cancellationToken)
-    {
-        if (_currentEntity is null || !_isDirty)
-            return;
-
-        var nowUtc = DateTime.UtcNow;
-        if (!force && nowUtc - _lastFlushUtc < FlushInterval)
-            return;
-
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        _isDirty = false;
-        _lastFlushUtc = nowUtc;
     }
 }
-

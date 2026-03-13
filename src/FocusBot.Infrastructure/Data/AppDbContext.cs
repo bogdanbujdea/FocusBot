@@ -48,7 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<FocusSegment>(entity =>
         {
-            entity.HasIndex(e => new { e.TaskId, e.ContextHash, e.AlignmentScore })
+            entity.HasIndex(e => new { e.TaskId, e.ContextHash, e.AlignmentScore, e.AnalyticsDateLocal })
                 .IsUnique();
             entity.HasIndex(e => e.TaskId);
             entity.Property(e => e.TaskId).HasMaxLength(64);

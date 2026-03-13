@@ -124,6 +124,12 @@ public class DistractionDetectorServiceShould
                 .ToList();
             return Task.FromResult(result);
         }
+
+        public Task DeleteDistractionEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            Events.RemoveAll(e => e.TaskId == taskId);
+            return Task.CompletedTask;
+        }
     }
 }
 
