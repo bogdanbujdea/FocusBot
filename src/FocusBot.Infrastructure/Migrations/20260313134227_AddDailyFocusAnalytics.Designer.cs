@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FocusBot.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260313114402_AddDistractionEvents")]
-    partial class AddDistractionEvents
+    [Migration("20260313134227_AddDailyFocusAnalytics")]
+    partial class AddDailyFocusAnalytics
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -46,6 +46,41 @@ namespace FocusBot.Infrastructure.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.ToTable("AlignmentCacheEntries");
+                });
+
+            modelBuilder.Entity("FocusBot.Core.Entities.DailyFocusAnalytics", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("AnalyticsDateLocal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AverageDistractionSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DistractedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DistractionCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FocusedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalTrackedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UnclearSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnalyticsDateLocal")
+                        .IsUnique();
+
+                    b.ToTable("DailyFocusAnalytics");
                 });
 
             modelBuilder.Entity("FocusBot.Core.Entities.DistractionEvent", b =>

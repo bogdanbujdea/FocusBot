@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AlignmentCacheEntry> AlignmentCacheEntries => Set<AlignmentCacheEntry>();
     public DbSet<FocusSegment> FocusSegments => Set<FocusSegment>();
     public DbSet<DistractionEvent> DistractionEvents => Set<DistractionEvent>();
+    public DbSet<DailyFocusAnalytics> DailyFocusAnalytics => Set<DailyFocusAnalytics>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.WindowTitleSnapshot).HasMaxLength(512);
             entity.HasIndex(e => new { e.SessionId, e.OccurredAtUtc });
             entity.HasIndex(e => new { e.TaskId, e.OccurredAtUtc });
+        });
+
+        modelBuilder.Entity<DailyFocusAnalytics>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AnalyticsDateLocal).IsUnique();
         });
     }
 }

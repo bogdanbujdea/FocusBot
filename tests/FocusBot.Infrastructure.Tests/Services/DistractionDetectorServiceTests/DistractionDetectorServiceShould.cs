@@ -112,6 +112,18 @@ public class DistractionDetectorServiceShould
             Events.Add(distractionEvent);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<DistractionEvent>> GetEventsForTaskBetweenAsync(
+            string taskId,
+            DateTime fromUtc,
+            DateTime toUtc,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<DistractionEvent> result = Events
+                .Where(e => e.TaskId == taskId && e.OccurredAtUtc >= fromUtc && e.OccurredAtUtc <= toUtc)
+                .ToList();
+            return Task.FromResult(result);
+        }
     }
 }
 

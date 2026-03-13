@@ -6,11 +6,30 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FocusBot.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDistractionEvents : Migration
+    public partial class AddDailyFocusAnalytics : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "DailyFocusAnalytics",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    AnalyticsDateLocal = table.Column<DateOnly>(type: "TEXT", nullable: false),
+                    TotalTrackedSeconds = table.Column<int>(type: "INTEGER", nullable: false),
+                    FocusedSeconds = table.Column<int>(type: "INTEGER", nullable: false),
+                    UnclearSeconds = table.Column<int>(type: "INTEGER", nullable: false),
+                    DistractedSeconds = table.Column<int>(type: "INTEGER", nullable: false),
+                    DistractionCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    AverageDistractionSeconds = table.Column<int>(type: "INTEGER", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DailyFocusAnalytics", x => x.Id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "DistractionEvents",
                 columns: table => new
@@ -30,6 +49,12 @@ namespace FocusBot.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_DailyFocusAnalytics_AnalyticsDateLocal",
+                table: "DailyFocusAnalytics",
+                column: "AnalyticsDateLocal",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DistractionEvents_SessionId_OccurredAtUtc",
                 table: "DistractionEvents",
                 columns: new[] { "SessionId", "OccurredAtUtc" });
@@ -43,6 +68,9 @@ namespace FocusBot.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "DailyFocusAnalytics");
+
             migrationBuilder.DropTable(
                 name: "DistractionEvents");
         }

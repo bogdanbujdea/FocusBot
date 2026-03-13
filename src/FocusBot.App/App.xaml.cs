@@ -75,6 +75,7 @@ namespace FocusBot.App
             services.AddSingleton<IFocusScoreService, FocusScoreService>();
             services.AddSingleton<IDistractionEventRepository, DistractionEventRepository>();
             services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
+            services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();

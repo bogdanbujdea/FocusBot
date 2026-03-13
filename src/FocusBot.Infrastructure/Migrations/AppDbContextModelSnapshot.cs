@@ -45,6 +45,41 @@ namespace FocusBot.Infrastructure.Migrations
                     b.ToTable("AlignmentCacheEntries");
                 });
 
+            modelBuilder.Entity("FocusBot.Core.Entities.DailyFocusAnalytics", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("AnalyticsDateLocal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AverageDistractionSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DistractedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DistractionCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FocusedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalTrackedSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UnclearSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnalyticsDateLocal")
+                        .IsUnique();
+
+                    b.ToTable("DailyFocusAnalytics");
+                });
+
             modelBuilder.Entity("FocusBot.Core.Entities.DistractionEvent", b =>
                 {
                     b.Property<int>("Id")

@@ -19,11 +19,42 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Trial banner (visible during active trial) -->
+        <!-- Today's Focus Summary (compact strip at very top) -->
         <Border Grid.Row="0"
+                Background="{StaticResource FbCardBackgroundBrush}"
+                BorderBrush="{StaticResource FbCardBorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8"
+                Margin="0,0,0,8"
+                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                automation:AutomationProperties.Name="Today's focus summary">
+            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                    <Run Text="Today’s focus score: "/>
+                    <Run Text="{x:Bind ViewModel.TodayFocusScoreBucket, Mode=OneWay}"/>
+                    <Run Text="/10"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                    <Run Text="Focused: "/>
+                    <Run Text="{x:Bind ViewModel.TodayFocusedTimeText, Mode=OneWay}"/>
+                    <Run Text=" · Distracted: "/>
+                    <Run Text="{x:Bind ViewModel.TodayDistractedTimeText, Mode=OneWay}"/>
+                </TextBlock>
+                <TextBlock Style="{StaticResource FbSecondaryTextStyle}">
+                    <Run Text="Distractions: "/>
+                    <Run Text="{x:Bind ViewModel.TodayDistractionCount, Mode=OneWay}"/>
+                    <Run Text=" · Avg cost: "/>
+                    <Run Text="{x:Bind ViewModel.TodayAverageDistractionCostText, Mode=OneWay}"/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Trial banner (visible during active trial) -->
+        <Border Grid.Row="1"
                 Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
                 BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
                 BorderThickness="0,0,0,2"
@@ -59,7 +90,7 @@
         </Border>
 
         <!-- AI not configured warning (visible when no key / not subscribed) -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                 Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
                 BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
                 BorderThickness="0,0,0,2"
@@ -81,7 +112,7 @@
         </Border>
 
         <!-- Current foreground window and Focus Status Bar (visible when a task is in progress) -->
-        <Grid Grid.Row="2" x:Name="CurrentWindowBar"
+        <Grid Grid.Row="3" x:Name="CurrentWindowBar"
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
               RowSpacing="8"
@@ -105,6 +136,8 @@
                     <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
                     <Run Text=" | Total on this window: "/>
                     <Run Text="{x:Bind ViewModel.WindowTotalElapsedTime, Mode=OneWay}"/>
+                    <Run Text=" | Distractions this session: "/>
+                    <Run Text="{x:Bind ViewModel.LiveDistractionCount, Mode=OneWay}"/>
                 </TextBlock>
             </StackPanel>
 
@@ -164,7 +197,7 @@
         </Grid>
 
         <!-- Header with Add Task and Settings -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -189,7 +222,7 @@
         </Grid>
 
         <!-- Kanban Columns -->
-        <Grid Grid.Row="4" ColumnSpacing="16">
+        <Grid Grid.Row="5" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -603,7 +636,7 @@
 
         <!-- AI provider/model and error indicator (farthest top-right, only when AI is configured) -->
         <StackPanel Grid.Row="0"
-                    Grid.RowSpan="4"
+                    Grid.RowSpan="5"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
                     Margin="0,0,0,0"
@@ -637,7 +670,7 @@
         <!-- Add Task Popup (light dismiss, draft preserved when closed, centered) -->
         <primitives:Popup x:Name="AddTaskPopup"
                           Grid.Row="0"
-                          Grid.RowSpan="4"
+                          Grid.RowSpan="5"
                           IsLightDismissEnabled="True">
             <Grid x:Name="AddTaskOverlay"
                   Background="#40000000"
@@ -686,7 +719,7 @@
         <!-- Edit Task Popup (light dismiss, draft preserved when closed, centered) -->
         <primitives:Popup x:Name="EditTaskPopup"
                           Grid.Row="0"
-                          Grid.RowSpan="4"
+                          Grid.RowSpan="5"
                           IsLightDismissEnabled="True">
             <Grid x:Name="EditTaskOverlay"
                   Background="#40000000"
