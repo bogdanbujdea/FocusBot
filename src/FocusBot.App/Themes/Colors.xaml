@@ -29,8 +29,12 @@
             <Color x:Key="FbDeleteAccent">#DC2626</Color>
             <!-- Focus status background colors -->
             <Color x:Key="FbFocusStatusAlignedBg">#DCFCE7</Color>
-            <Color x:Key="FbFocusStatusMisalignedBg">#FEE2E2</Color>
-            <Color x:Key="FbFocusStatusUnclearBg">#F3E8FF</Color>
+            <Color x:Key="FbFocusStatusMisalignedBg">#FEDDD3</Color>
+            <Color x:Key="FbFocusStatusUnclearBg">#E9D5FF</Color>
+            <!-- Focus status text colors (for contrast) -->
+            <Color x:Key="FbFocusStatusAlignedTextColor">#166534</Color>
+            <Color x:Key="FbFocusStatusMisalignedTextColor">#92400E</Color>
+            <Color x:Key="FbFocusStatusUnclearTextColor">#581C87</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#DCE9F8</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#FFEDD5</Color>
@@ -65,9 +69,13 @@
             <Color x:Key="FbEditAccent">#F59E0B</Color>
             <Color x:Key="FbDeleteAccent">#EF4444</Color>
             <!-- Focus status background colors -->
-            <Color x:Key="FbFocusStatusAlignedBg">#14532D</Color>
-            <Color x:Key="FbFocusStatusMisalignedBg">#7F1D1D</Color>
-            <Color x:Key="FbFocusStatusUnclearBg">#3F2463</Color>
+            <Color x:Key="FbFocusStatusAlignedBg">#1E7E34</Color>
+            <Color x:Key="FbFocusStatusMisalignedBg">#7C2D12</Color>
+            <Color x:Key="FbFocusStatusUnclearBg">#6B21A8</Color>
+            <!-- Focus status text colors (for contrast) -->
+            <Color x:Key="FbFocusStatusAlignedTextColor">#DCFCE7</Color>
+            <Color x:Key="FbFocusStatusMisalignedTextColor">#FEDDD3</Color>
+            <Color x:Key="FbFocusStatusUnclearTextColor">#E9D5FF</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#1A2438</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#352818</Color>
@@ -102,6 +110,10 @@
             <Color x:Key="FbFocusStatusAlignedBg">#000000</Color>
             <Color x:Key="FbFocusStatusMisalignedBg">#000000</Color>
             <Color x:Key="FbFocusStatusUnclearBg">#000000</Color>
+            <!-- Focus status text colors (for contrast) -->
+            <Color x:Key="FbFocusStatusAlignedTextColor">#00FF00</Color>
+            <Color x:Key="FbFocusStatusMisalignedTextColor">#FF0000</Color>
+            <Color x:Key="FbFocusStatusUnclearTextColor">#FFFF00</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#001a33</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#331900</Color>

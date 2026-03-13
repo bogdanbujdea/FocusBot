@@ -77,4 +77,9 @@
     <SolidColorBrush x:Key="FbFocusStatusAlignedBackgroundBrush" Color="{ThemeResource FbFocusStatusAlignedBg}"/>
     <SolidColorBrush x:Key="FbFocusStatusMisalignedBackgroundBrush" Color="{ThemeResource FbFocusStatusMisalignedBg}"/>
     <SolidColorBrush x:Key="FbFocusStatusUnclearBackgroundBrush" Color="{ThemeResource FbFocusStatusUnclearBg}"/>
+
+    <!-- Focus status text color brushes (for contrast on colored backgrounds) -->
+    <SolidColorBrush x:Key="FbFocusStatusAlignedTextBrush" Color="{ThemeResource FbFocusStatusAlignedTextColor}"/>
+    <SolidColorBrush x:Key="FbFocusStatusMisalignedTextBrush" Color="{ThemeResource FbFocusStatusMisalignedTextColor}"/>
+    <SolidColorBrush x:Key="FbFocusStatusUnclearTextBrush" Color="{ThemeResource FbFocusStatusUnclearTextColor}"/>
 </ResourceDictionary>

@@ -73,7 +73,7 @@
                 <StackPanel Spacing="4" Orientation="Vertical" HorizontalAlignment="Center" Margin="0 0 0 30">
                     <TextBlock Text="Today's Focus Analytics"
                                Style="{StaticResource FbTaskTitleStyle}"
-                               FontSize="34"
+                               FontSize="26"
                                TextAlignment="Center"/>
                     <TextBlock Text="{x:Bind ViewModel.TodayDateLabel, Mode=OneWay}"
                                FontSize="20"
@@ -112,16 +112,17 @@
                                 Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xE7BA;"
-                                      FontSize="28"
+                                      FontSize="24"
                                       Foreground="{StaticResource FbMisalignedAccentBrush}"
                                       HorizontalAlignment="Center"/>
                             <TextBlock Text="Distracted"
                                        Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
+                                       FontSize="24"
+                                       
                                        TextAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="{x:Bind ViewModel.TodayDistractedTimeText, Mode=OneWay}"
-                                   FontSize="36"
+                                   FontSize="26"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FbTextPrimaryBrush}"
                                    TextAlignment="Center"/>
@@ -136,16 +137,16 @@
                                 Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xE81E;"
-                                      FontSize="28"
+                                      FontSize="24"
                                       Foreground="{StaticResource FbAlignedAccentBrush}"
                                       HorizontalAlignment="Center"/>
                             <TextBlock Text="Focused"
                                        Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
+                                       FontSize="24"
                                        TextAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="{x:Bind ViewModel.TodayFocusedTimeText, Mode=OneWay}"
-                                   FontSize="36"
+                                   FontSize="26"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FbTextPrimaryBrush}"
                                    TextAlignment="Center"/>
@@ -155,21 +156,21 @@
                     <StackPanel Grid.Row="0"
                                 Grid.Column="2"
                                 Spacing="8"
-                                Margin="0 0 0 40"
+                                Margin="0 0 0 20"
                                 Orientation="Vertical"
                                 HorizontalAlignment="Center"
                                 Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xEBE8;"
-                                      FontSize="28"
+                                      FontSize="24"
                                       Foreground="{StaticResource FbNeutralAccentBrush}"
                                       HorizontalAlignment="Center"/>
                             <TextBlock Text="Distractions"
                                        Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
+                                       FontSize="24"
                                        TextAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock FontSize="36"
+                        <TextBlock FontSize="26"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FbTextPrimaryBrush}"
                                    TextAlignment="Center"
@@ -260,15 +261,9 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
                     Padding="20,16"
+                    Background="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToBackgroundBrushConverter}}"
                     Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Focus status">
-                <Border.Background>
-                    <Binding Path="ViewModel.FocusScore" Mode="OneWay">
-                        <Binding.Converter>
-                            <converters:FocusScoreToBackgroundBrushConverter/>
-                        </Binding.Converter>
-                    </Binding>
-                </Border.Background>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -296,44 +291,31 @@
                     <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
                         <StackPanel Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
-                                       Style="{StaticResource FbFocusStatusTextStyle}">
-                                <TextBlock.Foreground>
-                                    <Binding Path="ViewModel.FocusScore" Mode="OneWay">
-                                        <Binding.Converter>
-                                            <converters:FocusScoreToTextColorConverter/>
-                                        </Binding.Converter>
-                                    </Binding>
-                                </TextBlock.Foreground>
-                            </TextBlock>
+                                       Style="{StaticResource FbFocusStatusTextStyle}"
+                                       Foreground="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToContrastTextColorConverter}}"/>
                             <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
                                        Style="{StaticResource FbFocusStatusReasonStyle}"
+                                       Foreground="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToContrastTextColorConverter}}"
                                        TextWrapping="Wrap"
                                        MaxLines="2"
                                        TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                         <TextBlock Text="Checking..."
                                    Style="{StaticResource FbFocusStatusTextStyle}"
-                                   Foreground="{StaticResource FbTextSecondaryBrush}"
+                                   Foreground="{StaticResource FbFocusStatusUnclearTextBrush}"
                                    Visibility="{x:Bind ViewModel.ShowCheckingMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
                 </Grid>
             </Border>
         </Grid>
 
-        <!-- Header with Add Task and Settings -->
+        <!-- Header with Settings -->
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="AddTaskButton" Grid.Column="0"
-                    Content="+ Add Task"
-                    Style="{StaticResource FbAccentButtonStyle}"
-                    automation:AutomationProperties.Name="Add task"
-                    Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
-                    Click="AddTaskButton_Click"/>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                 <Button Content="?"
                         Style="{StaticResource FbOutlineButtonStyle}"
                         automation:AutomationProperties.Name="How it works"
@@ -369,11 +351,25 @@
                     </Grid.RowDefinitions>
                     <!-- Column Header with Count (tinted background) -->
                     <Border Grid.Row="0" Style="{StaticResource FbColumnHeaderAreaStyle}" Background="{StaticResource FbColumnHeaderToDoBrush}">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
-                            <TextBlock Text="TO DO" Style="{StaticResource FbColumnHeaderStyle}"/>
-                            <TextBlock Text="{x:Bind ViewModel.ToDoTasks.Count, Mode=OneWay}" 
-                                       Style="{StaticResource FbColumnCountStyle}"/>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
+                                <TextBlock Text="TO DO" Style="{StaticResource FbColumnHeaderStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.ToDoTasks.Count, Mode=OneWay}" 
+                                           Style="{StaticResource FbColumnCountStyle}"/>
+                            </StackPanel>
+                            <Button x:Name="AddTaskButton" Grid.Column="2" 
+                                    Content="+ Add Task"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    automation:AutomationProperties.Name="Add task"
+                                    Command="{x:Bind ViewModel.ToggleAddTaskCommand}"
+                                    Click="AddTaskButton_Click"
+                                    Margin="0,0,12,0"/>
+                        </Grid>
                     </Border>
                     <!-- Header Divider -->
                     <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
