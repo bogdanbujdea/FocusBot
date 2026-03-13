@@ -379,6 +379,13 @@ public partial class KanbanBoardViewModel : ObservableObject
     public bool ShowTodayFocusScoreChip =>
         HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
 
+    private bool _isAnalyticsExpanded = true;
+    public bool IsAnalyticsExpanded
+    {
+        get => _isAnalyticsExpanded;
+        set => SetProperty(ref _isAnalyticsExpanded, value);
+    }
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -928,6 +935,9 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;
+
+    [RelayCommand]
+    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
 
     [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();

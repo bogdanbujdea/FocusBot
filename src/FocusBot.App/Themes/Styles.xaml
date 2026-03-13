@@ -93,14 +93,14 @@
     <!-- Column header area (tinted strip with rounded top, use Background per column) -->
     <Style x:Key="FbColumnHeaderAreaStyle" TargetType="Border">
         <Setter Property="CornerRadius" Value="12,12,0,0"/>
-        <Setter Property="Padding" Value="0,12,0,12"/>
+        <Setter Property="Padding" Value="0,12,0,0"/>
         <Setter Property="Margin" Value="0,0,0,10"/>
     </Style>
 
     <!-- Column header text style (TO DO, IN PROGRESS, DONE) -->
     <Style x:Key="FbColumnHeaderStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
-        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontSize" Value="28"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="CharacterSpacing" Value="80"/>
     </Style>
@@ -128,7 +128,7 @@
     <!-- Column count badge style (used inside column header area) -->
     <Style x:Key="FbColumnCountStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Opacity" Value="0.85"/>
     </Style>
