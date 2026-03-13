@@ -325,6 +325,12 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
+    public string TodayFocusedPercentText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "0% focused";
+
     public string TodayFocusedTimeText
     {
         get;
@@ -450,6 +456,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             status);
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();
+        _ = RefreshTodaySummaryAsync();
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
@@ -820,6 +827,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             TodayFocusedPercent = 0;
             TodayUnclearPercent = 0;
             TodayDistractedPercent = 0;
+            TodayFocusedPercentText = "0% focused";
             OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
             return;
         }
@@ -842,12 +850,16 @@ public partial class KanbanBoardViewModel : ObservableObject
             TodayFocusedPercent = 0;
             TodayUnclearPercent = 0;
             TodayDistractedPercent = 0;
+            TodayFocusedPercentText = "0% focused";
         }
         else
         {
-            TodayFocusedPercent = summary.FocusedTime.TotalSeconds / totalSeconds;
+            var focusedShare = summary.FocusedTime.TotalSeconds / totalSeconds;
+            TodayFocusedPercent = focusedShare;
             TodayUnclearPercent = 0;
             TodayDistractedPercent = summary.DistractedTime.TotalSeconds / totalSeconds;
+            var focusedPercentRounded = (int)Math.Round(focusedShare * 100, MidpointRounding.AwayFromZero);
+            TodayFocusedPercentText = $"{focusedPercentRounded}% focused";
         }
 
         OnPropertyChanged(nameof(ShowTodayFocusScoreChip));

@@ -10,6 +10,12 @@ namespace FocusBot.Infrastructure.Services;
 public sealed class DailyAnalyticsService : IDailyAnalyticsService
 {
     private readonly AppDbContext _context;
+    private static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(5);
+
+    private DateOnly? _currentDate;
+    private DailyFocusAnalytics? _currentEntity;
+    private bool _isDirty;
+    private DateTime _lastFlushUtc = DateTime.MinValue;
 
     public DailyAnalyticsService(AppDbContext context)
     {
@@ -22,6 +28,10 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
         CancellationToken cancellationToken = default)
     {
         var localDate = GetLocalDate(sampleTimeUtc);
+
+        if (_currentDate is not null && _currentDate != localDate)
+            await FlushIfNeededAsync(force: true, cancellationToken).ConfigureAwait(false);
+
         var entity = await GetOrCreateAsync(localDate, cancellationToken).ConfigureAwait(false);
 
         entity.TotalTrackedSeconds++;
@@ -39,7 +49,8 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
                 break;
         }
 
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _isDirty = true;
+        await FlushIfNeededAsync(force: false, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RegisterDistractionEventAsync(
@@ -47,6 +58,10 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
         CancellationToken cancellationToken = default)
     {
         var localDate = GetLocalDate(distractionEvent.OccurredAtUtc);
+
+        if (_currentDate is not null && _currentDate != localDate)
+            await FlushIfNeededAsync(force: true, cancellationToken).ConfigureAwait(false);
+
         var entity = await GetOrCreateAsync(localDate, cancellationToken).ConfigureAwait(false);
 
         entity.DistractionCount++;
@@ -59,7 +74,8 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
                 previousTotal + distractionEvent.DistractedDurationSecondsAtEmit);
         }
 
-        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _isDirty = true;
+        await FlushIfNeededAsync(force: false, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<DailyFocusSummary?> GetTodaySummaryAsync(
@@ -68,10 +84,18 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
     {
         var localDate = DateOnly.FromDateTime(nowLocal);
 
-        var entity = await _context.DailyFocusAnalytics
-            .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.AnalyticsDateLocal == localDate, cancellationToken)
-            .ConfigureAwait(false);
+        DailyFocusAnalytics? entity;
+        if (_currentEntity is not null && _currentDate == localDate)
+        {
+            entity = _currentEntity;
+        }
+        else
+        {
+            entity = await _context.DailyFocusAnalytics
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x => x.AnalyticsDateLocal == localDate, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         if (entity is null || entity.TotalTrackedSeconds <= 0)
             return null;
@@ -114,12 +138,19 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
         DateOnly localDate,
         CancellationToken cancellationToken)
     {
+        if (_currentEntity is not null && _currentDate == localDate)
+            return _currentEntity;
+
         var existing = await _context.DailyFocusAnalytics
             .SingleOrDefaultAsync(x => x.AnalyticsDateLocal == localDate, cancellationToken)
             .ConfigureAwait(false);
 
         if (existing is not null)
+        {
+            _currentDate = localDate;
+            _currentEntity = existing;
             return existing;
+        }
 
         var entity = new DailyFocusAnalytics
         {
@@ -129,7 +160,25 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
         _context.DailyFocusAnalytics.Add(entity);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
+        _currentDate = localDate;
+        _currentEntity = entity;
         return entity;
+    }
+
+    private async Task FlushIfNeededAsync(
+        bool force,
+        CancellationToken cancellationToken)
+    {
+        if (_currentEntity is null || !_isDirty)
+            return;
+
+        var nowUtc = DateTime.UtcNow;
+        if (!force && nowUtc - _lastFlushUtc < FlushInterval)
+            return;
+
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _isDirty = false;
+        _lastFlushUtc = nowUtc;
     }
 }
 
