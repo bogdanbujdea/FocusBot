@@ -4,6 +4,7 @@ using FocusBot.App.Views;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
+using FocusBot.Infrastructure.Repositories;
 using FocusBot.Infrastructure.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +73,8 @@ namespace FocusBot.App
             ));
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IFocusScoreService, FocusScoreService>();
+            services.AddSingleton<IDistractionEventRepository, DistractionEventRepository>();
+            services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
@@ -106,7 +109,8 @@ namespace FocusBot.App
             {
                 _overlayWindow = new FocusOverlayWindow(
                     navigationService,
-                    onPausePlayClicked: () => _viewModel.ToggleTaskPause());
+                    onPausePlayClicked: () => _viewModel.ToggleTaskPause()
+                );
 
                 // Check initial overlay visibility setting
                 var overlaySettings = _services!.GetRequiredService<OverlaySettingsViewModel>();
@@ -126,7 +130,12 @@ namespace FocusBot.App
 
         private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
         {
-            _overlayWindow?.UpdateState(e.HasActiveTask, e.FocusScorePercent, e.Status, e.IsTaskPaused);
+            _overlayWindow?.UpdateState(
+                e.HasActiveTask,
+                e.FocusScorePercent,
+                e.Status,
+                e.IsTaskPaused
+            );
         }
 
         private void OnOverlayVisibilityChanged(object? sender, bool isVisible)
@@ -137,7 +146,10 @@ namespace FocusBot.App
                 _overlayWindow?.Hide();
         }
 
-        private static void OnUnhandledException(object? sender, System.UnhandledExceptionEventArgs e)
+        private static void OnUnhandledException(
+            object? sender,
+            System.UnhandledExceptionEventArgs e
+        )
         {
             if (e.ExceptionObject is Exception ex)
                 ShowExceptionMessage("Unhandled exception", ex);

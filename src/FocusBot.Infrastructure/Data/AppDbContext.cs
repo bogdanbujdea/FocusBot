@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WindowContext> WindowContexts => Set<WindowContext>();
     public DbSet<AlignmentCacheEntry> AlignmentCacheEntries => Set<AlignmentCacheEntry>();
     public DbSet<FocusSegment> FocusSegments => Set<FocusSegment>();
+    public DbSet<DistractionEvent> DistractionEvents => Set<DistractionEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +54,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.ContextHash).HasMaxLength(64);
             entity.Property(e => e.WindowTitle).HasMaxLength(512);
             entity.Property(e => e.ProcessName).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<DistractionEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TaskId).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.ProcessName).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.WindowTitleSnapshot).HasMaxLength(512);
+            entity.HasIndex(e => new { e.SessionId, e.OccurredAtUtc });
+            entity.HasIndex(e => new { e.TaskId, e.OccurredAtUtc });
         });
     }
 }
