@@ -16,11 +16,11 @@
     <Grid x:Name="RootGrid" Margin="32" RowSpacing="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" MinHeight="200"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="*" MinHeight="300"/>
         </Grid.RowDefinitions>
 
         <!-- Trial banner (visible during active trial) -->
@@ -84,7 +84,6 @@
                 <!-- Metrics and progress bar -->
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -177,87 +176,8 @@
                                    Text="{x:Bind ViewModel.TodayDistractionCount, Mode=OneWay}"/>
                     </StackPanel>
 
-                    <!-- Row 2: Average Distraction Cost, Most Popular App, Longest Focused Session -->
-                    
-                    <!-- Average Distraction Cost metric -->
-                    <StackPanel Grid.Row="1"
-                                Grid.Column="0"
-                                Spacing="8"
-                                Orientation="Vertical"
-                                HorizontalAlignment="Center"
-                                Margin="0,16,0,0"
-                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE81B;"
-                                      FontSize="28"
-                                      Foreground="{StaticResource FbNeutralAccentBrush}"
-                                      HorizontalAlignment="Center"/>
-                            <TextBlock Text="Context Switch"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
-                                       TextAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.TodayAverageDistractionCostText, Mode=OneWay}"
-                                   FontSize="28"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource FbTextPrimaryBrush}"
-                                   TextAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- Most Popular Distraction App metric -->
-                    <StackPanel Grid.Row="1"
-                                Grid.Column="1"
-                                Spacing="8"
-                                Orientation="Vertical"
-                                HorizontalAlignment="Center"
-                                Margin="0,16,0,0"
-                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE72C;"
-                                      FontSize="28"
-                                      Foreground="{StaticResource FbMisalignedAccentBrush}"
-                                      HorizontalAlignment="Center"/>
-                            <TextBlock Text="Top Distraction"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
-                                       TextAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.TodayMostPopularDistractionAppText, Mode=OneWay}"
-                                   FontSize="20"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource FbTextPrimaryBrush}"
-                                   TextAlignment="Center"
-                                   MaxLines="2"
-                                   TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-
-                    <!-- Longest Focused Session metric -->
-                    <StackPanel Grid.Row="1"
-                                Grid.Column="2"
-                                Spacing="8"
-                                Orientation="Vertical"
-                                HorizontalAlignment="Center"
-                                Margin="0,16,0,0"
-                                Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE822;"
-                                      FontSize="28"
-                                      Foreground="{StaticResource FbAlignedAccentBrush}"
-                                      HorizontalAlignment="Center"/>
-                            <TextBlock Text="Deep Work Peak"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="14"
-                                       TextAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="{x:Bind ViewModel.TodayLongestFocusedSessionText, Mode=OneWay}"
-                                   FontSize="28"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource FbTextPrimaryBrush}"
-                                   TextAlignment="Center"/>
-                    </StackPanel>
-
                     <!-- Focused percentage label + segmented progress bar -->
-                    <StackPanel Grid.Row="2"
+                    <StackPanel Grid.Row="1"
                                 Grid.Column="0"
                                 Grid.ColumnSpan="3"
                                 Margin="0,24,0,0"
@@ -315,35 +235,40 @@
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
               RowSpacing="8"
-              Margin="0,0,0,8">
+              Margin="0,8,0,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Window info (compact) -->
-            <StackPanel Grid.Row="0" Spacing="2">
-                <TextBlock Style="{StaticResource FbWindowInfoTextStyle}" MaxLines="1">
-                    <Run Text="Process: "/>
-                    <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
-                    <Run Text=" | Window: "/>
-                    <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
-                </TextBlock>
-                <TextBlock Style="{StaticResource FbWindowInfoTextStyle}"
-                           automation:AutomationProperties.Name="Time on this window">
-                    <Run Text="Time on this window (this visit): "/>
-                    <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
-                    <Run Text=" | Total on this window: "/>
-                    <Run Text="{x:Bind ViewModel.WindowTotalElapsedTime, Mode=OneWay}"/>
-                    <Run Text=" | Distractions this session: "/>
-                    <Run Text="{x:Bind ViewModel.LiveDistractionCount, Mode=OneWay}"/>
-                </TextBlock>
-            </StackPanel>
+            <!-- Window info (compact single line) -->
+            <TextBlock Grid.Row="0"
+                       Style="{StaticResource FbWindowInfoTextStyle}"
+                       MaxLines="1"
+                       Margin="0,0,0,4">
+                <Run Text="Process: "/>
+                <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
+                <Run Text=" | Window: "/>
+                <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
+                <Run Text=" | Time: "/>
+                <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
+            </TextBlock>
 
-            <!-- Focus Status Bar (prominent, fixed height); status always visible, spinner only when classifying -->
-            <Border Grid.Row="1" Style="{StaticResource FbFocusStatusBarStyle}"
+            <!-- Focus Status Bar (prominent, with dynamic background based on focus state) -->
+            <Border Grid.Row="1"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="20,16"
                     Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Focus status">
+                <Border.Background>
+                    <Binding Path="ViewModel.FocusScore" Mode="OneWay">
+                        <Binding.Converter>
+                            <converters:FocusScoreToBackgroundBrushConverter/>
+                        </Binding.Converter>
+                    </Binding>
+                </Border.Background>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -351,11 +276,11 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Status icon (only after first classification result) -->
+                    <!-- Status icon (larger, more prominent) -->
                     <Image Grid.Column="0"
                            Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
-                           Width="40" Height="36"
-                           Margin="0,0,12,0"
+                           Width="56" Height="56"
+                           Margin="0,0,16,0"
                            VerticalAlignment="Center"
                            Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
@@ -363,12 +288,12 @@
                     <ProgressRing Grid.Column="1"
                                   IsActive="{x:Bind ViewModel.IsClassifying, Mode=OneWay}"
                                   Visibility="{x:Bind ViewModel.IsClassifying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                  Width="24" Height="24"
-                                  Margin="0,0,12,0"
+                                  Width="32" Height="32"
+                                  Margin="0,0,16,0"
                                   VerticalAlignment="Center"/>
 
-                    <!-- Status text and reason (only after result); "Checking..." while classifying -->
-                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                    <!-- Status text and reason -->
+                    <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
                         <StackPanel Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
                                        Style="{StaticResource FbFocusStatusTextStyle}">

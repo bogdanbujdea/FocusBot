@@ -72,4 +72,9 @@
     <SolidColorBrush x:Key="FbTextPrimaryBrush" Color="{ThemeResource FbTextPrimary}"/>
     <SolidColorBrush x:Key="FbTextSecondaryBrush" Color="{ThemeResource FbTextSecondary}"/>
     <SolidColorBrush x:Key="FbTextOnAccentBrush" Color="{ThemeResource FbTextOnAccent}"/>
+
+    <!-- Focus status background brushes (dynamic based on focus state) -->
+    <SolidColorBrush x:Key="FbFocusStatusAlignedBackgroundBrush" Color="{ThemeResource FbFocusStatusAlignedBg}"/>
+    <SolidColorBrush x:Key="FbFocusStatusMisalignedBackgroundBrush" Color="{ThemeResource FbFocusStatusMisalignedBg}"/>
+    <SolidColorBrush x:Key="FbFocusStatusUnclearBackgroundBrush" Color="{ThemeResource FbFocusStatusUnclearBg}"/>
 </ResourceDictionary>

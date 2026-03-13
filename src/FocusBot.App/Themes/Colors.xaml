@@ -27,6 +27,10 @@
             <Color x:Key="FbCompletedBadge">#16A34A</Color>
             <Color x:Key="FbEditAccent">#D97706</Color>
             <Color x:Key="FbDeleteAccent">#DC2626</Color>
+            <!-- Focus status background colors -->
+            <Color x:Key="FbFocusStatusAlignedBg">#DCFCE7</Color>
+            <Color x:Key="FbFocusStatusMisalignedBg">#FEE2E2</Color>
+            <Color x:Key="FbFocusStatusUnclearBg">#F3E8FF</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#DCE9F8</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#FFEDD5</Color>
@@ -60,6 +64,10 @@
             <Color x:Key="FbCompletedBadge">#15803D</Color>
             <Color x:Key="FbEditAccent">#F59E0B</Color>
             <Color x:Key="FbDeleteAccent">#EF4444</Color>
+            <!-- Focus status background colors -->
+            <Color x:Key="FbFocusStatusAlignedBg">#14532D</Color>
+            <Color x:Key="FbFocusStatusMisalignedBg">#7F1D1D</Color>
+            <Color x:Key="FbFocusStatusUnclearBg">#3F2463</Color>
             <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#1A2438</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#352818</Color>
@@ -90,6 +98,11 @@
             <Color x:Key="FbCompletedBadge">#008000</Color>
             <Color x:Key="FbEditAccent">#FFA500</Color>
             <Color x:Key="FbDeleteAccent">#FF0000</Color>
+            <!-- Focus status background colors -->
+            <Color x:Key="FbFocusStatusAlignedBg">#000000</Color>
+            <Color x:Key="FbFocusStatusMisalignedBg">#000000</Color>
+            <Color x:Key="FbFocusStatusUnclearBg">#000000</Color>
+            <!-- Column header tinted backgrounds -->
             <Color x:Key="FbColumnHeaderToDoBg">#001a33</Color>
             <Color x:Key="FbColumnHeaderInProgressBg">#331900</Color>
             <Color x:Key="FbColumnHeaderDoneBg">#001a00</Color>
