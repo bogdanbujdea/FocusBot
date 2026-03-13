@@ -355,6 +355,18 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     } = "—";
 
+    public string TodayMostPopularDistractionAppText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "—";
+
+    public string TodayLongestFocusedSessionText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "—";
+
     public bool HasTodayAnalytics
     {
         get;
@@ -823,6 +835,8 @@ public partial class KanbanBoardViewModel : ObservableObject
             TodayDistractedTimeText = "00:00:00";
             TodayDistractionCount = 0;
             TodayAverageDistractionCostText = "—";
+            TodayMostPopularDistractionAppText = "—";
+            TodayLongestFocusedSessionText = "—";
             TodayDateLabel = string.Empty;
             TodayFocusedPercent = 0;
             TodayUnclearPercent = 0;
@@ -840,6 +854,14 @@ public partial class KanbanBoardViewModel : ObservableObject
         TodayAverageDistractionCostText =
             summary.AverageDistractionDuration.HasValue
                 ? FormatTimeSpan(summary.AverageDistractionDuration.Value)
+                : "—";
+        TodayMostPopularDistractionAppText =
+            !string.IsNullOrEmpty(summary.MostPopularDistractionApp)
+                ? summary.MostPopularDistractionApp
+                : "—";
+        TodayLongestFocusedSessionText =
+            summary.LongestFocusedSession.HasValue
+                ? FormatTimeSpan(summary.LongestFocusedSession.Value)
                 : "—";
         TodayDateLabel = summary.AnalyticsDateLocal.ToDateTime(TimeOnly.MinValue).ToString("ddd, MMM d");
 

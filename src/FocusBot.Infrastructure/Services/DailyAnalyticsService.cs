@@ -22,6 +22,8 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
     }
 
     private TodayAccumulator? _accumulator;
+    private string? _mostPopularDistractionApp;
+    private long _longestFocusedSessionSeconds;
 
     public DailyAnalyticsService(AppDbContext context)
     {
@@ -123,6 +125,16 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
 
         var distractionCount = distractionEvents.Count;
 
+        var mostPopularDistractionApp = distractionEvents
+            .GroupBy(e => e.ProcessName)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault()
+            ?.Key;
+
+        var longestFocusedSession = segments
+            .Where(s => s.AlignmentScore >= 6)
+            .Max(s => (long?)s.DurationSeconds);
+
         _accumulator = new TodayAccumulator
         {
             Date = localDate,
@@ -132,6 +144,9 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
             TotalTrackedSeconds = totalSeconds,
             DistractionCount = distractionCount,
         };
+
+        _mostPopularDistractionApp = mostPopularDistractionApp;
+        _longestFocusedSessionSeconds = longestFocusedSession ?? 0;
     }
 
     private static DateOnly GetLocalDate(DateTime utcTimestamp)
@@ -163,6 +178,10 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
             averageDistraction = TimeSpan.FromSeconds(averageSeconds);
         }
 
+        TimeSpan? longestFocused = _longestFocusedSessionSeconds > 0
+            ? TimeSpan.FromSeconds(_longestFocusedSessionSeconds)
+            : null;
+
         return new DailyFocusSummary
         {
             AnalyticsDateLocal = localDate,
@@ -170,7 +189,9 @@ public sealed class DailyAnalyticsService : IDailyAnalyticsService
             FocusedTime = TimeSpan.FromSeconds(acc.FocusedSeconds),
             DistractedTime = TimeSpan.FromSeconds(acc.DistractedSeconds),
             DistractionCount = acc.DistractionCount,
-            AverageDistractionDuration = averageDistraction
+            AverageDistractionDuration = averageDistraction,
+            MostPopularDistractionApp = _mostPopularDistractionApp,
+            LongestFocusedSession = longestFocused
         };
     }
 }

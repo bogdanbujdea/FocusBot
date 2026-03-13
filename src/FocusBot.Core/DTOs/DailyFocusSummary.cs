@@ -13,5 +13,9 @@ public class DailyFocusSummary
     public int DistractionCount { get; set; }
 
     public TimeSpan? AverageDistractionDuration { get; set; }
+
+    public string? MostPopularDistractionApp { get; set; }
+
+    public TimeSpan? LongestFocusedSession { get; set; }
 }
 
