@@ -114,6 +114,9 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
           <p className="muted">
             <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
           </p>
+          <p className="muted">
+            <strong>Minutes on current task:</strong> {Math.floor(elapsedSeconds / 60)}
+          </p>
           <p className={`status ${displayStatusClass}`}>
             <strong>Status:</strong> {displayStatus}
           </p>

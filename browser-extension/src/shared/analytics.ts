@@ -1,4 +1,4 @@
-import type { AnalyticsResponse, DailyStats, DateRange, DomainAggregate, FocusSession } from "./types";
+import type { AnalyticsInsights, AnalyticsResponse, DailyStats, DateRange, DomainAggregate, FocusSession } from "./types";
 import { clampPercent, endOfDayLocal, startOfDayLocal, toDayKeyLocal } from "./utils";
 
 const rangeToDays = (range: DateRange): number => {
@@ -149,6 +149,8 @@ export const calculateAnalytics = (range: DateRange, history: FocusSession[]): A
   totals.mostCommonDistractingDomains = aggregateDomains(selectedSessions, "distracting");
   totals.mostCommonAlignedDomains = aggregateDomains(selectedSessions, "aligned");
 
+  const insights = calculateInsights(statsByDay, totals);
+
   return {
     range,
     from: fromDate.toISOString(),
@@ -157,6 +159,30 @@ export const calculateAnalytics = (range: DateRange, history: FocusSession[]): A
     totals,
     recentSessions: selectedSessions
       .sort((left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt))
-      .slice(0, 10)
+      .slice(0, 10),
+    insights
+  };
+};
+
+const calculateInsights = (
+  statsByDay: DailyStats[],
+  totals: Omit<DailyStats, "date">
+): AnalyticsInsights => {
+  const daysWithSessions = statsByDay.filter((day) => day.totalSessions > 0 && day.totalTrackedSeconds > 0);
+
+  let bestFocusDay: AnalyticsInsights["bestFocusDay"] = null;
+  if (daysWithSessions.length > 0) {
+    const best = daysWithSessions.reduce((prev, curr) =>
+      curr.focusPercentage > prev.focusPercentage ? curr : prev
+    );
+    bestFocusDay = { date: best.date, focusPercentage: best.focusPercentage };
+  }
+
+  const averageSessionLengthSeconds =
+    totals.totalSessions === 0 ? 0 : Math.round(totals.totalTrackedSeconds / totals.totalSessions);
+
+  return {
+    bestFocusDay,
+    averageSessionLengthSeconds
   };
 };

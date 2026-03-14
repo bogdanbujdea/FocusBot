@@ -87,6 +87,11 @@ export interface DailyStats {
 
 export type DateRange = "today" | "7d" | "30d";
 
+export interface AnalyticsInsights {
+  bestFocusDay: { date: string; focusPercentage: number } | null;
+  averageSessionLengthSeconds: number;
+}
+
 export interface AnalyticsResponse {
   range: DateRange;
   from: string;
@@ -94,6 +99,7 @@ export interface AnalyticsResponse {
   statsByDay: DailyStats[];
   totals: Omit<DailyStats, "date">;
   recentSessions: FocusSession[];
+  insights: AnalyticsInsights;
 }
 
 export interface RuntimeState {

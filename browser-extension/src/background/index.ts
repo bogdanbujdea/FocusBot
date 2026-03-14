@@ -1,6 +1,6 @@
 import { calculateAnalytics } from "../shared/analytics";
 import { classifyPage } from "../shared/classifier";
-import { calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
+import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
   loadLastError,
@@ -59,6 +59,8 @@ const broadcastStateUpdate = async (): Promise<void> => {
   }
 };
 
+const BADGE_ALARM_NAME = "focusbot-badge-tick";
+
 const getIconStateFromSession = (session: FocusSession | null): IconState => {
   console.log("getIconStateFromSession called with:", { session: session ? { sessionId: session.sessionId, currentVisit: session.currentVisit } : null });
   
@@ -101,19 +103,21 @@ const updateIconState = async (): Promise<void> => {
     const session = await loadActiveSession();
     const iconState = getIconStateFromSession(session);
 
-    console.log("Updating icon:", { iconState });
-
-    const badgeConfig: Record<IconState, { text: string; color: string }> = {
-      default: { text: "", color: "#6366f1" },
-      aligned: { text: "✓", color: "#10b981" },
-      distracting: { text: "✕", color: "#ef4444" },
-      analyzing: { text: "…", color: "#a855f7" },
-      error: { text: "!", color: "#a855f7" }
+    const badgeConfig: Record<IconState, { color: string }> = {
+      default: { color: "#6366f1" },
+      aligned: { color: "#10b981" },
+      distracting: { color: "#ef4444" },
+      analyzing: { color: "#a855f7" },
+      error: { color: "#a855f7" }
     };
 
     const config = badgeConfig[iconState];
+    const badgeText =
+      session !== null
+        ? String(Math.round(calculateLiveSummary(session).focusPercentage))
+        : "";
 
-    await chrome.action.setBadgeText({ text: config.text });
+    await chrome.action.setBadgeText({ text: badgeText });
     await chrome.action.setBadgeBackgroundColor({ color: config.color });
 
     const stateLabels: Record<IconState, string> = {
@@ -127,8 +131,6 @@ const updateIconState = async (): Promise<void> => {
     await chrome.action.setTitle({
       title: stateLabels[iconState]
     });
-
-    console.log("Icon updated successfully with state:", iconState);
   } catch (error) {
     console.error("Failed to update icon:", error);
   }
@@ -426,6 +428,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     };
     await saveLastError(null);
     await saveActiveSession(session);
+    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
     void captureCurrentActiveTab();
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
@@ -452,6 +455,7 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     await saveSession(sessionForHistory);
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
+    await chrome.alarms.clear(BADGE_ALARM_NAME);
     await broadcastStateUpdate();
 
     return { ok: true, data: sessionForHistory };
@@ -554,10 +558,24 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === BADGE_ALARM_NAME) {
+    await updateIconState();
+  }
+});
+
 chrome.runtime.onStartup.addListener(async () => {
+  const session = await loadActiveSession();
+  if (session) {
+    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
+  }
   await captureCurrentActiveTab();
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
+  const session = await loadActiveSession();
+  if (session) {
+    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
+  }
   await captureCurrentActiveTab();
 });
