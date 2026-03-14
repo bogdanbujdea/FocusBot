@@ -14,7 +14,7 @@ import {
   saveSession
 } from "../shared/storage";
 import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeRequest, RuntimeResponse } from "../shared/types";
-import { createId, nowIso, sleep } from "../shared/utils";
+import { createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
 
@@ -60,12 +60,38 @@ const broadcastStateUpdate = async (): Promise<void> => {
 };
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
+const BADGE_UPDATE_INTERVAL_MS = 5000;
+
+let badgeIntervalId: ReturnType<typeof setInterval> | null = null;
+
+const startBadgeInterval = async (): Promise<void> => {
+  if (badgeIntervalId) {
+    clearInterval(badgeIntervalId);
+    badgeIntervalId = null;
+  }
+  const session = await loadActiveSession();
+  if (!session) return;
+  await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
+  badgeIntervalId = setInterval(() => void updateIconState(), BADGE_UPDATE_INTERVAL_MS);
+};
+
+const stopBadgeInterval = (): void => {
+  if (badgeIntervalId) {
+    clearInterval(badgeIntervalId);
+    badgeIntervalId = null;
+  }
+  void chrome.alarms.clear(BADGE_ALARM_NAME);
+};
 
 const getIconStateFromSession = (session: FocusSession | null): IconState => {
   console.log("getIconStateFromSession called with:", { session: session ? { sessionId: session.sessionId, currentVisit: session.currentVisit } : null });
   
   if (!session) {
     console.log("No session, returning default");
+    return "default";
+  }
+
+  if (session.pausedAt) {
     return "default";
   }
 
@@ -128,9 +154,9 @@ const updateIconState = async (): Promise<void> => {
       error: "FocusBot - Error"
     };
 
-    await chrome.action.setTitle({
-      title: stateLabels[iconState]
-    });
+    const title =
+      session?.pausedAt != null ? "FocusBot - Paused" : stateLabels[iconState];
+    await chrome.action.setTitle({ title });
   } catch (error) {
     console.error("Failed to update icon:", error);
   }
@@ -178,6 +204,7 @@ const handleContentReady = async (tabId: number): Promise<void> => {
   const session = await loadActiveSession();
   if (
     !session?.currentVisit ||
+    session.pausedAt ||
     session.currentVisit.tabId !== tabId ||
     session.currentVisit.visitState !== "classified" ||
     session.currentVisit.classification !== "distracting" ||
@@ -301,8 +328,10 @@ const classifyAndApplyVisit = async (
       await saveActiveSession(latest);
       await broadcastStateUpdate();
 
+      const showDistraction =
+        !latest.pausedAt && outcome.result.classification === "distracting";
       await sendDistractionAlert(tabId, {
-        show: outcome.result.classification === "distracting",
+        show: showDistraction,
         sessionId: latest.sessionId,
         taskText: latest.taskText,
         domain: latest.currentVisit.domain,
@@ -329,6 +358,9 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session || tab.id === undefined || !tab.url || !isTrackableUrl(tab.url)) {
+      return;
+    }
+    if (session.pausedAt) {
       return;
     }
 
@@ -428,11 +460,58 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     };
     await saveLastError(null);
     await saveActiveSession(session);
-    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
+    await startBadgeInterval();
     void captureCurrentActiveTab();
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
 
+    return { ok: true, data: latest ?? session };
+  });
+
+const pauseSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+  runExclusive(async () => {
+    const session = await loadActiveSession();
+    if (!session) {
+      return { ok: false, error: "No active session to pause." };
+    }
+    if (session.pausedAt) {
+      return { ok: false, error: "Session is already paused." };
+    }
+
+    const pausedAt = nowIso();
+    session.pausedAt = pausedAt;
+    const tabIdToHide = session.currentVisit?.tabId;
+    finalizeCurrentVisit(session, pausedAt);
+    if (tabIdToHide !== undefined) {
+      await sendDistractionAlert(tabIdToHide, { show: false });
+    }
+    await saveActiveSession(session);
+    await broadcastStateUpdate();
+
+    return { ok: true, data: session };
+  });
+
+const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+  runExclusive(async () => {
+    const session = await loadActiveSession();
+    if (!session) {
+      return { ok: false, error: "No active session to resume." };
+    }
+    if (!session.pausedAt) {
+      return { ok: false, error: "Session is not paused." };
+    }
+
+    const now = nowIso();
+    const currentPauseSeconds = secondsBetween(session.pausedAt, now);
+    session.totalPausedSeconds = (session.totalPausedSeconds ?? 0) + currentPauseSeconds;
+    delete session.pausedAt;
+    await saveActiveSession(session);
+    await broadcastStateUpdate();
+    await startBadgeInterval();
+
+    void captureCurrentActiveTab();
+
+    const latest = await loadActiveSession();
     return { ok: true, data: latest ?? session };
   });
 
@@ -447,15 +526,26 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     if (session.currentVisit?.tabId !== undefined) {
       await sendDistractionAlert(session.currentVisit.tabId, { show: false });
     }
+    if (session.pausedAt) {
+      session.totalPausedSeconds =
+        (session.totalPausedSeconds ?? 0) + secondsBetween(session.pausedAt, endedAt);
+    }
     finalizeCurrentVisit(session, endedAt);
     session.endedAt = endedAt;
-    session.summary = calculateSessionSummary(session.taskText, session.startedAt, endedAt, session.visits);
+    const totalPaused = session.totalPausedSeconds ?? 0;
+    session.summary = calculateSessionSummary(
+      session.taskText,
+      session.startedAt,
+      endedAt,
+      session.visits,
+      totalPaused
+    );
 
     const sessionForHistory = stripActiveSessionForHistory(session);
     await saveSession(sessionForHistory);
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
-    await chrome.alarms.clear(BADGE_ALARM_NAME);
+    stopBadgeInterval();
     await broadcastStateUpdate();
 
     return { ok: true, data: sessionForHistory };
@@ -469,6 +559,10 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       return startSession(request.taskText);
     case "END_SESSION":
       return endSession();
+    case "PAUSE_SESSION":
+      return pauseSession();
+    case "RESUME_SESSION":
+      return resumeSession();
     case "GET_ANALYTICS": {
       const sessions = await loadSessions();
       return { ok: true, data: calculateAnalytics(request.range, sessions) };
@@ -561,21 +655,16 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === BADGE_ALARM_NAME) {
     await updateIconState();
+    await startBadgeInterval();
   }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  const session = await loadActiveSession();
-  if (session) {
-    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
-  }
+  await startBadgeInterval();
   await captureCurrentActiveTab();
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const session = await loadActiveSession();
-  if (session) {
-    await chrome.alarms.create(BADGE_ALARM_NAME, { periodInMinutes: 1 });
-  }
+  await startBadgeInterval();
   await captureCurrentActiveTab();
 });

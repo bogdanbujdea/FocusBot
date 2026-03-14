@@ -49,6 +49,10 @@ export interface FocusSession {
   visits: PageVisit[];
   summary?: SessionSummary;
   currentVisit?: InProgressVisit;
+  /** When set, session is paused; no classification, overlay hidden, elapsed frozen. */
+  pausedAt?: string;
+  /** Cumulative seconds the session has been paused (supports multiple pause/resume cycles). */
+  totalPausedSeconds?: number;
 }
 
 export interface InProgressVisit {
@@ -113,6 +117,8 @@ export type RuntimeRequest =
   | { type: "GET_STATE" }
   | { type: "START_SESSION"; taskText: string }
   | { type: "END_SESSION" }
+  | { type: "PAUSE_SESSION" }
+  | { type: "RESUME_SESSION" }
   | { type: "GET_ANALYTICS"; range: DateRange }
   | { type: "UPDATE_SETTINGS"; payload: Partial<Settings> }
   | { type: "CLEAR_ERROR" }

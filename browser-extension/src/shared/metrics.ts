@@ -41,7 +41,8 @@ export const calculateSessionSummary = (
   taskName: string,
   startedAt: string,
   endedAt: string,
-  visits: PageVisit[]
+  visits: PageVisit[],
+  totalPausedSeconds = 0
 ): SessionSummary => {
   const alignedSeconds = visits
     .filter((visit) => visit.classification === "aligned")
@@ -64,9 +65,12 @@ export const calculateSessionSummary = (
     previousClassification = visit.classification;
   }
 
+  const wallClockSeconds = secondsBetween(startedAt, endedAt);
+  const totalSessionSeconds = Math.max(0, wallClockSeconds - totalPausedSeconds);
+
   return {
     taskName,
-    totalSessionSeconds: secondsBetween(startedAt, endedAt),
+    totalSessionSeconds,
     totalTrackedSeconds,
     alignedSeconds,
     distractingSeconds,
@@ -82,10 +86,11 @@ export const calculateSessionSummary = (
 /**
  * Builds a live SessionSummary from an active session by including completed visits
  * plus the current in-progress visit (if classified) with duration up to "now".
- * Use this to display real-time metrics while a session is running.
+ * When paused, effective end is pausedAt so elapsed/totals freeze.
  */
 export const calculateLiveSummary = (session: FocusSession): SessionSummary => {
-  const effectiveEnd = session.endedAt ?? new Date().toISOString();
+  const effectiveEnd =
+    session.endedAt ?? (session.pausedAt ?? new Date().toISOString());
   const effectiveVisits: PageVisit[] = [...session.visits];
 
   const cv = session.currentVisit;
@@ -107,7 +112,14 @@ export const calculateLiveSummary = (session: FocusSession): SessionSummary => {
     });
   }
 
-  return calculateSessionSummary(session.taskText, session.startedAt, effectiveEnd, effectiveVisits);
+  const totalPaused = session.totalPausedSeconds ?? 0;
+  return calculateSessionSummary(
+    session.taskText,
+    session.startedAt,
+    effectiveEnd,
+    effectiveVisits,
+    totalPaused
+  );
 };
 
 export const stripActiveSessionForHistory = (session: FocusSession): FocusSession => ({

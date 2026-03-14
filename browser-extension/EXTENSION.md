@@ -94,6 +94,8 @@ interface FocusSession {
   visits: PageVisit[];         // Completed visits
   summary?: SessionSummary;    // Computed when session ends
   currentVisit?: InProgressVisit;  // Current page being tracked
+  pausedAt?: string;           // When set, session is paused (no classification, overlay hidden)
+  totalPausedSeconds?: number; // Cumulative seconds paused (supports multiple pause/resume cycles)
 }
 ```
 
@@ -328,13 +330,22 @@ All state mutations are serialized via `runExclusive()` promise queue:
   - Start classification
 ```
 
+### Pausing / Resuming
+
+The user can pause an active session and resume it later.
+
+- **When paused:** `pausedAt` is set to the pause timestamp. No new page classification runs (tab events are ignored). The distraction overlay is hidden. Elapsed time and session metrics freeze (time spent paused is excluded from totals via `totalPausedSeconds`).
+- **Resume:** Clears `pausedAt`, adds the current pause interval to `totalPausedSeconds`, then re-classifies the current tab.
+- **Multiple pause/resume cycles** are supported; `totalPausedSeconds` accumulates all paused time so that `totalSessionSeconds` and elapsed display reflect only active time.
+
 ### Ending Session
 
 ```
 1. User clicks "End Task" button
-2. Finalize current visit
-3. Calculate SessionSummary:
-   - totalSessionSeconds: wall-clock duration
+2. If session was paused, add final pause interval to totalPausedSeconds
+3. Finalize current visit
+4. Calculate SessionSummary:
+   - totalSessionSeconds: wall-clock duration minus totalPausedSeconds
    - totalTrackedSeconds: sum of all completed visits
    - alignedSeconds: sum of visits with classification "aligned"
    - distractingSeconds: sum of visits with classification "distracting"
@@ -344,10 +355,10 @@ All state mutations are serialized via `runExclusive()` promise queue:
    - topDistractionDomains: sorted list of distracting domains
    - topAlignedDomains: sorted list of aligned domains
 
-4. Save session to history
-5. Save summary for display
-6. Clear active session
-7. Broadcast state update
+5. Save session to history
+6. Save summary for display
+7. Clear active session
+8. Broadcast state update
 ```
 
 ---
@@ -402,12 +413,14 @@ Each period aggregates:
 ### SessionCard (Popup View)
 
 Displays current session status and controls:
-- Task name and elapsed time
-- Current page classification (Aligned / Distracting / Analyzing page...)
-- AI reason for classification
-- Start/End session buttons
+- Task name and elapsed time (excludes paused time when session is paused)
+- Current page classification (Aligned / Distracting / Analyzing page...) or "Paused" when session is paused
+- AI reason for classification (hidden when paused)
+- **Pause** and **End Task** when session is running; **Resume** and **End Task** when session is paused
+- Start session form when no session is active
 
 **Status Badges:**
+- "Paused" - `session.pausedAt` is set
 - "Analyzing page..." - `visitState: "classifying"`
 - "Aligned" - `classification: "aligned"`
 - "Distracting" - `classification: "distracting"`
