@@ -155,7 +155,7 @@ const createImageData = async (dataUrl: string, size: number): Promise<ImageData
 
 const sendDistractionAlert = async (
   tabId: number,
-  payload: { show: boolean; taskText?: string; domain?: string }
+  payload: { show: boolean; sessionId?: string; taskText?: string; domain?: string; reason?: string }
 ): Promise<void> => {
   try {
     await chrome.tabs.sendMessage(tabId, {
@@ -165,6 +165,31 @@ const sendDistractionAlert = async (
   } catch {
     // Ignore message failures for tabs where content script is unavailable.
   }
+};
+
+const handleContentReady = async (tabId: number): Promise<void> => {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab?.url || !isTrackableUrl(tab.url)) {
+    return;
+  }
+  await updateVisitFromTab(tab);
+  const session = await loadActiveSession();
+  if (
+    !session?.currentVisit ||
+    session.currentVisit.tabId !== tabId ||
+    session.currentVisit.visitState !== "classified" ||
+    session.currentVisit.classification !== "distracting" ||
+    session.currentVisit.reusedClassification
+  ) {
+    return;
+  }
+  await sendDistractionAlert(tabId, {
+    show: true,
+    sessionId: session.sessionId,
+    taskText: session.taskText,
+    domain: session.currentVisit.domain,
+    reason: session.currentVisit.reason
+  });
 };
 
 const finalizeCurrentVisit = (session: FocusSession, leftAt: string): void => {
@@ -276,8 +301,10 @@ const classifyAndApplyVisit = async (
 
       await sendDistractionAlert(tabId, {
         show: outcome.result.classification === "distracting",
+        sessionId: latest.sessionId,
         taskText: latest.taskText,
-        domain: latest.currentVisit.domain
+        domain: latest.currentVisit.domain,
+        reason: outcome.result.reason
       });
       return;
     }
@@ -317,12 +344,39 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
     }
 
     const transitionAt = nowIso();
+    const sameTabSameDomainDistracting =
+      current &&
+      current.tabId === tab.id &&
+      current.domain === domain &&
+      current.visitState === "classified" &&
+      current.classification === "distracting";
+
     if (current?.tabId !== undefined) {
       await sendDistractionAlert(current.tabId, { show: false });
     }
     finalizeCurrentVisit(session, transitionAt);
 
     const visitToken = createId();
+    if (sameTabSameDomainDistracting) {
+      const nextVisit: InProgressVisit = {
+        visitToken,
+        tabId: tab.id,
+        url: tab.url,
+        domain,
+        title,
+        enteredAt: transitionAt,
+        visitState: "classified",
+        classification: "distracting",
+        confidence: current.confidence ?? 0.5,
+        reason: current.reason,
+        reusedClassification: true
+      };
+      session.currentVisit = nextVisit;
+      await saveActiveSession(session);
+      await broadcastStateUpdate();
+      return;
+    }
+
     const nextVisit: InProgressVisit = {
       visitToken,
       tabId: tab.id,
@@ -450,8 +504,20 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
   }
 };
 
-chrome.runtime.onMessage.addListener((message: RuntimeRequest, _sender, sendResponse) => {
-  handleRequest(message)
+chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    (message as { type: string }).type === "FOCUSBOT_CONTENT_READY" &&
+    sender.tab?.id
+  ) {
+    handleContentReady(sender.tab.id)
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  handleRequest(message as RuntimeRequest)
     .then((response) => sendResponse(response))
     .catch(async (error: unknown) => {
       const errorMessage = error instanceof Error ? error.message : "Unhandled runtime error.";

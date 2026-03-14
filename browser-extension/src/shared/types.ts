@@ -62,6 +62,8 @@ export interface InProgressVisit {
   classification?: Classification;
   confidence?: number;
   reason?: string;
+  /** Set when classification was reused from previous visit (same tab, same domain); no alert should be sent. */
+  reusedClassification?: true;
 }
 
 export interface DomainAggregate {

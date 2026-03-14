@@ -11,6 +11,7 @@ const classifierPrompt = (taskText: string, url: string, title: string): string 
     "Return strict JSON only with keys: classification, confidence, reason.",
     'classification must be either "aligned" or "distracting".',
     "confidence must be a number from 0 to 1.",
+    'reason: when distracting, only the reason clause that follows "because" (e.g. "it is a social feed unrelated to your task", not "this page is not aligned because..."); when aligned, a brief explanation.',
     "",
     `Task: ${taskText}`,
     `URL: ${url}`,
