@@ -108,10 +108,7 @@ namespace FocusBot.App
 
             try
             {
-                _overlayWindow = new FocusOverlayWindow(
-                    navigationService,
-                    onPausePlayClicked: () => _viewModel.ToggleTaskPause()
-                );
+                _overlayWindow = new FocusOverlayWindow(navigationService);
 
                 // Check initial overlay visibility setting
                 var overlaySettings = _services!.GetRequiredService<OverlaySettingsViewModel>();

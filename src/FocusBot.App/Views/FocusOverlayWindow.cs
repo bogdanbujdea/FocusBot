@@ -12,8 +12,8 @@ namespace FocusBot.App.Views;
 /// Pure Win32 layered window that displays a circular focus status indicator with anti-aliased edges.
 /// Uses UpdateLayeredWindow with per-pixel alpha for smooth rendering.
 /// Shows focus score percentage when a task is active, empty circle otherwise.
-/// Hovering reveals a pause/play button to control AI classification.
-/// Topmost, no title bar, draggable. Glows briefly when status changes.
+/// Clicking the overlay opens the main app window. Draggable.
+/// Topmost, no title bar. Glows briefly when status changes.
 /// </summary>
 public sealed class FocusOverlayWindow : IDisposable
 {
@@ -52,7 +52,6 @@ public sealed class FocusOverlayWindow : IDisposable
     private bool _isTaskPaused; // Pause state from ViewModel
 
     private readonly INavigationService? _navigationService;
-    private readonly Action? _onPausePlayClicked;
 
     // Win32 constants
     private const uint WS_POPUP = 0x80000000;
@@ -103,10 +102,9 @@ public sealed class FocusOverlayWindow : IDisposable
             throw new InvalidOperationException("RegisterClassEx failed: " + Marshal.GetLastWin32Error());
     }
 
-    public FocusOverlayWindow(INavigationService? navigationService = null, Action? onPausePlayClicked = null)
+    public FocusOverlayWindow(INavigationService? navigationService = null)
     {
         _navigationService = navigationService;
-        _onPausePlayClicked = onPausePlayClicked;
         GetInitialPosition(out _windowX, out _windowY);
         _gcHandle = GCHandle.Alloc(this);
         _hwnd = CreateWindowExW(
@@ -191,228 +189,80 @@ public sealed class FocusOverlayWindow : IDisposable
         UpdateLayeredBitmap();
     }
 
-    /// <summary>
-    /// Renders the overlay to a 32-bit ARGB bitmap and updates the layered window.
-    /// This provides smooth anti-aliased edges via per-pixel alpha.
-    /// </summary>
-    private void UpdateLayeredBitmap()
+/// <summary>
+/// Renders the overlay to a 32-bit ARGB bitmap and updates the layered window.
+/// This provides smooth anti-aliased edges via per-pixel alpha.
+/// Shows only the circle with score when not hovering, and always clickable to open the app.
+/// </summary>
+private void UpdateLayeredBitmap()
+{
+    if (_hwnd == IntPtr.Zero)
+        return;
+
+    using var bitmap = new Bitmap(TotalSize, TotalSize, PixelFormat.Format32bppPArgb);
+    using (var graphics = Graphics.FromImage(bitmap))
     {
-        if (_hwnd == IntPtr.Zero)
-            return;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        graphics.Clear(Color.Transparent);
 
-        using var bitmap = new Bitmap(TotalSize, TotalSize, PixelFormat.Format32bppPArgb);
-        using (var graphics = Graphics.FromImage(bitmap))
+        // Draw glow effect when highlighted
+        if (_isHighlighted)
         {
-            graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            graphics.Clear(Color.Transparent);
-
-            // Draw glow effect when highlighted
-            if (_isHighlighted)
+            // Draw multiple concentric rings with decreasing opacity for glow effect
+            for (int i = GlowPadding; i > 0; i -= 2)
             {
-                // Draw multiple concentric rings with decreasing opacity for glow effect
-                for (int i = GlowPadding; i > 0; i -= 2)
-                {
-                    var glowAlpha = (int)(120 * (1.0 - (float)i / GlowPadding)); // Fade out toward edges
-                    using var glowBrush = new SolidBrush(Color.FromArgb(glowAlpha, _currentColor));
-                    var offset = GlowPadding - i;
-                    var glowSize = SizePx + i * 2;
-                    graphics.FillEllipse(glowBrush, offset, offset, glowSize, glowSize);
-                }
-            }
-
-            // Fill main circle with current status color (centered with glow padding)
-            using var brush = new SolidBrush(_currentColor);
-            graphics.FillEllipse(brush, GlowPadding, GlowPadding, SizePx, SizePx);
-
-            // Draw content based on state:
-            // - Paused + not hovering: show pause icon (current state)
-            // - Paused + hovering: show play icon (left) + expand arrow (right)
-            // - Running + not hovering: show score
-            // - Running + hovering: show pause icon (left) + expand arrow (right)
-            if (_hasActiveTask)
-            {
-                if (_isTaskPaused)
-                {
-                    // Task is paused
-                    if (_isHovering)
-                    {
-                        // Show two buttons: play (left) + expand (right)
-                        DrawPlayButtonLeft(graphics);
-                        DrawExpandArrowRight(graphics);
-                    }
-                    else
-                    {
-                        // Show pause icon centered (indicates paused state)
-                        DrawPauseButton(graphics);
-                    }
-                }
-                else if (_isHovering)
-                {
-                    // Running + hovering: show two buttons: pause (left) + expand (right)
-                    DrawPauseButtonLeft(graphics);
-                    DrawExpandArrowRight(graphics);
-                }
-                else
-                {
-                    // Running + not hovering: show score
-                    var scoreText = _focusScorePercent.ToString();
-                    using var font = new Font("Segoe UI", 26, FontStyle.Bold, GraphicsUnit.Pixel);
-                    using var textBrush = new SolidBrush(Color.White);
-
-                    var textSize = graphics.MeasureString(scoreText, font);
-                    var textX = GlowPadding + (SizePx - textSize.Width) / 2;
-                    var textY = GlowPadding + (SizePx - textSize.Height) / 2;
-                    graphics.DrawString(scoreText, font, textBrush, textX, textY);
-                }
+                var glowAlpha = (int)(120 * (1.0 - (float)i / GlowPadding)); // Fade out toward edges
+                using var glowBrush = new SolidBrush(Color.FromArgb(glowAlpha, _currentColor));
+                var offset = GlowPadding - i;
+                var glowSize = SizePx + i * 2;
+                graphics.FillEllipse(glowBrush, offset, offset, glowSize, glowSize);
             }
         }
 
-        // Update the layered window with the bitmap
-        var hdcScreen = GetDC(IntPtr.Zero);
-        var hdcMem = CreateCompatibleDC(hdcScreen);
-        var hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
-        var hOldBitmap = SelectObject(hdcMem, hBitmap);
+        // Fill main circle with current status color (centered with glow padding)
+        using var brush = new SolidBrush(_currentColor);
+        graphics.FillEllipse(brush, GlowPadding, GlowPadding, SizePx, SizePx);
 
-        var blend = new BLENDFUNCTION
+        // Always draw score when active task exists (no more buttons)
+        if (_hasActiveTask)
         {
-            BlendOp = AC_SRC_OVER,
-            BlendFlags = 0,
-            SourceConstantAlpha = _currentOpacity,
-            AlphaFormat = AC_SRC_ALPHA
-        };
+            var scoreText = _focusScorePercent.ToString();
+            using var font = new Font("Segoe UI", 26, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var textBrush = new SolidBrush(Color.White);
 
-        var ptSrc = new POINT { x = 0, y = 0 };
-        var size = new SIZE { cx = TotalSize, cy = TotalSize };
-        var ptDst = new POINT { x = _windowX, y = _windowY };
-
-        UpdateLayeredWindow(_hwnd, hdcScreen, ref ptDst, ref size, hdcMem, ref ptSrc, 0, ref blend, ULW_ALPHA);
-
-        SelectObject(hdcMem, hOldBitmap);
-        DeleteObject(hBitmap);
-        DeleteDC(hdcMem);
-        ReleaseDC(IntPtr.Zero, hdcScreen);
+            var textSize = graphics.MeasureString(scoreText, font);
+            var textX = GlowPadding + (SizePx - textSize.Width) / 2;
+            var textY = GlowPadding + (SizePx - textSize.Height) / 2;
+            graphics.DrawString(scoreText, font, textBrush, textX, textY);
+        }
     }
 
-    /// <summary>
-    /// Draws a pause button (two vertical bars) in the center of the overlay.
-    /// </summary>
-    private void DrawPauseButton(Graphics graphics)
+    // Update the layered window with the bitmap
+    var hdcScreen = GetDC(IntPtr.Zero);
+    var hdcMem = CreateCompatibleDC(hdcScreen);
+    var hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
+    var hOldBitmap = SelectObject(hdcMem, hBitmap);
+
+    var blend = new BLENDFUNCTION
     {
-        var centerX = GlowPadding + SizePx / 2;
-        var centerY = GlowPadding + SizePx / 2;
-        const int iconSize = 32;
-        const int barWidth = 8;
-        const int barGap = 6;
+        BlendOp = AC_SRC_OVER,
+        BlendFlags = 0,
+        SourceConstantAlpha = _currentOpacity,
+        AlphaFormat = AC_SRC_ALPHA
+    };
 
-        using var iconBrush = new SolidBrush(Color.White);
+    var ptSrc = new POINT { x = 0, y = 0 };
+    var size = new SIZE { cx = TotalSize, cy = TotalSize };
+    var ptDst = new POINT { x = _windowX, y = _windowY };
 
-        var barHeight = iconSize;
-        var leftBarX = centerX - barGap / 2 - barWidth;
-        var rightBarX = centerX + barGap / 2;
-        var barY = centerY - barHeight / 2;
+    UpdateLayeredWindow(_hwnd, hdcScreen, ref ptDst, ref size, hdcMem, ref ptSrc, 0, ref blend, ULW_ALPHA);
 
-        graphics.FillRectangle(iconBrush, leftBarX, barY, barWidth, barHeight);
-        graphics.FillRectangle(iconBrush, rightBarX, barY, barWidth, barHeight);
-    }
-
-    /// <summary>
-    /// Draws a pause button (two vertical bars) on the left side of the overlay (for two-button hover mode).
-    /// </summary>
-    private void DrawPauseButtonLeft(Graphics graphics)
-    {
-        var centerX = GlowPadding + SizePx / 2 - 18; // Offset left
-        var centerY = GlowPadding + SizePx / 2;
-        const int iconSize = 24;
-        const int barWidth = 6;
-        const int barGap = 5;
-
-        using var iconBrush = new SolidBrush(Color.White);
-
-        var barHeight = iconSize;
-        var leftBarX = centerX - barGap / 2 - barWidth;
-        var rightBarX = centerX + barGap / 2;
-        var barY = centerY - barHeight / 2;
-
-        graphics.FillRectangle(iconBrush, leftBarX, barY, barWidth, barHeight);
-        graphics.FillRectangle(iconBrush, rightBarX, barY, barWidth, barHeight);
-    }
-
-    /// <summary>
-    /// Draws a play button (triangle pointing right) in the center of the overlay.
-    /// </summary>
-    private void DrawPlayButton(Graphics graphics)
-    {
-        var centerX = GlowPadding + SizePx / 2;
-        var centerY = GlowPadding + SizePx / 2;
-        const int iconSize = 32;
-
-        using var iconBrush = new SolidBrush(Color.White);
-
-        var trianglePoints = new PointF[]
-        {
-            new(centerX - iconSize / 3, centerY - iconSize / 2),
-            new(centerX - iconSize / 3, centerY + iconSize / 2),
-            new(centerX + iconSize / 2, centerY)
-        };
-        graphics.FillPolygon(iconBrush, trianglePoints);
-    }
-
-    /// <summary>
-    /// Draws a play button (triangle pointing right) on the left side of the overlay (for two-button hover mode).
-    /// </summary>
-    private void DrawPlayButtonLeft(Graphics graphics)
-    {
-        var centerX = GlowPadding + SizePx / 2 - 18; // Offset left
-        var centerY = GlowPadding + SizePx / 2;
-        const int iconSize = 24;
-
-        using var iconBrush = new SolidBrush(Color.White);
-
-        var trianglePoints = new PointF[]
-        {
-            new(centerX - iconSize / 3, centerY - iconSize / 2),
-            new(centerX - iconSize / 3, centerY + iconSize / 2),
-            new(centerX + iconSize / 2, centerY)
-        };
-        graphics.FillPolygon(iconBrush, trianglePoints);
-    }
-
-    /// <summary>
-    /// Draws an expand arrow (↗) on the right side of the overlay (for two-button hover mode).
-    /// </summary>
-    private void DrawExpandArrowRight(Graphics graphics)
-    {
-        var centerX = GlowPadding + SizePx / 2 + 18; // Offset right
-        var centerY = GlowPadding + SizePx / 2;
-        const int iconSize = 20;
-        const int strokeWidth = 3;
-
-        using var pen = new Pen(Color.White, strokeWidth)
-        {
-            StartCap = LineCap.Round,
-            EndCap = LineCap.Round,
-            LineJoin = LineJoin.Round
-        };
-
-        // Draw diagonal line from bottom-left to top-right
-        var startX = centerX - iconSize / 2;
-        var startY = centerY + iconSize / 2;
-        var endX = centerX + iconSize / 2;
-        var endY = centerY - iconSize / 2;
-
-        graphics.DrawLine(pen, startX, startY, endX, endY);
-
-        // Draw arrowhead at top-right
-        const int arrowSize = 8;
-        var arrowPoints = new PointF[]
-        {
-            new(endX, endY),
-            new(endX - arrowSize, endY),
-            new(endX, endY + arrowSize)
-        };
-        graphics.DrawLines(pen, arrowPoints);
-    }
+    SelectObject(hdcMem, hOldBitmap);
+    DeleteObject(hBitmap);
+    DeleteDC(hdcMem);
+    ReleaseDC(IntPtr.Zero, hdcScreen);
+}
 
     /// <summary>
     /// Positions the overlay in the bottom-right of the primary screen work area
@@ -495,27 +345,7 @@ public sealed class FocusOverlayWindow : IDisposable
                     var dy = Math.Abs(y - _dragStartY);
                     if (dx < 5 && dy < 5)
                     {
-                        // Determine action based on hover state and click position
-                        if (_isHovering && _hasActiveTask)
-                        {
-                            // Two-button mode: left half = pause/play, right half = open window
-                            var circleCenterX = GlowPadding + SizePx / 2;
-                            if (x < circleCenterX)
-                            {
-                                // Left side - toggle pause/play
-                                _onPausePlayClicked?.Invoke();
-                            }
-                            else
-                            {
-                                // Right side - open main window
-                                _navigationService?.ActivateMainWindow();
-                            }
-                        }
-                        else
-                        {
-                            // No active task or not hovering - activate main window
-                            _navigationService?.ActivateMainWindow();
-                        }
+                        _navigationService?.ActivateMainWindow();
                     }
                 }
                 return 0;
@@ -529,7 +359,7 @@ public sealed class FocusOverlayWindow : IDisposable
                     var dy = y - _dragStartY;
                     _windowX += dx;
                     _windowY += dy;
-                    UpdateLayeredBitmap(); // Re-render at new position
+                    UpdateLayeredBitmap();
                 }
                 else
                 {
@@ -550,7 +380,6 @@ public sealed class FocusOverlayWindow : IDisposable
                     if (!_isHovering)
                     {
                         _isHovering = true;
-                        UpdateLayeredBitmap(); // Show pause/play button
                     }
                 }
                 return 0;
@@ -560,7 +389,6 @@ public sealed class FocusOverlayWindow : IDisposable
                 if (_isHovering)
                 {
                     _isHovering = false;
-                    UpdateLayeredBitmap(); // Hide pause/play button, show score
                 }
                 return 0;
 

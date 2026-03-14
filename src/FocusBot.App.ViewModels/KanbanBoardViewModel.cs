@@ -307,11 +307,11 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         get
         {
-            var processName = CurrentProcessName.ToLowerInvariant();
-            return processName.Contains("focusbot") || 
-                   processName.Contains("focus bot") ||
-                   CurrentWindowTitle.Contains("Focus Bot") ||
-                   CurrentWindowTitle.Contains("FocusBot");
+            return string.Equals(
+                CurrentProcessName,
+                FocusBotProcessName,
+                StringComparison.OrdinalIgnoreCase
+            );
         }
     }
 
