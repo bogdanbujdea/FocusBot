@@ -21,6 +21,7 @@ public class DeleteTaskAsyncShould
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
@@ -34,7 +35,8 @@ public class DeleteTaskAsyncShould
             trialMock.Object,
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Create a task
         var task = await ctx.Repo.AddTaskAsync("Test task");
@@ -70,6 +72,7 @@ public class DeleteTaskAsyncShould
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Core.DTOs.DailyFocusSummary?)null);
 
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -82,7 +85,8 @@ public class DeleteTaskAsyncShould
             trialMock.Object,
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Create and delete a task
         var task = await ctx.Repo.AddTaskAsync("Test task");
@@ -110,6 +114,7 @@ public class DeleteTaskAsyncShould
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
@@ -123,7 +128,8 @@ public class DeleteTaskAsyncShould
             trialMock.Object,
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Create and delete a task
         var task = await ctx.Repo.AddTaskAsync("Test task");

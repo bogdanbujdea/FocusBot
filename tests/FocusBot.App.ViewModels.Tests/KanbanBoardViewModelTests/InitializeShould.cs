@@ -25,6 +25,7 @@ public class InitializeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -37,7 +38,8 @@ public class InitializeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Act
 
@@ -63,6 +65,7 @@ public class InitializeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -75,7 +78,8 @@ public class InitializeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         await vm.MoveToInProgressCommand.ExecuteAsync(task.TaskId);
         var eventArgs = new ForegroundWindowChangedEventArgs

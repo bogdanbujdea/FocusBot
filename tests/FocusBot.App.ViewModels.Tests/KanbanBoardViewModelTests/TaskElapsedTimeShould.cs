@@ -24,6 +24,7 @@ public class TaskElapsedTimeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -36,7 +37,8 @@ public class TaskElapsedTimeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         // Act
@@ -71,6 +73,7 @@ public class TaskElapsedTimeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -83,7 +86,8 @@ public class TaskElapsedTimeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         // Assert
@@ -106,6 +110,7 @@ public class TaskElapsedTimeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -118,7 +123,8 @@ public class TaskElapsedTimeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         // Assert
@@ -144,6 +150,7 @@ public class TaskElapsedTimeShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -156,7 +163,8 @@ public class TaskElapsedTimeShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         vm.TaskElapsedTime.Should().Be("00:01:00");

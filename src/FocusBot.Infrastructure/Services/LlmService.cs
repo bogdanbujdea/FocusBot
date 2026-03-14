@@ -45,6 +45,7 @@ public class LlmService(
         string? taskContext,
         string processName,
         string windowTitle,
+        bool bypassCache = false,
         CancellationToken ct = default
     )
     {

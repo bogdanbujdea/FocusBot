@@ -15,11 +15,13 @@ public interface ILlmService
     /// <param name="taskContext">Optional alignment hints (e.g. "Outlook is work email"). Passed to the prompt.</param>
     /// <param name="processName">Current window process name.</param>
     /// <param name="windowTitle">Current window title.</param>
+    /// <param name="bypassCache">If true, forces a fresh LLM call and skips the alignment cache.</param>
     Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         string taskDescription,
         string? taskContext,
         string processName,
         string windowTitle,
+        bool bypassCache = false,
         CancellationToken ct = default);
 
     /// <summary>

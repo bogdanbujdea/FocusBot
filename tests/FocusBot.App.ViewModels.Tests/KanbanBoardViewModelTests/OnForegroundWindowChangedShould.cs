@@ -22,6 +22,7 @@ public class OnForegroundWindowChangedShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -34,7 +35,8 @@ public class OnForegroundWindowChangedShould
             trialMock.Object,
             distractionMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",

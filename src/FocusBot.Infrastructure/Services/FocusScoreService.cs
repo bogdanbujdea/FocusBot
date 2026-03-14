@@ -1,6 +1,8 @@
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
+using FocusBot.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -213,6 +215,73 @@ public sealed class FocusScoreService : IFocusScoreService
             _currentSegmentKey = null;
             _hasPendingSegment = false;
             _hasReceivedRealScore = false;
+        }
+    }
+
+    public async Task UpdateHistoricalSegmentsAsync(string taskId, string contextHash, int newAlignmentScore)
+    {
+        var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        var segmentsToUpdate = await context.FocusSegments
+            .Where(s => s.TaskId == taskId && s.ContextHash == contextHash)
+            .ToListAsync();
+
+        if (segmentsToUpdate.Count == 0)
+            return;
+
+        var groupedByDate = segmentsToUpdate.GroupBy(s => s.AnalyticsDateLocal);
+
+        foreach (var dateGroup in groupedByDate)
+        {
+            var date = dateGroup.Key;
+            var segmentsForDate = dateGroup.ToList();
+            
+            var existingWithNewScore = segmentsForDate.FirstOrDefault(s => s.AlignmentScore == newAlignmentScore);
+            
+            if (existingWithNewScore != null)
+            {
+                var otherSegments = segmentsForDate.Where(s => s.AlignmentScore != newAlignmentScore).ToList();
+                existingWithNewScore.DurationSeconds += otherSegments.Sum(s => s.DurationSeconds);
+                foreach (var seg in otherSegments)
+                {
+                    context.FocusSegments.Remove(seg);
+                }
+            }
+            else
+            {
+                var firstSegment = segmentsForDate.First();
+                var totalDuration = segmentsForDate.Sum(s => s.DurationSeconds);
+                firstSegment.AlignmentScore = newAlignmentScore;
+                firstSegment.DurationSeconds = totalDuration;
+                
+                var othersToRemove = segmentsForDate.Skip(1);
+                foreach (var seg in othersToRemove)
+                {
+                    context.FocusSegments.Remove(seg);
+                }
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        var keysToRemove = _segments.Keys
+            .Where(k => k.StartsWith(taskId + "|" + contextHash + "|", StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var oldKey in keysToRemove)
+        {
+            _segments.Remove(oldKey);
+        }
+
+        var finalSegments = await context.FocusSegments
+            .Where(s => s.TaskId == taskId && s.ContextHash == contextHash)
+            .ToListAsync();
+
+        foreach (var segment in finalSegments)
+        {
+            var newKey = BuildKey(segment.TaskId, segment.ContextHash, segment.AlignmentScore, segment.AnalyticsDateLocal);
+            _segments[newKey] = segment;
         }
     }
 

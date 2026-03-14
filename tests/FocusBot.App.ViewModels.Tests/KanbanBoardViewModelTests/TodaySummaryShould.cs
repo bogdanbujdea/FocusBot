@@ -23,6 +23,7 @@ public class TodaySummaryShould
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
         var analyticsDate = DateOnly.FromDateTime(DateTime.Now);
 
@@ -50,7 +51,8 @@ public class TodaySummaryShould
             trialMock.Object,
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Act
         // LoadBoardAsync is invoked from the constructor; give it time to complete.
@@ -85,6 +87,7 @@ public class TodaySummaryShould
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
         dailyAnalyticsMock
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
@@ -102,7 +105,8 @@ public class TodaySummaryShould
             trialMock.Object,
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
-            dailyAnalyticsMock.Object);
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
 
         // Act
         await Task.Delay(10);

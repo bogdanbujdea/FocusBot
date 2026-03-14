@@ -28,6 +28,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly IDistractionDetectorService _distractionDetectorService;
     private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
+    private readonly IAlignmentCacheRepository _alignmentCacheRepository;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
@@ -291,6 +292,29 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
 
+    public bool ShowMarkOverrideButton => 
+        HasCurrentFocusResult && 
+        !IsClassifying && 
+        !IsFocusBotWindow;
+
+    public string MarkOverrideButtonText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "Mark as distracting";
+
+    public bool IsFocusBotWindow
+    {
+        get
+        {
+            var processName = CurrentProcessName.ToLowerInvariant();
+            return processName.Contains("focusbot") || 
+                   processName.Contains("focus bot") ||
+                   CurrentWindowTitle.Contains("Focus Bot") ||
+                   CurrentWindowTitle.Contains("FocusBot");
+        }
+    }
+
     private int _liveDistractionCount;
     public int LiveDistractionCount
     {
@@ -398,7 +422,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         ITrialService trialService,
         IDistractionDetectorService distractionDetectorService,
         IDistractionEventRepository distractionEventRepository,
-        IDailyAnalyticsService dailyAnalyticsService
+        IDailyAnalyticsService dailyAnalyticsService,
+        IAlignmentCacheRepository alignmentCacheRepository
     )
     {
         _repo = repo;
@@ -413,6 +438,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         _distractionDetectorService = distractionDetectorService;
         _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
+        _alignmentCacheRepository = alignmentCacheRepository;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
@@ -678,6 +704,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             {
                 FocusScore = response.Result.Score;
                 FocusReason = response.Result.Reason;
+                MarkOverrideButtonText = FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
@@ -945,7 +972,53 @@ public partial class KanbanBoardViewModel : ObservableObject
     [RelayCommand]
     private void OpenHowItWorks() => ShowHowItWorksRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task MarkFocusOverrideAsync()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        int newScore = FocusScore >= 6 ? 2 : 9;
+        string newReason = FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
+
+        var taskId = InProgressTasks[0].TaskId;
+        var taskDescription = InProgressTasks[0].Description;
+        var taskContext = InProgressTasks[0].Context;
+        var contextHash = HashHelper.ComputeWindowContextHash(CurrentProcessName, CurrentWindowTitle);
+        var taskContentHash = HashHelper.ComputeTaskContentHash(taskDescription, taskContext);
+
+        var entry = new AlignmentCacheEntry
+        {
+            ContextHash = contextHash,
+            TaskContentHash = taskContentHash,
+            Score = newScore,
+            Reason = newReason,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var windowContext = new WindowContext
+        {
+            ContextHash = contextHash,
+            ProcessName = CurrentProcessName,
+            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle)
+        };
+
+        await _alignmentCacheRepository.SaveAsync(windowContext, entry);
+        
+        await _focusScoreService.UpdateHistoricalSegmentsAsync(taskId, contextHash, newScore);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+
+        FocusScore = newScore;
+        FocusReason = newReason;
+        MarkOverrideButtonText = newScore >= 6 ? "Mark as distracting" : "Mark as focused";
+        _focusScoreService.UpdatePendingSegmentScore(newScore);
+
+        OnPropertyChanged(nameof(FocusScoreCategory));
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        RaiseFocusOverlayStateChanged();
+        await RefreshTodaySummaryAsync();
+    }
+
     /// Returns true if the user has not yet seen the How it works guide (first run).
     /// </summary>
     public async Task<bool> GetHasSeenHowItWorksGuideAsync()
