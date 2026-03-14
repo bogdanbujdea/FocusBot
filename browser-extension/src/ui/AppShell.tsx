@@ -42,6 +42,15 @@ export const AppShell = ({
       </header>
 
       {loading ? <p className="muted">Loading current session...</p> : null}
+      {state.lastError ? (
+        <section className="card">
+          <h2>Attention</h2>
+          <p className="error">{state.lastError}</p>
+          <div className="actions-row">
+            <button onClick={() => void sendRuntimeRequest({ type: "CLEAR_ERROR" })}>Dismiss error</button>
+          </div>
+        </section>
+      ) : null}
 
       <SessionCard state={state} compact={compact} onChanged={refreshState} />
       <SummaryCard state={state} />

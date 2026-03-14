@@ -3,7 +3,8 @@ export const APP_KEYS = {
   activeSession: "focusbot.activeSession",
   sessions: "focusbot.sessions",
   classificationCache: "focusbot.classificationCache",
-  lastSummary: "focusbot.lastSummary"
+  lastSummary: "focusbot.lastSummary",
+  lastError: "focusbot.lastError"
 } as const;
 
 export const DEFAULT_MODEL = "gpt-4o-mini";
@@ -55,3 +56,6 @@ export const formatSeconds = (seconds: number): string => {
 
   return `${remainingSeconds}s`;
 };
+
+export const sleep = async (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));

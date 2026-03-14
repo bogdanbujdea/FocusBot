@@ -43,7 +43,8 @@ export const classifyPage = async (
   settings: Settings,
   taskText: string,
   url: string,
-  title: string
+  title: string,
+  timeoutMs = 8000
 ): Promise<ClassificationResult> => {
   if (!settings.openAiApiKey.trim()) {
     throw new Error("OpenAI API key is required.");
@@ -60,29 +61,43 @@ export const classifyPage = async (
     };
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${settings.openAiApiKey}`
-    },
-    body: JSON.stringify({
-      model: settings.classifierModel,
-      temperature: 0.1,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an alignment classifier for browser deep work. Keep output compact and strict JSON only."
-        },
-        {
-          role: "user",
-          content: classifierPrompt(taskText, url, title)
-        }
-      ]
-    })
-  });
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.openAiApiKey}`
+      },
+      body: JSON.stringify({
+        model: settings.classifierModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an alignment classifier for browser deep work. Keep output compact and strict JSON only."
+          },
+          {
+            role: "user",
+            content: classifierPrompt(taskText, url, title)
+          }
+        ]
+      }),
+      signal: timeoutController.signal
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Classification timed out. Please verify network connectivity and model access.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   if (!response.ok) {
     throw new Error(`OpenAI classification failed (${response.status}).`);

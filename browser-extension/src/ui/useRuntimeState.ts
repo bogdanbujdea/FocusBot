@@ -10,7 +10,8 @@ const emptyState: RuntimeState = {
     excludedDomains: []
   },
   activeSession: null,
-  lastSummary: null
+  lastSummary: null,
+  lastError: null
 };
 
 export const useRuntimeState = (): {

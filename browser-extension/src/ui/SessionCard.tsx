@@ -9,7 +9,18 @@ interface SessionCardProps {
   onChanged: () => Promise<void>;
 }
 
-const classificationToLabel = (classification: "aligned" | "distracting" | undefined): string => {
+const classificationToLabel = (
+  visitState: "classifying" | "classified" | "error" | undefined,
+  classification: "aligned" | "distracting" | undefined
+): string => {
+  if (visitState === "classifying") {
+    return "Analyzing page...";
+  }
+
+  if (visitState === "error") {
+    return "Classifier error";
+  }
+
   if (classification === "aligned") {
     return "Aligned";
   }
@@ -32,7 +43,13 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
     return Math.max(0, Math.round((Date.now() - Date.parse(active.startedAt)) / 1000));
   }, [active]);
 
-  const currentState = classificationToLabel(active?.currentVisit?.classification);
+  const currentState = classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification);
+  const statusClass =
+    active?.currentVisit?.visitState === "classifying"
+      ? "neutral"
+      : active?.currentVisit?.visitState === "error"
+        ? "distracting"
+        : (active?.currentVisit?.classification ?? "neutral");
 
   const startSession = async (): Promise<void> => {
     setBusy(true);
@@ -74,9 +91,10 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
           <p className="muted">
             <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
           </p>
-          <p className={`status ${active.currentVisit?.classification ?? "neutral"}`}>
+          <p className={`status ${statusClass}`}>
             <strong>Status:</strong> {currentState}
           </p>
+          {active.currentVisit?.reason ? <p className="muted">{active.currentVisit.reason}</p> : null}
           <button disabled={busy} onClick={() => void endSession()}>
             End Task
           </button>

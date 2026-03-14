@@ -3,16 +3,18 @@ import { classifyPage } from "../shared/classifier";
 import { calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
+  loadLastError,
   loadLastSummary,
   loadSessions,
   loadSettings,
   patchSettings,
   saveActiveSession,
+  saveLastError,
   saveLastSummary,
   saveSession
 } from "../shared/storage";
 import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeRequest, RuntimeResponse } from "../shared/types";
-import { createId, nowIso } from "../shared/utils";
+import { createId, nowIso, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 
 let stateMutationQueue: Promise<void> = Promise.resolve();
@@ -36,7 +38,8 @@ const runExclusive = async <T>(handler: () => Promise<T>): Promise<T> => {
 const toRuntimeState = async () => ({
   settings: await loadSettings(),
   activeSession: await loadActiveSession(),
-  lastSummary: await loadLastSummary()
+  lastSummary: await loadLastSummary(),
+  lastError: await loadLastError()
 });
 
 const broadcastStateUpdate = async (): Promise<void> => {
@@ -48,8 +51,27 @@ const broadcastStateUpdate = async (): Promise<void> => {
   }
 };
 
+const sendDistractionAlert = async (
+  tabId: number,
+  payload: { show: boolean; taskText?: string; domain?: string }
+): Promise<void> => {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: "FOCUSBOT_DISTRACTION_ALERT",
+      ...payload
+    });
+  } catch {
+    // Ignore message failures for tabs where content script is unavailable.
+  }
+};
+
 const finalizeCurrentVisit = (session: FocusSession, leftAt: string): void => {
   if (!session.currentVisit) {
+    return;
+  }
+
+  if (session.currentVisit.visitState !== "classified" || !session.currentVisit.classification) {
+    session.currentVisit = undefined;
     return;
   }
 
@@ -72,37 +94,104 @@ const finalizeCurrentVisit = (session: FocusSession, leftAt: string): void => {
     leftAt,
     durationSeconds,
     classification: session.currentVisit.classification,
-    confidence: session.currentVisit.confidence,
+    confidence: session.currentVisit.confidence ?? 0,
     reason: session.currentVisit.reason
   });
   session.currentVisit = undefined;
 };
 
-const classifyWithFallback = async (
+const classifyWithPolicy = async (
   session: FocusSession,
   taskUrl: string,
   title: string
-): Promise<ClassificationResult> => {
+): Promise<{ ok: true; result: ClassificationResult } | { ok: false; error: string }> => {
   const settings = await loadSettings();
   const domain = getDomain(taskUrl);
   const isExcluded = matchesExcludedDomain(domain, settings.excludedDomains);
   if (isExcluded) {
     return {
-      classification: "aligned",
-      confidence: 1,
-      reason: "Domain is excluded from classifier checks."
+      ok: true,
+      result: {
+        classification: "aligned",
+        confidence: 1,
+        reason: "Domain is excluded from classifier checks."
+      }
     };
   }
 
-  try {
-    return await classifyPage(settings, session.taskText, taskUrl, title);
-  } catch (error) {
-    return {
-      classification: "aligned",
-      confidence: 0,
-      reason: error instanceof Error ? error.message : "Classification failed."
-    };
+  let lastError = "Unknown classifier failure.";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return {
+        ok: true,
+        result: await classifyPage(settings, session.taskText, taskUrl, title, 8000)
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Classification failed.";
+      if (attempt < 3) {
+        await sleep(300 * attempt);
+      }
+    }
   }
+
+  return {
+    ok: false,
+    error: `Could not classify this page after retries. ${lastError}`
+  };
+};
+
+const classifyAndApplyVisit = async (
+  sessionId: string,
+  visitToken: string,
+  tabId: number,
+  url: string,
+  title: string
+): Promise<void> => {
+  const sessionAtCallStart = await loadActiveSession();
+  if (!sessionAtCallStart || sessionAtCallStart.sessionId !== sessionId) {
+    return;
+  }
+
+  const outcome = await classifyWithPolicy(sessionAtCallStart, url, title);
+
+  await runExclusive(async () => {
+    const latest = await loadActiveSession();
+    if (!latest || latest.sessionId !== sessionId || !latest.currentVisit || latest.currentVisit.visitToken !== visitToken) {
+      return;
+    }
+
+    if (outcome.ok) {
+      latest.currentVisit = {
+        ...latest.currentVisit,
+        visitState: "classified",
+        classification: outcome.result.classification,
+        confidence: outcome.result.confidence,
+        reason: outcome.result.reason
+      };
+      await saveLastError(null);
+      await saveActiveSession(latest);
+      await broadcastStateUpdate();
+
+      await sendDistractionAlert(tabId, {
+        show: outcome.result.classification === "distracting",
+        taskText: latest.taskText,
+        domain: latest.currentVisit.domain
+      });
+      return;
+    }
+
+    latest.currentVisit = {
+      ...latest.currentVisit,
+      visitState: "error",
+      classification: undefined,
+      confidence: undefined,
+      reason: outcome.error
+    };
+    await saveLastError(outcome.error);
+    await saveActiveSession(latest);
+    await broadcastStateUpdate();
+    await sendDistractionAlert(tabId, { show: false });
+  });
 };
 
 const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
@@ -126,22 +215,27 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
     }
 
     const transitionAt = nowIso();
+    if (current?.tabId !== undefined) {
+      await sendDistractionAlert(current.tabId, { show: false });
+    }
     finalizeCurrentVisit(session, transitionAt);
 
-    const classification = await classifyWithFallback(session, tab.url, title);
+    const visitToken = createId();
     const nextVisit: InProgressVisit = {
+      visitToken,
       tabId: tab.id,
       url: tab.url,
       domain,
       title,
       enteredAt: transitionAt,
-      classification: classification.classification,
-      confidence: classification.confidence,
-      reason: classification.reason
+      visitState: "classifying",
+      reason: "Analyzing URL and page title for task alignment."
     };
     session.currentVisit = nextVisit;
     await saveActiveSession(session);
     await broadcastStateUpdate();
+
+    void classifyAndApplyVisit(session.sessionId, visitToken, tab.id, tab.url, title);
   });
 
 const captureCurrentActiveTab = async (): Promise<void> => {
@@ -174,6 +268,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
       startedAt: nowIso(),
       visits: []
     };
+    await saveLastError(null);
     await saveActiveSession(session);
     await captureCurrentActiveTab();
     const latest = await loadActiveSession();
@@ -190,6 +285,9 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     }
 
     const endedAt = nowIso();
+    if (session.currentVisit?.tabId !== undefined) {
+      await sendDistractionAlert(session.currentVisit.tabId, { show: false });
+    }
     finalizeCurrentVisit(session, endedAt);
     session.endedAt = endedAt;
     session.summary = calculateSessionSummary(session.taskText, session.startedAt, endedAt, session.visits);
@@ -225,6 +323,10 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       await broadcastStateUpdate();
       return { ok: true, data: updated };
     }
+    case "CLEAR_ERROR":
+      await saveLastError(null);
+      await broadcastStateUpdate();
+      return { ok: true };
     case "OPEN_OPTIONS":
       await chrome.runtime.openOptionsPage();
       return { ok: true };
@@ -234,6 +336,8 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "OPEN_SIDE_PANEL": {
       const currentWindow = await chrome.windows.getCurrent();
       if (!currentWindow.id) {
+        await saveLastError("Unable to open side panel in current window.");
+        await broadcastStateUpdate();
         return { ok: false, error: "Unable to open side panel in current window." };
       }
       await chrome.sidePanel.open({ windowId: currentWindow.id });
@@ -247,12 +351,15 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
 chrome.runtime.onMessage.addListener((message: RuntimeRequest, _sender, sendResponse) => {
   handleRequest(message)
     .then((response) => sendResponse(response))
-    .catch((error: unknown) =>
+    .catch(async (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : "Unhandled runtime error.";
+      await saveLastError(errorMessage);
+      await broadcastStateUpdate();
       sendResponse({
         ok: false,
-        error: error instanceof Error ? error.message : "Unhandled runtime error."
-      } satisfies RuntimeResponse)
-    );
+        error: errorMessage
+      } satisfies RuntimeResponse);
+    });
   return true;
 });
 

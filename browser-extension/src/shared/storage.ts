@@ -100,3 +100,15 @@ export const saveLastSummary = async (summary: SessionSummary | null): Promise<v
 
   await setInStorage(APP_KEYS.lastSummary, summary);
 };
+
+export const loadLastError = async (): Promise<string | null> =>
+  getFromStorage<string>(APP_KEYS.lastError);
+
+export const saveLastError = async (errorMessage: string | null): Promise<void> => {
+  if (!errorMessage) {
+    await chrome.storage.local.remove(APP_KEYS.lastError);
+    return;
+  }
+
+  await setInStorage(APP_KEYS.lastError, errorMessage);
+};

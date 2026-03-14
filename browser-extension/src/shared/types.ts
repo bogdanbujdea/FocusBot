@@ -52,13 +52,15 @@ export interface FocusSession {
 }
 
 export interface InProgressVisit {
+  visitToken: string;
   tabId: number;
   url: string;
   domain: string;
   title: string;
   enteredAt: string;
-  classification: Classification;
-  confidence: number;
+  visitState: "classifying" | "classified" | "error";
+  classification?: Classification;
+  confidence?: number;
   reason?: string;
 }
 
@@ -96,6 +98,7 @@ export interface RuntimeState {
   settings: Settings;
   activeSession: FocusSession | null;
   lastSummary: SessionSummary | null;
+  lastError: string | null;
 }
 
 export type RuntimeRequest =
@@ -104,6 +107,7 @@ export type RuntimeRequest =
   | { type: "END_SESSION" }
   | { type: "GET_ANALYTICS"; range: DateRange }
   | { type: "UPDATE_SETTINGS"; payload: Partial<Settings> }
+  | { type: "CLEAR_ERROR" }
   | { type: "OPEN_OPTIONS" }
   | { type: "OPEN_ANALYTICS" }
   | { type: "OPEN_SIDE_PANEL" };
