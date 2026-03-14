@@ -35,7 +35,6 @@ public sealed partial class KanbanBoardPage : Page
         };
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         vm.TrialExpired += OnTrialExpired;
-        vm.SessionSummaryReady += OnSessionSummaryReady;
         AddTaskPopup.Closed += OnAddTaskPopupClosed;
         AddTaskPopup.Opened += OnAddTaskPopupOpened;
         EditTaskPopup.Closed += OnEditTaskPopupClosed;
@@ -49,7 +48,6 @@ public sealed partial class KanbanBoardPage : Page
         if (DataContext is KanbanBoardViewModel vm)
         {
             vm.TrialExpired -= OnTrialExpired;
-            vm.SessionSummaryReady -= OnSessionSummaryReady;
         }
     }
 
@@ -259,60 +257,5 @@ public sealed partial class KanbanBoardPage : Page
     {
         status = (sender as FrameworkElement)?.Tag as string;
         return status != null;
-    }
-
-    private async void OnSessionSummaryReady(object? sender, FocusBot.Core.DTOs.SessionDistractionSummary summary)
-    {
-        if (XamlRoot == null)
-            return;
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = "Session summary",
-            PrimaryButtonText = "OK"
-        };
-
-        var stack = new StackPanel
-        {
-            Spacing = 8
-        };
-
-        var countText = new TextBlock
-        {
-            Text = $"Distractions: {summary.TotalDistractionCount}"
-        };
-        stack.Children.Add(countText);
-
-        if (summary.TopApps.Count == 0)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = "No distracting apps recorded."
-            });
-        }
-        else
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Top distracting apps:"
-            });
-            var list = new StackPanel
-            {
-                Spacing = 4
-            };
-            foreach (var app in summary.TopApps)
-            {
-                var line = new TextBlock
-                {
-                    Text = $"{app.AppName} – {app.DistractedDurationSeconds}s across {app.DistractionCount} episodes"
-                };
-                list.Children.Add(line);
-            }
-            stack.Children.Add(list);
-        }
-
-        dialog.Content = stack;
-        await dialog.ShowAsync();
     }
 }
