@@ -270,6 +270,22 @@ The app must be usable at 100% and 200% display scaling.
 
 ---
 
+## Browser Extension
+
+FocusBot includes a standalone Chrome/Edge browser extension that enables focus session tracking and distraction analysis **directly within your browser**. See [Browser Extension Documentation](../browser-extension/EXTENSION.md) for detailed technical information.
+
+**Key features:**
+- Single active focus session with one task
+- Real-time URL and page title tracking
+- OpenAI-powered alignment classification (aligned or distracting)
+- Classification caching for instant feedback on repeated sites
+- End-of-session summary with focus percentage and distraction cost
+- Daily analytics (today, last 7 days, last 30 days)
+- User-managed API key and domain exclusion list
+- Distraction alerts overlay on the page
+
+---
+
 ## Technology Stack
 
 | Component | Technology |
