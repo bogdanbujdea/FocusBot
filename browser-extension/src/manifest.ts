@@ -2,10 +2,12 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "FocusBot",
+  name: "Focus Bot",
   version: "0.1.0",
   description:
-    "Single-task assistant that classifies whether your browsing matches your stated task, summarizes sessions, and tracks daily analytics. Supports any kind of work or break.",
+    "Single-task assistant: see if your browsing matches your task, get session summaries and daily analytics.",
+  short_description:
+    "Stay aligned with your task while browsing. Session summaries and daily analytics.",
   icons: {
     16: "icons/icon-default-16.png",
     32: "icons/icon-default-32.png",
@@ -15,7 +17,7 @@ export default defineManifest({
   permissions: ["storage", "tabs", "sidePanel", "alarms"],
   host_permissions: ["https://api.openai.com/*", "<all_urls>"],
   action: {
-    default_title: "FocusBot",
+    default_title: "Focus Bot",
     default_popup: "src/popup/index.html",
     default_icons: {
       16: "icons/icon-default-16.png",
