@@ -1,0 +1,166 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  background: #0f1220;
+  color: #e7ecff;
+}
+
+.app-shell {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.app-shell.compact {
+  padding: 12px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.2rem;
+}
+
+h2 {
+  font-size: 1rem;
+}
+
+h3 {
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.stack {
+  display: grid;
+  gap: 8px;
+}
+
+.muted {
+  color: rgba(231, 236, 255, 0.78);
+  font-size: 0.9rem;
+}
+
+.label {
+  font-size: 0.85rem;
+}
+
+textarea,
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  padding: 8px;
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #365cff;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status {
+  border-left: 4px solid #7f8aa3;
+  padding-left: 8px;
+}
+
+.status.aligned {
+  border-left-color: #2db871;
+}
+
+.status.distracting {
+  border-left-color: #ff6666;
+}
+
+.status.neutral {
+  border-left-color: #8f95a5;
+}
+
+.error {
+  color: #ff8d8d;
+  font-size: 0.9rem;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.domain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.domain-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.analytics-table th,
+.analytics-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+  padding: 6px 4px;
+  font-size: 0.88rem;
+}
+
+.pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(54, 92, 255, 0.3);
+  font-size: 0.85rem;
+}
