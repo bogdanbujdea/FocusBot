@@ -11,6 +11,7 @@ using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 using TaskStatus = FocusBot.Core.Entities.TaskStatus;
+using IntegrationMode = FocusBot.Core.Entities.IntegrationMode;
 
 namespace FocusBot.App.ViewModels;
 
@@ -29,10 +30,17 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
+    private readonly IIntegrationService? _integrationService;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
+
+    private static readonly HashSet<string> BrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "chrome", "msedge", "firefox", "brave", "opera", "vivaldi",
+        "Google Chrome", "Microsoft Edge", "Firefox", "Brave Browser"
+    };
 
     /// <summary>
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
@@ -410,6 +418,18 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _isAnalyticsExpanded, value);
     }
 
+    private bool _isExtensionConnected;
+    public bool IsExtensionConnected
+    {
+        get => _isExtensionConnected;
+        private set => SetProperty(ref _isExtensionConnected, value);
+    }
+
+    /// <summary>
+    /// Raised when the extension starts a task and the app should switch to companion mode.
+    /// </summary>
+    public event EventHandler<TaskStartedPayload>? CompanionModeRequested;
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -423,7 +443,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         IDistractionDetectorService distractionDetectorService,
         IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
-        IAlignmentCacheRepository alignmentCacheRepository
+        IAlignmentCacheRepository alignmentCacheRepository,
+        IIntegrationService? integrationService = null
     )
     {
         _repo = repo;
@@ -439,11 +460,19 @@ public partial class KanbanBoardViewModel : ObservableObject
         _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
+        _integrationService = integrationService;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
         _idleDetection.UserBecameActive += OnUserBecameActive;
+
+        if (_integrationService != null)
+        {
+            _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
+            _integrationService.TaskStartedReceived += OnIntegrationTaskStarted;
+        }
+
         _ = LoadBoardAsync();
     }
 
@@ -673,12 +702,31 @@ public partial class KanbanBoardViewModel : ObservableObject
             e.WindowTitle,
             e.ProcessName
         );
-        _ = ClassifyAndUpdateFocusAsync(
-            task.Description,
-            task.Context,
-            e.ProcessName,
-            e.WindowTitle
-        );
+
+        if (_integrationService is { CurrentMode: IntegrationMode.CompanionMode })
+        {
+            _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+            return;
+        }
+
+        if (IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true, CurrentMode: IntegrationMode.FullMode })
+        {
+            _ = ClassifyWithBrowserContextAsync(
+                task.Description,
+                task.Context,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
+        else
+        {
+            _ = ClassifyAndUpdateFocusAsync(
+                task.Description,
+                task.Context,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -1103,6 +1151,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
+
+        if (HasActiveTask())
+            await NotifyTaskStartedAsync(InProgressTasks[0]);
     }
 
     private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
@@ -1118,6 +1169,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await NotifyTaskEndedAsync(taskId);
         await FinalizeFocusScoreAndPersistAsync(taskId);
         await ShowSessionDistractionSummaryAsync(taskId);
         await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
@@ -1130,6 +1182,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await NotifyTaskEndedAsync(taskId);
         await FinalizeFocusScoreAndPersistAsync(taskId);
         await ShowSessionDistractionSummaryAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
@@ -1239,5 +1292,84 @@ public partial class KanbanBoardViewModel : ObservableObject
                 IsTaskPaused = _isTaskPaused,
             }
         );
+
+        if (_integrationService is { CurrentMode: IntegrationMode.FullMode, IsExtensionConnected: true } && hasActive)
+        {
+            var classification = FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
+            _ = _integrationService.SendFocusStatusAsync(new FocusStatusPayload
+            {
+                TaskId = InProgressTasks[0].TaskId,
+                Classification = classification,
+                Reason = FocusReason,
+                Score = FocusScore,
+                FocusScorePercent = CurrentFocusScorePercent,
+                ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
+                ContextTitle = CurrentWindowTitle
+            });
+        }
+    }
+
+    private static bool IsBrowserProcess(string processName) =>
+        BrowserProcessNames.Contains(processName);
+
+    private void OnExtensionConnectionChanged(object? sender, bool connected)
+    {
+        IsExtensionConnected = connected;
+    }
+
+    private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
+    {
+        CompanionModeRequested?.Invoke(this, payload);
+    }
+
+    /// <summary>
+    /// Notifies the extension that a task has started (Full Mode). Called after a task moves to InProgress.
+    /// </summary>
+    public async Task NotifyTaskStartedAsync(UserTask task)
+    {
+        if (_integrationService is { IsExtensionConnected: true })
+        {
+            await _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
+        }
+    }
+
+    /// <summary>
+    /// Notifies the extension that the current task has ended.
+    /// </summary>
+    public async Task NotifyTaskEndedAsync(string taskId)
+    {
+        if (_integrationService is { IsExtensionConnected: true })
+        {
+            await _integrationService.SendTaskEndedAsync(taskId);
+        }
+    }
+
+    /// <summary>
+    /// When in Full Mode and a browser is detected in the foreground, request the current URL
+    /// from the extension and classify using both process and URL context.
+    /// </summary>
+    private async Task ClassifyWithBrowserContextAsync(
+        string taskDescription,
+        string? taskContext,
+        string processName,
+        string windowTitle
+    )
+    {
+        if (_integrationService is not { IsExtensionConnected: true, CurrentMode: IntegrationMode.FullMode })
+        {
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+            return;
+        }
+
+        var response = await _integrationService.RequestBrowserUrlAsync(TimeSpan.FromSeconds(3));
+        if (response != null && !string.IsNullOrEmpty(response.Url))
+        {
+            var combinedTitle = $"{response.Title} ({response.Url})";
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, combinedTitle);
+        }
+        else
+        {
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+        }
     }
 }
