@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
 import { formatSeconds } from "../shared/utils";
@@ -34,14 +34,33 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
   const [taskText, setTaskText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [optimisticSession, setOptimisticSession] = useState<{ taskText: string; startedAt: string } | null>(null);
+  const [tick, setTick] = useState(0);
 
   const active = state.activeSession;
+
+  useEffect(() => {
+    if (active) {
+      setOptimisticSession(null);
+    }
+  }, [active]);
+
+  const showingActive = Boolean(active) || optimisticSession !== null;
+  const displayTaskText = active?.taskText ?? optimisticSession?.taskText ?? "";
+  const displayStartedAt = active?.startedAt ?? optimisticSession?.startedAt ?? new Date().toISOString();
+
+  useEffect(() => {
+    if (!showingActive) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [showingActive]);
+
   const elapsedSeconds = useMemo(() => {
-    if (!active) {
+    if (!showingActive) {
       return 0;
     }
-    return Math.max(0, Math.round((Date.now() - Date.parse(active.startedAt)) / 1000));
-  }, [active]);
+    return Math.max(0, Math.round((Date.now() - Date.parse(displayStartedAt)) / 1000));
+  }, [showingActive, displayStartedAt, tick]);
 
   const currentState = classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification);
   const statusClass =
@@ -50,6 +69,8 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
       : active?.currentVisit?.visitState === "error"
         ? "distracting"
         : (active?.currentVisit?.classification ?? "neutral");
+  const displayStatus = active ? currentState : "Starting...";
+  const displayStatusClass = active ? statusClass : "neutral";
 
   const startSession = async (): Promise<void> => {
     setBusy(true);
@@ -61,6 +82,7 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
       return;
     }
 
+    setOptimisticSession({ taskText: taskText.trim(), startedAt: new Date().toISOString() });
     setTaskText("");
     await onChanged();
     setBusy(false);
@@ -76,6 +98,7 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
       return;
     }
 
+    setOptimisticSession(null);
     await onChanged();
     setBusy(false);
   };
@@ -83,18 +106,18 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
   return (
     <section className="card">
       <h2>{compact ? "Focus Session" : "Current Focus Session"}</h2>
-      {active ? (
+      {showingActive ? (
         <div className="stack">
           <p className="muted">
-            <strong>Task:</strong> {active.taskText}
+            <strong>Task:</strong> {displayTaskText}
           </p>
           <p className="muted">
             <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
           </p>
-          <p className={`status ${statusClass}`}>
-            <strong>Status:</strong> {currentState}
+          <p className={`status ${displayStatusClass}`}>
+            <strong>Status:</strong> {displayStatus}
           </p>
-          {active.currentVisit?.reason ? <p className="muted">{active.currentVisit.reason}</p> : null}
+          {active?.currentVisit?.reason ? <p className="muted">{active.currentVisit.reason}</p> : null}
           <button disabled={busy} onClick={() => void endSession()}>
             End Task
           </button>
