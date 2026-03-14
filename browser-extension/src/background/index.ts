@@ -18,6 +18,15 @@ import { createId, nowIso, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 
 let stateMutationQueue: Promise<void> = Promise.resolve();
+const KNOWN_DISTRACTING_DOMAINS = [
+  "facebook.com",
+  "instagram.com",
+  "x.com",
+  "twitter.com",
+  "reddit.com",
+  "youtube.com",
+  "tiktok.com"
+];
 
 const runExclusive = async <T>(handler: () => Promise<T>): Promise<T> => {
   const completion = stateMutationQueue.then(async () => undefined);
@@ -107,6 +116,9 @@ const classifyWithPolicy = async (
 ): Promise<{ ok: true; result: ClassificationResult } | { ok: false; error: string }> => {
   const settings = await loadSettings();
   const domain = getDomain(taskUrl);
+  const matchesKnownDistractingDomain = KNOWN_DISTRACTING_DOMAINS.some(
+    (candidate) => domain === candidate || domain.endsWith(`.${candidate}`)
+  );
   const isExcluded = matchesExcludedDomain(domain, settings.excludedDomains);
   if (isExcluded) {
     return {
@@ -115,6 +127,17 @@ const classifyWithPolicy = async (
         classification: "aligned",
         confidence: 1,
         reason: "Domain is excluded from classifier checks."
+      }
+    };
+  }
+
+  if (matchesKnownDistractingDomain) {
+    return {
+      ok: true,
+      result: {
+        classification: "distracting",
+        confidence: 0.99,
+        reason: "Matched known distracting domain list."
       }
     };
   }
