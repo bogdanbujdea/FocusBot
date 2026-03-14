@@ -132,7 +132,7 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
           </label>
           <textarea
             id="task-input"
-            placeholder="Example: Review PRs for payment retry logic"
+            placeholder="Example: Review bank statement and mail it to my accountant"
             value={taskText}
             onChange={(event) => setTaskText(event.target.value)}
             rows={compact ? 3 : 4}

@@ -121,11 +121,6 @@ export const SummaryCard = ({ state }: SummaryCardProps): JSX.Element => {
       ) : (
         <p className="muted">No focus sessions today. Start one to see analytics.</p>
       )}
-
-      <div className="actions-row">
-        <button onClick={() => void sendRuntimeRequest({ type: "OPEN_ANALYTICS" })}>Open Analytics</button>
-        <button onClick={() => void sendRuntimeRequest({ type: "OPEN_OPTIONS" })}>Open Settings</button>
-      </div>
     </section>
   );
 };

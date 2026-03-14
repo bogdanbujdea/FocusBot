@@ -43,7 +43,7 @@ body {
 .quick-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -51,25 +51,51 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(231, 236, 255, 0.85);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #e7ecff;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .quick-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #e7ecff;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .quick-action-btn:focus {
   outline: none;
   border-color: #365cff;
+  background: rgba(54, 92, 255, 0.2);
+}
+
+.quick-action-btn--analytics {
+  color: #5b9cfb;
+  border-color: rgba(91, 156, 251, 0.4);
+  background: rgba(91, 156, 251, 0.15);
+}
+
+.quick-action-btn--analytics:hover {
+  color: #7eb3fc;
+  border-color: rgba(91, 156, 251, 0.6);
+  background: rgba(91, 156, 251, 0.25);
+}
+
+.quick-action-btn--settings {
+  color: #c4a574;
+  border-color: rgba(196, 165, 116, 0.4);
+  background: rgba(196, 165, 116, 0.12);
+}
+
+.quick-action-btn--settings:hover {
+  color: #d4b888;
+  border-color: rgba(196, 165, 116, 0.6);
+  background: rgba(196, 165, 116, 0.22);
 }
 
 h1,
@@ -325,20 +351,21 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: rgba(231, 236, 255, 0.7);
+  background: rgba(91, 156, 251, 0.18);
+  border: 1px solid rgba(91, 156, 251, 0.5);
+  border-radius: 10px;
+  color: #5b9cfb;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .refresh-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(231, 236, 255, 1);
+  background: rgba(91, 156, 251, 0.28);
+  border-color: rgba(91, 156, 251, 0.7);
+  color: #7eb3fc;
 }
 
 .refresh-button:disabled {
