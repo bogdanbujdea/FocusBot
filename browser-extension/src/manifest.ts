@@ -6,16 +6,22 @@ export default defineManifest({
   version: "0.1.0",
   description:
     "Single-task assistant that classifies whether your browsing matches your stated task, summarizes sessions, and tracks daily analytics. Supports any kind of work or break.",
+  icons: {
+    16: "icons/icon-default-16.png",
+    32: "icons/icon-default-32.png",
+    48: "icons/icon-default-48.png",
+    96: "icons/icon-default-96.png"
+  },
   permissions: ["storage", "tabs", "sidePanel"],
   host_permissions: ["https://api.openai.com/*", "<all_urls>"],
   action: {
     default_title: "FocusBot",
     default_popup: "src/popup/index.html",
     default_icons: {
-      16: "icons/icon-default.svg",
-      32: "icons/icon-default.svg",
-      48: "icons/icon-default.svg",
-      96: "icons/icon-default.svg"
+      16: "icons/icon-default-16.png",
+      32: "icons/icon-default-32.png",
+      48: "icons/icon-default-48.png",
+      96: "icons/icon-default-96.png"
     }
   },
   side_panel: {
@@ -37,7 +43,10 @@ export default defineManifest({
   web_accessible_resources: [
     {
       resources: [
-        "icons/icon-default.svg",
+        "icons/icon-default-16.png",
+        "icons/icon-default-32.png",
+        "icons/icon-default-48.png",
+        "icons/icon-default-96.png",
         "icons/icon-aligned.svg",
         "icons/icon-distracting.svg",
         "icons/icon-analyzing.svg",
