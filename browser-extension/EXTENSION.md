@@ -356,6 +356,8 @@ All state mutations are serialized via `runExclusive()` promise queue:
 
 ### Session Summary Calculations
 
+`calculateSessionSummary()` is used for completed sessions; `calculateLiveSummary(session)` produces the same `SessionSummary` shape for an active session by including completed visits plus the current visit with duration up to "now" (for live UI updates).
+
 ```typescript
 interface SessionSummary {
   taskName: string;
@@ -412,14 +414,11 @@ Displays current session status and controls:
 - "Classifier error" - `visitState: "error"`
 - "Waiting for signal" - No currentVisit (shouldn't happen in normal flow)
 
-### SummaryCard (Post-Session)
+### SummaryCard (Session Metrics)
 
-Displays summary after session ends:
-- Focus percentage
-- Distraction count
-- Total tracked time
-- Context switch cost
-- Top distracting domains
+- **When a session is active:** Shows **Current Session** with live-updating metrics (focus %, aligned/distracting time, context switch cost, distraction count, tracked time, top distracting domains). Values refresh every second as the current page visit duration grows.
+- **When no session is active:** Shows **Latest Session Summary** from the last completed session, or an empty state if no session has been completed yet.
+- Same metrics in both modes: focus percentage, distraction count, total tracked time, context switch cost, top distracting domains.
 
 ### AnalyticsPage (Full View)
 

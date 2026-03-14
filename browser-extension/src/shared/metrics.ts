@@ -79,6 +79,37 @@ export const calculateSessionSummary = (
   };
 };
 
+/**
+ * Builds a live SessionSummary from an active session by including completed visits
+ * plus the current in-progress visit (if classified) with duration up to "now".
+ * Use this to display real-time metrics while a session is running.
+ */
+export const calculateLiveSummary = (session: FocusSession): SessionSummary => {
+  const effectiveEnd = session.endedAt ?? new Date().toISOString();
+  const effectiveVisits: PageVisit[] = [...session.visits];
+
+  const cv = session.currentVisit;
+  if (cv?.visitState === "classified" && cv.classification && cv.enteredAt) {
+    const durationSeconds = secondsBetween(cv.enteredAt, effectiveEnd);
+    effectiveVisits.push({
+      pageVisitId: cv.visitToken,
+      sessionId: session.sessionId,
+      tabId: cv.tabId,
+      url: cv.url,
+      domain: cv.domain,
+      title: cv.title,
+      enteredAt: cv.enteredAt,
+      leftAt: effectiveEnd,
+      durationSeconds,
+      classification: cv.classification,
+      confidence: cv.confidence ?? 0,
+      reason: cv.reason
+    });
+  }
+
+  return calculateSessionSummary(session.taskText, session.startedAt, effectiveEnd, effectiveVisits);
+};
+
 export const stripActiveSessionForHistory = (session: FocusSession): FocusSession => ({
   ...session,
   currentVisit: undefined
