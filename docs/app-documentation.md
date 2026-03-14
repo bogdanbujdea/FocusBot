@@ -47,7 +47,7 @@ The app monitors which applications and browser tabs the user switches to while 
 ### Kanban Task Board
 A three-column board (To Do, In Progress, Done) for organizing work. Supports adding, editing, deleting, and dragging tasks between columns. Only one task can be In Progress at a time; starting a new task automatically moves the previous one back to To Do.
 
-### Real-Time Focus Status Bar
+### Real-Time Focus Status Bar & Browser Overlay
 When a task is In Progress, a status bar appears above the board showing the current foreground application and window title, along with the AI classification result:
 
 | Status | Score Range | Color | Icon |
@@ -91,6 +91,18 @@ The default provider is OpenAI with the gpt-4o-mini model. Users can switch prov
 ### Encrypted API Key Storage
 API keys are encrypted using Windows DPAPI (Data Protection API) before being stored locally in a JSON settings file. Keys are decrypted only when needed for AI requests.
 
+### Distraction Tracking & Daily Analytics
+Focus Bot tracks distracted episodes throughout the day and provides a daily analytics summary displayed on the Kanban board:
+- **Daily Focus Score Bucket**: Aggregate focus quality for the current day (0-100 scale)
+- **Focused vs Distracted Time**: Visualizes how much time was spent focused versus distracted
+- **Distraction Count**: Total number of distracted episodes triggered during the day
+- **Most Popular Distraction App**: App that caused the most distraction time
+- **Average Distraction Cost**: Average duration of each distraction episode
+- **Longest Focused Session**: Duration of the longest uninterrupted focused work session
+- **Session Summary**: When a task moves to Done, displays top 3 apps that caused distractions during that session
+
+Distraction events are triggered when focus drops below the threshold (score < 4) for a continuous period. Each distraction is timestamped and linked to the task, enabling detailed retrospective analysis.
+
 ### Fluent Design with Theme Support
 The app follows Windows Fluent Design guidelines with full support for:
 - **Dark mode** (default, deep purple palette)
@@ -126,9 +138,10 @@ Each window context (process name + title + task description + user hints) is se
 
 Results are cached by a SHA256 hash of the process name and window title, so switching back to a previously classified window is instant and free.
 
-### 4. Focus Score Calculation
+### 4. Focus Score Calculation & Distraction Detection
 Time segments are aggregated by task, context hash, and alignment score to prevent database bloat. The focus score is recalculated every second as a time-weighted average, persisted to the database every 5 seconds, and finalized when the task moves to Done.
 
+Distraction detection analyzes focus samples every second. When the focus score drops below 4 (Distracted threshold) for a continuous period, a `DistractionEvent` is emitted. Events capture the process name, window title snapshot, duration, and task context for later analysis and insights.
 ---
 
 ## Pricing Model
@@ -187,6 +200,16 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 | Card background | `#FFFFFF` |
 | Primary accent | `#7C3AED` |
 | Focused/aligned | `#22C55E` |
+
+### Browser Overlay Colors
+
+| Status | Indicator Color | Shadow | Text Color |
+|--------|-----------------|--------|------------|
+| **Focused** | `#4ADE80` (green) | `rgba(74, 222, 128, 0.4)` | `#4ADE80` |
+| **Unclear** | `#FACC15` (yellow) | `rgba(250, 204, 21, 0.4)` | `#FACC15` |
+| **Distracted** | `#F87171` (red) | `rgba(248, 113, 113, 0.4)` | `#F87171` |
+| **Unknown** | `#94A3B8` (slate) | none | `#94A3B8` |
+| **Disconnected** | `#64748B` (gray) | none | `#64748B` |
 
 ### Typography
 - **Font:** Segoe UI Variable (WinUI 3 system font)
@@ -260,6 +283,7 @@ The app must be usable at 100% and 200% display scaling.
 | **Encryption** | Windows DPAPI (via Microsoft.AspNetCore.DataProtection) |
 | **Packaging** | MSIX (single-project) |
 | **Testing** | xUnit, Moq, EF Core InMemory |
+| **Analytics** | Daily summaries with distraction event aggregation |
 
 ### Architecture
 
@@ -267,9 +291,21 @@ The solution follows Clean Architecture with four layers:
 
 ```
 FocusBot.Core          - Entities, interfaces, domain logic (no Windows dependencies)
-FocusBot.Infrastructure - Win32 services, EF Core, AI integration, Store APIs
-FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies)
+FocusBot.Infrastructure - Win32 services, EF Core, AI integration, Store APIs, Distraction detection, Analytics
+FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies), Kanban board state, Daily analytics
 FocusBot.App            - WinUI 3 views, XAML, app entry point
 ```
 
 Dependencies flow inward: App depends on ViewModels, which depend on Core. Infrastructure implements Core interfaces and is wired up via dependency injection in the App layer.
+
+### Key Services
+
+| Service | Purpose |
+|---------|---------|
+| `IWindowMonitorService` | Win32-based foreground window tracking |
+| `ITimeTrackingService` | Session elapsed time tracking |
+| `IIdleDetectionService` | Idle/active state detection using GetLastInputInfo |
+| `ILlmService` | AI classification via LlmTornado |
+| `IFocusScoreService` | Focus score calculation and persistence |
+| `IDistractionDetectorService` | Distraction event emission when score drops below threshold |
+| `IDailyAnalyticsService` | Daily summary aggregation (focused time, distraction count, top apps) |
