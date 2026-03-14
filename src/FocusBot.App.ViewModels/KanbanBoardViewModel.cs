@@ -5,6 +5,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Configuration;
+using FocusBot.Core.DTOs;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
@@ -24,6 +25,10 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFocusScoreService _focusScoreService;
     private readonly ITrialService _trialService;
+    private readonly IDistractionDetectorService _distractionDetectorService;
+    private readonly IDistractionEventRepository _distractionEventRepository;
+    private readonly IDailyAnalyticsService _dailyAnalyticsService;
+    private readonly IAlignmentCacheRepository _alignmentCacheRepository;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
@@ -48,6 +53,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private int _secondsSinceLastPersist;
     private const int PersistIntervalSeconds = 5;
     private bool _isTaskPaused;
+    private DateTime? _sessionStartUtc;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -174,7 +180,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    public bool IsFocusScorePercentVisible => IsMonitoring && _focusScoreService.HasRealScore && IsAiConfigured;
+    public bool IsFocusScorePercentVisible =>
+        IsMonitoring && _focusScoreService.HasRealScore && IsAiConfigured;
 
     public string TaskElapsedTime
     {
@@ -231,7 +238,9 @@ public partial class KanbanBoardViewModel : ObservableObject
     public bool IsAiStatusOk => !HasAiRequestError;
 
     public string AiProviderAndModelDisplay =>
-        string.IsNullOrEmpty(AiModelDisplay) ? AiProviderDisplay : $"{AiProviderDisplay} · {AiModelDisplay}";
+        string.IsNullOrEmpty(AiModelDisplay)
+            ? AiProviderDisplay
+            : $"{AiProviderDisplay} · {AiModelDisplay}";
 
     private bool _isAiConfigured;
     public bool IsAiConfigured
@@ -283,6 +292,124 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
 
+    public bool ShowMarkOverrideButton => 
+        HasCurrentFocusResult && 
+        !IsClassifying && 
+        !IsFocusBotWindow;
+
+    public string MarkOverrideButtonText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "Mark as distracting";
+
+    public bool IsFocusBotWindow
+    {
+        get
+        {
+            return string.Equals(
+                CurrentProcessName,
+                FocusBotProcessName,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+    }
+
+    private int _liveDistractionCount;
+    public int LiveDistractionCount
+    {
+        get => _liveDistractionCount;
+        private set => SetProperty(ref _liveDistractionCount, value);
+    }
+
+    public int TodayFocusScoreBucket
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public string TodayDateLabel
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
+
+    public double TodayFocusedPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public double TodayUnclearPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public double TodayDistractedPercent
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public string TodayFocusedPercentText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "0% focused";
+
+    public string TodayFocusedTimeText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "00:00:00";
+
+    public string TodayDistractedTimeText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "00:00:00";
+
+    public int TodayDistractionCount
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public string TodayAverageDistractionCostText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "—";
+
+    public string TodayMostPopularDistractionAppText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "—";
+
+    public string TodayLongestFocusedSessionText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "—";
+
+    public bool HasTodayAnalytics
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public bool ShowTodayFocusScoreChip =>
+        HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
+
+    private bool _isAnalyticsExpanded = true;
+    public bool IsAnalyticsExpanded
+    {
+        get => _isAnalyticsExpanded;
+        set => SetProperty(ref _isAnalyticsExpanded, value);
+    }
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -292,7 +419,11 @@ public partial class KanbanBoardViewModel : ObservableObject
         ILlmService llmService,
         ISettingsService settingsService,
         IFocusScoreService focusScoreService,
-        ITrialService trialService
+        ITrialService trialService,
+        IDistractionDetectorService distractionDetectorService,
+        IDistractionEventRepository distractionEventRepository,
+        IDailyAnalyticsService dailyAnalyticsService,
+        IAlignmentCacheRepository alignmentCacheRepository
     )
     {
         _repo = repo;
@@ -304,6 +435,11 @@ public partial class KanbanBoardViewModel : ObservableObject
         _settingsService = settingsService;
         _focusScoreService = focusScoreService;
         _trialService = trialService;
+        _distractionDetectorService = distractionDetectorService;
+        _distractionEventRepository = distractionEventRepository;
+        _dailyAnalyticsService = dailyAnalyticsService;
+        _alignmentCacheRepository = alignmentCacheRepository;
+        _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
@@ -331,6 +467,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
     }
 
+    private static string FormatTimeSpan(TimeSpan timeSpan) =>
+        FormatElapsed((long)timeSpan.TotalSeconds);
+
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
@@ -348,8 +487,23 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
         var taskId = InProgressTasks[0].TaskId;
         CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
+        var status = FocusScore switch
+        {
+            >= 6 => FocusStatus.Focused,
+            >= 4 => FocusStatus.Neutral,
+            _ => FocusStatus.Distracted,
+        };
+        _ = _distractionDetectorService.OnSampleAsync(
+            taskId,
+            status,
+            CurrentProcessName,
+            CurrentWindowTitle,
+            DateTime.UtcNow
+        );
+        _ = _dailyAnalyticsService.UpdateForTickAsync(DateTime.UtcNow, status);
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();
+        _ = RefreshTodaySummaryAsync();
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
@@ -357,6 +511,60 @@ public partial class KanbanBoardViewModel : ObservableObject
             _ = PersistElapsedTimeAsync(taskId);
             _ = _focusScoreService.PersistSegmentsAsync();
         }
+    }
+
+    private void OnDistractionEventCreated(object? sender, DistractionEvent e)
+    {
+        if (!HasActiveTask())
+            return;
+
+        var currentTaskId = InProgressTasks[0].TaskId;
+        if (!string.Equals(e.TaskId, currentTaskId, StringComparison.Ordinal))
+            return;
+
+        LiveDistractionCount++;
+        _ = _dailyAnalyticsService.RegisterDistractionEventAsync(e);
+    }
+
+    public event EventHandler<SessionDistractionSummary>? SessionSummaryReady;
+
+    private async Task ShowSessionDistractionSummaryAsync(string taskId)
+    {
+        if (_sessionStartUtc is null)
+            return;
+
+        if (InProgressTasks.Count == 0)
+            return;
+
+        var fromUtc = _sessionStartUtc.Value;
+        var toUtc = DateTime.UtcNow;
+        var events =
+            await _distractionEventRepository
+                .GetEventsForTaskBetweenAsync(taskId, fromUtc, toUtc)
+                .ConfigureAwait(false) ?? Array.Empty<DistractionEvent>();
+
+        var totalCount = events.Count;
+        var topApps = events
+            .GroupBy(e => e.ProcessName)
+            .Select(g => new AppDistractionSummary
+            {
+                AppName = g.Key,
+                DistractionCount = g.Count(),
+                DistractedDurationSeconds = g.Sum(x => x.DistractedDurationSecondsAtEmit),
+            })
+            .OrderByDescending(a => a.DistractedDurationSeconds)
+            .ThenByDescending(a => a.DistractionCount)
+            .ThenBy(a => a.AppName)
+            .Take(3)
+            .ToList();
+
+        var summary = new SessionDistractionSummary
+        {
+            TotalDistractionCount = totalCount,
+            TopApps = topApps,
+        };
+
+        SessionSummaryReady?.Invoke(this, summary);
     }
 
     private void OnUserBecameIdle(object? sender, EventArgs e)
@@ -496,6 +704,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             {
                 FocusScore = response.Result.Score;
                 FocusReason = response.Result.Reason;
+                MarkOverrideButtonText = FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
@@ -542,12 +751,14 @@ public partial class KanbanBoardViewModel : ObservableObject
             await _focusScoreService.LoadSegmentsForTaskAsync(task.TaskId);
             CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(task.TaskId);
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            LiveDistractionCount = 0;
             StartMonitoring();
         }
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
         await RefreshAiSettingsAsync();
+        await RefreshTodaySummaryAsync();
     }
 
     /// <summary>
@@ -581,17 +792,20 @@ public partial class KanbanBoardViewModel : ObservableObject
     /// </summary>
     public async Task RefreshAiSettingsAsync()
     {
-        var providerId = await _settingsService.GetProviderAsync()
+        var providerId =
+            await _settingsService.GetProviderAsync()
             ?? LlmProviderConfig.DefaultProvider.ProviderId;
         var modelId = await _settingsService.GetModelAsync();
-        var provider = LlmProviderConfig.Providers.FirstOrDefault(p => p.ProviderId == providerId)
+        var provider =
+            LlmProviderConfig.Providers.FirstOrDefault(p => p.ProviderId == providerId)
             ?? LlmProviderConfig.DefaultProvider;
         AiProviderDisplay = provider.DisplayName;
         if (string.IsNullOrEmpty(modelId))
         {
-            AiModelDisplay = LlmProviderConfig.Models.TryGetValue(providerId, out var models) && models.Count > 0
-                ? models[0].DisplayName
-                : string.Empty;
+            AiModelDisplay =
+                LlmProviderConfig.Models.TryGetValue(providerId, out var models) && models.Count > 0
+                    ? models[0].DisplayName
+                    : string.Empty;
         }
         else
         {
@@ -605,6 +819,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             AiRequestError = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
     }
 
     /// <summary>
@@ -646,6 +861,73 @@ public partial class KanbanBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowTrialBanner));
     }
 
+    private async Task RefreshTodaySummaryAsync()
+    {
+        var summary = await _dailyAnalyticsService
+            .GetTodaySummaryAsync(DateTime.Now)
+            .ConfigureAwait(false);
+
+        if (summary is null)
+        {
+            HasTodayAnalytics = false;
+            TodayFocusScoreBucket = 0;
+            TodayFocusedTimeText = "00:00:00";
+            TodayDistractedTimeText = "00:00:00";
+            TodayDistractionCount = 0;
+            TodayAverageDistractionCostText = "—";
+            TodayMostPopularDistractionAppText = "—";
+            TodayLongestFocusedSessionText = "—";
+            TodayDateLabel = string.Empty;
+            TodayFocusedPercent = 0;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = 0;
+            TodayFocusedPercentText = "0% focused";
+            OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
+            return;
+        }
+
+        HasTodayAnalytics = true;
+        TodayFocusScoreBucket = summary.FocusScoreBucket;
+        TodayFocusedTimeText = FormatTimeSpan(summary.FocusedTime);
+        TodayDistractedTimeText = FormatTimeSpan(summary.DistractedTime);
+        TodayDistractionCount = summary.DistractionCount;
+        TodayAverageDistractionCostText = summary.AverageDistractionDuration.HasValue
+            ? FormatTimeSpan(summary.AverageDistractionDuration.Value)
+            : "—";
+        TodayMostPopularDistractionAppText = !string.IsNullOrEmpty(
+            summary.MostPopularDistractionApp
+        )
+            ? summary.MostPopularDistractionApp
+            : "—";
+        TodayLongestFocusedSessionText = summary.LongestFocusedSession.HasValue
+            ? FormatTimeSpan(summary.LongestFocusedSession.Value)
+            : "—";
+        TodayDateLabel = summary
+            .AnalyticsDateLocal.ToDateTime(TimeOnly.MinValue)
+            .ToString("ddd, MMM d, yyyy");
+
+        var totalSeconds = summary.FocusedTime.TotalSeconds + summary.DistractedTime.TotalSeconds;
+        if (totalSeconds <= 0)
+        {
+            TodayFocusedPercent = 0;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = 0;
+            TodayFocusedPercentText = "0% focused";
+        }
+        else
+        {
+            var focusedShare = summary.FocusedTime.TotalSeconds / totalSeconds;
+            TodayFocusedPercent = focusedShare;
+            TodayUnclearPercent = 0;
+            TodayDistractedPercent = summary.DistractedTime.TotalSeconds / totalSeconds;
+            var focusedPercentRounded = (int)
+                Math.Round(focusedShare * 100, MidpointRounding.AwayFromZero);
+            TodayFocusedPercentText = $"{focusedPercentRounded}% focused";
+        }
+
+        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
+    }
+
     /// <summary>
     /// Updates the trial countdown display. Called every second by the view's timer.
     /// </summary>
@@ -682,12 +964,61 @@ public partial class KanbanBoardViewModel : ObservableObject
     private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;
 
     [RelayCommand]
+    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
+
+    [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();
 
     [RelayCommand]
     private void OpenHowItWorks() => ShowHowItWorksRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task MarkFocusOverrideAsync()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        int newScore = FocusScore >= 6 ? 2 : 9;
+        string newReason = FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
+
+        var taskId = InProgressTasks[0].TaskId;
+        var taskDescription = InProgressTasks[0].Description;
+        var taskContext = InProgressTasks[0].Context;
+        var contextHash = HashHelper.ComputeWindowContextHash(CurrentProcessName, CurrentWindowTitle);
+        var taskContentHash = HashHelper.ComputeTaskContentHash(taskDescription, taskContext);
+
+        var entry = new AlignmentCacheEntry
+        {
+            ContextHash = contextHash,
+            TaskContentHash = taskContentHash,
+            Score = newScore,
+            Reason = newReason,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var windowContext = new WindowContext
+        {
+            ContextHash = contextHash,
+            ProcessName = CurrentProcessName,
+            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle)
+        };
+
+        await _alignmentCacheRepository.SaveAsync(windowContext, entry);
+        
+        await _focusScoreService.UpdateHistoricalSegmentsAsync(taskId, contextHash, newScore);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+
+        FocusScore = newScore;
+        FocusReason = newReason;
+        MarkOverrideButtonText = newScore >= 6 ? "Mark as distracting" : "Mark as focused";
+        _focusScoreService.UpdatePendingSegmentScore(newScore);
+
+        OnPropertyChanged(nameof(FocusScoreCategory));
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        RaiseFocusOverlayStateChanged();
+        await RefreshTodaySummaryAsync();
+    }
+
     /// Returns true if the user has not yet seen the How it works guide (first run).
     /// </summary>
     public async Task<bool> GetHasSeenHowItWorksGuideAsync()
@@ -770,6 +1101,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (string.IsNullOrEmpty(taskId))
             return;
         await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -787,7 +1119,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (string.IsNullOrEmpty(taskId))
             return;
         await FinalizeFocusScoreAndPersistAsync(taskId);
+        await ShowSessionDistractionSummaryAsync(taskId);
         await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -797,8 +1131,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (string.IsNullOrEmpty(taskId))
             return;
         await FinalizeFocusScoreAndPersistAsync(taskId);
+        await ShowSessionDistractionSummaryAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
         await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -809,7 +1145,9 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         _focusScoreService.ClearTaskSegments(taskId);
         await _repo.DeleteFocusSegmentsForTaskAsync(taskId);
+        await _distractionEventRepository.DeleteDistractionEventsForTaskAsync(taskId);
         await _repo.DeleteTaskAsync(taskId);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
     }
 
@@ -846,6 +1184,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         _windowMonitor.Start();
         _timeTracking.Start();
         _idleDetection.Start();
+        if (_sessionStartUtc is null)
+        {
+            _sessionStartUtc = DateTime.UtcNow;
+        }
     }
 
     private void StopMonitoringAndResetFocusState()
@@ -862,6 +1204,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         _perWindowTotalSeconds.Clear();
         WindowTotalElapsedTime = FormatElapsed(0);
         _secondsSinceLastPersist = 0;
+        LiveDistractionCount = 0;
+        _sessionStartUtc = null;
         ResetFocusState();
     }
 
@@ -883,14 +1227,17 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             >= 6 => FocusStatus.Focused,
             >= 4 => FocusStatus.Neutral,
-            _ => FocusStatus.Distracted
+            _ => FocusStatus.Distracted,
         };
-        FocusOverlayStateChanged?.Invoke(this, new FocusOverlayStateChangedEventArgs
-        {
-            HasActiveTask = hasActive,
-            FocusScorePercent = hasActive ? CurrentFocusScorePercent : 0,
-            Status = status,
-            IsTaskPaused = _isTaskPaused
-        });
+        FocusOverlayStateChanged?.Invoke(
+            this,
+            new FocusOverlayStateChangedEventArgs
+            {
+                HasActiveTask = hasActive,
+                FocusScorePercent = hasActive ? CurrentFocusScorePercent : 0,
+                Status = status,
+                IsTaskPaused = _isTaskPaused,
+            }
+        );
     }
 }

@@ -22,7 +22,24 @@ public class WindowElapsedTimeShould
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object, trialMock.Object);
+        var distractionMock = new Mock<IDistractionDetectorService>();
+        var distractionRepoMock = new Mock<IDistractionEventRepository>();
+        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var vm = new KanbanBoardViewModel(
+            ctx.Repo,
+            monitorMock.Object,
+            timeTrackingMock.Object,
+            idleDetectionMock.Object,
+            navMock.Object,
+            llmMock.Object,
+            settingsMock.Object,
+            focusScoreMock.Object,
+            trialMock.Object,
+            distractionMock.Object,
+            distractionRepoMock.Object,
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
@@ -55,7 +72,24 @@ public class WindowElapsedTimeShould
         var settingsMock = new Mock<ISettingsService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var vm = new KanbanBoardViewModel(ctx.Repo, monitorMock.Object, timeTrackingMock.Object, idleDetectionMock.Object, navMock.Object, llmMock.Object, settingsMock.Object, focusScoreMock.Object, trialMock.Object);
+        var distractionMock = new Mock<IDistractionDetectorService>();
+        var distractionRepoMock = new Mock<IDistractionEventRepository>();
+        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
+        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var vm = new KanbanBoardViewModel(
+            ctx.Repo,
+            monitorMock.Object,
+            timeTrackingMock.Object,
+            idleDetectionMock.Object,
+            navMock.Object,
+            llmMock.Object,
+            settingsMock.Object,
+            focusScoreMock.Object,
+            trialMock.Object,
+            distractionMock.Object,
+            distractionRepoMock.Object,
+            dailyAnalyticsMock.Object,
+            alignmentCacheMock.Object);
         await Task.Delay(150);
 
         // Act

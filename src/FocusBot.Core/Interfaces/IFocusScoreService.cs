@@ -18,4 +18,10 @@ public interface IFocusScoreService
     Task PersistSegmentsAsync();
     Task LoadSegmentsForTaskAsync(string taskId);
     void ClearTaskSegments(string taskId);
+    
+    /// <summary>
+    /// Updates all historical focus segments for a given task+contextHash to a new alignment score.
+    /// Used when user manually overrides the classification for a window.
+    /// </summary>
+    Task UpdateHistoricalSegmentsAsync(string taskId, string contextHash, int newAlignmentScore);
 }

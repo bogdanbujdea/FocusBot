@@ -1,6 +1,8 @@
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
+using FocusBot.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -34,7 +36,8 @@ public sealed class FocusScoreService : IFocusScoreService
         _currentTaskId = taskId;
         _hasPendingSegment = false;
         _hasReceivedRealScore = true;
-        var key = BuildKey(taskId, contextHash, alignmentScore);
+        var date = DateOnly.FromDateTime(DateTime.Now);
+        var key = BuildKey(taskId, contextHash, alignmentScore, date);
         if (!_segments.TryGetValue(key, out _))
         {
             _segments[key] = new FocusSegment
@@ -45,6 +48,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = 0,
                 WindowTitle = windowTitle,
                 ProcessName = processName,
+                AnalyticsDateLocal = date,
             };
         }
         _currentSegmentKey = key;
@@ -73,11 +77,12 @@ public sealed class FocusScoreService : IFocusScoreService
         var contextHash = _pendingContextHash;
         var windowTitle = _pendingWindowTitle;
         var processName = _pendingProcessName;
+        var date = DateOnly.FromDateTime(DateTime.Now);
 
         _hasPendingSegment = false;
         _hasReceivedRealScore = true;
 
-        var key = BuildKey(taskId, contextHash, alignmentScore);
+        var key = BuildKey(taskId, contextHash, alignmentScore, date);
         if (!_segments.TryGetValue(key, out var segment))
         {
             segment = new FocusSegment
@@ -88,6 +93,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = 0,
                 WindowTitle = windowTitle,
                 ProcessName = processName,
+                AnalyticsDateLocal = date,
             };
             _segments[key] = segment;
         }
@@ -147,7 +153,7 @@ public sealed class FocusScoreService : IFocusScoreService
             {
                 var duration = s.DurationSeconds;
                 if (_currentSegmentKey != null &&
-                    BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore) == _currentSegmentKey)
+                    BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore, s.AnalyticsDateLocal) == _currentSegmentKey)
                 {
                     duration += currentDuration;
                 }
@@ -159,6 +165,7 @@ public sealed class FocusScoreService : IFocusScoreService
                     DurationSeconds = duration,
                     WindowTitle = s.WindowTitle,
                     ProcessName = s.ProcessName,
+                    AnalyticsDateLocal = s.AnalyticsDateLocal,
                 };
             })
             .Where(s => s.DurationSeconds > 0)
@@ -177,7 +184,7 @@ public sealed class FocusScoreService : IFocusScoreService
         _segments.Clear();
         foreach (var s in existing)
         {
-            var key = BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore);
+            var key = BuildKey(s.TaskId, s.ContextHash, s.AlignmentScore, s.AnalyticsDateLocal);
             _segments[key] = new FocusSegment
             {
                 Id = s.Id,
@@ -187,6 +194,7 @@ public sealed class FocusScoreService : IFocusScoreService
                 DurationSeconds = s.DurationSeconds,
                 WindowTitle = s.WindowTitle,
                 ProcessName = s.ProcessName,
+                AnalyticsDateLocal = s.AnalyticsDateLocal,
             };
         }
         _currentTaskId = taskId;
@@ -210,6 +218,73 @@ public sealed class FocusScoreService : IFocusScoreService
         }
     }
 
-    private static string BuildKey(string taskId, string contextHash, int score) =>
-        $"{taskId}|{contextHash}|{score}";
+    public async Task UpdateHistoricalSegmentsAsync(string taskId, string contextHash, int newAlignmentScore)
+    {
+        var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        var segmentsToUpdate = await context.FocusSegments
+            .Where(s => s.TaskId == taskId && s.ContextHash == contextHash)
+            .ToListAsync();
+
+        if (segmentsToUpdate.Count == 0)
+            return;
+
+        var groupedByDate = segmentsToUpdate.GroupBy(s => s.AnalyticsDateLocal);
+
+        foreach (var dateGroup in groupedByDate)
+        {
+            var date = dateGroup.Key;
+            var segmentsForDate = dateGroup.ToList();
+            
+            var existingWithNewScore = segmentsForDate.FirstOrDefault(s => s.AlignmentScore == newAlignmentScore);
+            
+            if (existingWithNewScore != null)
+            {
+                var otherSegments = segmentsForDate.Where(s => s.AlignmentScore != newAlignmentScore).ToList();
+                existingWithNewScore.DurationSeconds += otherSegments.Sum(s => s.DurationSeconds);
+                foreach (var seg in otherSegments)
+                {
+                    context.FocusSegments.Remove(seg);
+                }
+            }
+            else
+            {
+                var firstSegment = segmentsForDate.First();
+                var totalDuration = segmentsForDate.Sum(s => s.DurationSeconds);
+                firstSegment.AlignmentScore = newAlignmentScore;
+                firstSegment.DurationSeconds = totalDuration;
+                
+                var othersToRemove = segmentsForDate.Skip(1);
+                foreach (var seg in othersToRemove)
+                {
+                    context.FocusSegments.Remove(seg);
+                }
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        var keysToRemove = _segments.Keys
+            .Where(k => k.StartsWith(taskId + "|" + contextHash + "|", StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var oldKey in keysToRemove)
+        {
+            _segments.Remove(oldKey);
+        }
+
+        var finalSegments = await context.FocusSegments
+            .Where(s => s.TaskId == taskId && s.ContextHash == contextHash)
+            .ToListAsync();
+
+        foreach (var segment in finalSegments)
+        {
+            var newKey = BuildKey(segment.TaskId, segment.ContextHash, segment.AlignmentScore, segment.AnalyticsDateLocal);
+            _segments[newKey] = segment;
+        }
+    }
+
+    private static string BuildKey(string taskId, string contextHash, int score, DateOnly date) =>
+        $"{taskId}|{contextHash}|{score}|{date:yyyy-MM-dd}";
 }

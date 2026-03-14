@@ -1,19 +1,17 @@
+using FocusBot.Core.DTOs;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
 
-public class InitializeShould
+public class TodaySummaryShould
 {
     [Fact]
-    public async Task StartWindowMonitor_When_ThereAreTasksInProgress()
+    public async Task PopulateTodayProperties_WhenSummaryIsAvailable()
     {
         // Arrange
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("In progress task");
-        await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -22,10 +20,25 @@ public class InitializeShould
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
+        var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+
+        var analyticsDate = DateOnly.FromDateTime(DateTime.Now);
+
+        dailyAnalyticsMock
+            .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DailyFocusSummary
+            {
+                AnalyticsDateLocal = analyticsDate,
+                FocusScoreBucket = 7,
+                FocusedTime = TimeSpan.FromSeconds(120),
+                DistractedTime = TimeSpan.FromSeconds(30),
+                DistractionCount = 3,
+                AverageDistractionDuration = TimeSpan.FromSeconds(10)
+            });
+
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -36,24 +49,33 @@ public class InitializeShould
             settingsMock.Object,
             focusScoreMock.Object,
             trialMock.Object,
-            distractionMock.Object,
+            distractionDetectorMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object);
 
         // Act
+        // LoadBoardAsync is invoked from the constructor; give it time to complete.
+        await Task.Delay(10);
 
         // Assert
-        monitorMock.Verify(x => x.Start(), Times.Once);
-        timeTrackingMock.Verify(x => x.Start(), Times.Once);
+        vm.HasTodayAnalytics.Should().BeTrue();
+        vm.TodayFocusScoreBucket.Should().Be(7);
+        vm.TodayDistractionCount.Should().Be(3);
+        vm.TodayFocusedTimeText.Should().Be("00:02:00");
+        vm.TodayDistractedTimeText.Should().Be("00:00:30");
+        vm.TodayAverageDistractionCostText.Should().Be("00:00:10");
+        vm.TodayDateLabel.Should().NotBeNullOrEmpty();
+        vm.TodayFocusedPercent.Should().BeApproximately(120d / 150d, 0.0001);
+        vm.TodayDistractedPercent.Should().BeApproximately(30d / 150d, 0.0001);
+        vm.TodayUnclearPercent.Should().Be(0);
     }
 
     [Fact]
-    public async Task ClearProcessNameAndWindowTitle_When_MonitoringIsStopped()
+    public async Task HideTodaySummary_WhenNoDataForToday()
     {
         // Arrange
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("Task to stop");
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -62,10 +84,15 @@ public class InitializeShould
         var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
+        var distractionDetectorMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+
+        dailyAnalyticsMock
+            .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DailyFocusSummary?)null);
+
         var vm = new KanbanBoardViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -76,26 +103,24 @@ public class InitializeShould
             settingsMock.Object,
             focusScoreMock.Object,
             trialMock.Object,
-            distractionMock.Object,
+            distractionDetectorMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object);
 
-        await vm.MoveToInProgressCommand.ExecuteAsync(task.TaskId);
-        var eventArgs = new ForegroundWindowChangedEventArgs
-        {
-            ProcessName = "code",
-            WindowTitle = "Editor",
-        };
-        monitorMock.Raise(m => m.ForegroundWindowChanged += null, monitorMock.Object, eventArgs);
-        vm.CurrentProcessName.Should().Be("code");
-        vm.CurrentWindowTitle.Should().Be("Editor");
-
         // Act
-        await vm.MoveToToDoCommand.ExecuteAsync(task.TaskId);
+        await Task.Delay(10);
 
         // Assert
-        vm.CurrentProcessName.Should().BeEmpty();
-        vm.CurrentWindowTitle.Should().BeEmpty();
+        vm.HasTodayAnalytics.Should().BeFalse();
+        vm.TodayDistractionCount.Should().Be(0);
+        vm.TodayFocusedTimeText.Should().Be("00:00:00");
+        vm.TodayDistractedTimeText.Should().Be("00:00:00");
+        vm.TodayAverageDistractionCostText.Should().Be("—");
+        vm.TodayDateLabel.Should().BeEmpty();
+        vm.TodayFocusedPercent.Should().Be(0);
+        vm.TodayUnclearPercent.Should().Be(0);
+        vm.TodayDistractedPercent.Should().Be(0);
     }
 }
+

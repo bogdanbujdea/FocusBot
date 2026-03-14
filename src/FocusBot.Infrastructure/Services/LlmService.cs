@@ -35,11 +35,9 @@ public class LlmService(
         Respond with valid JSON only: {"score": N, "reason": "brief explanation"}
 
         Score guidelines (1-10):
-        - 9-10: Directly executing the task or on a resource explicitly mentioned in context
-        - 7-8: Strongly supports the task (related tools, research, reference material)
-        - 5-6: Possibly related but connection is unclear
-        - 3-4: Unlikely to be related
-        - 1-2: Clearly off-task (entertainment, social media unrelated to work)
+        - 10: Directly executing the task or on a resource explicitly mentioned in context
+        - 5: Possibly related but connection is unclear
+        - 1: Clearly un-related work to that task
         """;
 
     public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
@@ -47,6 +45,7 @@ public class LlmService(
         string? taskContext,
         string processName,
         string windowTitle,
+        bool bypassCache = false,
         CancellationToken ct = default
     )
     {

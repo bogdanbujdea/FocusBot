@@ -3,6 +3,7 @@ using System;
 using FocusBot.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FocusBot.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313134227_AddDailyFocusAnalytics")]
+    partial class AddDailyFocusAnalytics
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
@@ -127,9 +130,6 @@ namespace FocusBot.Infrastructure.Migrations
                     b.Property<int>("AlignmentScore")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateOnly>("AnalyticsDateLocal")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("ContextHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -155,7 +155,7 @@ namespace FocusBot.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.HasIndex("TaskId", "ContextHash", "AlignmentScore", "AnalyticsDateLocal")
+                    b.HasIndex("TaskId", "ContextHash", "AlignmentScore")
                         .IsUnique();
 
                     b.ToTable("FocusSegments");

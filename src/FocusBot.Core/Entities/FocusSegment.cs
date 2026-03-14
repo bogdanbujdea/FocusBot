@@ -1,8 +1,8 @@
 namespace FocusBot.Core.Entities;
 
 /// <summary>
-/// Aggregated focus segment per (TaskId, ContextHash, AlignmentScore).
-/// One row per unique context+score combination; duration accumulates across visits.
+/// Aggregated focus segment per (TaskId, ContextHash, AlignmentScore, AnalyticsDateLocal).
+/// One row per unique context+score+date combination; duration accumulates across visits within that day.
 /// </summary>
 public class FocusSegment
 {
@@ -13,4 +13,5 @@ public class FocusSegment
     public int DurationSeconds { get; set; }
     public string? WindowTitle { get; set; }
     public string? ProcessName { get; set; }
+    public DateOnly AnalyticsDateLocal { get; set; }
 }
