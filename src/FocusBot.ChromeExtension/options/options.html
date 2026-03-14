@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusBot Companion Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>FocusBot Companion</h1>
+      <p class="subtitle">Browser extension settings</p>
+    </header>
+
+    <section class="card">
+      <h2>Connection</h2>
+      <div class="status-row">
+        <span class="status-label">Desktop App</span>
+        <span id="connectionStatus" class="status-badge disconnected">Checking...</span>
+      </div>
+      <p class="hint">The extension sends browser context to the FocusBot desktop app running on localhost:51789.</p>
+    </section>
+
+    <section class="card">
+      <h2>Tracking</h2>
+      <div class="setting-row">
+        <div>
+          <label for="trackingEnabled">Enable browser tracking</label>
+          <p class="hint">When enabled, the extension sends active tab info (URL, domain, title) to the desktop app for focus classification.</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="trackingEnabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <label>Pause tracking</label>
+          <p class="hint">Temporarily stop tracking for a set duration.</p>
+        </div>
+        <div class="pause-controls">
+          <button id="pause15" class="btn-secondary">15 min</button>
+          <button id="pause30" class="btn-secondary">30 min</button>
+          <button id="pause60" class="btn-secondary">1 hour</button>
+          <button id="pauseResume" class="btn-secondary" style="display:none">Resume</button>
+        </div>
+      </div>
+      <div id="pauseStatus" class="pause-status" style="display:none"></div>
+    </section>
+
+    <section class="card">
+      <h2>Overlay</h2>
+      <div class="setting-row">
+        <div>
+          <label for="overlayEnabled">Show focus status overlay</label>
+          <p class="hint">Displays a small indicator in the corner of your browser showing your current focus state.</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="overlayEnabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Privacy</h2>
+      <div class="privacy-info">
+        <h3>What is collected</h3>
+        <ul>
+          <li>Active tab URL and domain</li>
+          <li>Page title</li>
+          <li>Tab/window activity timing</li>
+        </ul>
+        <h3>What is NOT collected</h3>
+        <ul class="not-collected">
+          <li>Page content or DOM</li>
+          <li>Typed input or form data</li>
+          <li>Passwords</li>
+          <li>Screenshots</li>
+          <li>Incognito tab data</li>
+        </ul>
+      </div>
+
+      <h3>Excluded Domains</h3>
+      <p class="hint">Domains listed below are never tracked. Banking and internal browser pages are excluded by default.</p>
+
+      <div class="domain-input-row">
+        <input type="text" id="newDomain" placeholder="example.com" class="domain-input">
+        <button id="addDomain" class="btn-primary">Add</button>
+      </div>
+
+      <div id="domainList" class="domain-list"></div>
+    </section>
+
+    <footer>
+      <p>All data is stored locally and sent only to the desktop app on localhost. Nothing is sent to the cloud.</p>
+    </footer>
+  </div>
+  <script src="options.js" type="module"></script>
+</body>
+</html>

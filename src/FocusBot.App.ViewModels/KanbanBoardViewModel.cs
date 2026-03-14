@@ -24,6 +24,12 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFocusScoreService _focusScoreService;
     private readonly ITrialService _trialService;
+    private readonly IBrowserContextService? _browserContextService;
+
+    private static readonly HashSet<string> BrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "chrome", "Google Chrome", "msedge", "firefox", "brave", "opera", "vivaldi", "arc"
+    };
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
@@ -292,7 +298,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         ILlmService llmService,
         ISettingsService settingsService,
         IFocusScoreService focusScoreService,
-        ITrialService trialService
+        ITrialService trialService,
+        IBrowserContextService? browserContextService = null
     )
     {
         _repo = repo;
@@ -304,6 +311,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         _settingsService = settingsService;
         _focusScoreService = focusScoreService;
         _trialService = trialService;
+        _browserContextService = browserContextService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
@@ -349,6 +357,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         var taskId = InProgressTasks[0].TaskId;
         CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        UpdateBrowserExtensionFocusState();
         RaiseFocusOverlayStateChanged();
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
@@ -458,19 +467,37 @@ public partial class KanbanBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         OnPropertyChanged(nameof(ShowCheckingMessage));
 
-        var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
+        var processName = e.ProcessName;
+        var windowTitle = e.WindowTitle;
+        EnrichWithBrowserContext(ref processName, ref windowTitle);
+
+        var contextHash = HashHelper.ComputeWindowContextHash(processName, windowTitle);
         _focusScoreService.StartPendingSegment(
             task.TaskId,
             contextHash,
-            e.WindowTitle,
-            e.ProcessName
+            windowTitle,
+            processName
         );
         _ = ClassifyAndUpdateFocusAsync(
             task.Description,
             task.Context,
-            e.ProcessName,
-            e.WindowTitle
+            processName,
+            windowTitle
         );
+    }
+
+    private void EnrichWithBrowserContext(ref string processName, ref string windowTitle)
+    {
+        if (_browserContextService == null || !BrowserProcessNames.Contains(processName))
+            return;
+
+        var browserContext = _browserContextService.GetLatestContext();
+        if (browserContext == null || string.IsNullOrEmpty(browserContext.Domain))
+            return;
+
+        windowTitle = string.IsNullOrEmpty(browserContext.Title)
+            ? $"[{browserContext.Domain}{browserContext.Path}]"
+            : $"[{browserContext.Domain}] {browserContext.Title}";
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -499,6 +526,7 @@ public partial class KanbanBoardViewModel : ObservableObject
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
+                UpdateBrowserExtensionFocusState();
                 RaiseFocusOverlayStateChanged();
             }
         }
@@ -874,6 +902,23 @@ public partial class KanbanBoardViewModel : ObservableObject
         HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         RaiseFocusOverlayStateChanged();
+    }
+
+    private void UpdateBrowserExtensionFocusState()
+    {
+        if (_browserContextService == null)
+            return;
+
+        var taskName = HasActiveTask() ? InProgressTasks[0].Description : null;
+        var status = FocusScore switch
+        {
+            >= 6 => "focused",
+            >= 4 => "unclear",
+            _ when HasActiveTask() => "distracted",
+            _ => "unknown"
+        };
+
+        _browserContextService.UpdateFocusState(status, taskName, FocusReason, _taskElapsedSeconds);
     }
 
     private void RaiseFocusOverlayStateChanged()

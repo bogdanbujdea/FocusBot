@@ -72,6 +72,10 @@ namespace FocusBot.App
             ));
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IFocusScoreService, FocusScoreService>();
+            services.AddSingleton<BrowserContextHttpServer>();
+            services.AddSingleton<IBrowserContextService>(sp =>
+                sp.GetRequiredService<BrowserContextHttpServer>()
+            );
             services.AddTransient<KanbanBoardViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
@@ -101,6 +105,9 @@ namespace FocusBot.App
             contextHolder.Context = storeContext;
 
             _window.Activate();
+
+            var browserContext = _services!.GetRequiredService<BrowserContextHttpServer>();
+            _ = browserContext.StartAsync();
 
             try
             {
