@@ -6,7 +6,8 @@ const cacheKey = (taskText: string, url: string): string =>
 
 const classifierPrompt = (taskText: string, url: string, title: string): string =>
   [
-    "You classify whether a browser page is aligned with a deep-work task.",
+    "You classify whether a browser page is aligned with the user's stated task.",
+    "The task can be any kind of work (e.g. marketing, research, creative), a break, or entertainment. If the user's task is to use this site or this type of content (including social, streaming, entertainment), classify as aligned. Do not treat sites as distracting just because they are social or entertainment—only when they do not match the task.",
     "Return strict JSON only with keys: classification, confidence, reason.",
     'classification must be either "aligned" or "distracting".',
     "confidence must be a number from 0 to 1.",
@@ -80,7 +81,7 @@ export const classifyPage = async (
           {
             role: "system",
             content:
-              "You are an alignment classifier for browser deep work. Keep output compact and strict JSON only."
+              "You decide whether the current page matches the user's stated task. The task can be any kind of work (including marketing, social, creative) or a break (e.g. watch movies, browse social). Do not judge the task as productive or not—only whether the page serves that task. Keep output compact and strict JSON only."
           },
           {
             role: "user",

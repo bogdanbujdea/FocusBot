@@ -50,7 +50,7 @@ const SettingsPage = (): JSX.Element => {
     <main className="app-shell">
       <header>
         <h1>FocusBot Settings</h1>
-        <p className="muted">Configure your OpenAI key and deep work classifier behavior.</p>
+        <p className="muted">Configure your OpenAI key and task-alignment classifier behavior.</p>
       </header>
 
       <section className="card">

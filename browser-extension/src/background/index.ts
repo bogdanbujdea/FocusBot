@@ -16,17 +16,9 @@ import {
 import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeRequest, RuntimeResponse } from "../shared/types";
 import { createId, nowIso, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
+import { ICON_DATA_URLS, type IconState } from "../shared/types";
 
 let stateMutationQueue: Promise<void> = Promise.resolve();
-const KNOWN_DISTRACTING_DOMAINS = [
-  "facebook.com",
-  "instagram.com",
-  "x.com",
-  "twitter.com",
-  "reddit.com",
-  "youtube.com",
-  "tiktok.com"
-];
 
 const runExclusive = async <T>(handler: () => Promise<T>): Promise<T> => {
   const completion = stateMutationQueue.then(async () => undefined);
@@ -54,10 +46,111 @@ const toRuntimeState = async () => ({
 const broadcastStateUpdate = async (): Promise<void> => {
   try {
     const state = await toRuntimeState();
+    console.log("Broadcasting state update:", state);
     await chrome.runtime.sendMessage({ type: "STATE_UPDATED", data: state });
-  } catch {
-    // Ignore broadcast failures when no view is open.
+  } catch (error) {
+    console.log("Broadcast error (expected if no UI open):", error);
   }
+  
+  try {
+    await updateIconState();
+  } catch (error) {
+    console.error("Icon state update error:", error);
+  }
+};
+
+const getIconStateFromSession = (session: FocusSession | null): IconState => {
+  console.log("getIconStateFromSession called with:", { session: session ? { sessionId: session.sessionId, currentVisit: session.currentVisit } : null });
+  
+  if (!session) {
+    console.log("No session, returning default");
+    return "default";
+  }
+
+  if (!session.currentVisit) {
+    console.log("No currentVisit, returning default");
+    return "default";
+  }
+
+  if (session.currentVisit.visitState === "classifying") {
+    console.log("Visit state is classifying, returning analyzing");
+    return "analyzing";
+  }
+
+  if (session.currentVisit.visitState === "error") {
+    console.log("Visit state is error, returning error");
+    return "error";
+  }
+
+  if (session.currentVisit.classification === "aligned") {
+    console.log("Classification is aligned, returning aligned");
+    return "aligned";
+  }
+
+  if (session.currentVisit.classification === "distracting") {
+    console.log("Classification is distracting, returning distracting");
+    return "distracting";
+  }
+
+  console.log("No match, returning default");
+  return "default";
+};
+
+const updateIconState = async (): Promise<void> => {
+  try {
+    const session = await loadActiveSession();
+    const iconState = getIconStateFromSession(session);
+
+    console.log("Updating icon:", { iconState });
+
+    const badgeConfig: Record<IconState, { text: string; color: string }> = {
+      default: { text: "", color: "#6366f1" },
+      aligned: { text: "✓", color: "#10b981" },
+      distracting: { text: "✕", color: "#ef4444" },
+      analyzing: { text: "…", color: "#a855f7" },
+      error: { text: "!", color: "#a855f7" }
+    };
+
+    const config = badgeConfig[iconState];
+
+    await chrome.action.setBadgeText({ text: config.text });
+    await chrome.action.setBadgeBackgroundColor({ color: config.color });
+
+    const stateLabels: Record<IconState, string> = {
+      default: "FocusBot Deep Work",
+      aligned: "FocusBot - Aligned",
+      distracting: "FocusBot - Distracting",
+      analyzing: "FocusBot - Analyzing",
+      error: "FocusBot - Error"
+    };
+
+    await chrome.action.setTitle({
+      title: stateLabels[iconState]
+    });
+
+    console.log("Icon updated successfully with state:", iconState);
+  } catch (error) {
+    console.error("Failed to update icon:", error);
+  }
+};
+
+const createImageData = async (dataUrl: string, size: number): Promise<ImageData> => {
+  return new Promise((resolve, reject) => {
+    const img = new (globalThis.Image || (require("canvas") as any).Image)();
+    img.onload = () => {
+      const canvas = new OffscreenCanvas(size, size);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, size, size);
+      const imageData = ctx.getImageData(0, 0, size, size);
+      resolve(imageData);
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = dataUrl;
+  });
 };
 
 const sendDistractionAlert = async (
@@ -116,9 +209,6 @@ const classifyWithPolicy = async (
 ): Promise<{ ok: true; result: ClassificationResult } | { ok: false; error: string }> => {
   const settings = await loadSettings();
   const domain = getDomain(taskUrl);
-  const matchesKnownDistractingDomain = KNOWN_DISTRACTING_DOMAINS.some(
-    (candidate) => domain === candidate || domain.endsWith(`.${candidate}`)
-  );
   const isExcluded = matchesExcludedDomain(domain, settings.excludedDomains);
   if (isExcluded) {
     return {
@@ -127,17 +217,6 @@ const classifyWithPolicy = async (
         classification: "aligned",
         confidence: 1,
         reason: "Domain is excluded from classifier checks."
-      }
-    };
-  }
-
-  if (matchesKnownDistractingDomain) {
-    return {
-      ok: true,
-      result: {
-        classification: "distracting",
-        confidence: 0.99,
-        reason: "Matched known distracting domain list."
       }
     };
   }
@@ -293,7 +372,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     };
     await saveLastError(null);
     await saveActiveSession(session);
-    await captureCurrentActiveTab();
+    void captureCurrentActiveTab();
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
 

@@ -29,7 +29,7 @@ export const SummaryCard = ({ state }: SummaryCardProps): JSX.Element => {
     return (
       <section className="card">
         <h2>Session Summary</h2>
-        <p className="muted">Complete a session to view your latest deep work summary.</p>
+        <p className="muted">Complete a session to view your latest session summary.</p>
       </section>
     );
   }

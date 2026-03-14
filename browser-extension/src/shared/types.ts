@@ -117,3 +117,21 @@ export type RuntimeResponse<T = unknown> = {
   error?: string;
   data?: T;
 };
+
+export type IconState = "default" | "aligned" | "distracting" | "analyzing" | "error";
+
+const createSvgDataUrl = (bg: string, symbol: string): string => {
+  const svg = `<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <rect width="128" height="128" rx="20" fill="${bg}"/>
+    <text x="64" y="72" font-size="72" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial">${symbol}</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
+
+export const ICON_DATA_URLS: Record<IconState, string> = {
+  default: createSvgDataUrl("#6366f1", ""),
+  aligned: createSvgDataUrl("#10b981", "✓"),
+  distracting: createSvgDataUrl("#ef4444", "✕"),
+  analyzing: createSvgDataUrl("#a855f7", "…"),
+  error: createSvgDataUrl("#a855f7", "!")
+};

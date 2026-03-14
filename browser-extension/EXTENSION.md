@@ -2,9 +2,9 @@
 
 ## Overview
 
-The FocusBot Browser Extension is a standalone Chrome/Edge extension that enables **real-time focus session tracking and distraction analysis** directly within your web browser. Unlike the desktop app which monitors all Windows applications, the extension focuses specifically on web browsing behavior.
+The FocusBot Browser Extension is a standalone Chrome/Edge extension that enables **real-time session tracking and task-alignment analysis** directly within your web browser. Unlike the desktop app which monitors all Windows applications, the extension focuses specifically on web browsing behavior.
 
-**Target Use Case:** Knowledge workers who spend significant time in browsers and want to measure focus quality on web-based tasks (code review, research, documentation, etc.).
+**Target Use Case:** Users who want to stay aligned with a single stated task while browsing—whether work (e.g. code review, research, marketing, documentation) or breaks (e.g. watch movies, browse social). Classification is based only on whether the current page matches the user's task, not on productivity or "deep work" norms.
 
 ---
 
@@ -195,16 +195,9 @@ The URL must be "trackable" (see `url.ts` for domain whitelist).
          └──────────────────────────┘
 ```
 
-### Known Distraction Domains (Fast-Track)
+### No Pre-classified Domains
 
-These domains are pre-classified without API calls:
-
-```
-facebook.com, instagram.com, x.com, twitter.com, 
-reddit.com, youtube.com, tiktok.com
-```
-
-Confidence: 0.99 | Reason: "Matched known distracting domain list."
+All pages are classified based on the user's specific task, not on a hardcoded list. This ensures that sites like Facebook, YouTube, or Reddit are classified as "aligned" if the user's task is explicitly to use them (e.g., "Review Facebook feed" or "Watch tutorial video"), and "distracting" if they visit them during unrelated tasks.
 
 ### Excluded Domains (User Configuration)
 
@@ -228,7 +221,7 @@ POST https://api.openai.com/v1/chat/completions
   "messages": [
     {
       "role": "system",
-      "content": "You are an alignment classifier for browser deep work..."
+      "content": "You decide whether the current page matches the user's stated task..."
     },
     {
       "role": "user",
@@ -275,7 +268,7 @@ Cache Miss (first visit to github.com): ~1-2 seconds API latency
 Cache Hit (return to github.com): instant
 ```
 
-**Cache Invalidation:** Manual only (no TTL). User must clear extension data to reset.
+**Cache Invalidation:** Manual only (no TTL). User must clear extension data to reset. After changing classifier prompt logic, clear extension data (or the classification cache) so existing cached results are replaced with new classifications.
 
 ### 2. Request Batching
 
