@@ -19,7 +19,7 @@ export default defineManifest({
     {
       matches: ["<all_urls>"],
       js: ["src/content/index.ts"],
-      css: ["src/content/tooltip.css"],
+      css: ["focusbot-tooltip.css"],
       run_at: "document_idle"
     }
   ],
