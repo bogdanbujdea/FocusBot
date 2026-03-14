@@ -25,6 +25,12 @@ This is a Windows-only desktop app (`net10.0-windows10.0.19041.0`). On the Linux
 | Run Infrastructure tests | `dotnet test tests/FocusBot.Infrastructure.Tests -p:EnableWindowsTargeting=true` |
 | Run ViewModel tests | `dotnet test tests/FocusBot.App.ViewModels.Tests -p:EnableWindowsTargeting=true` |
 
+### Chrome extension
+
+The Chrome extension lives at `src/FocusBot.ChromeExtension/`. It is a Manifest V3 extension (no build step) that communicates with the desktop app via `localhost:51789`. Load it in Chrome via `chrome://extensions/` > Developer mode > Load unpacked.
+
+To test the extension without the Windows desktop app, run a mock HTTP server that responds on `POST /api/browser-activity` (200 OK) and `GET /api/focus-state` (JSON with `status`, `taskName`, `reason`, `sessionElapsedSeconds`, `connected` fields).
+
 ### Gotchas
 
 - The solution uses `.slnx` format (XML-based, not the classic `.sln`). Requires .NET 10 SDK.
