@@ -5,6 +5,13 @@ import manifest from "./src/manifest";
 
 export default defineConfig({
   plugins: [react(), crx({ manifest })],
+  build: {
+    rollupOptions: {
+      input: {
+        analytics: "src/analytics/index.html"
+      }
+    }
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"]
