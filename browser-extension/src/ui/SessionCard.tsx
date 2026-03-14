@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
+import type { IntegrationState } from "../shared/integrationTypes";
 import { formatSeconds } from "../shared/utils";
+import { CompanionCard } from "./CompanionCard";
 
 interface SessionCardProps {
   state: RuntimeState;
   compact?: boolean;
   onChanged: () => Promise<void>;
+  integration?: IntegrationState | null;
 }
 
 const classificationToLabel = (
@@ -30,7 +33,7 @@ const classificationToLabel = (
   return "Waiting for signal";
 };
 
-export const SessionCard = ({ state, compact = false, onChanged }: SessionCardProps): JSX.Element => {
+export const SessionCard = ({ state, compact = false, onChanged, integration }: SessionCardProps): JSX.Element => {
   const [taskText, setTaskText] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,6 +142,10 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
     await onChanged();
     setBusy(false);
   };
+
+  if (integration?.mode === "companionMode") {
+    return <CompanionCard integration={integration} />;
+  }
 
   return (
     <section className="card">

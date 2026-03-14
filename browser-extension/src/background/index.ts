@@ -1,5 +1,5 @@
 import { calculateAnalytics } from "../shared/analytics";
-import { classifyPage } from "../shared/classifier";
+import { classifyPage, classifyDesktopApp } from "../shared/classifier";
 import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
@@ -17,6 +17,27 @@ import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeReques
 import { createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
+import {
+  startIntegration,
+  setMessageHandler,
+  sendHandshake,
+  sendTaskStarted,
+  sendTaskEnded,
+  sendFocusStatus,
+  sendBrowserUrlResponse,
+  getIntegrationState,
+  setMode as setIntegrationMode,
+  onIntegrationStateChange,
+  isConnected
+} from "../shared/integration";
+import type {
+  IntegrationEnvelope,
+  TaskStartedPayload,
+  FocusStatusPayload,
+  DesktopForegroundPayload,
+  RequestBrowserUrlPayload
+} from "../shared/integrationTypes";
+import { MESSAGE_TYPES } from "../shared/integrationTypes";
 
 let stateMutationQueue: Promise<void> = Promise.resolve();
 
@@ -58,6 +79,101 @@ const broadcastStateUpdate = async (): Promise<void> => {
     console.error("Icon state update error:", error);
   }
 };
+
+const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<void> => {
+  const integrationState = getIntegrationState();
+
+  switch (envelope.type) {
+    case MESSAGE_TYPES.HANDSHAKE: {
+      const payload = envelope.payload as { source: string; hasActiveTask: boolean; taskId?: string; taskText?: string; taskHints?: string } | undefined;
+      if (!payload) break;
+
+      const session = await loadActiveSession();
+      sendHandshake(
+        session !== null,
+        session?.sessionId,
+        session?.taskText
+      );
+
+      if (payload.hasActiveTask && payload.taskText && !session) {
+        setIntegrationMode("companionMode");
+        await broadcastStateUpdate();
+      }
+      break;
+    }
+
+    case MESSAGE_TYPES.TASK_STARTED: {
+      const payload = envelope.payload as TaskStartedPayload | undefined;
+      if (!payload) break;
+
+      setIntegrationMode("companionMode");
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.TASK_ENDED: {
+      setIntegrationMode("standalone");
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.FOCUS_STATUS: {
+      const payload = envelope.payload as FocusStatusPayload | undefined;
+      if (!payload) break;
+
+      const currentState = getIntegrationState();
+      if (currentState.mode === "companionMode") {
+        currentState.lastFocusStatus = payload;
+      }
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.DESKTOP_FOREGROUND: {
+      const payload = envelope.payload as DesktopForegroundPayload | undefined;
+      if (!payload || integrationState.mode !== "fullMode") break;
+
+      const session = await loadActiveSession();
+      if (!session || session.pausedAt) break;
+
+      const settings = await loadSettings();
+      try {
+        const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle);
+        sendFocusStatus({
+          taskId: session.sessionId,
+          classification: result.classification,
+          reason: result.reason ?? "",
+          score: result.classification === "aligned" ? 8 : 2,
+          focusScorePercent: calculateLiveSummary(session).focusPercentage,
+          contextType: "desktop",
+          contextTitle: `${payload.processName} - ${payload.windowTitle}`
+        });
+      } catch (err) {
+        console.error("[Integration] Desktop classification failed:", err);
+      }
+      break;
+    }
+
+    case MESSAGE_TYPES.REQUEST_BROWSER_URL: {
+      const payload = envelope.payload as RequestBrowserUrlPayload | undefined;
+      if (!payload) break;
+
+      try {
+        const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        if (activeTab?.url) {
+          sendBrowserUrlResponse(payload.requestId, activeTab.url, activeTab.title ?? "");
+        } else {
+          sendBrowserUrlResponse(payload.requestId, "", "");
+        }
+      } catch {
+        sendBrowserUrlResponse(payload.requestId, "", "");
+      }
+      break;
+    }
+  }
+};
+
+setMessageHandler(handleIntegrationMessage);
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;
@@ -328,6 +444,18 @@ const classifyAndApplyVisit = async (
       await saveActiveSession(latest);
       await broadcastStateUpdate();
 
+      if (isConnected() && getIntegrationState().mode === "fullMode") {
+        sendFocusStatus({
+          taskId: latest.sessionId,
+          classification: outcome.result.classification,
+          reason: outcome.result.reason ?? "",
+          score: outcome.result.classification === "aligned" ? 8 : 2,
+          focusScorePercent: calculateLiveSummary(latest).focusPercentage,
+          contextType: "browser",
+          contextTitle: latest.currentVisit.domain
+        });
+      }
+
       const showDistraction =
         !latest.pausedAt && outcome.result.classification === "distracting";
       await sendDistractionAlert(tabId, {
@@ -465,6 +593,10 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
 
+    if (isConnected()) {
+      sendTaskStarted(session.sessionId, session.taskText);
+    }
+
     return { ok: true, data: latest ?? session };
   });
 
@@ -548,6 +680,10 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     stopBadgeInterval();
     await broadcastStateUpdate();
 
+    if (isConnected()) {
+      sendTaskEnded(session.sessionId);
+    }
+
     return { ok: true, data: sessionForHistory };
   });
 
@@ -597,6 +733,8 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       await chrome.sidePanel.open({ windowId: currentWindow.id });
       return { ok: true };
     }
+    case "GET_INTEGRATION_STATE":
+      return { ok: true, data: getIntegrationState() };
     default:
       return { ok: false, error: "Unknown request." };
   }
@@ -662,9 +800,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.runtime.onStartup.addListener(async () => {
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  startIntegration();
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  startIntegration();
 });
+
+startIntegration();

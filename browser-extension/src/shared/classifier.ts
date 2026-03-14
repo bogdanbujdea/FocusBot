@@ -41,6 +41,104 @@ const parseClassification = (raw: string): ClassificationResult => {
   };
 };
 
+const desktopClassifierPrompt = (taskText: string, processName: string, windowTitle: string): string =>
+  [
+    "You classify whether a desktop application is aligned with the user's stated task.",
+    "The task can be any kind of work (e.g. coding, marketing, research, creative), a break, or entertainment.",
+    "Return strict JSON only with keys: classification, confidence, reason.",
+    'classification must be either "aligned" or "distracting".',
+    "confidence must be a number from 0 to 1.",
+    'reason: when distracting, only the reason clause that follows "because"; when aligned, a brief explanation.',
+    "",
+    `Task: ${taskText}`,
+    `Application: ${processName}`,
+    `Window Title: ${windowTitle || "N/A"}`
+  ].join("\n");
+
+const desktopCacheKey = (taskText: string, processName: string, windowTitle: string): string =>
+  `${taskText.trim().toLowerCase()}::desktop::${processName.trim().toLowerCase()}::${windowTitle.trim().toLowerCase()}`;
+
+export const classifyDesktopApp = async (
+  settings: Settings,
+  taskText: string,
+  processName: string,
+  windowTitle: string,
+  timeoutMs = 8000
+): Promise<ClassificationResult> => {
+  if (!settings.openAiApiKey.trim()) {
+    throw new Error("OpenAI API key is required.");
+  }
+
+  const key = desktopCacheKey(taskText, processName, windowTitle);
+  const cache = await loadClassificationCache();
+  const cached = cache[key];
+  if (cached) {
+    return {
+      classification: cached.classification,
+      confidence: cached.confidence,
+      reason: cached.reason
+    };
+  }
+
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.openAiApiKey}`
+      },
+      body: JSON.stringify({
+        model: settings.classifierModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You decide whether a desktop application matches the user's stated task. The task can be any kind of work or a break. Do not judge the task—only whether the application serves that task. Keep output compact and strict JSON only."
+          },
+          {
+            role: "user",
+            content: desktopClassifierPrompt(taskText, processName, windowTitle)
+          }
+        ]
+      }),
+      signal: timeoutController.signal
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Classification timed out. Please verify network connectivity and model access.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (!response.ok) {
+    throw new Error(`OpenAI classification failed (${response.status}).`);
+  }
+
+  const payload = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = payload.choices?.[0]?.message?.content ?? "";
+  const parsed = parseClassification(content);
+
+  cache[key] = {
+    classification: parsed.classification,
+    confidence: parsed.confidence,
+    reason: parsed.reason,
+    createdAt: new Date().toISOString()
+  };
+  await saveClassificationCache(cache);
+
+  return parsed;
+};
+
 export const classifyPage = async (
   settings: Settings,
   taskText: string,
