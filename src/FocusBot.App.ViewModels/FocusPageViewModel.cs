@@ -807,10 +807,14 @@ public partial class FocusPageViewModel : ObservableObject
     private async Task LoadBoardAsync()
     {
         InProgressTasks.Clear();
+        ActiveTask = null;
 
         var inProgress = await _repo.GetInProgressTaskAsync();
         if (inProgress != null)
+        {
             InProgressTasks.Add(inProgress);
+            ActiveTask = InProgressTasks[0];
+        }
 
         if (HasActiveTask())
         {
