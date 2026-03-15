@@ -14,6 +14,7 @@ public interface IIntegrationService : IDisposable
     Task StartAsync();
     Task StopAsync();
 
+    Task SendHandshakeAsync(bool hasActiveTask, string? taskId, string? taskText, string? taskHints);
     Task SendTaskStartedAsync(string taskId, string taskText, string? taskHints);
     Task SendTaskEndedAsync(string taskId);
     Task SendFocusStatusAsync(FocusStatusPayload payload);

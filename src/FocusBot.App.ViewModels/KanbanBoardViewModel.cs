@@ -1315,6 +1315,16 @@ public partial class KanbanBoardViewModel : ObservableObject
     private void OnExtensionConnectionChanged(object? sender, bool connected)
     {
         IsExtensionConnected = connected;
+
+        if (connected && _integrationService != null)
+        {
+            var hasActive = HasActiveTask();
+            var taskId = hasActive ? InProgressTasks[0].TaskId : null;
+            var taskText = hasActive ? InProgressTasks[0].Description : null;
+            var taskHints = hasActive ? InProgressTasks[0].Context : null;
+
+            _ = _integrationService.SendHandshakeAsync(hasActive, taskId, taskText, taskHints);
+        }
     }
 
     private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)

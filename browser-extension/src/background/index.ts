@@ -20,6 +20,7 @@ import { ICON_DATA_URLS, type IconState } from "../shared/types";
 import {
   startIntegration,
   setMessageHandler,
+  setHandshakeProvider,
   sendHandshake,
   sendTaskStarted,
   sendTaskEnded,
@@ -27,6 +28,8 @@ import {
   sendBrowserUrlResponse,
   getIntegrationState,
   setMode as setIntegrationMode,
+  updateLeaderTask,
+  updateLastFocusStatus,
   onIntegrationStateChange,
   isConnected
 } from "../shared/integration";
@@ -96,9 +99,12 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       );
 
       if (payload.hasActiveTask && payload.taskText && !session) {
+        updateLeaderTask(payload.taskId ?? "", payload.taskText);
         setIntegrationMode("companionMode");
-        await broadcastStateUpdate();
+      } else if (session && !payload.hasActiveTask) {
+        setIntegrationMode("fullMode");
       }
+      await broadcastStateUpdate();
       break;
     }
 
@@ -106,6 +112,7 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       const payload = envelope.payload as TaskStartedPayload | undefined;
       if (!payload) break;
 
+      updateLeaderTask(payload.taskId, payload.taskText);
       setIntegrationMode("companionMode");
       await broadcastStateUpdate();
       break;
@@ -121,9 +128,8 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       const payload = envelope.payload as FocusStatusPayload | undefined;
       if (!payload) break;
 
-      const currentState = getIntegrationState();
-      if (currentState.mode === "companionMode") {
-        currentState.lastFocusStatus = payload;
+      if (getIntegrationState().mode === "companionMode") {
+        updateLastFocusStatus(payload);
       }
       await broadcastStateUpdate();
       break;
@@ -174,6 +180,14 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
 };
 
 setMessageHandler(handleIntegrationMessage);
+setHandshakeProvider(async () => {
+  const session = await loadActiveSession();
+  return {
+    hasActiveTask: session !== null,
+    taskId: session?.sessionId,
+    taskText: session?.taskText
+  };
+});
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;

@@ -17,10 +17,20 @@ const RECONNECT_MAX_MS = 30000;
 
 type MessageHandler = (envelope: IntegrationEnvelope) => void;
 
+interface HandshakeInfo {
+  hasActiveTask: boolean;
+  taskId?: string;
+  taskText?: string;
+  taskHints?: string;
+}
+
+type HandshakeProvider = () => Promise<HandshakeInfo>;
+
 let ws: WebSocket | null = null;
 let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let messageHandler: MessageHandler | null = null;
+let handshakeProvider: HandshakeProvider | null = null;
 let shouldConnect = true;
 
 const state: IntegrationState = {
@@ -57,6 +67,17 @@ export const setMode = (mode: IntegrationMode): void => {
   notifyStateChange();
 };
 
+export const updateLeaderTask = (taskId: string, taskText: string): void => {
+  state.leaderTaskId = taskId;
+  state.leaderTaskText = taskText;
+  notifyStateChange();
+};
+
+export const updateLastFocusStatus = (status: FocusStatusPayload): void => {
+  state.lastFocusStatus = status;
+  notifyStateChange();
+};
+
 const scheduleReconnect = (): void => {
   if (!shouldConnect) return;
   const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, reconnectAttempt), RECONNECT_MAX_MS);
@@ -75,11 +96,16 @@ const connect = (): void => {
     return;
   }
 
-  ws.onopen = () => {
+  ws.onopen = async () => {
     console.log("[Integration] Connected to app");
     reconnectAttempt = 0;
     state.connected = true;
     notifyStateChange();
+
+    if (handshakeProvider) {
+      const info = await handshakeProvider();
+      sendHandshake(info.hasActiveTask, info.taskId, info.taskText, info.taskHints);
+    }
   };
 
   ws.onclose = () => {
@@ -150,6 +176,10 @@ export const sendBrowserUrlResponse = (requestId: string, url: string, title: st
 
 export const setMessageHandler = (handler: MessageHandler): void => {
   messageHandler = handler;
+};
+
+export const setHandshakeProvider = (provider: HandshakeProvider): void => {
+  handshakeProvider = provider;
 };
 
 export const startIntegration = (): void => {

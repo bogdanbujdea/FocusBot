@@ -6,9 +6,7 @@ interface CompanionCardProps {
 
 export const CompanionCard = ({ integration }: CompanionCardProps): JSX.Element => {
   const status = integration.lastFocusStatus;
-  const taskText = status?.taskId
-    ? (integration.leaderTaskText ?? "Unknown Task")
-    : "Waiting for status...";
+  const taskText = integration.leaderTaskText ?? "Waiting for task...";
 
   const classification = status?.classification ?? "Waiting...";
   const reason = status?.reason ?? "";
