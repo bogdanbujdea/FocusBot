@@ -1,7 +1,6 @@
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.Infrastructure.Data;
 
@@ -14,7 +13,7 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
             TaskId = Guid.NewGuid().ToString(),
             Description = description,
             Context = string.IsNullOrWhiteSpace(taskContext) ? null : taskContext.Trim(),
-            Status = TaskStatus.ToDo,
+            IsCompleted = false,
         };
         context.UserTasks.Add(task);
         await context.SaveChangesAsync();
@@ -55,21 +54,30 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         }
     }
 
-    public async Task SetStatusToAsync(string taskId, TaskStatus status)
+    public async Task SetActiveAsync(string taskId)
     {
-        if (status == TaskStatus.InProgress)
+        var othersInProgress = await context.UserTasks
+            .Where(t => !t.IsCompleted && t.TaskId != taskId)
+            .ToListAsync();
+        foreach (var t in othersInProgress)
         {
-            var existing = await context.UserTasks
-                .Where(t => t.Status == TaskStatus.InProgress)
-                .FirstOrDefaultAsync();
-            if (IsDifferentTask(existing, taskId))
-                existing!.Status = TaskStatus.ToDo;
+            t.IsCompleted = true;
         }
 
         var task = await context.UserTasks.FindAsync(taskId);
         if (task != null)
         {
-            task.Status = status;
+            task.IsCompleted = false;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task SetCompletedAsync(string taskId)
+    {
+        var task = await context.UserTasks.FindAsync(taskId);
+        if (task != null)
+        {
+            task.IsCompleted = true;
             await context.SaveChangesAsync();
         }
     }
@@ -84,20 +92,15 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         }
     }
 
-    public async Task<IEnumerable<UserTask>> GetToDoTasksAsync() =>
-        await context.UserTasks
-            .Where(t => t.Status == TaskStatus.ToDo)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
-
     public async Task<UserTask?> GetInProgressTaskAsync() =>
         await context.UserTasks
-            .Where(t => t.Status == TaskStatus.InProgress)
+            .Where(t => !t.IsCompleted)
+            .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync();
 
     public async Task<IEnumerable<UserTask>> GetDoneTasksAsync() =>
         await context.UserTasks
-            .Where(t => t.Status == TaskStatus.Done)
+            .Where(t => t.IsCompleted)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
@@ -161,6 +164,4 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         }
     }
 
-    private static bool IsDifferentTask(UserTask? existing, string taskId) =>
-        existing != null && existing.TaskId != taskId;
 }

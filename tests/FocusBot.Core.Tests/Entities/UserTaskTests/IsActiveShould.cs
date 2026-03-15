@@ -1,15 +1,14 @@
 using FocusBot.Core.Entities;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.Core.Tests.Entities.UserTaskTests;
 
 public class IsActiveShould
 {
     [Fact]
-    public void ReturnTrue_WhenStatusIsInProgress()
+    public void ReturnTrue_WhenNotCompleted()
     {
         // Arrange
-        var task = new UserTask { Status = TaskStatus.InProgress };
+        var task = new UserTask { IsCompleted = false };
 
         // Act
         var isActive = task.IsActive;
@@ -19,23 +18,10 @@ public class IsActiveShould
     }
 
     [Fact]
-    public void ReturnFalse_WhenStatusIsToDo()
+    public void ReturnFalse_WhenCompleted()
     {
         // Arrange
-        var task = new UserTask { Status = TaskStatus.ToDo };
-
-        // Act
-        var isActive = task.IsActive;
-
-        // Assert
-        isActive.Should().BeFalse();
-    }
-
-    [Fact]
-    public void ReturnFalse_WhenStatusIsDone()
-    {
-        // Arrange
-        var task = new UserTask { Status = TaskStatus.Done };
+        var task = new UserTask { IsCompleted = true };
 
         // Act
         var isActive = task.IsActive;

@@ -8,40 +8,35 @@ namespace FocusBot.App.ViewModels;
 public partial class TaskDetailViewModel(ITaskRepository repo, INavigationService navigationService)
     : ObservableObject
 {
-    private string _description = string.Empty;
     public string Description
     {
-        get => _description;
-        private set => SetProperty(ref _description, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _context = string.Empty;
     public string Context
     {
-        get => _context;
-        private set => SetProperty(ref _context, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _status = string.Empty;
     public string Status
     {
-        get => _status;
-        private set => SetProperty(ref _status, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _totalTime = "00:00:00";
     public string TotalTime
     {
-        get => _totalTime;
-        private set => SetProperty(ref _totalTime, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = "00:00:00";
 
-    private string _focusScore = string.Empty;
     public string FocusScore
     {
-        get => _focusScore;
-        private set => SetProperty(ref _focusScore, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
     public bool HasContext => !string.IsNullOrEmpty(Context);
     public bool HasFocusScore => !string.IsNullOrEmpty(FocusScore);
@@ -59,7 +54,7 @@ public partial class TaskDetailViewModel(ITaskRepository repo, INavigationServic
 
         Description = task.Description;
         Context = task.Context ?? string.Empty;
-        Status = task.Status.ToString();
+        Status = task.IsCompleted ? "Completed" : "Active";
         TotalTime = FormatElapsed(task.TotalElapsedSeconds);
         FocusScore = task.FocusScorePercent.HasValue ? $"{task.FocusScorePercent}%" : string.Empty;
 

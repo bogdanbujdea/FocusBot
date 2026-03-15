@@ -104,10 +104,10 @@ public class LlmService(
 
             providerId =
                 await settingsService.GetProviderAsync()
-                ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultProvider.ProviderId;
+                ?? Core.Configuration.LlmProviderConfig.DefaultProvider.ProviderId;
             model =
                 await settingsService.GetModelAsync()
-                ?? FocusBot.Core.Configuration.LlmProviderConfig.DefaultModel(providerId).ModelId;
+                ?? Core.Configuration.LlmProviderConfig.DefaultModel(providerId).ModelId;
         }
 
         try

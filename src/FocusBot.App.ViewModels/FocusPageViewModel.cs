@@ -9,7 +9,6 @@ using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels;
 
@@ -83,9 +82,7 @@ public partial class FocusPageViewModel : ObservableObject
     private DateTime? _sessionStartUtc;
     private bool _extensionHasActiveTask;
 
-    public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
-    public ObservableCollection<UserTask> DoneTasks { get; } = new();
 
     // New single-task properties
     [ObservableProperty]
@@ -809,17 +806,11 @@ public partial class FocusPageViewModel : ObservableObject
 
     private async Task LoadBoardAsync()
     {
-        ToDoTasks.Clear();
         InProgressTasks.Clear();
-        DoneTasks.Clear();
 
-        foreach (var t in await _repo.GetToDoTasksAsync())
-            ToDoTasks.Add(t);
         var inProgress = await _repo.GetInProgressTaskAsync();
         if (inProgress != null)
             InProgressTasks.Add(inProgress);
-        foreach (var t in await _repo.GetDoneTasksAsync())
-            DoneTasks.Add(t);
 
         if (HasActiveTask())
         {
@@ -1067,7 +1058,7 @@ public partial class FocusPageViewModel : ObservableObject
 
         // Create task directly as InProgress
         var task = await _repo.AddTaskAsync(StartTaskTitle.Trim(), context);
-        await _repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await _repo.SetActiveAsync(task.TaskId);
 
         // Clear form
         StartTaskTitle = string.Empty;
@@ -1103,7 +1094,7 @@ public partial class FocusPageViewModel : ObservableObject
 
         await FinalizeFocusScoreAndPersistAsync(taskToEnd.TaskId);
         await _taskSummaryService.ComputeAndPersistSummaryAsync(taskToEnd.TaskId);
-        await _repo.SetStatusToAsync(taskToEnd.TaskId, TaskStatus.Done);
+        await _repo.SetCompletedAsync(taskToEnd.TaskId);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
 
         InProgressTasks.Clear();
@@ -1520,7 +1511,7 @@ public partial class FocusPageViewModel : ObservableObject
                     TaskId = RemoteTaskFromExtension.TaskId,
                     Description = RemoteTaskFromExtension.TaskText,
                     Context = RemoteTaskFromExtension.TaskHints,
-                    Status = TaskStatus.InProgress,
+                    IsCompleted = false,
                 }
             );
         }

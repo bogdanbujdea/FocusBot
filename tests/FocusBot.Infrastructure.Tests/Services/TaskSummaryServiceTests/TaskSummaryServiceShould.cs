@@ -5,8 +5,6 @@ using FocusBot.Infrastructure.Repositories;
 using FocusBot.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
-
 namespace FocusBot.Infrastructure.Tests.Services.TaskSummaryServiceTests;
 
 public class TaskSummaryServiceShould
@@ -36,7 +34,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             context.FocusSegments.AddRange(
                 new FocusSegment { TaskId = task.TaskId, ContextHash = "h1", AlignmentScore = 8, DurationSeconds = 100, AnalyticsDateLocal = DateOnly.FromDateTime(DateTime.UtcNow) },
@@ -59,7 +57,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             context.FocusSegments.AddRange(
                 new FocusSegment { TaskId = task.TaskId, ContextHash = "h1", AlignmentScore = 2, DurationSeconds = 60, AnalyticsDateLocal = DateOnly.FromDateTime(DateTime.UtcNow) },
@@ -82,7 +80,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             await eventRepo.AddAsync(new DistractionEvent
             {
@@ -114,7 +112,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             context.FocusSegments.AddRange(
                 new FocusSegment { TaskId = task.TaskId, ContextHash = "h1", AlignmentScore = 7, DurationSeconds = 60, AnalyticsDateLocal = DateOnly.FromDateTime(DateTime.UtcNow) },
@@ -138,7 +136,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             await eventRepo.AddAsync(new DistractionEvent { TaskId = task.TaskId, OccurredAtUtc = DateTime.UtcNow, ProcessName = "slack", DistractedDurationSecondsAtEmit = 50 });
             await eventRepo.AddAsync(new DistractionEvent { TaskId = task.TaskId, OccurredAtUtc = DateTime.UtcNow.AddSeconds(1), ProcessName = "chrome", DistractedDurationSecondsAtEmit = 100 });
@@ -163,7 +161,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
 
             await service.ComputeAndPersistSummaryAsync(task.TaskId);
 
@@ -184,7 +182,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
             context.FocusSegments.Add(new FocusSegment { TaskId = task.TaskId, ContextHash = "h1", AlignmentScore = 7, DurationSeconds = 60, AnalyticsDateLocal = DateOnly.FromDateTime(DateTime.UtcNow) });
             await context.SaveChangesAsync();
 
@@ -202,7 +200,7 @@ public class TaskSummaryServiceShould
         using (context)
         {
             var task = await taskRepo.AddTaskAsync("Test", null);
-            await taskRepo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+            await taskRepo.SetActiveAsync(task.TaskId);
             await eventRepo.AddAsync(new DistractionEvent { TaskId = task.TaskId, OccurredAtUtc = DateTime.UtcNow, ProcessName = "chrome", DistractedDurationSecondsAtEmit = 10 });
 
             await service.ComputeAndPersistSummaryAsync(task.TaskId);

@@ -77,7 +77,7 @@ public string? OptionalValue { get; set; }         // Can be null
 Use expression bodies for simple, single-expression methods:
 
 ```csharp
-public bool IsActive => Status == TaskStatus.InProgress;
+public bool IsActive => !IsCompleted;
 
 private void OpenSettings() => _navigationService.NavigateToSettings();
 ```
@@ -342,7 +342,7 @@ Fluent APIs are acceptable when they read naturally:
 
 ```csharp
 var tasks = await context.UserTasks
-    .Where(t => t.Status == TaskStatus.ToDo)
+    .Where(t => !t.IsCompleted)
     .OrderByDescending(t => t.CreatedAt)
     .ToListAsync();
 ```

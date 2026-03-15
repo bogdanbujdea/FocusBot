@@ -1,7 +1,6 @@
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Moq;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels.Tests.HistoryViewModelTests;
 
@@ -21,7 +20,7 @@ public class HistoryViewModelShould
         {
             TaskId = id,
             Description = description,
-            Status = TaskStatus.Done,
+            IsCompleted = true,
             CreatedAt = createdAtUtc,
             FocusScorePercent = focusScorePercent,
             FocusedSeconds = focusedSeconds,

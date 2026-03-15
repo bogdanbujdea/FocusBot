@@ -19,7 +19,7 @@
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="You organize work on the Kanban board (To Do, In Progress, Done). When you start a task, Focus Bot monitors which app and window you're using. An AI classifies whether you're focused, unclear, or distracted and shows a live Focus Score (0–100%) for that session."/>
+                <Run Text="You start a task and Focus Bot monitors which app and window you're using. An AI classifies whether you're focused, unclear, or distracted and shows a live Focus Score (0–100%) for that session. When you end the task, it appears in History."/>
             </TextBlock>
 
             <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>

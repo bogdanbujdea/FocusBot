@@ -1,6 +1,5 @@
 using FocusBot.Core.Interfaces;
 using Moq;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
@@ -12,7 +11,7 @@ public class InitializeShould
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var task = await ctx.Repo.AddTaskAsync("In progress task");
-        await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await ctx.Repo.SetActiveAsync(task.TaskId);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();

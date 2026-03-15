@@ -71,7 +71,7 @@ public class IntegrationCompanionModeShould
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var task = await ctx.Repo.AddTaskAsync("Local task");
-        await ctx.Repo.SetStatusToAsync(task.TaskId, FocusBot.Core.Entities.TaskStatus.InProgress);
+        await ctx.Repo.SetActiveAsync(task.TaskId);
 
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
