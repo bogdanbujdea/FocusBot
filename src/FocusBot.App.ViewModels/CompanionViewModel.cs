@@ -12,10 +12,14 @@ namespace FocusBot.App.ViewModels;
 public partial class CompanionViewModel : ObservableObject
 {
     private readonly IIntegrationService _integrationService;
+    private readonly IUIThreadDispatcher? _uiDispatcher;
 
-    public CompanionViewModel(IIntegrationService integrationService)
+    public CompanionViewModel(
+        IIntegrationService integrationService,
+        IUIThreadDispatcher? uiDispatcher = null)
     {
         _integrationService = integrationService;
+        _uiDispatcher = uiDispatcher;
         _integrationService.FocusStatusReceived += OnFocusStatusReceived;
         _integrationService.TaskEndedReceived += OnTaskEndedReceived;
     }
@@ -104,24 +108,56 @@ public partial class CompanionViewModel : ObservableObject
 
     private void OnFocusStatusReceived(object? sender, FocusStatusPayload payload)
     {
-        Classification = payload.Classification;
-        Reason = payload.Reason;
-        FocusScorePercent = payload.FocusScorePercent;
-        ContextType = payload.ContextType;
-        ContextTitle = payload.ContextTitle;
-        NotifyAll();
+        void ApplyPayload()
+        {
+            Classification = payload.Classification;
+            Reason = payload.Reason;
+            FocusScorePercent = payload.FocusScorePercent;
+            ContextType = payload.ContextType;
+            ContextTitle = payload.ContextTitle;
+            NotifyAll();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                ApplyPayload();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            ApplyPayload();
+        }
     }
 
     private void OnTaskEndedReceived(object? sender, EventArgs e)
     {
-        TaskName = string.Empty;
-        Classification = string.Empty;
-        Reason = string.Empty;
-        FocusScorePercent = 0;
-        ContextType = string.Empty;
-        ContextTitle = string.Empty;
-        NotifyAll();
-        ReturnToStandalone?.Invoke(this, EventArgs.Empty);
+        void ClearAndReturn()
+        {
+            TaskName = string.Empty;
+            Classification = string.Empty;
+            Reason = string.Empty;
+            FocusScorePercent = 0;
+            ContextType = string.Empty;
+            ContextTitle = string.Empty;
+            NotifyAll();
+            ReturnToStandalone?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                ClearAndReturn();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            ClearAndReturn();
+        }
     }
 
     [RelayCommand]

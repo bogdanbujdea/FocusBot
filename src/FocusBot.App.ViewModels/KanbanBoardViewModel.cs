@@ -474,6 +474,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
             _integrationService.TaskStartedReceived += OnIntegrationTaskStarted;
+            _integrationService.TaskEndedReceived += OnIntegrationTaskEnded;
         }
 
         _ = LoadBoardAsync();
@@ -651,6 +652,11 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         if (InProgressTasks.Count == 0)
         {
+            if (_integrationService is { CurrentMode: IntegrationMode.CompanionMode })
+            {
+                _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+            }
+
             FocusScore = 0;
             FocusReason = string.Empty;
             IsClassifying = false;
@@ -1317,13 +1323,13 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     private void OnExtensionConnectionChanged(object? sender, bool connected)
     {
-        IsExtensionConnected = connected;
-
-        if (!connected || _integrationService == null)
-            return;
-
-        void sendStateOnConnect()
+        void updateAndMaybeSendState()
         {
+            IsExtensionConnected = connected;
+
+            if (!connected || _integrationService == null)
+                return;
+
             if (!HasActiveTask())
             {
                 _ = _integrationService!.SendHandshakeAsync(false, null, null, null);
@@ -1341,19 +1347,40 @@ public partial class KanbanBoardViewModel : ObservableObject
         {
             _ = _uiDispatcher.RunOnUIThreadAsync(() =>
             {
-                sendStateOnConnect();
+                updateAndMaybeSendState();
                 return Task.CompletedTask;
             });
         }
         else
         {
-            sendStateOnConnect();
+            updateAndMaybeSendState();
         }
     }
 
     private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
     {
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                _windowMonitor.Start();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            _windowMonitor.Start();
+        }
+
         CompanionModeRequested?.Invoke(this, payload);
+    }
+
+    private void OnIntegrationTaskEnded(object? sender, EventArgs e)
+    {
+        if (InProgressTasks.Count == 0)
+        {
+            _windowMonitor.Stop();
+        }
     }
 
     /// <summary>

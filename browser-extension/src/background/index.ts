@@ -301,6 +301,23 @@ const updateIconState = async (): Promise<void> => {
     const title =
       session?.pausedAt != null ? "FocusBot - Paused" : stateLabels[iconState];
     await chrome.action.setTitle({ title });
+
+    if (session && isConnected() && getIntegrationState().mode === "fullMode") {
+      const summary = calculateLiveSummary(session);
+      const state = getIntegrationState();
+      const desktopCtx = state.currentDesktopContext;
+      const cv = session.currentVisit;
+      const onDesktop = Boolean(desktopCtx);
+      sendFocusStatus({
+        taskId: session.sessionId,
+        classification: onDesktop ? desktopCtx!.classification : (cv?.classification ?? ""),
+        reason: onDesktop ? desktopCtx!.reason : (cv?.reason ?? ""),
+        score: onDesktop ? (desktopCtx!.classification === "aligned" ? 8 : 2) : (cv?.classification === "aligned" ? 8 : cv?.classification === "distracting" ? 2 : 0),
+        focusScorePercent: summary.focusPercentage,
+        contextType: onDesktop ? "desktop" : (cv ? "browser" : ""),
+        contextTitle: onDesktop ? `${desktopCtx!.processName} - ${desktopCtx!.windowTitle}` : (cv?.domain ?? "")
+      });
+    }
   } catch (error) {
     console.error("Failed to update icon:", error);
   }
@@ -625,6 +642,16 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
 
     if (isConnected()) {
       sendTaskStarted(session.sessionId, session.taskText);
+      const summary = calculateLiveSummary(latest ?? session);
+      sendFocusStatus({
+        taskId: (latest ?? session).sessionId,
+        classification: "",
+        reason: "",
+        score: 0,
+        focusScorePercent: summary.focusPercentage,
+        contextType: "",
+        contextTitle: ""
+      });
     }
 
     return { ok: true, data: latest ?? session };
