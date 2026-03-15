@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FocusBot.Core;
 using FocusBot.Core.Configuration;
 using FocusBot.Core.DTOs;
 using FocusBot.Core.Entities;
@@ -40,6 +42,11 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         "chrome", "msedge", "firefox", "brave", "opera", "vivaldi",
         "Google Chrome", "Microsoft Edge", "Firefox", "Brave Browser"
+    };
+
+    private static readonly HashSet<string> EdgeOrChromeProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "msedge", "chrome", "Microsoft Edge", "Google Chrome"
     };
 
     /// <summary>
@@ -425,8 +432,33 @@ public partial class KanbanBoardViewModel : ObservableObject
     public bool IsExtensionConnected
     {
         get => _isExtensionConnected;
-        private set => SetProperty(ref _isExtensionConnected, value);
+        private set
+        {
+            if (SetProperty(ref _isExtensionConnected, value))
+                OnPropertyChanged(nameof(ShowExtensionPromo));
+        }
     }
+
+    /// <summary>
+    /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
+    /// </summary>
+    public bool IsForegroundBrowserEdgeOrChrome =>
+        !string.IsNullOrEmpty(CurrentProcessName) && EdgeOrChromeProcessNames.Contains(CurrentProcessName);
+
+    /// <summary>
+    /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
+    /// </summary>
+    public bool ShowExtensionPromo => !IsExtensionConnected && IsForegroundBrowserEdgeOrChrome;
+
+    /// <summary>
+    /// Microsoft Edge Add-ons store URL for the FocusBot extension.
+    /// </summary>
+    public Uri ExtensionStoreEdgeUri => ExtensionStoreLinks.EdgeAddOns;
+
+    /// <summary>
+    /// Chrome Web Store URL for the FocusBot extension.
+    /// </summary>
+    public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
 
     private TaskStartedPayload? _remoteTaskFromExtension;
     private FocusStatusPayload? _remoteTaskFocusStatus;
@@ -676,6 +708,8 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         CurrentProcessName = e.ProcessName;
         CurrentWindowTitle = e.WindowTitle;
+        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(ShowExtensionPromo));
         _windowElapsedSeconds = 0;
         WindowElapsedTime = FormatElapsed(0);
         var newKey = GetCurrentWindowKey(e.ProcessName, e.WindowTitle);
@@ -1342,6 +1376,8 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         CurrentProcessName = string.Empty;
         CurrentWindowTitle = string.Empty;
+        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(ShowExtensionPromo));
         FocusScore = 0;
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
@@ -1502,6 +1538,8 @@ public partial class KanbanBoardViewModel : ObservableObject
             FocusReason = payload.Reason;
             CurrentProcessName = payload.ContextType;
             CurrentWindowTitle = payload.ContextTitle;
+            OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+            OnPropertyChanged(nameof(ShowExtensionPromo));
             CurrentFocusScorePercent = payload.FocusScorePercent;
             HasCurrentFocusResult = true;
             IsClassifying = false;

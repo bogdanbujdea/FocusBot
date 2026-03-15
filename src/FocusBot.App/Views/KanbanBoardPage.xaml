@@ -350,6 +350,32 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
+            <Border Grid.Column="0"
+                    Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="10,6"
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.ShowExtensionPromo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Install extension promo">
+                <StackPanel Spacing="6" MaxWidth="380">
+                    <TextBlock Text="Web page focus accuracy is improved when you use the FocusBot browser extension."
+                               Style="{StaticResource FbSecondaryTextStyle}"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <HyperlinkButton Content="Get it for Edge"
+                                         NavigateUri="{x:Bind ViewModel.ExtensionStoreEdgeUri, Mode=OneWay}"
+                                         FontSize="12"
+                                         automation:AutomationProperties.Name="Get extension for Edge"/>
+                        <HyperlinkButton Content="Get it for Chrome"
+                                         NavigateUri="{x:Bind ViewModel.ExtensionStoreChromeUri, Mode=OneWay}"
+                                         FontSize="12"
+                                         automation:AutomationProperties.Name="Get extension for Chrome"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                 <Button Content="?"
                         Style="{StaticResource FbOutlineButtonStyle}"

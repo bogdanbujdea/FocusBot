@@ -1,6 +1,7 @@
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
 import type { IntegrationState } from "../shared/integrationTypes";
+import { WINDOWS_STORE_APP_URL, INSTALL_APP_MESSAGE } from "../shared/constants";
 import { SessionCard } from "./SessionCard";
 import { SummaryCard } from "./SummaryCard";
 
@@ -30,6 +31,11 @@ export const AppShell = ({
         <p className="muted">{description}</p>
         {integration?.connected ? (
           <span className="pill" style={{ marginTop: 4, fontSize: "0.75rem" }}>Desktop App Connected</span>
+        ) : integration ? (
+          <p className="muted" style={{ marginTop: 4, fontSize: "0.75rem" }}>
+            {INSTALL_APP_MESSAGE}{" "}
+            <a href={WINDOWS_STORE_APP_URL} target="_blank" rel="noopener noreferrer">Microsoft Store</a>
+          </p>
         ) : null}
       </div>
       <div className="quick-actions">

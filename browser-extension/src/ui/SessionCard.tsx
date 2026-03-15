@@ -195,7 +195,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
 
   return (
     <section className="card">
-      <h2>{compact ? "Focus Session" : "Current Focus Session"}</h2>
+      <h2>{compact ? "Start a task" : "Current Focus Session"}</h2>
       {showingActive ? (
         <div className="stack">
           <p className="muted">
@@ -239,7 +239,6 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
       ) : (
         <div className="stack">
           <label htmlFor="task-input" className="label">
-            One task for this session
           </label>
           <textarea
             id="task-input"

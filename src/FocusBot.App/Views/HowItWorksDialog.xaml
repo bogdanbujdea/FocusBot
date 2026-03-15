@@ -43,6 +43,25 @@
                        LineHeight="22">
                 <Run Text="You can use your own API key (OpenAI, Anthropic, or Google) or subscribe to FocusBot Pro so we manage the key for you. If you bring your own key, we recommend a cheap model such as gpt-4o-mini: it works great for this task and keeps cost low. More expensive models add cost per request without a real benefit for alignment classification."/>
             </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Browser extension"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="Web page focus accuracy is improved when you use the FocusBot browser extension."/>
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <HyperlinkButton x:Name="ExtensionStoreEdgeLink"
+                                 Content="Get it for Edge"
+                                 automation:AutomationProperties.Name="Get extension for Edge"/>
+                <HyperlinkButton x:Name="ExtensionStoreChromeLink"
+                                 Content="Get it for Chrome"
+                                 automation:AutomationProperties.Name="Get extension for Chrome"/>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </ContentDialog>
