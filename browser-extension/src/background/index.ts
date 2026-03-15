@@ -30,6 +30,7 @@ import {
   setMode as setIntegrationMode,
   updateLeaderTask,
   updateLastFocusStatus,
+  updateDesktopContext,
   onIntegrationStateChange,
   isConnected
 } from "../shared/integration";
@@ -145,6 +146,15 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       const settings = await loadSettings();
       try {
         const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle);
+
+        updateDesktopContext({
+          processName: payload.processName,
+          windowTitle: payload.windowTitle,
+          classification: result.classification,
+          reason: result.reason ?? "",
+          timestamp: Date.now()
+        });
+
         sendFocusStatus({
           taskId: session.sessionId,
           classification: result.classification,
@@ -154,6 +164,8 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
           contextType: "desktop",
           contextTitle: `${payload.processName} - ${payload.windowTitle}`
         });
+
+        await broadcastStateUpdate();
       } catch (err) {
         console.error("[Integration] Desktop classification failed:", err);
       }
@@ -459,6 +471,7 @@ const classifyAndApplyVisit = async (
       await broadcastStateUpdate();
 
       if (isConnected() && getIntegrationState().mode === "fullMode") {
+        updateDesktopContext(undefined);
         sendFocusStatus({
           taskId: latest.sessionId,
           classification: outcome.result.classification,

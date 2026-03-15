@@ -71,16 +71,23 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
     return Math.max(0, Math.round(rawElapsed - totalPaused));
   }, [showingActive, active, displayStartedAt, tick]);
 
-  const currentState = classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification);
+  const desktopCtx = integration?.mode === "fullMode" ? integration.currentDesktopContext : undefined;
+  const showDesktopContext = Boolean(desktopCtx) && !active?.currentVisit;
+
+  const currentState = showDesktopContext
+    ? (desktopCtx!.classification === "aligned" ? "Aligned" : "Distracting")
+    : classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification);
   const isPaused = Boolean(active?.pausedAt);
   const statusClass =
     isPaused
       ? "neutral"
-      : active?.currentVisit?.visitState === "classifying"
-        ? "neutral"
-        : active?.currentVisit?.visitState === "error"
-          ? "distracting"
-          : (active?.currentVisit?.classification ?? "neutral");
+      : showDesktopContext
+        ? desktopCtx!.classification
+        : active?.currentVisit?.visitState === "classifying"
+          ? "neutral"
+          : active?.currentVisit?.visitState === "error"
+            ? "distracting"
+            : (active?.currentVisit?.classification ?? "neutral");
   const displayStatus = active
     ? (isPaused ? "Paused" : currentState)
     : "Starting...";
@@ -166,6 +173,14 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
           </p>
           {active?.currentVisit?.reason && !isPaused ? (
             <p className="muted">{active.currentVisit.reason}</p>
+          ) : null}
+          {showDesktopContext && desktopCtx ? (
+            <>
+              <p className="muted">
+                <strong>Desktop:</strong> {desktopCtx.processName} - {desktopCtx.windowTitle}
+              </p>
+              {desktopCtx.reason ? <p className="muted">{desktopCtx.reason}</p> : null}
+            </>
           ) : null}
           <div className="actions-row">
             {isPaused ? (

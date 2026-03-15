@@ -6,6 +6,7 @@ import type {
   TaskStartedPayload,
   FocusStatusPayload,
   DesktopForegroundPayload,
+  DesktopClassificationResult,
   RequestBrowserUrlPayload,
   BrowserUrlResponsePayload
 } from "./integrationTypes";
@@ -75,6 +76,11 @@ export const updateLeaderTask = (taskId: string, taskText: string): void => {
 
 export const updateLastFocusStatus = (status: FocusStatusPayload): void => {
   state.lastFocusStatus = status;
+  notifyStateChange();
+};
+
+export const updateDesktopContext = (context: DesktopClassificationResult | undefined): void => {
+  state.currentDesktopContext = context;
   notifyStateChange();
 };
 

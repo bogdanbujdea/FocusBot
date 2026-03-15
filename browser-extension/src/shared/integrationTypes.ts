@@ -48,12 +48,21 @@ export interface BrowserUrlResponsePayload {
   title: string;
 }
 
+export interface DesktopClassificationResult {
+  processName: string;
+  windowTitle: string;
+  classification: string;
+  reason: string;
+  timestamp: number;
+}
+
 export interface IntegrationState {
   mode: IntegrationMode;
   connected: boolean;
   leaderTaskId?: string;
   leaderTaskText?: string;
   lastFocusStatus?: FocusStatusPayload;
+  currentDesktopContext?: DesktopClassificationResult;
 }
 
 export const MESSAGE_TYPES = {
