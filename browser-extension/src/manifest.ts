@@ -6,8 +6,6 @@ export default defineManifest({
   version: "0.1.0",
   description:
     "Single-task assistant: see if your browsing matches your task, get session summaries and daily analytics.",
-  short_description:
-    "Stay aligned with your task while browsing. Session summaries and daily analytics.",
   icons: {
     16: "icons/icon-default-16.png",
     32: "icons/icon-default-32.png",

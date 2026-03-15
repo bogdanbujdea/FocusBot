@@ -30,6 +30,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let messageHandler: MessageHandler | null = null;
 let handshakeProvider: HandshakeProvider | null = null;
 let shouldConnect = true;
+let hadConnectionThisCycle = false;
 
 const state: IntegrationState = {
   connected: false,
@@ -90,13 +91,14 @@ export const updateBrowserForeground = (inForeground: boolean): void => {
 
 const scheduleReconnect = (): void => {
   if (!shouldConnect) return;
-  console.log("[Integration] Reconnecting in 5s");
+  console.info("[FocusBot] Desktop app not available; will retry in 5s.");
   reconnectTimer = setTimeout(() => connect(), RECONNECT_INTERVAL_MS);
 };
 
 const connect = (): void => {
   if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return;
 
+  hadConnectionThisCycle = false;
   try {
     ws = new WebSocket(WS_URL);
   } catch {
@@ -105,7 +107,8 @@ const connect = (): void => {
   }
 
   ws.onopen = async () => {
-    console.log("[Integration] Connected to app");
+    hadConnectionThisCycle = true;
+    console.info("[FocusBot] Connected to desktop app.");
     state.connected = true;
     notifyStateChange();
 
@@ -116,17 +119,19 @@ const connect = (): void => {
   };
 
   ws.onclose = () => {
-    console.log("[Integration] Disconnected from app");
+    console.info("[FocusBot] Desktop app disconnected.");
     state.connected = false;
     clearLeaderTask();
     state.browserInForeground = true;
     notifyStateChange();
     ws = null;
-    scheduleReconnect();
+    if (hadConnectionThisCycle) {
+      scheduleReconnect();
+    }
   };
 
   ws.onerror = () => {
-    // onclose will fire after onerror
+    console.info("[FocusBot] Desktop app connection failed (optional; will retry).");
   };
 
   ws.onmessage = (event) => {

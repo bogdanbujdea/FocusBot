@@ -19,6 +19,7 @@ export const useIntegrationState = (): IntegrationState => {
 
   useEffect(() => {
     void refresh();
+    chrome.runtime.sendMessage({ type: "START_DESKTOP_INTEGRATION" }).catch(() => {});
 
     const listener = (message: unknown): void => {
       if (

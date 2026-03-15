@@ -848,6 +848,8 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
   }
 };
 
+const START_DESKTOP_INTEGRATION = "START_DESKTOP_INTEGRATION";
+
 chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
   if (
     message &&
@@ -859,6 +861,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
     handleContentReady(sender.tab.id)
       .then(() => sendResponse({ ok: true }))
       .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    (message as { type: string }).type === START_DESKTOP_INTEGRATION
+  ) {
+    startIntegration();
+    sendResponse({ ok: true });
     return true;
   }
   handleRequest(message as RuntimeRequest)
@@ -911,13 +923,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.runtime.onStartup.addListener(async () => {
   await startBadgeInterval();
   await captureCurrentActiveTab();
-  startIntegration();
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
   await startBadgeInterval();
   await captureCurrentActiveTab();
-  startIntegration();
 });
-
-startIntegration();

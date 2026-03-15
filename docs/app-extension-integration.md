@@ -29,10 +29,10 @@ This document describes the integration between the FocusBot Windows desktop app
 
 ### Extension side
 
-1. The extension calls `startIntegration()` when the background script loads and on `chrome.runtime.onStartup` / `onInstalled`.
+1. The extension starts the WebSocket client only when the user opens the popup or side panel (sends `START_DESKTOP_INTEGRATION` to the background, which calls `startIntegration()`). This avoids connection attempts (and browser-reported errors) when the desktop app is not running and the user is not viewing the extension UI.
 2. It connects to `ws://localhost:9876/focusbot`.
 3. **On open:** It sends a **HANDSHAKE** with `hasActiveTask`, `taskId`, `taskText`, and optional `taskHints` (current session state).
-4. If the connection fails or drops, it reconnects every **5 seconds** (fixed interval).
+4. If the connection fails before ever connecting, the extension does **not** retry every 5 seconds (avoids repeated browser errors). If the connection later drops after a successful connection, it reconnects every **5 seconds** (fixed interval).
 5. UI shows "Desktop App Connected" when `integration.connected` is true (WebSocket is open).
 
 ---
@@ -204,7 +204,7 @@ Sent by the **extension** to the **app** whenever the active browser tab URL or 
 
 - **Port:** 9876. Defined in `WebSocketIntegrationService` (app) and in `integration.ts` (extension). Not configurable via file.
 - **Path:** `/focusbot`. Extension connects to `ws://localhost:9876/focusbot`; app listens on `http://localhost:9876/focusbot/`.
-- **Reconnect:** Extension uses a fixed 5-second interval when the connection fails or drops. No exponential backoff; it retries every 5 seconds until the app is available.
+- **Reconnect:** Extension only retries on a 5-second interval after it has connected at least once (reconnection after a drop). If the first connection attempt fails (e.g. app not running), it does not retry in the background, so the browser does not report repeated WebSocket errors. Next time the user opens the popup or side panel, a new connection attempt is made.
 - **Single client:** The app accepts only one WebSocket client. A second connection (e.g. another browser profile or machine) closes the first.
 
 No configuration file is required; both sides use these fixed values.
