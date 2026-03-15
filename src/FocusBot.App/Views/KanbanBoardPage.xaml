@@ -263,14 +263,14 @@
                 <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
             </TextBlock>
 
-            <!-- Focus Status Bar (prominent, with dynamic background based on focus state) -->
+            <!-- Focus Status Bar (visible whenever a task is in progress, local or remote) -->
             <Border Grid.Row="1"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
                     Padding="14,10"
                     Background="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToBackgroundBrushConverter}}"
-                    Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Focus status">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -280,13 +280,13 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Status icon (larger, more prominent) -->
+                    <!-- Status icon (always visible when status bar is shown, local or remote task) -->
                     <Image Grid.Column="0"
                            Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
                            Width="40" Height="40"
                            Margin="0,0,10,0"
                            VerticalAlignment="Center"
-                           Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                           Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                     <!-- Spinner only when classifying -->
                     <ProgressRing Grid.Column="1"

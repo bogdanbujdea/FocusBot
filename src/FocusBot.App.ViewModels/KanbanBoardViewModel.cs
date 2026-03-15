@@ -168,12 +168,14 @@ public partial class KanbanBoardViewModel : ObservableObject
         : "Distracted";
 
     public string FocusStatusIcon =>
-        FocusScore switch
-        {
-            >= 6 => "ms-appx:///Assets/icon-focused.svg",
-            >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-            _ => "ms-appx:///Assets/icon-distracted.svg",
-        };
+        (IsMonitoring && !HasCurrentFocusResult)
+            ? "ms-appx:///Assets/icon-unclear.svg"
+            : FocusScore switch
+            {
+                >= 6 => "ms-appx:///Assets/icon-focused.svg",
+                >= 4 => "ms-appx:///Assets/icon-unclear.svg",
+                _ => "ms-appx:///Assets/icon-distracted.svg",
+            };
 
     public string FocusAccentBrushKey =>
         FocusScore switch
@@ -299,7 +301,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
     }
 
-    public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
+    public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
     public bool ShowMarkOverrideButton => 
         HasCurrentFocusResult && 
@@ -680,7 +682,13 @@ public partial class KanbanBoardViewModel : ObservableObject
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = FormatElapsed(newTotal);
 
-        if (InProgressTasks.Count == 0)
+        (string taskId, string description, string? context)? effectiveTask = InProgressTasks.Count > 0
+            ? (InProgressTasks[0].TaskId, InProgressTasks[0].Description, InProgressTasks[0].Context)
+            : RemoteTaskFromExtension != null
+                ? (RemoteTaskFromExtension.TaskId, RemoteTaskFromExtension.TaskText, RemoteTaskFromExtension.TaskHints)
+                : null;
+
+        if (effectiveTask == null)
         {
             if (_integrationService is { IsExtensionConnected: true })
             {
@@ -699,7 +707,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         }
 
-        var task = InProgressTasks[0];
+        var (taskId, taskDescription, taskContext) = effectiveTask.Value;
         var isViewingFocusBot = string.Equals(
             e.ProcessName,
             FocusBotProcessName,
@@ -736,23 +744,20 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
         _focusScoreService.StartPendingSegment(
-            task.TaskId,
+            taskId,
             contextHash,
             e.WindowTitle,
             e.ProcessName
         );
 
-        if (_integrationService is { IsExtensionConnected: true } && _extensionHasActiveTask)
-        {
+        if (_integrationService is { IsExtensionConnected: true })
             _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
-            return;
-        }
 
         if (IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true })
         {
             _ = ClassifyWithBrowserContextAsync(
-                task.Description,
-                task.Context,
+                taskDescription,
+                taskContext,
                 e.ProcessName,
                 e.WindowTitle
             );
@@ -760,8 +765,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         else
         {
             _ = ClassifyAndUpdateFocusAsync(
-                task.Description,
-                task.Context,
+                taskDescription,
+                taskContext,
                 e.ProcessName,
                 e.WindowTitle
             );
@@ -844,6 +849,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
         RefreshDisplayInProgressTasks();
         await RefreshAiSettingsAsync();
         await RefreshTodaySummaryAsync();
@@ -1339,6 +1346,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(FocusStatusIcon));
         RaiseFocusOverlayStateChanged();
     }
 
@@ -1487,10 +1495,27 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (RemoteTaskFromExtension == null || payload.TaskId != RemoteTaskFromExtension.TaskId)
             return;
-        if (_uiDispatcher != null)
-            _ = _uiDispatcher.RunOnUIThreadAsync(() => { RemoteTaskFocusStatus = payload; return Task.CompletedTask; });
-        else
+        void apply()
+        {
             RemoteTaskFocusStatus = payload;
+            FocusScore = payload.Score;
+            FocusReason = payload.Reason;
+            CurrentProcessName = payload.ContextType;
+            CurrentWindowTitle = payload.ContextTitle;
+            CurrentFocusScorePercent = payload.FocusScorePercent;
+            HasCurrentFocusResult = true;
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            RaiseFocusOverlayStateChanged();
+        }
+        if (_uiDispatcher != null)
+            _ = _uiDispatcher.RunOnUIThreadAsync(() => { apply(); return Task.CompletedTask; });
+        else
+            apply();
     }
 
     private void ClearRemoteTask()
@@ -1521,6 +1546,9 @@ public partial class KanbanBoardViewModel : ObservableObject
                 Status = TaskStatus.InProgress
             });
         }
+        IsMonitoring = DisplayInProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
     }
 
     /// <summary>
