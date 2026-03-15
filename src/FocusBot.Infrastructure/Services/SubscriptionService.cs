@@ -1,8 +1,7 @@
-using Windows.Services.Store;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Linq;
+using Windows.Services.Store;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -29,7 +28,8 @@ public class SubscriptionService : ISubscriptionService
     public SubscriptionService(
         ILogger<SubscriptionService> logger,
         StoreContextHolder contextHolder,
-        IUIThreadDispatcher uiDispatcher)
+        IUIThreadDispatcher uiDispatcher
+    )
     {
         _logger = logger;
         _contextHolder = contextHolder;
@@ -41,7 +41,9 @@ public class SubscriptionService : ISubscriptionService
         if (_contextHolder.Context != null)
             return _contextHolder.Context;
         var ctx = StoreContext.GetDefault();
-        _logger.LogWarning("StoreContext was not initialized with window HWND; purchase UI may not display correctly");
+        _logger.LogWarning(
+            "StoreContext was not initialized with window HWND; purchase UI may not display correctly"
+        );
         return ctx;
     }
 
@@ -67,7 +69,10 @@ public class SubscriptionService : ISubscriptionService
             var license = await context.GetAppLicenseAsync();
 
             var storeId = GetSubscriptionStoreId();
-            _logger.LogDebug("AddOnLicenses keys: {Keys}", string.Join(", ", license.AddOnLicenses.Keys));
+            _logger.LogDebug(
+                "AddOnLicenses keys: {Keys}",
+                string.Join(", ", license.AddOnLicenses.Keys)
+            );
 
             StoreLicense? addOnLicense = null;
 
@@ -75,8 +80,9 @@ public class SubscriptionService : ISubscriptionService
             if (!license.AddOnLicenses.TryGetValue(storeId, out addOnLicense))
             {
                 // Fallback: find by prefix (handles productId/skuId keys)
-                var match = license.AddOnLicenses
-                    .FirstOrDefault(kvp => kvp.Key.StartsWith(storeId + "/", StringComparison.OrdinalIgnoreCase));
+                var match = license.AddOnLicenses.FirstOrDefault(kvp =>
+                    kvp.Key.StartsWith(storeId + "/", StringComparison.OrdinalIgnoreCase)
+                );
 
                 if (!string.IsNullOrEmpty(match.Key))
                     addOnLicense = match.Value;
@@ -92,7 +98,7 @@ public class SubscriptionService : ISubscriptionService
                 IsActive = addOnLicense.IsActive,
                 ExpirationDate = addOnLicense.ExpirationDate,
                 WillAutoRenew = null,
-                IsTrialPeriod = isTrial
+                IsTrialPeriod = isTrial,
             };
         }
         catch (Exception ex)
@@ -121,7 +127,7 @@ public class SubscriptionService : ISubscriptionService
                 StorePurchaseStatus.NotPurchased => PurchaseResult.Cancelled,
                 StorePurchaseStatus.NetworkError => PurchaseResult.NetworkError,
                 StorePurchaseStatus.ServerError => PurchaseResult.Error,
-                _ => PurchaseResult.Error
+                _ => PurchaseResult.Error,
             };
         }
         catch (Exception ex)
@@ -144,8 +150,13 @@ public class SubscriptionService : ISubscriptionService
             var json = license.ExtendedJsonData;
             if (string.IsNullOrWhiteSpace(json))
                 return false;
-            if (json.IndexOf("isTrial", StringComparison.OrdinalIgnoreCase) >= 0
-                && (json.Contains("\"isTrial\":true", StringComparison.Ordinal) || json.Contains("'isTrial':true", StringComparison.Ordinal)))
+            if (
+                json.IndexOf("isTrial", StringComparison.OrdinalIgnoreCase) >= 0
+                && (
+                    json.Contains("\"isTrial\":true", StringComparison.Ordinal)
+                    || json.Contains("'isTrial':true", StringComparison.Ordinal)
+                )
+            )
                 return true;
         }
         catch

@@ -1,18 +1,13 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.App.ViewModels;
 
-public partial class TaskDetailViewModel(
-    ITaskRepository repo,
-    INavigationService navigationService
-) : ObservableObject
+public partial class TaskDetailViewModel(ITaskRepository repo, INavigationService navigationService)
+    : ObservableObject
 {
-    private string? _taskId;
-
     private string _description = string.Empty;
     public string Description
     {
@@ -55,7 +50,6 @@ public partial class TaskDetailViewModel(
 
     public async Task InitializeAsync(string taskId)
     {
-        _taskId = taskId;
         var task = await repo.GetByIdAsync(taskId);
         if (task == null)
         {
@@ -79,20 +73,20 @@ public partial class TaskDetailViewModel(
     {
         WindowActivity.Clear();
         var segments = await repo.GetFocusSegmentsForTaskAsync(taskId);
-        var sortedSegments = segments
-            .OrderByDescending(s => s.DurationSeconds)
-            .ToList();
+        var sortedSegments = segments.OrderByDescending(s => s.DurationSeconds).ToList();
 
         foreach (var segment in sortedSegments)
         {
-            WindowActivity.Add(new WindowActivityItem
-            {
-                ProcessName = segment.ProcessName ?? "Unknown",
-                WindowTitle = segment.WindowTitle ?? "Unknown",
-                Duration = FormatElapsed(segment.DurationSeconds),
-                DurationSeconds = segment.DurationSeconds,
-                AlignmentScore = segment.AlignmentScore
-            });
+            WindowActivity.Add(
+                new WindowActivityItem
+                {
+                    ProcessName = segment.ProcessName ?? "Unknown",
+                    WindowTitle = segment.WindowTitle ?? "Unknown",
+                    Duration = FormatElapsed(segment.DurationSeconds),
+                    DurationSeconds = segment.DurationSeconds,
+                    AlignmentScore = segment.AlignmentScore,
+                }
+            );
         }
     }
 

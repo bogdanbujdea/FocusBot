@@ -1,4 +1,3 @@
-using FocusBot.Core.Events;
 using FocusBot.Infrastructure.Data;
 using FocusBot.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;

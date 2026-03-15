@@ -1,5 +1,4 @@
 using FocusBot.Core.DTOs;
-using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
 
@@ -21,7 +20,6 @@ public class TodaySummaryShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
@@ -29,15 +27,17 @@ public class TodaySummaryShould
 
         dailyAnalyticsMock
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DailyFocusSummary
-            {
-                AnalyticsDateLocal = analyticsDate,
-                FocusScoreBucket = 7,
-                FocusedTime = TimeSpan.FromSeconds(120),
-                DistractedTime = TimeSpan.FromSeconds(30),
-                DistractionCount = 3,
-                AverageDistractionDuration = TimeSpan.FromSeconds(10)
-            });
+            .ReturnsAsync(
+                new DailyFocusSummary
+                {
+                    AnalyticsDateLocal = analyticsDate,
+                    FocusScoreBucket = 7,
+                    FocusedTime = TimeSpan.FromSeconds(120),
+                    DistractedTime = TimeSpan.FromSeconds(30),
+                    DistractionCount = 3,
+                    AverageDistractionDuration = TimeSpan.FromSeconds(10),
+                }
+            );
 
         var vm = new FocusPageViewModel(
             ctx.Repo,
@@ -50,10 +50,10 @@ public class TodaySummaryShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionDetectorMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object);
+            new Mock<ITaskSummaryService>().Object
+        );
 
         // Act
         // LoadBoardAsync is invoked from the constructor; give it time to complete.
@@ -86,7 +86,6 @@ public class TodaySummaryShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
@@ -105,10 +104,10 @@ public class TodaySummaryShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionDetectorMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object);
+            new Mock<ITaskSummaryService>().Object
+        );
 
         // Act
         await Task.Delay(10);
@@ -125,4 +124,3 @@ public class TodaySummaryShould
         vm.TodayDistractedPercent.Should().Be(0);
     }
 }
-

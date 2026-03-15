@@ -1,4 +1,3 @@
-using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
 using TaskStatus = FocusBot.Core.Entities.TaskStatus;
@@ -23,7 +22,6 @@ public class InitializeShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
@@ -38,10 +36,10 @@ public class InitializeShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            taskSummaryMock.Object);
+            taskSummaryMock.Object
+        );
 
         // Act
 

@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core;
@@ -28,7 +25,6 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly IFocusScoreService _focusScoreService;
     private readonly ITrialService _trialService;
     private readonly IDistractionDetectorService _distractionDetectorService;
-    private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly ITaskSummaryService _taskSummaryService;
@@ -39,15 +35,30 @@ public partial class FocusPageViewModel : ObservableObject
 
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
 
-    private static readonly HashSet<string> BrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> BrowserProcessNames = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        "chrome", "msedge", "firefox", "brave", "opera", "vivaldi",
-        "Google Chrome", "Microsoft Edge", "Firefox", "Brave Browser"
+        "chrome",
+        "msedge",
+        "firefox",
+        "brave",
+        "opera",
+        "vivaldi",
+        "Google Chrome",
+        "Microsoft Edge",
+        "Firefox",
+        "Brave Browser",
     };
 
-    private static readonly HashSet<string> EdgeOrChromeProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> EdgeOrChromeProcessNames = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        "msedge", "chrome", "Microsoft Edge", "Google Chrome"
+        "msedge",
+        "chrome",
+        "Microsoft Edge",
+        "Google Chrome",
     };
 
     /// <summary>
@@ -201,19 +212,17 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     } = "00:00:00";
 
-    private string _aiProviderDisplay = string.Empty;
     public string AiProviderDisplay
     {
-        get => _aiProviderDisplay;
-        set => SetProperty(ref _aiProviderDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _aiModelDisplay = string.Empty;
     public string AiModelDisplay
     {
-        get => _aiModelDisplay;
-        set => SetProperty(ref _aiModelDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
     private string _aiRequestError = string.Empty;
     public string AiRequestError
@@ -238,60 +247,52 @@ public partial class FocusPageViewModel : ObservableObject
             ? AiProviderDisplay
             : $"{AiProviderDisplay} · {AiModelDisplay}";
 
-    private bool _isAiConfigured;
     public bool IsAiConfigured
     {
-        get => _isAiConfigured;
-        private set => SetProperty(ref _isAiConfigured, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private bool _isTrialActive;
     public bool IsTrialActive
     {
-        get => _isTrialActive;
-        private set => SetProperty(ref _isTrialActive, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private bool _isTrialExpired;
     public bool IsTrialExpired
     {
-        get => _isTrialExpired;
-        private set => SetProperty(ref _isTrialExpired, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private DateTime? _trialEndTime;
     public DateTime? TrialEndTime
     {
-        get => _trialEndTime;
-        private set => SetProperty(ref _trialEndTime, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private string _trialTimeRemainingFormatted = string.Empty;
     public string TrialTimeRemainingFormatted
     {
-        get => _trialTimeRemainingFormatted;
-        private set => SetProperty(ref _trialTimeRemainingFormatted, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
     public bool ShowTrialBanner => IsTrialActive && !IsTrialExpired;
 
-    private bool _hasCurrentFocusResult;
     public bool HasCurrentFocusResult
     {
-        get => _hasCurrentFocusResult;
+        get;
         private set
         {
-            if (SetProperty(ref _hasCurrentFocusResult, value))
+            if (SetProperty(ref field, value))
                 OnPropertyChanged(nameof(ShowCheckingMessage));
         }
     }
 
     public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
-    public bool ShowMarkOverrideButton => 
-        HasCurrentFocusResult && 
-        !IsClassifying && 
-        !IsFocusBotWindow;
+    public bool ShowMarkOverrideButton =>
+        HasCurrentFocusResult && !IsClassifying && !IsFocusBotWindow;
 
     public string MarkOverrideButtonText
     {
@@ -311,11 +312,10 @@ public partial class FocusPageViewModel : ObservableObject
         }
     }
 
-    private int _liveDistractionCount;
     public int LiveDistractionCount
     {
-        get => _liveDistractionCount;
-        private set => SetProperty(ref _liveDistractionCount, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
     public int TodayFocusScoreBucket
@@ -399,20 +399,18 @@ public partial class FocusPageViewModel : ObservableObject
     public bool ShowTodayFocusScoreChip =>
         HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
 
-    private bool _isAnalyticsExpanded = true;
     public bool IsAnalyticsExpanded
     {
-        get => _isAnalyticsExpanded;
-        set => SetProperty(ref _isAnalyticsExpanded, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = true;
 
-    private bool _isExtensionConnected;
     public bool IsExtensionConnected
     {
-        get => _isExtensionConnected;
+        get;
         private set
         {
-            if (SetProperty(ref _isExtensionConnected, value))
+            if (SetProperty(ref field, value))
                 OnPropertyChanged(nameof(ShowExtensionPromo));
         }
     }
@@ -421,7 +419,8 @@ public partial class FocusPageViewModel : ObservableObject
     /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
     /// </summary>
     public bool IsForegroundBrowserEdgeOrChrome =>
-        !string.IsNullOrEmpty(CurrentProcessName) && EdgeOrChromeProcessNames.Contains(CurrentProcessName);
+        !string.IsNullOrEmpty(CurrentProcessName)
+        && EdgeOrChromeProcessNames.Contains(CurrentProcessName);
 
     /// <summary>
     /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
@@ -438,8 +437,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
 
-    private TaskStartedPayload? _remoteTaskFromExtension;
-    private FocusStatusPayload? _remoteTaskFocusStatus;
     private DateTime? _remoteTaskStartedAtUtc;
 
     /// <summary>
@@ -447,8 +444,8 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public TaskStartedPayload? RemoteTaskFromExtension
     {
-        get => _remoteTaskFromExtension;
-        private set => SetProperty(ref _remoteTaskFromExtension, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
     /// <summary>
@@ -456,8 +453,8 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public FocusStatusPayload? RemoteTaskFocusStatus
     {
-        get => _remoteTaskFocusStatus;
-        private set => SetProperty(ref _remoteTaskFocusStatus, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
     /// <summary>
@@ -476,7 +473,6 @@ public partial class FocusPageViewModel : ObservableObject
         IFocusScoreService focusScoreService,
         ITrialService trialService,
         IDistractionDetectorService distractionDetectorService,
-        IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
         IAlignmentCacheRepository alignmentCacheRepository,
         ITaskSummaryService taskSummaryService,
@@ -494,7 +490,6 @@ public partial class FocusPageViewModel : ObservableObject
         _focusScoreService = focusScoreService;
         _trialService = trialService;
         _distractionDetectorService = distractionDetectorService;
-        _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
         _taskSummaryService = taskSummaryService;
@@ -603,47 +598,6 @@ public partial class FocusPageViewModel : ObservableObject
         _ = _dailyAnalyticsService.RegisterDistractionEventAsync(e);
     }
 
-    public event EventHandler<SessionDistractionSummary>? SessionSummaryReady;
-
-    private async Task ShowSessionDistractionSummaryAsync(string taskId)
-    {
-        if (_sessionStartUtc is null)
-            return;
-
-        if (InProgressTasks.Count == 0)
-            return;
-
-        var fromUtc = _sessionStartUtc.Value;
-        var toUtc = DateTime.UtcNow;
-        var events =
-            await _distractionEventRepository
-                .GetEventsForTaskBetweenAsync(taskId, fromUtc, toUtc)
-                .ConfigureAwait(false) ?? Array.Empty<DistractionEvent>();
-
-        var totalCount = events.Count;
-        var topApps = events
-            .GroupBy(e => e.ProcessName)
-            .Select(g => new AppDistractionSummary
-            {
-                AppName = g.Key,
-                DistractionCount = g.Count(),
-                DistractedDurationSeconds = g.Sum(x => x.DistractedDurationSecondsAtEmit),
-            })
-            .OrderByDescending(a => a.DistractedDurationSeconds)
-            .ThenByDescending(a => a.DistractionCount)
-            .ThenBy(a => a.AppName)
-            .Take(3)
-            .ToList();
-
-        var summary = new SessionDistractionSummary
-        {
-            TotalDistractionCount = totalCount,
-            TopApps = topApps,
-        };
-
-        SessionSummaryReady?.Invoke(this, summary);
-    }
-
     private void OnUserBecameIdle(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
@@ -661,7 +615,9 @@ public partial class FocusPageViewModel : ObservableObject
 
         TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
         WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
-        WindowTotalElapsedTime = FormatElapsed(_perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L));
+        WindowTotalElapsedTime = FormatElapsed(
+            _perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L)
+        );
 
         _focusScoreService.PauseCurrentSegment(_idleDetection.IdleThreshold);
         _timeTracking.Stop();
@@ -710,11 +666,20 @@ public partial class FocusPageViewModel : ObservableObject
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = FormatElapsed(newTotal);
 
-        (string taskId, string description, string? context)? effectiveTask = InProgressTasks.Count > 0
-            ? (InProgressTasks[0].TaskId, InProgressTasks[0].Description, InProgressTasks[0].Context)
+        (string taskId, string description, string? context)? effectiveTask =
+            InProgressTasks.Count > 0
+                ? (
+                    InProgressTasks[0].TaskId,
+                    InProgressTasks[0].Description,
+                    InProgressTasks[0].Context
+                )
             : RemoteTaskFromExtension != null
-                ? (RemoteTaskFromExtension.TaskId, RemoteTaskFromExtension.TaskText, RemoteTaskFromExtension.TaskHints)
-                : null;
+                ? (
+                    RemoteTaskFromExtension.TaskId,
+                    RemoteTaskFromExtension.TaskText,
+                    RemoteTaskFromExtension.TaskHints
+                )
+            : null;
 
         if (effectiveTask == null)
         {
@@ -771,17 +736,14 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowCheckingMessage));
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
-        _focusScoreService.StartPendingSegment(
-            taskId,
-            contextHash,
-            e.WindowTitle,
-            e.ProcessName
-        );
+        _focusScoreService.StartPendingSegment(taskId, contextHash, e.WindowTitle, e.ProcessName);
 
         if (_integrationService is { IsExtensionConnected: true })
             _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
 
-        if (IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true })
+        if (
+            IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true }
+        )
         {
             _ = ClassifyWithBrowserContextAsync(
                 taskDescription,
@@ -824,7 +786,8 @@ public partial class FocusPageViewModel : ObservableObject
             {
                 FocusScore = response.Result.Score;
                 FocusReason = response.Result.Reason;
-                MarkOverrideButtonText = FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
+                MarkOverrideButtonText =
+                    FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
@@ -1094,24 +1057,25 @@ public partial class FocusPageViewModel : ObservableObject
 
         if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
         {
-            IntegrationBlockedReason = "A task is already in progress in the browser extension. End it there first.";
+            IntegrationBlockedReason =
+                "A task is already in progress in the browser extension. End it there first.";
             return;
         }
         IntegrationBlockedReason = null;
 
         var context = string.IsNullOrWhiteSpace(StartTaskContext) ? null : StartTaskContext.Trim();
-        
+
         // Create task directly as InProgress
         var task = await _repo.AddTaskAsync(StartTaskTitle.Trim(), context);
         await _repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
-        
+
         // Clear form
         StartTaskTitle = string.Empty;
         StartTaskContext = string.Empty;
-        
+
         // Reload board which will start monitoring
         await LoadBoardAsync();
-        
+
         // Set ActiveTask
         if (InProgressTasks.Count > 0)
         {
@@ -1141,18 +1105,18 @@ public partial class FocusPageViewModel : ObservableObject
         await _taskSummaryService.ComputeAndPersistSummaryAsync(taskToEnd.TaskId);
         await _repo.SetStatusToAsync(taskToEnd.TaskId, TaskStatus.Done);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        
+
         InProgressTasks.Clear();
         ActiveTask = null;
-        
+
         StopMonitoringAndResetFocusState();
         IsMonitoring = false;
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(ShowCheckingMessage));
         RefreshDisplayInProgressTasks();
-        
+
         await RefreshTodaySummaryAsync();
-        
+
         if (_integrationService?.IsExtensionConnected == true)
         {
             await _integrationService.SendTaskEndedAsync(taskToEnd.TaskId);
@@ -1209,12 +1173,16 @@ public partial class FocusPageViewModel : ObservableObject
             return;
 
         int newScore = FocusScore >= 6 ? 2 : 9;
-        string newReason = FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
+        string newReason =
+            FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
 
         var taskId = InProgressTasks[0].TaskId;
         var taskDescription = InProgressTasks[0].Description;
         var taskContext = InProgressTasks[0].Context;
-        var contextHash = HashHelper.ComputeWindowContextHash(CurrentProcessName, CurrentWindowTitle);
+        var contextHash = HashHelper.ComputeWindowContextHash(
+            CurrentProcessName,
+            CurrentWindowTitle
+        );
         var taskContentHash = HashHelper.ComputeTaskContentHash(taskDescription, taskContext);
 
         var entry = new AlignmentCacheEntry
@@ -1223,18 +1191,18 @@ public partial class FocusPageViewModel : ObservableObject
             TaskContentHash = taskContentHash,
             Score = newScore,
             Reason = newReason,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
 
         var windowContext = new WindowContext
         {
             ContextHash = contextHash,
             ProcessName = CurrentProcessName,
-            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle)
+            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle),
         };
 
         await _alignmentCacheRepository.SaveAsync(windowContext, entry);
-        
+
         await _focusScoreService.UpdateHistoricalSegmentsAsync(taskId, contextHash, newScore);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
 
@@ -1271,14 +1239,10 @@ public partial class FocusPageViewModel : ObservableObject
         _navigationService.NavigateToTaskDetail(taskId);
     }
 
-    /// <summary>
-    /// When set, the extension has an active task and the user cannot start a local one. Shown in the UI.
-    /// </summary>
-    private string? _integrationBlockedReason;
     public string? IntegrationBlockedReason
     {
-        get => _integrationBlockedReason;
-        set => SetProperty(ref _integrationBlockedReason, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
@@ -1288,8 +1252,6 @@ public partial class FocusPageViewModel : ObservableObject
         var scorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
         await _repo.UpdateFocusScoreAsync(taskId, scorePercent);
     }
-
-    private bool HasValidFocusData() => FocusScore > 0 || !string.IsNullOrEmpty(FocusReason);
 
     private bool HasActiveTask() => InProgressTasks.Count > 0;
 
@@ -1357,19 +1319,28 @@ public partial class FocusPageViewModel : ObservableObject
             }
         );
 
-        if (_integrationService is { IsExtensionConnected: true } && hasActive && !_extensionHasActiveTask)
+        if (
+            _integrationService is { IsExtensionConnected: true }
+            && hasActive
+            && !_extensionHasActiveTask
+        )
         {
-            var classification = FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
-            _ = _integrationService.SendFocusStatusAsync(new FocusStatusPayload
-            {
-                TaskId = InProgressTasks[0].TaskId,
-                Classification = classification,
-                Reason = FocusReason,
-                Score = FocusScore,
-                FocusScorePercent = CurrentFocusScorePercent,
-                ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
-                ContextTitle = CurrentWindowTitle
-            });
+            var classification =
+                FocusScore >= 6 ? "Focused"
+                : FocusScore >= 4 ? "Unclear"
+                : "Distracted";
+            _ = _integrationService.SendFocusStatusAsync(
+                new FocusStatusPayload
+                {
+                    TaskId = InProgressTasks[0].TaskId,
+                    Classification = classification,
+                    Reason = FocusReason,
+                    Score = FocusScore,
+                    FocusScorePercent = CurrentFocusScorePercent,
+                    ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
+                    ContextTitle = CurrentWindowTitle,
+                }
+            );
         }
     }
 
@@ -1378,7 +1349,7 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void OnExtensionConnectionChanged(object? sender, bool connected)
     {
-        void updateAndMaybeSendState()
+        void UpdateAndMaybeSendState()
         {
             IsExtensionConnected = connected;
 
@@ -1401,7 +1372,11 @@ public partial class FocusPageViewModel : ObservableObject
             var task = InProgressTasks.Count > 0 ? InProgressTasks[0] : null;
             if (task != null)
             {
-                _ = _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
+                _ = _integrationService.SendTaskStartedAsync(
+                    task.TaskId,
+                    task.Description,
+                    task.Context
+                );
             }
         }
 
@@ -1409,22 +1384,29 @@ public partial class FocusPageViewModel : ObservableObject
         {
             _ = _uiDispatcher.RunOnUIThreadAsync(() =>
             {
-                updateAndMaybeSendState();
+                UpdateAndMaybeSendState();
                 return Task.CompletedTask;
             });
         }
         else
         {
-            updateAndMaybeSendState();
+            UpdateAndMaybeSendState();
         }
     }
 
     private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
     {
         _extensionHasActiveTask = true;
-        _remoteTaskStartedAtUtc = !string.IsNullOrEmpty(payload.StartedAt) && DateTime.TryParse(payload.StartedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed)
-            ? parsed.ToUniversalTime()
-            : DateTime.UtcNow;
+        _remoteTaskStartedAtUtc =
+            !string.IsNullOrEmpty(payload.StartedAt)
+            && DateTime.TryParse(
+                payload.StartedAt,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var parsed
+            )
+                ? parsed.ToUniversalTime()
+                : DateTime.UtcNow;
 
         void apply()
         {
@@ -1432,7 +1414,8 @@ public partial class FocusPageViewModel : ObservableObject
             _timeTracking.Start();
             RemoteTaskFromExtension = payload;
             RemoteTaskFocusStatus = null;
-            var initialElapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
+            var initialElapsed = (long)
+                (DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
             TaskElapsedTime = FormatElapsed(initialElapsed);
             RefreshDisplayInProgressTasks();
         }
@@ -1482,7 +1465,7 @@ public partial class FocusPageViewModel : ObservableObject
     {
         if (RemoteTaskFromExtension == null || payload.TaskId != RemoteTaskFromExtension.TaskId)
             return;
-        void apply()
+        void Apply()
         {
             RemoteTaskFocusStatus = payload;
             FocusScore = payload.Score;
@@ -1502,9 +1485,13 @@ public partial class FocusPageViewModel : ObservableObject
             RaiseFocusOverlayStateChanged();
         }
         if (_uiDispatcher != null)
-            _ = _uiDispatcher.RunOnUIThreadAsync(() => { apply(); return Task.CompletedTask; });
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Apply();
+                return Task.CompletedTask;
+            });
         else
-            apply();
+            Apply();
     }
 
     private void ClearRemoteTask()
@@ -1527,13 +1514,15 @@ public partial class FocusPageViewModel : ObservableObject
         }
         else if (RemoteTaskFromExtension != null)
         {
-            DisplayInProgressTasks.Add(new UserTask
-            {
-                TaskId = RemoteTaskFromExtension.TaskId,
-                Description = RemoteTaskFromExtension.TaskText,
-                Context = RemoteTaskFromExtension.TaskHints,
-                Status = TaskStatus.InProgress
-            });
+            DisplayInProgressTasks.Add(
+                new UserTask
+                {
+                    TaskId = RemoteTaskFromExtension.TaskId,
+                    Description = RemoteTaskFromExtension.TaskText,
+                    Context = RemoteTaskFromExtension.TaskHints,
+                    Status = TaskStatus.InProgress,
+                }
+            );
         }
         IsMonitoring = DisplayInProgressTasks.Count > 0;
         OnPropertyChanged(nameof(FocusStatusIcon));
@@ -1548,18 +1537,11 @@ public partial class FocusPageViewModel : ObservableObject
         _extensionHasActiveTask = false;
         if (_integrationService is { IsExtensionConnected: true })
         {
-            await _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
-        }
-    }
-
-    /// <summary>
-    /// Notifies the extension that the current task has ended.
-    /// </summary>
-    public async Task NotifyTaskEndedAsync(string taskId)
-    {
-        if (_integrationService is { IsExtensionConnected: true })
-        {
-            await _integrationService.SendTaskEndedAsync(taskId);
+            await _integrationService.SendTaskStartedAsync(
+                task.TaskId,
+                task.Description,
+                task.Context
+            );
         }
     }
 
@@ -1575,16 +1557,23 @@ public partial class FocusPageViewModel : ObservableObject
     {
         if (_integrationService is not { IsExtensionConnected: true })
         {
-            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                windowTitle
+            );
             return;
         }
 
         var browserContext = _integrationService.LastBrowserContext;
         if (browserContext != null && !string.IsNullOrEmpty(browserContext.Url))
         {
-            var domain = Uri.TryCreate(browserContext.Url, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri
-                ? uri.Host
-                : browserContext.Url;
+            var domain =
+                Uri.TryCreate(browserContext.Url, UriKind.Absolute, out var uri)
+                && uri.IsAbsoluteUri
+                    ? uri.Host
+                    : browserContext.Url;
             var displayTitle = $"Browser: {domain}";
 
             if (_uiDispatcher != null)
@@ -1601,11 +1590,21 @@ public partial class FocusPageViewModel : ObservableObject
             }
 
             var combinedTitle = $"{browserContext.Title} ({browserContext.Url})";
-            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, combinedTitle);
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                combinedTitle
+            );
         }
         else
         {
-            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                windowTitle
+            );
         }
     }
 }

@@ -16,7 +16,6 @@ public class WebSocketIntegrationService : IIntegrationService
     private WebSocket? _clientSocket;
     private Task? _acceptTask;
     private Task? _receiveTask;
-    private readonly object _lock = new();
     private bool _disposed;
     private BrowserContextPayload? _lastBrowserContext;
 

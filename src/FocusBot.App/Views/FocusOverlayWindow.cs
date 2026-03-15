@@ -40,7 +40,6 @@ public sealed class FocusOverlayWindow : IDisposable
 
     private bool _hasActiveTask;
     private int _focusScorePercent;
-    private FocusStatus _focusStatus = FocusStatus.Neutral;
     private FocusStatus? _previousStatus; // Track previous status to detect changes
     private Color _currentColor = ColorNeutral;
     private bool _isHighlighted; // True when showing glow effect
@@ -49,13 +48,11 @@ public sealed class FocusOverlayWindow : IDisposable
 
     private bool _isHovering; // True when mouse is over the overlay
     private bool _isTrackingMouse; // True when TrackMouseEvent is active
-    private bool _isTaskPaused; // Pause state from ViewModel
 
     private readonly INavigationService? _navigationService;
 
     // Win32 constants
     private const uint WS_POPUP = 0x80000000;
-    private const uint WS_VISIBLE = 0x10000000;
     private const uint WS_EX_LAYERED = 0x00080000;
     private const uint WS_EX_TOPMOST = 0x00000008;
     private const uint WS_EX_TOOLWINDOW = 0x00000080;
@@ -149,13 +146,11 @@ public sealed class FocusOverlayWindow : IDisposable
     {
         _hasActiveTask = hasActiveTask;
         _focusScorePercent = focusScorePercent;
-        _isTaskPaused = isTaskPaused;
 
         // Check if status actually changed (and we have a previous status to compare)
         var statusChanged = _previousStatus.HasValue && _previousStatus.Value != status && hasActiveTask;
         _previousStatus = status;
 
-        _focusStatus = status;
         _currentColor = status switch
         {
             FocusStatus.Focused => ColorFocused,

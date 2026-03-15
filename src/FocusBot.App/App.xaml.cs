@@ -96,7 +96,7 @@ namespace FocusBot.App
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
             _integrationService = _services!.GetRequiredService<IIntegrationService>();
-            _window = new MainWindow(_viewModel, navigationService, _integrationService, _services!);
+            _window = new MainWindow(_viewModel, navigationService);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
 

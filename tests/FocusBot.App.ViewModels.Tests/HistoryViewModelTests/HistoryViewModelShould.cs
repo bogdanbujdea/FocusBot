@@ -1,4 +1,3 @@
-using FocusBot.App.ViewModels;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -15,7 +14,8 @@ public class HistoryViewModelShould
         int? focusScorePercent = 85,
         long focusedSeconds = 3600,
         long distractedSeconds = 300,
-        int distractionCount = 2)
+        int distractionCount = 2
+    )
     {
         return new UserTask
         {
@@ -27,7 +27,7 @@ public class HistoryViewModelShould
             FocusedSeconds = focusedSeconds,
             DistractedSeconds = distractedSeconds,
             DistractionCount = distractionCount,
-            TotalElapsedSeconds = focusedSeconds + distractedSeconds
+            TotalElapsedSeconds = focusedSeconds + distractedSeconds,
         };
     }
 
@@ -38,7 +38,7 @@ public class HistoryViewModelShould
         var tasks = new List<UserTask>
         {
             CreateDoneTask("1", "Task one", now),
-            CreateDoneTask("2", "Task two", now.AddHours(-1))
+            CreateDoneTask("2", "Task two", now.AddHours(-1)),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
@@ -65,7 +65,7 @@ public class HistoryViewModelShould
         var tasks = new List<UserTask>
         {
             CreateDoneTask("1", "Today task", todayUtc),
-            CreateDoneTask("2", "Yesterday task", yesterdayUtc)
+            CreateDoneTask("2", "Yesterday task", yesterdayUtc),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
@@ -94,7 +94,7 @@ public class HistoryViewModelShould
         var tasks = new List<UserTask>
         {
             CreateDoneTask("1", "Today", todayUtc),
-            CreateDoneTask("2", "Old", oldUtc)
+            CreateDoneTask("2", "Old", oldUtc),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
@@ -118,8 +118,16 @@ public class HistoryViewModelShould
         var tenDaysAgo = todayLocal.AddDays(-10);
         var tasks = new List<UserTask>
         {
-            CreateDoneTask("1", "In range", TimeZoneInfo.ConvertTimeToUtc(threeDaysAgo.AddHours(12), tz)),
-            CreateDoneTask("2", "Out of range", TimeZoneInfo.ConvertTimeToUtc(tenDaysAgo.AddHours(12), tz))
+            CreateDoneTask(
+                "1",
+                "In range",
+                TimeZoneInfo.ConvertTimeToUtc(threeDaysAgo.AddHours(12), tz)
+            ),
+            CreateDoneTask(
+                "2",
+                "Out of range",
+                TimeZoneInfo.ConvertTimeToUtc(tenDaysAgo.AddHours(12), tz)
+            ),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
@@ -141,8 +149,16 @@ public class HistoryViewModelShould
         var fortyDaysAgo = todayLocal.AddDays(-40);
         var tasks = new List<UserTask>
         {
-            CreateDoneTask("1", "In range", TimeZoneInfo.ConvertTimeToUtc(twentyDaysAgo.AddHours(12), tz)),
-            CreateDoneTask("2", "Out of range", TimeZoneInfo.ConvertTimeToUtc(fortyDaysAgo.AddHours(12), tz))
+            CreateDoneTask(
+                "1",
+                "In range",
+                TimeZoneInfo.ConvertTimeToUtc(twentyDaysAgo.AddHours(12), tz)
+            ),
+            CreateDoneTask(
+                "2",
+                "Out of range",
+                TimeZoneInfo.ConvertTimeToUtc(fortyDaysAgo.AddHours(12), tz)
+            ),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
@@ -161,8 +177,24 @@ public class HistoryViewModelShould
         var now = DateTime.UtcNow;
         var tasks = new List<UserTask>
         {
-            CreateDoneTask("1", "A", now, focusScorePercent: 80, focusedSeconds: 3600, distractedSeconds: 600, distractionCount: 3),
-            CreateDoneTask("2", "B", now.AddMinutes(-30), focusScorePercent: 100, focusedSeconds: 1800, distractedSeconds: 0, distractionCount: 0)
+            CreateDoneTask(
+                "1",
+                "A",
+                now,
+                focusScorePercent: 80,
+                focusedSeconds: 3600,
+                distractedSeconds: 600,
+                distractionCount: 3
+            ),
+            CreateDoneTask(
+                "2",
+                "B",
+                now.AddMinutes(-30),
+                focusScorePercent: 100,
+                focusedSeconds: 1800,
+                distractedSeconds: 0,
+                distractionCount: 0
+            ),
         };
         var repoMock = new Mock<ITaskRepository>();
         repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);

@@ -1,4 +1,3 @@
-using FocusBot.Core.Configuration;
 using LlmTornado.Code;
 
 namespace FocusBot.Infrastructure.Configuration;
@@ -8,11 +7,12 @@ namespace FocusBot.Infrastructure.Configuration;
 /// </summary>
 public static class LlmProviderConfig
 {
-    public static LLmProviders ToLlmProvider(string providerId) => providerId switch
-    {
-        "OpenAi" => LLmProviders.OpenAi,
-        "Anthropic" => LLmProviders.Anthropic,
-        "Google" => LLmProviders.Google,
-        _ => LLmProviders.OpenAi,
-    };
+    public static LLmProviders ToLlmProvider(string providerId) =>
+        providerId switch
+        {
+            "OpenAi" => LLmProviders.OpenAi,
+            "Anthropic" => LLmProviders.Anthropic,
+            "Google" => LLmProviders.Google,
+            _ => LLmProviders.OpenAi,
+        };
 }

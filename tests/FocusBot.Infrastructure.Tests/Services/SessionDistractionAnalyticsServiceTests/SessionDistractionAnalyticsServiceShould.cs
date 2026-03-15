@@ -1,4 +1,3 @@
-using FocusBot.Core.DTOs;
 using FocusBot.Infrastructure.Data;
 using FocusBot.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -39,22 +38,26 @@ public class SessionDistractionAnalyticsServiceShould
         // Arrange
         using var context = CreateContext();
         var sessionId = Guid.NewGuid();
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "App1",
-            OccurredAtUtc = DateTime.UtcNow,
-            DistractedDurationSecondsAtEmit = 6
-        });
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "App2",
-            OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
-            DistractedDurationSecondsAtEmit = 7
-        });
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "App1",
+                OccurredAtUtc = DateTime.UtcNow,
+                DistractedDurationSecondsAtEmit = 6,
+            }
+        );
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "App2",
+                OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
+                DistractedDurationSecondsAtEmit = 7,
+            }
+        );
         await context.SaveChangesAsync();
         var service = new SessionDistractionAnalyticsService(context);
 
@@ -73,22 +76,26 @@ public class SessionDistractionAnalyticsServiceShould
         var sessionId = Guid.NewGuid();
         var otherSessionId = Guid.NewGuid();
 
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "App1",
-            OccurredAtUtc = DateTime.UtcNow,
-            DistractedDurationSecondsAtEmit = 6
-        });
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = otherSessionId,
-            ProcessName = "App1",
-            OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
-            DistractedDurationSecondsAtEmit = 8
-        });
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "App1",
+                OccurredAtUtc = DateTime.UtcNow,
+                DistractedDurationSecondsAtEmit = 6,
+            }
+        );
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = otherSessionId,
+                ProcessName = "App1",
+                OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
+                DistractedDurationSecondsAtEmit = 8,
+            }
+        );
         await context.SaveChangesAsync();
         var service = new SessionDistractionAnalyticsService(context);
 
@@ -108,45 +115,53 @@ public class SessionDistractionAnalyticsServiceShould
         var sessionId = Guid.NewGuid();
 
         // AppA: total duration 20 (2 events)
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "AppA",
-            OccurredAtUtc = DateTime.UtcNow,
-            DistractedDurationSecondsAtEmit = 10
-        });
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "AppA",
-            OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
-            DistractedDurationSecondsAtEmit = 10
-        });
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "AppA",
+                OccurredAtUtc = DateTime.UtcNow,
+                DistractedDurationSecondsAtEmit = 10,
+            }
+        );
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "AppA",
+                OccurredAtUtc = DateTime.UtcNow.AddSeconds(10),
+                DistractedDurationSecondsAtEmit = 10,
+            }
+        );
 
         // AppB: total duration 15 (3 events)
         for (var i = 0; i < 3; i++)
         {
-            context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-            {
-                TaskId = "task-1",
-                SessionId = sessionId,
-                ProcessName = "AppB",
-                OccurredAtUtc = DateTime.UtcNow.AddSeconds(20 + i),
-                DistractedDurationSecondsAtEmit = 5
-            });
+            context.DistractionEvents.Add(
+                new Core.Entities.DistractionEvent
+                {
+                    TaskId = "task-1",
+                    SessionId = sessionId,
+                    ProcessName = "AppB",
+                    OccurredAtUtc = DateTime.UtcNow.AddSeconds(20 + i),
+                    DistractedDurationSecondsAtEmit = 5,
+                }
+            );
         }
 
         // AppC: duration 20 but fewer events than AppA to exercise tie-breakers
-        context.DistractionEvents.Add(new Core.Entities.DistractionEvent
-        {
-            TaskId = "task-1",
-            SessionId = sessionId,
-            ProcessName = "AppC",
-            OccurredAtUtc = DateTime.UtcNow.AddSeconds(40),
-            DistractedDurationSecondsAtEmit = 20
-        });
+        context.DistractionEvents.Add(
+            new Core.Entities.DistractionEvent
+            {
+                TaskId = "task-1",
+                SessionId = sessionId,
+                ProcessName = "AppC",
+                OccurredAtUtc = DateTime.UtcNow.AddSeconds(40),
+                DistractedDurationSecondsAtEmit = 20,
+            }
+        );
 
         await context.SaveChangesAsync();
         var service = new SessionDistractionAnalyticsService(context);
@@ -159,4 +174,3 @@ public class SessionDistractionAnalyticsServiceShould
         summary.TopApps[0].DistractedDurationSeconds.Should().Be(20);
     }
 }
-

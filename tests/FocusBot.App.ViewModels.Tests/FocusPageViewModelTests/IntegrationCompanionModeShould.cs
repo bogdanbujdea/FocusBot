@@ -100,7 +100,6 @@ public class IntegrationCompanionModeShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
@@ -115,7 +114,6 @@ public class IntegrationCompanionModeShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             new Mock<ITaskSummaryService>().Object,

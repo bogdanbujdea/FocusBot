@@ -23,7 +23,6 @@ public class WindowElapsedTimeShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
@@ -38,7 +37,6 @@ public class WindowElapsedTimeShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             taskSummaryMock.Object);
@@ -75,7 +73,6 @@ public class WindowElapsedTimeShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
@@ -90,7 +87,6 @@ public class WindowElapsedTimeShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             taskSummaryMock.Object);
