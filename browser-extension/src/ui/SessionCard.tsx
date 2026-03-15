@@ -88,7 +88,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
             ? "distracting"
             : (active?.currentVisit?.classification ?? "neutral");
   const displayStatus = active
-    ? (isPaused ? "Paused" : currentState)
+    ? (isPaused ? (active.pausedBy === "idle" ? "Paused (idle)" : "Paused") : currentState)
     : "Starting...";
   const displayStatusClass = active ? statusClass : "neutral";
 

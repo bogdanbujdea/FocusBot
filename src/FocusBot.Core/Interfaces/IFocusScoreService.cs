@@ -11,7 +11,11 @@ public interface IFocusScoreService
     void StartPendingSegment(string taskId, string contextHash,
         string? windowTitle, string? processName);
     void UpdatePendingSegmentScore(int alignmentScore);
-    void PauseCurrentSegment();
+    /// <summary>
+    /// Pauses the current segment and adds its duration to the segment total.
+    /// When <paramref name="backdateBy"/> is set (e.g. idle threshold), the duration added is reduced by that amount to avoid over-counting idle time.
+    /// </summary>
+    void PauseCurrentSegment(TimeSpan? backdateBy = null);
     int CalculateFocusScorePercent(string taskId);
     int GetCurrentSegmentDurationSeconds();
     bool HasRealScore { get; }

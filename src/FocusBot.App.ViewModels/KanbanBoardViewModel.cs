@@ -669,7 +669,21 @@ public partial class KanbanBoardViewModel : ObservableObject
         if (InProgressTasks.Count == 0)
             return;
 
-        _focusScoreService.PauseCurrentSegment();
+        var backdateSeconds = (int)_idleDetection.IdleThreshold.TotalSeconds;
+        _taskElapsedSeconds = Math.Max(0L, _taskElapsedSeconds - backdateSeconds);
+        _windowElapsedSeconds = Math.Max(0L, _windowElapsedSeconds - backdateSeconds);
+        var key = GetCurrentWindowKey();
+        if (!string.IsNullOrEmpty(key))
+        {
+            var current = _perWindowTotalSeconds.GetValueOrDefault(key, 0L);
+            _perWindowTotalSeconds[key] = Math.Max(0L, current - backdateSeconds);
+        }
+
+        TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+        WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
+        WindowTotalElapsedTime = FormatElapsed(_perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L));
+
+        _focusScoreService.PauseCurrentSegment(_idleDetection.IdleThreshold);
         _timeTracking.Stop();
         _windowMonitor.Stop();
     }

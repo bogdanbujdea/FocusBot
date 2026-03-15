@@ -708,7 +708,12 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     return { ok: true, data: latest ?? session };
   });
 
-const pauseSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+const IDLE_DETECTION_INTERVAL_SECONDS = 300;
+
+const pauseSession = async (
+  reason: "user" | "idle" = "user",
+  effectivePausedAt?: string
+): Promise<RuntimeResponse<FocusSession>> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session) {
@@ -718,8 +723,17 @@ const pauseSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       return { ok: false, error: "Session is already paused." };
     }
 
-    const pausedAt = nowIso();
+    let pausedAt: string;
+    if (reason === "idle" && effectivePausedAt) {
+      const enteredAt = session.currentVisit?.enteredAt;
+      pausedAt =
+        enteredAt && effectivePausedAt < enteredAt ? enteredAt : effectivePausedAt;
+    } else {
+      pausedAt = nowIso();
+    }
+
     session.pausedAt = pausedAt;
+    session.pausedBy = reason;
     const tabIdToHide = session.currentVisit?.tabId;
     finalizeCurrentVisit(session, pausedAt);
     if (tabIdToHide !== undefined) {
@@ -745,6 +759,7 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     const currentPauseSeconds = secondsBetween(session.pausedAt, now);
     session.totalPausedSeconds = (session.totalPausedSeconds ?? 0) + currentPauseSeconds;
     delete session.pausedAt;
+    delete session.pausedBy;
     await saveActiveSession(session);
     await broadcastStateUpdate();
     await startBadgeInterval();
@@ -928,4 +943,27 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.runtime.onInstalled.addListener(async () => {
   await startBadgeInterval();
   await captureCurrentActiveTab();
+});
+
+chrome.idle.setDetectionInterval(IDLE_DETECTION_INTERVAL_SECONDS);
+
+chrome.idle.onStateChanged.addListener((newState: chrome.IdleState) => {
+  if (newState === "idle" || newState === "locked") {
+    void runExclusive(async () => {
+      const session = await loadActiveSession();
+      if (!session || session.pausedAt) return;
+      const effectivePausedAt = new Date(
+        Date.now() - IDLE_DETECTION_INTERVAL_SECONDS * 1000
+      ).toISOString();
+      await pauseSession("idle", effectivePausedAt);
+    });
+    return;
+  }
+  if (newState === "active") {
+    void runExclusive(async () => {
+      const session = await loadActiveSession();
+      if (!session?.pausedAt || session.pausedBy !== "idle") return;
+      await resumeSession();
+    });
+  }
 });

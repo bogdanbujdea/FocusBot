@@ -12,7 +12,7 @@ export default defineManifest({
     48: "icons/icon-default-48.png",
     96: "icons/icon-default-96.png"
   },
-  permissions: ["storage", "tabs", "sidePanel", "alarms"],
+  permissions: ["storage", "tabs", "sidePanel", "alarms", "idle"],
   host_permissions: ["https://api.openai.com/*", "<all_urls>"],
   action: {
     default_title: "Focus Bot",

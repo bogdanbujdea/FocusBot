@@ -96,6 +96,7 @@ interface FocusSession {
   currentVisit?: InProgressVisit;  // Current page being tracked
   pausedAt?: string;           // When set, session is paused (no classification, overlay hidden)
   totalPausedSeconds?: number; // Cumulative seconds paused (supports multiple pause/resume cycles)
+  pausedBy?: "user" | "idle"; // Who triggered the pause; only "idle" triggers auto-resume when user becomes active
 }
 ```
 
@@ -332,10 +333,10 @@ All state mutations are serialized via `runExclusive()` promise queue:
 
 ### Pausing / Resuming
 
-The user can pause an active session and resume it later.
+The user can pause an active session and resume it later. The session is also **paused automatically when the system is idle** (no input for 5 minutes, or screen locked) and **resumed automatically when the user becomes active again**, using the `chrome.idle` API. Idle-based pause/resume cannot be disabled.
 
-- **When paused:** `pausedAt` is set to the pause timestamp. No new page classification runs (tab events are ignored). The distraction overlay is hidden. Elapsed time and session metrics freeze (time spent paused is excluded from totals via `totalPausedSeconds`).
-- **Resume:** Clears `pausedAt`, adds the current pause interval to `totalPausedSeconds`, then re-classifies the current tab.
+- **When paused:** `pausedAt` is set to the pause timestamp; `pausedBy` is set to `"user"` (manual) or `"idle"` (automatic). No new page classification runs (tab events are ignored). The distraction overlay is hidden. Elapsed time and session metrics freeze (time spent paused is excluded from totals via `totalPausedSeconds`).
+- **Resume:** Clears `pausedAt` and `pausedBy`, adds the current pause interval to `totalPausedSeconds`, then re-classifies the current tab. Only sessions paused by idle (`pausedBy === "idle"`) are auto-resumed when the user becomes active; manually paused sessions stay paused.
 - **Multiple pause/resume cycles** are supported; `totalPausedSeconds` accumulates all paused time so that `totalSessionSeconds` and elapsed display reflect only active time.
 
 ### Ending Session
@@ -420,7 +421,7 @@ Displays current session status and controls:
 - Start session form when no session is active
 
 **Status Badges:**
-- "Paused" - `session.pausedAt` is set
+- "Paused" or "Paused (idle)" - `session.pausedAt` is set; "Paused (idle)" when `session.pausedBy === "idle"`
 - "Analyzing page..." - `visitState: "classifying"`
 - "Aligned" - `classification: "aligned"`
 - "Distracting" - `classification: "distracting"`

@@ -53,6 +53,8 @@ export interface FocusSession {
   pausedAt?: string;
   /** Cumulative seconds the session has been paused (supports multiple pause/resume cycles). */
   totalPausedSeconds?: number;
+  /** When paused: who triggered the pause; only "idle" triggers auto-resume when user becomes active. */
+  pausedBy?: "user" | "idle";
 }
 
 export interface InProgressVisit {
