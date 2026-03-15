@@ -888,6 +888,7 @@
                                  automation:AutomationProperties.Name="Task context"
                                  Text="{x:Bind ViewModel.NewTaskContext, Mode=TwoWay}"
                                  PlaceholderText="Context (optional)"
+                                 MaxLength="200"
                                  CornerRadius="{StaticResource FbCornerRadiusSmall}"
                                  KeyDown="AddTaskPopup_KeyDown"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -937,6 +938,7 @@
                                  automation:AutomationProperties.Name="Edit task context"
                                  Text="{x:Bind ViewModel.EditTaskContext, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  PlaceholderText="Context (optional)"
+                                 MaxLength="200"
                                  CornerRadius="{StaticResource FbCornerRadiusSmall}"
                                  KeyDown="EditTaskPopup_KeyDown"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">

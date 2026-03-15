@@ -4,8 +4,8 @@ import { loadClassificationCache, saveClassificationCache } from "./storage";
 const cacheKey = (taskText: string, url: string): string =>
   `${taskText.trim().toLowerCase()}::${url.trim().toLowerCase()}`;
 
-const classifierPrompt = (taskText: string, url: string, title: string): string =>
-  [
+const classifierPrompt = (taskText: string, url: string, title: string, taskHints?: string): string => {
+  const lines = [
     "You classify whether a browser page is aligned with the user's stated task.",
     "The task can be any kind of work (e.g. marketing, research, creative), a break, or entertainment. If the user's task is to use this site or this type of content (including social, streaming, entertainment), classify as aligned. Do not treat sites as distracting just because they are social or entertainment—only when they do not match the task.",
     "Return strict JSON only with keys: classification, confidence, reason.",
@@ -13,10 +13,18 @@ const classifierPrompt = (taskText: string, url: string, title: string): string 
     "confidence must be a number from 0 to 1.",
     'reason: when distracting, only the reason clause that follows "because" (e.g. "it is a social feed unrelated to your task", not "this page is not aligned because..."); when aligned, a brief explanation.',
     "",
-    `Task: ${taskText}`,
-    `URL: ${url}`,
-    `Title: ${title || "N/A"}`
-  ].join("\n");
+    `Task: ${taskText}`
+  ];
+  
+  if (taskHints) {
+    lines.push(`Context: ${taskHints}`);
+  }
+  
+  lines.push(`URL: ${url}`);
+  lines.push(`Title: ${title || "N/A"}`);
+  
+  return lines.join("\n");
+};
 
 const parseClassification = (raw: string): ClassificationResult => {
   try {
@@ -41,8 +49,8 @@ const parseClassification = (raw: string): ClassificationResult => {
   };
 };
 
-const desktopClassifierPrompt = (taskText: string, processName: string, windowTitle: string): string =>
-  [
+const desktopClassifierPrompt = (taskText: string, processName: string, windowTitle: string, taskHints?: string): string => {
+  const lines = [
     "You classify whether a desktop application is aligned with the user's stated task.",
     "The task can be any kind of work (e.g. coding, marketing, research, creative), a break, or entertainment.",
     "Return strict JSON only with keys: classification, confidence, reason.",
@@ -50,10 +58,18 @@ const desktopClassifierPrompt = (taskText: string, processName: string, windowTi
     "confidence must be a number from 0 to 1.",
     'reason: when distracting, only the reason clause that follows "because"; when aligned, a brief explanation.',
     "",
-    `Task: ${taskText}`,
-    `Application: ${processName}`,
-    `Window Title: ${windowTitle || "N/A"}`
-  ].join("\n");
+    `Task: ${taskText}`
+  ];
+  
+  if (taskHints) {
+    lines.push(`Context: ${taskHints}`);
+  }
+  
+  lines.push(`Application: ${processName}`);
+  lines.push(`Window Title: ${windowTitle || "N/A"}`);
+  
+  return lines.join("\n");
+};
 
 const desktopCacheKey = (taskText: string, processName: string, windowTitle: string): string =>
   `${taskText.trim().toLowerCase()}::desktop::${processName.trim().toLowerCase()}::${windowTitle.trim().toLowerCase()}`;
@@ -63,6 +79,7 @@ export const classifyDesktopApp = async (
   taskText: string,
   processName: string,
   windowTitle: string,
+  taskHints?: string,
   timeoutMs = 8000
 ): Promise<ClassificationResult> => {
   if (!settings.openAiApiKey.trim()) {
@@ -103,7 +120,7 @@ export const classifyDesktopApp = async (
           },
           {
             role: "user",
-            content: desktopClassifierPrompt(taskText, processName, windowTitle)
+            content: desktopClassifierPrompt(taskText, processName, windowTitle, taskHints)
           }
         ]
       }),
@@ -144,7 +161,8 @@ export const classifyPage = async (
   taskText: string,
   url: string,
   title: string,
-  timeoutMs = 8000
+  timeoutMs = 8000,
+  taskHints?: string
 ): Promise<ClassificationResult> => {
   if (!settings.openAiApiKey.trim()) {
     throw new Error("OpenAI API key is required.");
@@ -184,7 +202,7 @@ export const classifyPage = async (
           },
           {
             role: "user",
-            content: classifierPrompt(taskText, url, title)
+            content: classifierPrompt(taskText, url, title, taskHints)
           }
         ]
       }),

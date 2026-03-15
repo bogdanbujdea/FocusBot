@@ -193,7 +193,7 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
 
       const settings = await loadSettings();
       try {
-        const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle);
+        const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle, session.taskHints);
 
         updateDesktopContext({
           processName: payload.processName,
@@ -473,7 +473,7 @@ const classifyWithPolicy = async (
     try {
       return {
         ok: true,
-        result: await classifyPage(settings, session.taskText, taskUrl, title, 8000)
+        result: await classifyPage(settings, session.taskText, taskUrl, title, 8000, session.taskHints)
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Classification failed.";
@@ -656,7 +656,7 @@ const pushBrowserContextToApp = async (): Promise<void> => {
   }
 };
 
-const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSession>> =>
+const startSession = async (taskText: string, taskHints?: string): Promise<RuntimeResponse<FocusSession>> =>
   runExclusive(async () => {
     const trimmedTask = taskText.trim();
     if (!trimmedTask) {
@@ -681,6 +681,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     const session: FocusSession = {
       sessionId: createId(),
       taskText: trimmedTask,
+      taskHints: taskHints?.trim() || undefined,
       startedAt: nowIso(),
       visits: []
     };
@@ -692,7 +693,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     await broadcastStateUpdate();
 
     if (isConnected()) {
-      sendTaskStarted(session.sessionId, session.taskText, undefined, session.startedAt);
+      sendTaskStarted(session.sessionId, session.taskText, session.taskHints, session.startedAt);
       const summary = calculateLiveSummary(latest ?? session);
       sendFocusStatus({
         taskId: (latest ?? session).sessionId,
@@ -815,7 +816,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "GET_STATE":
       return { ok: true, data: await toRuntimeState() };
     case "START_SESSION":
-      return startSession(request.taskText);
+      return startSession(request.taskText, request.taskHints);
     case "END_SESSION":
       return endSession();
     case "PAUSE_SESSION":

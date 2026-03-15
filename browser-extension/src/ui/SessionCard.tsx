@@ -34,6 +34,7 @@ const classificationToLabel = (
 
 export const SessionCard = ({ state, compact = false, onChanged, integration }: SessionCardProps): JSX.Element => {
   const [taskText, setTaskText] = useState("");
+  const [taskHints, setTaskHints] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [optimisticSession, setOptimisticSession] = useState<{ taskText: string; startedAt: string } | null>(null);
@@ -95,7 +96,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
   const startSession = async (): Promise<void> => {
     setBusy(true);
     setError("");
-    const response = await sendRuntimeRequest({ type: "START_SESSION", taskText });
+    const response = await sendRuntimeRequest({ type: "START_SESSION", taskText, taskHints: taskHints.trim() || undefined });
     if (!response.ok) {
       setError(response.error ?? "Unable to start session.");
       setBusy(false);
@@ -104,6 +105,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
 
     setOptimisticSession({ taskText: taskText.trim(), startedAt: new Date().toISOString() });
     setTaskText("");
+    setTaskHints("");
     await onChanged();
     setBusy(false);
   };
@@ -239,6 +241,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
       ) : (
         <div className="stack">
           <label htmlFor="task-input" className="label">
+            Task
           </label>
           <textarea
             id="task-input"
@@ -246,6 +249,20 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
             value={taskText}
             onChange={(event) => setTaskText(event.target.value)}
             rows={compact ? 3 : 4}
+          />
+          <label htmlFor="context-input" className="label">
+            Context (optional)
+          </label>
+          <p className="muted" style={{ fontSize: "0.85em", marginTop: "-8px", marginBottom: "8px" }}>
+            Context helps the AI understand which apps and websites are aligned with your task.
+          </p>
+          <textarea
+            id="context-input"
+            placeholder="e.g. Outlook is work email, YouTube for tutorials"
+            value={taskHints}
+            onChange={(event) => setTaskHints(event.target.value.slice(0, 200))}
+            rows={2}
+            maxLength={200}
           />
           <button disabled={busy || !taskText.trim()} onClick={() => void startSession()}>
             Start Focus Session

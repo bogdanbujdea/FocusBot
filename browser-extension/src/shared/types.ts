@@ -44,6 +44,7 @@ export interface SessionSummary {
 export interface FocusSession {
   sessionId: string;
   taskText: string;
+  taskHints?: string;
   startedAt: string;
   endedAt?: string;
   visits: PageVisit[];
@@ -117,7 +118,7 @@ export interface RuntimeState {
 
 export type RuntimeRequest =
   | { type: "GET_STATE" }
-  | { type: "START_SESSION"; taskText: string }
+  | { type: "START_SESSION"; taskText: string; taskHints?: string }
   | { type: "END_SESSION" }
   | { type: "PAUSE_SESSION" }
   | { type: "RESUME_SESSION" }

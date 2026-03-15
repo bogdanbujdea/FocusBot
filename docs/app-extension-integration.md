@@ -40,7 +40,7 @@ This document describes the integration between the FocusBot Windows desktop app
 ## Shared Task Behavior
 
 - **One shared task:** Only one task is active across app and extension. Either the app or the extension can start it.
-- **Display on the app:** If the task was started in the extension, the app shows it in the **In Progress** column as a synthetic task (same card style as local tasks), built from `RemoteTaskFromExtension` and rendered via `DisplayInProgressTasks`. The status bar above the Kanban (app/window line and focus classification) appears and behaves the same as for an app-started task.
+- **Display on the app:** If the task was started in the extension, the app shows it as the **active task** (same card style as local tasks), built from `RemoteTaskFromExtension` and rendered via `DisplayInProgressTasks`. The status bar (app/window line and focus classification) appears and behaves the same as for an app-started task.
 - **Display on the extension:** If the task was started in the app, the extension shows it as the “leader” task (e.g. in the session card) with the app’s task id and text; the extension does not create a separate session id for it.
 - **Conflict prevention:** Starting a new task is blocked if the other side already has an active task. On the app, the user sees `IntegrationBlockedReason` (e.g. a message that the extension has an active task and they must end it first). On the extension, starting a session is blocked when `leaderTaskId` is set (app has the task).
 - **Conflict on connect:** If both have an active task when the extension connects (e.g. app had a task and extension had a session while disconnected), the **app wins**: the extension clears its session and adopts the app’s task as the leader.
@@ -48,9 +48,9 @@ This document describes the integration between the FocusBot Windows desktop app
 
 ---
 
-## Status Bar (Focus Status) Above the Kanban
+## Status Bar (Focus Status)
 
-The block above the Kanban board shows the **current app/window** and **focus status**. It behaves the same whether the task was started in the app or in the extension.
+The status bar shows the **current app/window** and **focus status**. It behaves the same whether the task was started in the app or in the extension.
 
 - **Visibility:** The whole block (window info line + colored bar) is visible when `IsMonitoring` is true. The app sets `IsMonitoring = DisplayInProgressTasks.Count > 0` in `RefreshDisplayInProgressTasks`, so the bar appears whenever there is at least one in-progress task (local or remote). The colored bar’s visibility is also tied to `IsMonitoring` (not to AI configuration), so extension-started tasks always show the bar.
 
@@ -81,7 +81,7 @@ Exchanged when the extension connects. Used to sync whether either side has an a
 
 **Behavior:**
 
-- **Extension → App:** The app handles the payload in the WebSocket layer and raises events. If `hasActiveTask` is true and `taskText` is non-empty, the app treats this as a remote task: sets `RemoteTaskFromExtension` (from payload), sets `_extensionHasActiveTask`, starts window monitor and time tracking, calls `RefreshDisplayInProgressTasks` so the task appears in the In Progress column, and can forward desktop foreground to the extension. If the extension had no task, the app just records connection state.
+- **Extension → App:** The app handles the payload in the WebSocket layer and raises events. If `hasActiveTask` is true and `taskText` is non-empty, the app treats this as a remote task: sets `RemoteTaskFromExtension` (from payload), sets `_extensionHasActiveTask`, starts window monitor and time tracking, calls `RefreshDisplayInProgressTasks` so the task appears as the active task, and can forward desktop foreground to the extension. If the extension had no task, the app just records connection state.
 - **App → Extension:** The app sends a handshake with its own state. If the app has an active task, it sends `hasActiveTask: true` and task details; the extension sets `leaderTaskId` / `leaderTaskText` and shows the app’s task (e.g. in the session card). If the app has no task, it sends `hasActiveTask: false`. If the extension had a session and the app has a task, the extension clears its session (app wins) and shows the app’s task.
 
 ### TASK_STARTED
@@ -174,7 +174,7 @@ Sent by the **extension** to the **app** whenever the active browser tab URL or 
 ### Extension connects after app is already running
 
 1. Extension opens WebSocket, then sends **HANDSHAKE** with its current session (if any): `hasActiveTask`, `taskId`, `taskText`, `taskHints`.
-2. App receives **HANDSHAKE**: if extension has `hasActiveTask: true` and non-empty `taskText`, app sets `RemoteTaskFromExtension`, starts window monitor and time tracking, and shows that task in the In Progress column via `DisplayInProgressTasks`; status bar appears and classification runs for the current window.
+2. App receives **HANDSHAKE**: if extension has `hasActiveTask: true` and non-empty `taskText`, app sets `RemoteTaskFromExtension`, starts window monitor and time tracking, and shows that task as the active task via `DisplayInProgressTasks`; status bar appears and classification runs for the current window.
 3. App sends **HANDSHAKE** with its own state. Extension updates leader task (`leaderTaskId`, `leaderTaskText`). If both had tasks, extension clears its session (app wins) and shows the app’s task.
 4. Extension sends **BROWSER_CONTEXT** with the current tab so the app has `LastBrowserContext` immediately for classification when a browser window is in the foreground.
 

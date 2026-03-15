@@ -34,7 +34,8 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
      ▼             ▼             ▼
 ┌─────────┐  ┌──────────┐  ┌──────────────┐
 │ Storage │  │Classifier│  │ Content      │
-│(IndexDB)│  │ (OpenAI) │  │ Script       │
+│ (chrome │  │ (OpenAI) │  │ Script       │
+│.storage)│  │          │  │              │
 └─────────┘  └──────────┘  └──────────────┘
 ```
 
@@ -55,7 +56,7 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
 3. **Shared Services**
    - `classifier.ts`: OpenAI API integration with caching and retry logic
    - `runtime.ts`: Message passing between UI and background
-   - `storage.ts`: IndexedDB persistence layer
+   - `storage.ts`: chrome.storage.local persistence layer
    - `analytics.ts`: Focus metrics aggregation
    - `metrics.ts`: Session summary calculations
 
@@ -70,7 +71,7 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
 
 ### Runtime State Structure
 
-All state is stored in IndexedDB and managed through `RuntimeState`:
+All state is stored in chrome.storage.local and managed through `RuntimeState`:
 
 ```typescript
 interface RuntimeState {
@@ -453,13 +454,13 @@ Configuration:
 
 ## Storage
 
-### IndexedDB Schema
+### chrome.storage.local Schema
 
 **Stored Objects:**
 
 | Key | Type | Purpose |
 |-----|------|---------|
-| `focusbot.settings` | Settings | User configuration |
+| `focusbot.settings` | Settings | User configuration (including API key) |
 | `focusbot.activeSession` | FocusSession | Current session (if any) |
 | `focusbot.sessions` | FocusSession[] | Historical sessions |
 | `focusbot.classificationCache` | Record<string, CacheEntry> | Page classification cache |
@@ -468,7 +469,10 @@ Configuration:
 
 ### Data Persistence
 
-- All data is stored locally in IndexedDB
+- All data is stored locally in chrome.storage.local
+- API key is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions)
+- API key is not encrypted at rest; the browser has no DPAPI equivalent
+- This is the standard "as safe as the platform allows" approach for BYOK (bring your own key)
 - No cloud sync
 - No telemetry
 - No data shared beyond API calls to OpenAI
@@ -569,7 +573,7 @@ In the background service worker DevTools (chrome://extensions → Service Worke
 2. **Cache never expires** - User must manually clear extension data to reset cache
 3. **Single session only** - Only one active session per browser profile
 4. **No background persistence** - Service worker may unload; background script restarts on next event
-5. **API key in client** - API key is obfuscated but not truly secure (for BYOK mode only)
+5. **API key stored in client** - API key is stored in chrome.storage.local and is not encrypted at rest (for BYOK mode only). Only the extension can access it; web pages and other extensions cannot.
 
 ---
 

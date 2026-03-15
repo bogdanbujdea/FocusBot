@@ -17,6 +17,11 @@ const defaultSettings: Settings = {
   excludedDomains: []
 };
 
+// Storage implementation uses chrome.storage.local for all data.
+// API key is stored here and is only accessible by this extension
+// (not by web pages or other extensions). It is not encrypted at rest,
+// as the browser provides no DPAPI equivalent. This is the standard
+// "as safe as the platform allows" approach for BYOK mode.
 const getFromStorage = async <T>(key: string): Promise<T | null> => {
   const record = await chrome.storage.local.get(key);
   if (!(key in record)) {
