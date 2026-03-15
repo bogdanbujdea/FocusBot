@@ -246,6 +246,10 @@ setHandshakeProvider(async () => {
   };
 });
 
+// Start desktop integration as soon as the background loads so we connect when the
+// Windows app is running without requiring the user to open the popup first.
+startIntegration();
+
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;
 

@@ -29,10 +29,10 @@ This document describes the integration between the FocusBot Windows desktop app
 
 ### Extension side
 
-1. The extension starts the WebSocket client only when the user opens the popup or side panel (sends `START_DESKTOP_INTEGRATION` to the background, which calls `startIntegration()`). This avoids connection attempts (and browser-reported errors) when the desktop app is not running and the user is not viewing the extension UI.
+1. The extension starts the WebSocket client when the background script loads (browser start or extension load), so it can connect as soon as the Windows app is running without the user opening the popup. Opening the popup or side panel still sends `START_DESKTOP_INTEGRATION` (calls `startIntegration()`) so connection is attempted then too if not already connected.
 2. It connects to `ws://localhost:9876/focusbot`.
 3. **On open:** It sends a **HANDSHAKE** with `hasActiveTask`, `taskId`, `taskText`, and optional `taskHints` (current session state).
-4. If the connection fails before ever connecting, the extension does **not** retry every 5 seconds (avoids repeated browser errors). If the connection later drops after a successful connection, it reconnects every **5 seconds** (fixed interval).
+4. If the connection fails or drops, the extension retries every **5 seconds** (fixed interval), so when the user starts the Windows app the extension connects within one interval.
 5. UI shows "Desktop App Connected" when `integration.connected` is true (WebSocket is open).
 
 ---
@@ -243,7 +243,7 @@ The extension persists completed focus sessions for analytics and history. Raw v
 
 - **Port:** 9876. Defined in `WebSocketIntegrationService` (app) and in `integration.ts` (extension). Not configurable via file.
 - **Path:** `/focusbot`. Extension connects to `ws://localhost:9876/focusbot`; app listens on `http://localhost:9876/focusbot/`.
-- **Reconnect:** Extension only retries on a 5-second interval after it has connected at least once (reconnection after a drop). If the first connection attempt fails (e.g. app not running), it does not retry in the background, so the browser does not report repeated WebSocket errors. Next time the user opens the popup or side panel, a new connection attempt is made.
+- **Reconnect:** Extension retries every 5 seconds whenever it is not connected (including after first failure), so starting the Windows app leads to connection within one interval. The popup/side panel still triggers `startIntegration()` when opened so connection is attempted immediately then too.
 - **Single client:** The app accepts only one WebSocket client. A second connection (e.g. another browser profile or machine) closes the first.
 
 No configuration file is required; both sides use these fixed values.

@@ -96,15 +96,15 @@ namespace FocusBot.App
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
             _integrationService = _services!.GetRequiredService<IIntegrationService>();
-            _window = new MainWindow(_viewModel, navigationService);
+            _window = new MainWindow(_viewModel);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
-
-            _ = _integrationService.StartAsync();
 
             var contextHolder = _services!.GetRequiredService<StoreContextHolder>();
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
+
+            _ = _integrationService.StartAsync();
             var storeContext = StoreContext.GetDefault();
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
             WinRT.Interop.InitializeWithWindow.Initialize(storeContext, hwnd);

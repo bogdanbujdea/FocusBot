@@ -30,7 +30,6 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let messageHandler: MessageHandler | null = null;
 let handshakeProvider: HandshakeProvider | null = null;
 let shouldConnect = true;
-let hadConnectionThisCycle = false;
 
 const state: IntegrationState = {
   connected: false,
@@ -98,7 +97,6 @@ const scheduleReconnect = (): void => {
 const connect = (): void => {
   if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return;
 
-  hadConnectionThisCycle = false;
   try {
     ws = new WebSocket(WS_URL);
   } catch {
@@ -107,7 +105,6 @@ const connect = (): void => {
   }
 
   ws.onopen = async () => {
-    hadConnectionThisCycle = true;
     console.info("[FocusBot] Connected to desktop app.");
     state.connected = true;
     notifyStateChange();
@@ -125,9 +122,9 @@ const connect = (): void => {
     state.browserInForeground = true;
     notifyStateChange();
     ws = null;
-    if (hadConnectionThisCycle) {
-      scheduleReconnect();
-    }
+    // Always retry when we want to be connected (not only after a previous success),
+    // so that when the user starts the Windows app we connect within one interval.
+    scheduleReconnect();
   };
 
   ws.onerror = () => {

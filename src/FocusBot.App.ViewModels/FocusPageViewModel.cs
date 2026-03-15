@@ -1521,6 +1521,17 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Refreshes IsExtensionConnected from the integration service. Call when the Focus page is shown
+    /// so the UI reflects the current connection state even if the connection event was missed or delivered on a background thread.
+    /// </summary>
+    public void RefreshExtensionConnectionState()
+    {
+        var connected = _integrationService?.IsExtensionConnected ?? false;
+        if (IsExtensionConnected != connected)
+            IsExtensionConnected = connected;
+    }
+
+    /// <summary>
     /// Notifies the extension that a task has started (Full Mode). Called after a task moves to InProgress.
     /// </summary>
     public async Task NotifyTaskStartedAsync(UserTask task)

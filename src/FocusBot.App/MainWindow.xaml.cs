@@ -8,10 +8,7 @@ namespace FocusBot.App
     {
         private readonly FocusPage _kanbanPage;
 
-        public MainWindow(
-            FocusPageViewModel viewModel,
-            INavigationService navigationService
-        )
+        public MainWindow(FocusPageViewModel viewModel)
         {
             InitializeComponent();
 
@@ -19,7 +16,7 @@ namespace FocusBot.App
             Content = _kanbanPage;
 
             // Set default window size
-            AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 1500));
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(1500, 1500));
         }
     }
 }

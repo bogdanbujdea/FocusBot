@@ -21,6 +21,7 @@ public sealed partial class FocusPage : Page
     {
         if (DataContext is not FocusPageViewModel vm)
             return;
+        vm.RefreshExtensionConnectionState();
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         vm.TrialExpired += OnTrialExpired;
         _ = InitializeTrialAndFirstRunAsync(vm);
