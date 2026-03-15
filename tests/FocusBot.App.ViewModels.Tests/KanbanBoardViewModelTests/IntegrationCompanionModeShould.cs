@@ -7,17 +7,12 @@ namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
 public class IntegrationCompanionModeShould
 {
     [Fact]
-    public async Task RaiseCompanionModeRequested_When_TaskStartedReceived_From_Extension()
+    public async Task ShowRemoteTaskInDisplayInProgress_When_TaskStartedReceived_From_Extension()
     {
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
-        integrationMock.Setup(m => m.CurrentMode).Returns(FocusBot.Core.Entities.IntegrationMode.Standalone);
-
         var vm = CreateViewModel(ctx, monitorMock, integrationMock.Object, uiDispatcher: null);
-
-        TaskStartedPayload? capturedPayload = null;
-        vm.CompanionModeRequested += (_, payload) => { capturedPayload = payload; };
 
         var payload = new TaskStartedPayload
         {
@@ -28,9 +23,9 @@ public class IntegrationCompanionModeShould
 
         integrationMock.Raise(m => m.TaskStartedReceived += null, integrationMock.Object, payload);
 
-        capturedPayload.Should().NotBeNull();
-        capturedPayload!.TaskId.Should().Be("ext-session-1");
-        capturedPayload.TaskText.Should().Be("Watch a movie");
+        vm.DisplayInProgressTasks.Should().HaveCount(1);
+        vm.DisplayInProgressTasks[0].TaskId.Should().Be("ext-session-1");
+        vm.DisplayInProgressTasks[0].Description.Should().Be("Watch a movie");
     }
 
     [Fact]
@@ -39,8 +34,6 @@ public class IntegrationCompanionModeShould
         await using var ctx = await KanbanBoardTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
-        integrationMock.Setup(m => m.CurrentMode).Returns(FocusBot.Core.Entities.IntegrationMode.Standalone);
-
         var vm = CreateViewModel(ctx, monitorMock, integrationMock.Object, uiDispatcher: null);
 
         var payload = new TaskStartedPayload

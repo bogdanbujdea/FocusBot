@@ -31,6 +31,9 @@ public class HandshakePayload
 
     [JsonPropertyName("taskHints")]
     public string? TaskHints { get; set; }
+
+    [JsonPropertyName("startedAt")]
+    public string? StartedAt { get; set; }
 }
 
 public class TaskStartedPayload
@@ -43,6 +46,9 @@ public class TaskStartedPayload
 
     [JsonPropertyName("taskHints")]
     public string? TaskHints { get; set; }
+
+    [JsonPropertyName("startedAt")]
+    public string? StartedAt { get; set; }
 }
 
 public class TaskEndedPayload
@@ -102,6 +108,15 @@ public class BrowserUrlResponsePayload
     public string Title { get; set; } = string.Empty;
 }
 
+public class BrowserContextPayload
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+}
+
 public static class IntegrationMessageTypes
 {
     public const string Handshake = "HANDSHAKE";
@@ -109,6 +124,5 @@ public static class IntegrationMessageTypes
     public const string TaskEnded = "TASK_ENDED";
     public const string FocusStatus = "FOCUS_STATUS";
     public const string DesktopForeground = "DESKTOP_FOREGROUND";
-    public const string RequestBrowserUrl = "REQUEST_BROWSER_URL";
-    public const string BrowserUrlResponse = "BROWSER_URL_RESPONSE";
+    public const string BrowserContext = "BROWSER_CONTEXT";
 }

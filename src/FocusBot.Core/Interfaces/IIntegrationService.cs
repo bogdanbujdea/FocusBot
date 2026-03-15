@@ -1,5 +1,4 @@
 using FocusBot.Core.DTOs;
-using FocusBot.Core.Entities;
 
 namespace FocusBot.Core.Interfaces;
 
@@ -8,7 +7,6 @@ namespace FocusBot.Core.Interfaces;
 /// </summary>
 public interface IIntegrationService : IDisposable
 {
-    IntegrationMode CurrentMode { get; }
     bool IsExtensionConnected { get; }
 
     Task StartAsync();
@@ -19,13 +17,13 @@ public interface IIntegrationService : IDisposable
     Task SendTaskEndedAsync(string taskId);
     Task SendFocusStatusAsync(FocusStatusPayload payload);
     Task SendDesktopForegroundAsync(string processName, string windowTitle);
-    Task<BrowserUrlResponsePayload?> RequestBrowserUrlAsync(TimeSpan timeout);
+
+    BrowserContextPayload? LastBrowserContext { get; }
 
     event EventHandler<bool>? ExtensionConnectionChanged;
-    event EventHandler<IntegrationMode>? ModeChanged;
     event EventHandler<TaskStartedPayload>? TaskStartedReceived;
     event EventHandler? TaskEndedReceived;
     event EventHandler<FocusStatusPayload>? FocusStatusReceived;
     event EventHandler<DesktopForegroundPayload>? DesktopForegroundReceived;
-    event EventHandler<BrowserUrlResponsePayload>? BrowserUrlResponseReceived;
+    event EventHandler<BrowserContextPayload>? BrowserContextReceived;
 }

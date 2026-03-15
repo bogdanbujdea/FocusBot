@@ -1,10 +1,8 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using FocusBot.Core.DTOs;
-using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -20,23 +18,21 @@ public class WebSocketIntegrationService : IIntegrationService
     private Task? _receiveTask;
     private readonly object _lock = new();
     private bool _disposed;
-
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<BrowserUrlResponsePayload>> _pendingBrowserUrlRequests = new();
+    private BrowserContextPayload? _lastBrowserContext;
 
     private const int Port = 9876;
     private const string Path = "/focusbot";
     private const int ReceiveBufferSize = 8192;
 
-    public IntegrationMode CurrentMode { get; private set; } = IntegrationMode.Standalone;
     public bool IsExtensionConnected => _clientSocket?.State == WebSocketState.Open;
+    public BrowserContextPayload? LastBrowserContext => _lastBrowserContext;
 
     public event EventHandler<bool>? ExtensionConnectionChanged;
-    public event EventHandler<IntegrationMode>? ModeChanged;
     public event EventHandler<TaskStartedPayload>? TaskStartedReceived;
     public event EventHandler? TaskEndedReceived;
     public event EventHandler<FocusStatusPayload>? FocusStatusReceived;
     public event EventHandler<DesktopForegroundPayload>? DesktopForegroundReceived;
-    public event EventHandler<BrowserUrlResponsePayload>? BrowserUrlResponseReceived;
+    public event EventHandler<BrowserContextPayload>? BrowserContextReceived;
 
     public WebSocketIntegrationService(ILogger<WebSocketIntegrationService> logger)
     {
@@ -108,7 +104,6 @@ public class WebSocketIntegrationService : IIntegrationService
             catch (Exception ex) { _logger.LogDebug(ex, "Receive task completed with error"); }
         }
 
-        SetMode(IntegrationMode.Standalone);
         _logger.LogInformation("WebSocket server stopped");
     }
 
@@ -202,7 +197,6 @@ public class WebSocketIntegrationService : IIntegrationService
         }
         finally
         {
-            SetMode(IntegrationMode.Standalone);
             ExtensionConnectionChanged?.Invoke(this, false);
         }
     }
@@ -239,8 +233,8 @@ public class WebSocketIntegrationService : IIntegrationService
                     HandleDesktopForeground(envelope);
                     break;
 
-                case IntegrationMessageTypes.BrowserUrlResponse:
-                    HandleBrowserUrlResponse(envelope);
+                case IntegrationMessageTypes.BrowserContext:
+                    HandleBrowserContext(envelope);
                     break;
 
                 default:
@@ -265,18 +259,15 @@ public class WebSocketIntegrationService : IIntegrationService
 
         _logger.LogInformation("Handshake from {Source}, hasActiveTask={HasActive}", payload.Source, payload.HasActiveTask);
 
-        if (payload.HasActiveTask && CurrentMode == IntegrationMode.Standalone)
+        if (payload.HasActiveTask && !string.IsNullOrEmpty(payload.TaskText))
         {
-            SetMode(IntegrationMode.CompanionMode);
-            if (!string.IsNullOrEmpty(payload.TaskText))
+            TaskStartedReceived?.Invoke(this, new TaskStartedPayload
             {
-                TaskStartedReceived?.Invoke(this, new TaskStartedPayload
-                {
-                    TaskId = payload.TaskId ?? string.Empty,
-                    TaskText = payload.TaskText,
-                    TaskHints = payload.TaskHints
-                });
-            }
+                TaskId = payload.TaskId ?? string.Empty,
+                TaskText = payload.TaskText,
+                TaskHints = payload.TaskHints,
+                StartedAt = payload.StartedAt
+            });
         }
     }
 
@@ -289,13 +280,11 @@ public class WebSocketIntegrationService : IIntegrationService
         if (payload == null)
             return;
 
-        SetMode(IntegrationMode.CompanionMode);
         TaskStartedReceived?.Invoke(this, payload);
     }
 
     private void HandleTaskEnded(IntegrationEnvelope envelope)
     {
-        SetMode(IntegrationMode.Standalone);
         TaskEndedReceived?.Invoke(this, EventArgs.Empty);
     }
 
@@ -319,31 +308,17 @@ public class WebSocketIntegrationService : IIntegrationService
             DesktopForegroundReceived?.Invoke(this, payload);
     }
 
-    private void HandleBrowserUrlResponse(IntegrationEnvelope envelope)
+    private void HandleBrowserContext(IntegrationEnvelope envelope)
     {
         if (envelope.Payload == null)
             return;
 
-        var payload = JsonSerializer.Deserialize<BrowserUrlResponsePayload>(envelope.Payload.Value.GetRawText());
+        var payload = JsonSerializer.Deserialize<BrowserContextPayload>(envelope.Payload.Value.GetRawText());
         if (payload == null)
             return;
 
-        BrowserUrlResponseReceived?.Invoke(this, payload);
-
-        if (_pendingBrowserUrlRequests.TryRemove(payload.RequestId, out var tcs))
-        {
-            tcs.TrySetResult(payload);
-        }
-    }
-
-    private void SetMode(IntegrationMode mode)
-    {
-        if (CurrentMode == mode)
-            return;
-
-        CurrentMode = mode;
-        _logger.LogInformation("Integration mode changed to {Mode}", mode);
-        ModeChanged?.Invoke(this, mode);
+        _lastBrowserContext = payload;
+        BrowserContextReceived?.Invoke(this, payload);
     }
 
     private async Task SendMessageAsync(string type, object? payload = null)
@@ -390,7 +365,6 @@ public class WebSocketIntegrationService : IIntegrationService
 
     public async Task SendTaskStartedAsync(string taskId, string taskText, string? taskHints)
     {
-        SetMode(IntegrationMode.FullMode);
         await SendMessageAsync(IntegrationMessageTypes.TaskStarted, new TaskStartedPayload
         {
             TaskId = taskId,
@@ -405,7 +379,6 @@ public class WebSocketIntegrationService : IIntegrationService
         {
             TaskId = taskId
         }).ConfigureAwait(false);
-        SetMode(IntegrationMode.Standalone);
     }
 
     public async Task SendFocusStatusAsync(FocusStatusPayload payload)
@@ -420,36 +393,6 @@ public class WebSocketIntegrationService : IIntegrationService
             ProcessName = processName,
             WindowTitle = windowTitle
         }).ConfigureAwait(false);
-    }
-
-    public async Task<BrowserUrlResponsePayload?> RequestBrowserUrlAsync(TimeSpan timeout)
-    {
-        var requestId = Guid.NewGuid().ToString();
-        var tcs = new TaskCompletionSource<BrowserUrlResponsePayload>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        _pendingBrowserUrlRequests[requestId] = tcs;
-
-        try
-        {
-            await SendMessageAsync(IntegrationMessageTypes.RequestBrowserUrl, new RequestBrowserUrlPayload
-            {
-                RequestId = requestId
-            }).ConfigureAwait(false);
-
-            using var cts = new CancellationTokenSource(timeout);
-            cts.Token.Register(() => tcs.TrySetCanceled());
-
-            return await tcs.Task.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogDebug("Browser URL request timed out");
-            return null;
-        }
-        finally
-        {
-            _pendingBrowserUrlRequests.TryRemove(requestId, out _);
-        }
     }
 
     public void Dispose()

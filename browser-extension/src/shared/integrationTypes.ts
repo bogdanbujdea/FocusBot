@@ -1,5 +1,3 @@
-export type IntegrationMode = "standalone" | "fullMode" | "companionMode";
-
 export interface IntegrationEnvelope {
   type: string;
   payload?: unknown;
@@ -11,12 +9,14 @@ export interface HandshakePayload {
   taskId?: string;
   taskText?: string;
   taskHints?: string;
+  startedAt?: string;
 }
 
 export interface TaskStartedPayload {
   taskId: string;
   taskText: string;
   taskHints?: string;
+  startedAt?: string;
 }
 
 export interface TaskEndedPayload {
@@ -38,12 +38,7 @@ export interface DesktopForegroundPayload {
   windowTitle: string;
 }
 
-export interface RequestBrowserUrlPayload {
-  requestId: string;
-}
-
-export interface BrowserUrlResponsePayload {
-  requestId: string;
+export interface BrowserContextPayload {
   url: string;
   title: string;
 }
@@ -57,7 +52,6 @@ export interface DesktopClassificationResult {
 }
 
 export interface IntegrationState {
-  mode: IntegrationMode;
   connected: boolean;
   browserInForeground: boolean;
   leaderTaskId?: string;
@@ -72,6 +66,5 @@ export const MESSAGE_TYPES = {
   TASK_ENDED: "TASK_ENDED",
   FOCUS_STATUS: "FOCUS_STATUS",
   DESKTOP_FOREGROUND: "DESKTOP_FOREGROUND",
-  REQUEST_BROWSER_URL: "REQUEST_BROWSER_URL",
-  BROWSER_URL_RESPONSE: "BROWSER_URL_RESPONSE"
+  BROWSER_CONTEXT: "BROWSER_CONTEXT"
 } as const;

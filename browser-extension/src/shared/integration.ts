@@ -1,20 +1,17 @@
 import type {
   IntegrationEnvelope,
-  IntegrationMode,
   IntegrationState,
   HandshakePayload,
   TaskStartedPayload,
   FocusStatusPayload,
   DesktopForegroundPayload,
   DesktopClassificationResult,
-  RequestBrowserUrlPayload,
-  BrowserUrlResponsePayload
+  BrowserContextPayload
 } from "./integrationTypes";
 import { MESSAGE_TYPES } from "./integrationTypes";
 
 const WS_URL = "ws://localhost:9876/focusbot";
-const RECONNECT_BASE_MS = 1000;
-const RECONNECT_MAX_MS = 30000;
+const RECONNECT_INTERVAL_MS = 5000;
 
 type MessageHandler = (envelope: IntegrationEnvelope) => void;
 
@@ -23,19 +20,18 @@ interface HandshakeInfo {
   taskId?: string;
   taskText?: string;
   taskHints?: string;
+  startedAt?: string;
 }
 
 type HandshakeProvider = () => Promise<HandshakeInfo>;
 
 let ws: WebSocket | null = null;
-let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let messageHandler: MessageHandler | null = null;
 let handshakeProvider: HandshakeProvider | null = null;
 let shouldConnect = true;
 
 const state: IntegrationState = {
-  mode: "standalone",
   connected: false,
   browserInForeground: true
 };
@@ -63,15 +59,16 @@ export const onIntegrationStateChange = (listener: (state: IntegrationState) => 
 
 export const getIntegrationState = (): IntegrationState => ({ ...state });
 
-export const setMode = (mode: IntegrationMode): void => {
-  if (state.mode === mode) return;
-  state.mode = mode;
-  notifyStateChange();
-};
-
 export const updateLeaderTask = (taskId: string, taskText: string): void => {
   state.leaderTaskId = taskId;
   state.leaderTaskText = taskText;
+  notifyStateChange();
+};
+
+export const clearLeaderTask = (): void => {
+  state.leaderTaskId = undefined;
+  state.leaderTaskText = undefined;
+  state.lastFocusStatus = undefined;
   notifyStateChange();
 };
 
@@ -93,10 +90,8 @@ export const updateBrowserForeground = (inForeground: boolean): void => {
 
 const scheduleReconnect = (): void => {
   if (!shouldConnect) return;
-  const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, reconnectAttempt), RECONNECT_MAX_MS);
-  reconnectAttempt++;
-  console.log(`[Integration] Reconnecting in ${delay}ms (attempt ${reconnectAttempt})`);
-  reconnectTimer = setTimeout(() => connect(), delay);
+  console.log("[Integration] Reconnecting in 5s");
+  reconnectTimer = setTimeout(() => connect(), RECONNECT_INTERVAL_MS);
 };
 
 const connect = (): void => {
@@ -111,25 +106,19 @@ const connect = (): void => {
 
   ws.onopen = async () => {
     console.log("[Integration] Connected to app");
-    reconnectAttempt = 0;
     state.connected = true;
     notifyStateChange();
 
     if (handshakeProvider) {
       const info = await handshakeProvider();
-      sendHandshake(info.hasActiveTask, info.taskId, info.taskText, info.taskHints);
+      sendHandshake(info.hasActiveTask, info.taskId, info.taskText, info.taskHints, info.startedAt);
     }
   };
 
   ws.onclose = () => {
     console.log("[Integration] Disconnected from app");
     state.connected = false;
-    if (state.mode === "companionMode") {
-      state.mode = "standalone";
-      state.leaderTaskId = undefined;
-      state.leaderTaskText = undefined;
-      state.lastFocusStatus = undefined;
-    }
+    clearLeaderTask();
     state.browserInForeground = true;
     notifyStateChange();
     ws = null;
@@ -156,36 +145,35 @@ export const sendMessage = (type: string, payload?: unknown): void => {
   ws.send(JSON.stringify(envelope));
 };
 
-export const sendHandshake = (hasActiveTask: boolean, taskId?: string, taskText?: string, taskHints?: string): void => {
+export const sendHandshake = (hasActiveTask: boolean, taskId?: string, taskText?: string, taskHints?: string, startedAt?: string): void => {
   const payload: HandshakePayload = {
     source: "extension",
     hasActiveTask,
     taskId,
     taskText,
-    taskHints
+    taskHints,
+    startedAt
   };
   sendMessage(MESSAGE_TYPES.HANDSHAKE, payload);
 };
 
-export const sendTaskStarted = (taskId: string, taskText: string, taskHints?: string): void => {
-  setMode("fullMode");
-  const payload: TaskStartedPayload = { taskId, taskText, taskHints };
+export const sendTaskStarted = (taskId: string, taskText: string, taskHints?: string, startedAt?: string): void => {
+  const payload: TaskStartedPayload = { taskId, taskText, taskHints, startedAt };
   sendMessage(MESSAGE_TYPES.TASK_STARTED, payload);
 };
 
 export const sendTaskEnded = (taskId: string): void => {
   const payload = { taskId };
   sendMessage(MESSAGE_TYPES.TASK_ENDED, payload);
-  setMode("standalone");
 };
 
 export const sendFocusStatus = (payload: FocusStatusPayload): void => {
   sendMessage(MESSAGE_TYPES.FOCUS_STATUS, payload);
 };
 
-export const sendBrowserUrlResponse = (requestId: string, url: string, title: string): void => {
-  const payload: BrowserUrlResponsePayload = { requestId, url, title };
-  sendMessage(MESSAGE_TYPES.BROWSER_URL_RESPONSE, payload);
+export const sendBrowserContext = (url: string, title: string): void => {
+  const payload: BrowserContextPayload = { url, title };
+  sendMessage(MESSAGE_TYPES.BROWSER_CONTEXT, payload);
 };
 
 export const setMessageHandler = (handler: MessageHandler): void => {
@@ -213,7 +201,7 @@ export const stopIntegration = (): void => {
     ws = null;
   }
   state.connected = false;
-  state.mode = "standalone";
+  clearLeaderTask();
   state.browserInForeground = true;
   notifyStateChange();
 };

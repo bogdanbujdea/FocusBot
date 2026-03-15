@@ -32,8 +32,7 @@ export const AppShell = ({
           <span className="pill" style={{ marginTop: 4, fontSize: "0.75rem" }}>Desktop App Connected</span>
         ) : null}
       </div>
-      {integration?.mode !== "companionMode" ? (
-        <div className="quick-actions">
+      <div className="quick-actions">
           <button
             type="button"
             className="quick-action-btn quick-action-btn--analytics"
@@ -58,7 +57,6 @@ export const AppShell = ({
             </svg>
           </button>
         </div>
-      ) : null}
     </header>
 
     {loading ? <p className="muted">Loading current session...</p> : null}

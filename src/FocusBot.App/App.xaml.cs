@@ -79,7 +79,6 @@ namespace FocusBot.App
             services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
             services.AddTransient<KanbanBoardViewModel>();
-            services.AddTransient<CompanionViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
