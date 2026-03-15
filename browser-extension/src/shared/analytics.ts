@@ -1,4 +1,11 @@
-import type { AnalyticsInsights, AnalyticsResponse, DailyStats, DateRange, DomainAggregate, FocusSession } from "./types";
+import type {
+  AnalyticsInsights,
+  AnalyticsResponse,
+  CompletedSession,
+  DailyStats,
+  DateRange,
+  DomainAggregate
+} from "./types";
 import { clampPercent, endOfDayLocal, startOfDayLocal, toDayKeyLocal } from "./utils";
 
 const rangeToDays = (range: DateRange): number => {
@@ -7,6 +14,9 @@ const rangeToDays = (range: DateRange): number => {
   }
   if (range === "7d") {
     return 7;
+  }
+  if (range === "30d") {
+    return 30;
   }
   return 30;
 };
@@ -23,25 +33,28 @@ const buildDateList = (days: number): string[] => {
   return dates;
 };
 
-const aggregateDomains = (
-  sessions: FocusSession[],
-  targetClassification: "aligned" | "distracting"
+const aggregateDomainsFromSummaries = (
+  sessions: CompletedSession[],
+  targetType: "aligned" | "distracting"
 ): DomainAggregate[] => {
   const bucket = new Map<string, DomainAggregate>();
 
   for (const session of sessions) {
-    for (const visit of session.visits) {
-      if (visit.classification !== targetClassification || visit.durationSeconds <= 0) {
-        continue;
-      }
-      const current = bucket.get(visit.domain) ?? {
-        domain: visit.domain,
-        totalSeconds: 0,
-        visitCount: 0
-      };
-      current.totalSeconds += visit.durationSeconds;
-      current.visitCount += 1;
-      bucket.set(visit.domain, current);
+    const domains =
+      targetType === "aligned"
+        ? session.summary.topAlignedDomains
+        : session.summary.topDistractionDomains;
+
+    for (const domain of domains) {
+      const current =
+        bucket.get(domain.domain) ?? {
+          domain: domain.domain,
+          totalSeconds: 0,
+          visitCount: 0
+        };
+      current.totalSeconds += domain.totalSeconds;
+      current.visitCount += domain.visitCount;
+      bucket.set(domain.domain, current);
     }
   }
 
@@ -71,30 +84,48 @@ const createEmptyDay = (day: string): DailyStats => ({
   mostCommonAlignedDomains: []
 });
 
-export const calculateAnalytics = (range: DateRange, history: FocusSession[]): AnalyticsResponse => {
-  const days = rangeToDays(range);
-  const keys = buildDateList(days);
-  const fromDate = startOfDayLocal(new Date(keys[0]));
-  const toDate = endOfDayLocal(new Date(keys[keys.length - 1]));
+export const calculateAnalytics = (
+  range: DateRange,
+  history: CompletedSession[]
+): AnalyticsResponse => {
+  const now = new Date();
+  let fromDate: Date;
+  let toDate: Date;
+  let keys: string[];
+
+  if (range === "all") {
+    if (history.length === 0) {
+      keys = [toDayKeyLocal(now.toISOString())];
+      fromDate = startOfDayLocal(now);
+      toDate = endOfDayLocal(now);
+    } else {
+      const daySet = new Set<string>();
+      for (const session of history) {
+        daySet.add(toDayKeyLocal(session.endedAt));
+      }
+      keys = [...daySet].sort();
+      fromDate = startOfDayLocal(new Date(keys[0]));
+      toDate = endOfDayLocal(new Date(keys[keys.length - 1]));
+    }
+  } else {
+    const days = rangeToDays(range);
+    keys = buildDateList(days);
+    fromDate = startOfDayLocal(new Date(keys[0]));
+    toDate = endOfDayLocal(new Date(keys[keys.length - 1]));
+  }
+
   const byDay = new Map<string, DailyStats>(keys.map((key) => [key, createEmptyDay(key)]));
   const selectedSessions = history.filter((session) => {
-    if (!session.endedAt || !session.summary) {
-      return false;
-    }
-
     const endedAt = new Date(session.endedAt);
     return endedAt >= fromDate && endedAt <= toDate;
   });
 
   for (const session of selectedSessions) {
-    if (!session.endedAt || !session.summary) {
-      continue;
-    }
-
     const dayKey = toDayKeyLocal(session.endedAt);
-    const daily = byDay.get(dayKey);
+    let daily = byDay.get(dayKey);
     if (!daily) {
-      continue;
+      daily = createEmptyDay(dayKey);
+      byDay.set(dayKey, daily);
     }
 
     daily.totalSessions += 1;
@@ -112,10 +143,10 @@ export const calculateAnalytics = (range: DateRange, history: FocusSession[]): A
       day.distractionCount === 0 ? 0 : Math.round(day.totalDistractingSeconds / day.distractionCount);
 
     const daySessions = selectedSessions.filter(
-      (session) => session.endedAt && toDayKeyLocal(session.endedAt) === day.date
+      (session) => toDayKeyLocal(session.endedAt) === day.date
     );
-    day.mostCommonDistractingDomains = aggregateDomains(daySessions, "distracting");
-    day.mostCommonAlignedDomains = aggregateDomains(daySessions, "aligned");
+    day.mostCommonDistractingDomains = aggregateDomainsFromSummaries(daySessions, "distracting");
+    day.mostCommonAlignedDomains = aggregateDomainsFromSummaries(daySessions, "aligned");
   }
 
   const statsByDay = keys.map((key) => byDay.get(key) ?? createEmptyDay(key));
@@ -146,8 +177,20 @@ export const calculateAnalytics = (range: DateRange, history: FocusSession[]): A
   );
   totals.averageContextSwitchCostSeconds =
     totals.distractionCount === 0 ? 0 : Math.round(totals.totalDistractingSeconds / totals.distractionCount);
-  totals.mostCommonDistractingDomains = aggregateDomains(selectedSessions, "distracting");
-  totals.mostCommonAlignedDomains = aggregateDomains(selectedSessions, "aligned");
+  totals.mostCommonDistractingDomains = aggregateDomainsFromSummaries(selectedSessions, "distracting");
+  totals.mostCommonAlignedDomains = aggregateDomainsFromSummaries(selectedSessions, "aligned");
+
+  const sessionsByDay: Record<string, CompletedSession[]> = {};
+  for (const session of selectedSessions) {
+    const dayKey = toDayKeyLocal(session.endedAt);
+    if (!sessionsByDay[dayKey]) {
+      sessionsByDay[dayKey] = [];
+    }
+    sessionsByDay[dayKey].push(session);
+  }
+  for (const dayKey of Object.keys(sessionsByDay)) {
+    sessionsByDay[dayKey].sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+  }
 
   const insights = calculateInsights(statsByDay, totals);
 
@@ -160,6 +203,7 @@ export const calculateAnalytics = (range: DateRange, history: FocusSession[]): A
     recentSessions: selectedSessions
       .sort((left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt))
       .slice(0, 10),
+    sessionsByDay,
     insights
   };
 };

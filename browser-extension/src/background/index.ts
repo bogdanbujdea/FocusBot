@@ -3,18 +3,29 @@ import { classifyPage, classifyDesktopApp } from "../shared/classifier";
 import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
+  loadCompletedSessions,
   loadLastError,
   loadLastSummary,
   loadSessions,
   loadSettings,
   patchSettings,
+  pruneOldSessions,
   saveActiveSession,
+  saveCompletedSession,
   saveLastError,
   saveLastSummary,
-  saveSession
+  saveSession,
+  setCompletedSessions
 } from "../shared/storage";
-import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeRequest, RuntimeResponse } from "../shared/types";
-import { createId, nowIso, secondsBetween, sleep } from "../shared/utils";
+import type {
+  ClassificationResult,
+  CompletedSession,
+  FocusSession,
+  InProgressVisit,
+  RuntimeRequest,
+  RuntimeResponse
+} from "../shared/types";
+import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
 import {
@@ -771,7 +782,7 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     return { ok: true, data: latest ?? session };
   });
 
-const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session) {
@@ -797,8 +808,16 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       totalPaused
     );
 
-    const sessionForHistory = stripActiveSessionForHistory(session);
-    await saveSession(sessionForHistory);
+    const completedSession: CompletedSession = {
+      sessionId: session.sessionId,
+      taskText: session.taskText,
+      taskHints: session.taskHints,
+      startedAt: session.startedAt,
+      endedAt,
+      summary: session.summary
+    };
+    await saveCompletedSession(completedSession);
+    await pruneOldSessions(100, 90);
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
     stopBadgeInterval();
@@ -808,7 +827,7 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       sendTaskEnded(session.sessionId);
     }
 
-    return { ok: true, data: sessionForHistory };
+    return { ok: true, data: completedSession };
   });
 
 const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> => {
@@ -824,7 +843,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "RESUME_SESSION":
       return resumeSession();
     case "GET_ANALYTICS": {
-      const sessions = await loadSessions();
+      const sessions = await loadCompletedSessions();
       return { ok: true, data: calculateAnalytics(request.range, sessions) };
     }
     case "UPDATE_SETTINGS": {
@@ -937,11 +956,39 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
 });
 
+const migrateSessionsToCompletedSessions = async (): Promise<void> => {
+  const stored = await chrome.storage.local.get(APP_KEYS.completedSessions);
+  if (APP_KEYS.completedSessions in stored) {
+    return;
+  }
+  const oldSessions = await loadSessions();
+  const completed: CompletedSession[] = [];
+  for (const session of oldSessions) {
+    if (!session.endedAt || !session.summary) {
+      continue;
+    }
+    completed.push({
+      sessionId: session.sessionId,
+      taskText: session.taskText,
+      taskHints: session.taskHints,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      summary: session.summary
+    });
+  }
+  if (completed.length > 0) {
+    completed.sort((a, b) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    await setCompletedSessions(completed);
+  }
+};
+
 chrome.runtime.onInstalled.addListener(async () => {
+  await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
 });

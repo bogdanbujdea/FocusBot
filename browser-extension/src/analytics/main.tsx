@@ -11,7 +11,12 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { sendRuntimeRequest } from "../shared/runtime";
-import type { AnalyticsResponse, DateRange, DailyStats } from "../shared/types";
+import type {
+  AnalyticsResponse,
+  CompletedSession,
+  DailyStats,
+  DateRange
+} from "../shared/types";
 import { formatSeconds } from "../shared/utils";
 import "../ui/styles.css";
 
@@ -246,12 +251,140 @@ const EmptyState = (): JSX.Element => (
   </div>
 );
 
+const focusPercentClass = (percent: number): string => {
+  if (percent >= 70) return "focus-pct-high";
+  if (percent < 50) return "focus-pct-low";
+  return "focus-pct-mid";
+};
+
+const formatSessionTime = (iso: string): string => {
+  const date = new Date(iso);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+};
+
+const SessionList = ({ sessions }: { sessions: CompletedSession[] }): JSX.Element => (
+  <div className="day-history-session-list">
+    {sessions.map((session) => (
+      <div key={session.sessionId} className="day-history-session-item">
+        <span className="day-history-session-task">{session.taskText}</span>
+        <span className="day-history-session-meta">
+          {formatSessionTime(session.startedAt)} {" \u2013 "}
+          <span className={focusPercentClass(session.summary.focusPercentage)}>
+            {session.summary.focusPercentage.toFixed(0)}%
+          </span>
+          {" "}
+          {formatSeconds(session.summary.alignedSeconds)}
+        </span>
+      </div>
+    ))}
+  </div>
+);
+
+const DayHistoryRow = ({
+  dayKey,
+  dayLabel,
+  tasksCount,
+  focusPercentage,
+  focusedSeconds,
+  sessions,
+  expanded,
+  onToggle
+}: {
+  dayKey: string;
+  dayLabel: string;
+  tasksCount: number;
+  focusPercentage: number;
+  focusedSeconds: number;
+  sessions: CompletedSession[];
+  expanded: boolean;
+  onToggle: () => void;
+}): JSX.Element => (
+  <>
+    <tr className="day-history-row" onClick={onToggle}>
+      <td className="day-history-date">{dayLabel}</td>
+      <td className="day-history-tasks">{tasksCount}</td>
+      <td className="day-history-focus">
+        <span className={focusPercentClass(focusPercentage)}>
+          {focusPercentage.toFixed(0)}%
+        </span>
+      </td>
+      <td className="day-history-focused">{formatSeconds(focusedSeconds)}</td>
+      <td className="day-history-chevron">
+        <span className={expanded ? "day-history-chevron-open" : ""} aria-hidden>
+          {"\u25BC"}
+        </span>
+      </td>
+    </tr>
+    {expanded && sessions.length > 0 ? (
+      <tr>
+        <td colSpan={5} className="day-history-expanded-cell">
+          <SessionList sessions={sessions} />
+        </td>
+      </tr>
+    ) : null}
+  </>
+);
+
+const DayHistoryTable = ({
+  statsByDay,
+  sessionsByDay,
+  expandedDay,
+  onToggleDay
+}: {
+  statsByDay: DailyStats[];
+  sessionsByDay: Record<string, CompletedSession[]>;
+  expandedDay: string | null;
+  onToggleDay: (dayKey: string | null) => void;
+}): JSX.Element => {
+  const daysWithSessions = statsByDay.filter((day) => day.totalSessions > 0);
+  if (daysWithSessions.length === 0) {
+    return <></>;
+  }
+
+  return (
+    <div className="day-history-card">
+      <h3>History by day</h3>
+      <table className="analytics-table day-history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th className="day-history-th-tasks">Tasks</th>
+            <th className="day-history-th-focus">Focus %</th>
+            <th className="day-history-th-focused">Focused</th>
+            <th className="day-history-th-chevron" aria-label="Expand" />
+          </tr>
+        </thead>
+        <tbody>
+          {daysWithSessions.map((day) => (
+            <DayHistoryRow
+              key={day.date}
+              dayKey={day.date}
+              dayLabel={formatDayLabel(day.date)}
+              tasksCount={day.totalSessions}
+              focusPercentage={day.focusPercentage}
+              focusedSeconds={day.totalAlignedSeconds}
+              sessions={sessionsByDay[day.date] ?? []}
+              expanded={expandedDay === day.date}
+              onToggle={() => onToggleDay(expandedDay === day.date ? null : day.date)}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const AnalyticsPage = (): JSX.Element => {
   const [range, setRange] = useState<DateRange>("today");
   const [report, setReport] = useState<AnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -307,9 +440,9 @@ const AnalyticsPage = (): JSX.Element => {
       </header>
 
       <div className="segmented-control">
-        {(["today", "7d", "30d"] as DateRange[]).map((r) => (
+        {(["today", "7d", "30d", "all"] as DateRange[]).map((r) => (
           <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>
-            {r === "today" ? "Today" : r === "7d" ? "7 Days" : "30 Days"}
+            {r === "today" ? "Today" : r === "7d" ? "7 Days" : r === "30d" ? "30 Days" : "All Time"}
           </button>
         ))}
       </div>
@@ -373,6 +506,13 @@ const AnalyticsPage = (): JSX.Element => {
                 ) : null}
               </div>
             ) : null}
+
+            <DayHistoryTable
+              statsByDay={report.statsByDay}
+              sessionsByDay={report.sessionsByDay}
+              expandedDay={expandedDay}
+              onToggleDay={setExpandedDay}
+            />
           </>
         ) : (
           <EmptyState />

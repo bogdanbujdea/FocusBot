@@ -41,6 +41,16 @@ export interface SessionSummary {
   topAlignedDomains: DomainAggregate[];
 }
 
+/** Completed session with only summary persisted; visits are not stored. */
+export interface CompletedSession {
+  sessionId: string;
+  taskText: string;
+  taskHints?: string;
+  startedAt: string;
+  endedAt: string;
+  summary: SessionSummary;
+}
+
 export interface FocusSession {
   sessionId: string;
   taskText: string;
@@ -92,7 +102,7 @@ export interface DailyStats {
   mostCommonAlignedDomains: DomainAggregate[];
 }
 
-export type DateRange = "today" | "7d" | "30d";
+export type DateRange = "today" | "7d" | "30d" | "all";
 
 export interface AnalyticsInsights {
   bestFocusDay: { date: string; focusPercentage: number } | null;
@@ -105,7 +115,8 @@ export interface AnalyticsResponse {
   to: string;
   statsByDay: DailyStats[];
   totals: Omit<DailyStats, "date">;
-  recentSessions: FocusSession[];
+  recentSessions: CompletedSession[];
+  sessionsByDay: Record<string, CompletedSession[]>;
   insights: AnalyticsInsights;
 }
 

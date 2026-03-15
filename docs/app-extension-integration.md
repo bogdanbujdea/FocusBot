@@ -229,6 +229,16 @@ When the Windows app or the browser extension is published in the Microsoft Stor
 
 ---
 
+## Browser extension storage (history)
+
+The extension persists completed focus sessions for analytics and history. Raw visit data is not kept after a session ends.
+
+- **CompletedSession format:** When a session ends, the extension saves a `CompletedSession` to `chrome.storage.local` under the key `focusbot.completedSessions`. Each entry includes: `sessionId`, `taskText`, optional `taskHints`, `startedAt`, `endedAt`, and a `summary` object (task name, total/aligned/distracting seconds, focus percentage, distraction count, context-switch cost, and pre-aggregated top distracting/aligned domains). The full `visits` array (per-tab visit history) is not stored.
+- **Pruning:** Storage is capped at the most recent **100** completed sessions and sessions older than **90** days are removed. Pruning runs each time a session is ended.
+- **Migration:** On startup or install, if `focusbot.completedSessions` does not exist, the extension migrates completed sessions from the legacy `focusbot.sessions` key (converting each to `CompletedSession` by stripping visits). Existing users keep their history without losing data.
+
+---
+
 ## Configuration
 
 - **Port:** 9876. Defined in `WebSocketIntegrationService` (app) and in `integration.ts` (extension). Not configurable via file.

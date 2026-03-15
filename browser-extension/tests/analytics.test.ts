@@ -1,44 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { calculateAnalytics } from "../src/shared/analytics";
-import type { FocusSession } from "../src/shared/types";
+import type { CompletedSession } from "../src/shared/types";
+import { toDayKeyLocal } from "../src/shared/utils";
 
 const now = new Date();
 const todayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0).toISOString();
 const yesterdayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 10, 0, 0).toISOString();
 
-const session = (sessionId: string, endedAt: string, aligned: number, distracting: number): FocusSession => ({
+const session = (
+  sessionId: string,
+  endedAt: string,
+  aligned: number,
+  distracting: number
+): CompletedSession => ({
   sessionId,
   taskText: "Test",
   startedAt: endedAt,
   endedAt,
-  visits: [
-    {
-      pageVisitId: `${sessionId}-1`,
-      sessionId,
-      tabId: 1,
-      url: "https://github.com",
-      domain: "github.com",
-      title: "GitHub",
-      enteredAt: endedAt,
-      leftAt: endedAt,
-      durationSeconds: aligned,
-      classification: "aligned",
-      confidence: 0.9
-    },
-    {
-      pageVisitId: `${sessionId}-2`,
-      sessionId,
-      tabId: 1,
-      url: "https://youtube.com",
-      domain: "youtube.com",
-      title: "YouTube",
-      enteredAt: endedAt,
-      leftAt: endedAt,
-      durationSeconds: distracting,
-      classification: "distracting",
-      confidence: 0.9
-    }
-  ],
   summary: {
     taskName: "Test",
     totalSessionSeconds: aligned + distracting,
@@ -107,46 +85,6 @@ describe("calculateAnalytics", () => {
     expect(response.totals.totalSessions).toBe(1);
   });
 
-  it("excludes sessions without endedAt", () => {
-    const incompleteSession: FocusSession = {
-      sessionId: "incomplete",
-      taskText: "Incomplete",
-      startedAt: todayIso,
-      visits: [],
-      summary: {
-        taskName: "Incomplete",
-        totalSessionSeconds: 100,
-        totalTrackedSeconds: 100,
-        alignedSeconds: 100,
-        distractingSeconds: 0,
-        distractionCount: 0,
-        focusPercentage: 100,
-        contextSwitchCostSeconds: 0,
-        topDistractionDomains: [],
-        topAlignedDomains: []
-      }
-    };
-
-    const response = calculateAnalytics("7d", [incompleteSession, session("complete", todayIso, 50, 10)]);
-
-    expect(response.totals.totalSessions).toBe(1);
-  });
-
-  it("excludes sessions without summary", () => {
-    const noSummarySession: FocusSession = {
-      sessionId: "no-summary",
-      taskText: "No Summary",
-      startedAt: todayIso,
-      endedAt: todayIso,
-      visits: []
-    };
-
-    const response = calculateAnalytics("7d", [noSummarySession, session("with-summary", todayIso, 80, 20)]);
-
-    expect(response.totals.totalSessions).toBe(1);
-    expect(response.totals.totalTrackedSeconds).toBe(100);
-  });
-
   it("aggregates multiple sessions on same day", () => {
     const morningIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0).toISOString();
     const afternoonIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 0, 0).toISOString();
@@ -175,7 +113,7 @@ describe("calculateAnalytics", () => {
   });
 
   it("limits recentSessions to 10 entries", () => {
-    const sessions: FocusSession[] = [];
+    const sessions: CompletedSession[] = [];
     for (let i = 0; i < 15; i++) {
       const timestamp = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10 + i, 0, 0).toISOString();
       sessions.push(session(`session-${i}`, timestamp, 30, 10));
@@ -184,6 +122,28 @@ describe("calculateAnalytics", () => {
     const response = calculateAnalytics("today", sessions);
 
     expect(response.recentSessions.length).toBe(10);
+  });
+
+  it("includes sessionsByDay grouped by date", () => {
+    const response = calculateAnalytics("today", [
+      session("a", todayIso, 100, 20),
+      session("b", todayIso, 80, 10)
+    ]);
+
+    const dayKey = toDayKeyLocal(todayIso);
+    expect(response.sessionsByDay[dayKey]).toBeDefined();
+    expect(response.sessionsByDay[dayKey]).toHaveLength(2);
+  });
+
+  it("handles 'all' range with sessions", () => {
+    const response = calculateAnalytics("all", [
+      session("today", todayIso, 100, 20),
+      session("yesterday", yesterdayIso, 90, 10)
+    ]);
+
+    expect(response.range).toBe("all");
+    expect(response.totals.totalSessions).toBe(2);
+    expect(response.totals.totalTrackedSeconds).toBe(220);
   });
 
   it("sorts recentSessions by startedAt descending", () => {

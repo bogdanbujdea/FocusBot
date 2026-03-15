@@ -2,6 +2,7 @@ export const APP_KEYS = {
   settings: "focusbot.settings",
   activeSession: "focusbot.activeSession",
   sessions: "focusbot.sessions",
+  completedSessions: "focusbot.completedSessions",
   classificationCache: "focusbot.classificationCache",
   lastSummary: "focusbot.lastSummary",
   lastError: "focusbot.lastError"
