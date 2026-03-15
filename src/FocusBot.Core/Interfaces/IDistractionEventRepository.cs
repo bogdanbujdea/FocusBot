@@ -12,6 +12,10 @@ public interface IDistractionEventRepository
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<DistractionEvent>> GetEventsForTaskAsync(
+        string taskId,
+        CancellationToken cancellationToken = default);
+
     Task DeleteDistractionEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default);
 }
 

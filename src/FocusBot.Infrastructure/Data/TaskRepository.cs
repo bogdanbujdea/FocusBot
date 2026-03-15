@@ -147,6 +147,20 @@ public class TaskRepository(AppDbContext context) : ITaskRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task UpdateTaskSummaryAsync(string taskId, long focusedSeconds, long distractedSeconds, int distractionCount, int contextSwitchCostSeconds, string? topDistractingApps)
+    {
+        var task = await context.UserTasks.FindAsync(taskId);
+        if (task != null)
+        {
+            task.FocusedSeconds = focusedSeconds;
+            task.DistractedSeconds = distractedSeconds;
+            task.DistractionCount = distractionCount;
+            task.ContextSwitchCostSeconds = contextSwitchCostSeconds;
+            task.TopDistractingApps = topDistractingApps;
+            await context.SaveChangesAsync();
+        }
+    }
+
     private static bool IsDifferentTask(UserTask? existing, string taskId) =>
         existing != null && existing.TaskId != taskId;
 }

@@ -118,6 +118,7 @@ public class IntegrationCompanionModeShould
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object,
             integrationService,
             uiDispatcher);
     }

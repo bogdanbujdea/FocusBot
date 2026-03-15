@@ -15,5 +15,11 @@ public class UserTask
     public long TotalElapsedSeconds { get; set; } = 0;
     public int? FocusScorePercent { get; set; }
 
+    public long FocusedSeconds { get; set; }
+    public long DistractedSeconds { get; set; }
+    public int DistractionCount { get; set; }
+    public int ContextSwitchCostSeconds { get; set; }
+    public string? TopDistractingApps { get; set; }
+
     public bool IsActive => Status == TaskStatus.InProgress;
 }

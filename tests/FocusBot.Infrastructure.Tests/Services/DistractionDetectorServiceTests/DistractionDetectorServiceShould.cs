@@ -125,6 +125,12 @@ public class DistractionDetectorServiceShould
             return Task.FromResult(result);
         }
 
+        public Task<IReadOnlyList<DistractionEvent>> GetEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<DistractionEvent> result = Events.Where(e => e.TaskId == taskId).ToList();
+            return Task.FromResult(result);
+        }
+
         public Task DeleteDistractionEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default)
         {
             Events.RemoveAll(e => e.TaskId == taskId);

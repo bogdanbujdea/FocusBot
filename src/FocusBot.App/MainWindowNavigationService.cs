@@ -64,6 +64,22 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
     }
 
     /// <inheritdoc />
+    public void NavigateToHistory()
+    {
+        if (_window == null)
+            return;
+        if (_boardContent == null)
+            _boardContent = _window.Content as UIElement;
+
+        using var scope = serviceProvider.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        var viewModel = new HistoryViewModel(repo, this);
+        var page = new HistoryPage { DataContext = viewModel };
+        _window.Content = page;
+        _ = viewModel.InitializeAsync();
+    }
+
+    /// <inheritdoc />
     public void ActivateMainWindow()
     {
         if (_window == null)

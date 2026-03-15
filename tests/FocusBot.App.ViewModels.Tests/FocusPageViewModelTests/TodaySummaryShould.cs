@@ -52,7 +52,8 @@ public class TodaySummaryShould
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object);
 
         // Act
         // LoadBoardAsync is invoked from the constructor; give it time to complete.
@@ -106,7 +107,8 @@ public class TodaySummaryShould
             distractionDetectorMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object);
 
         // Act
         await Task.Delay(10);

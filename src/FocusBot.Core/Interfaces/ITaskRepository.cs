@@ -21,4 +21,5 @@ public interface ITaskRepository
     Task<IEnumerable<FocusSegment>> GetFocusSegmentsForTaskAsync(string taskId);
     Task UpdateFocusScoreAsync(string taskId, int scorePercent);
     Task DeleteFocusSegmentsForTaskAsync(string taskId);
+    Task UpdateTaskSummaryAsync(string taskId, long focusedSeconds, long distractedSeconds, int distractionCount, int contextSwitchCostSeconds, string? topDistractingApps);
 }

@@ -143,6 +143,7 @@ public class ExtensionPromoShould
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object,
             integrationService: null,
             uiDispatcher: null);
         return (vm, monitorMock);
@@ -178,6 +179,7 @@ public class ExtensionPromoShould
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object,
             integrationService,
             uiDispatcher: null);
         return (vm, monitorMock);

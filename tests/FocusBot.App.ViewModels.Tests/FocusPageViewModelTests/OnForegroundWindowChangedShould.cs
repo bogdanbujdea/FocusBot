@@ -23,6 +23,7 @@ public class OnForegroundWindowChangedShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -36,7 +37,8 @@ public class OnForegroundWindowChangedShould
             distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            taskSummaryMock.Object);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",

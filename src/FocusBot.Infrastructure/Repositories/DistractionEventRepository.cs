@@ -25,6 +25,16 @@ public class DistractionEventRepository(AppDbContext context) : IDistractionEven
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<DistractionEvent>> GetEventsForTaskAsync(
+        string taskId,
+        CancellationToken cancellationToken = default)
+    {
+        return await context.DistractionEvents
+            .Where(e => e.TaskId == taskId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task DeleteDistractionEventsForTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         var events = await context.DistractionEvents

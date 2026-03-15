@@ -25,6 +25,7 @@ public class TaskElapsedTimeShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -38,7 +39,8 @@ public class TaskElapsedTimeShould
             distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            taskSummaryMock.Object);
         await Task.Delay(150);
 
         // Act
@@ -74,6 +76,7 @@ public class TaskElapsedTimeShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -87,7 +90,8 @@ public class TaskElapsedTimeShould
             distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            taskSummaryMock.Object);
         await Task.Delay(150);
 
         // Assert
@@ -111,6 +115,7 @@ public class TaskElapsedTimeShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -124,7 +129,8 @@ public class TaskElapsedTimeShould
             distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            taskSummaryMock.Object);
         await Task.Delay(150);
 
         // Assert

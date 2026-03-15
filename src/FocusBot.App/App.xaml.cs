@@ -77,6 +77,7 @@ namespace FocusBot.App
             services.AddSingleton<IDistractionEventRepository, DistractionEventRepository>();
             services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
             services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
+            services.AddSingleton<ITaskSummaryService, TaskSummaryService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
             services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();

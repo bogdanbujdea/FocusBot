@@ -17,7 +17,8 @@ namespace FocusBot.App
             FocusPageViewModel viewModel,
             INavigationService navigationService,
             IIntegrationService integrationService,
-            IServiceProvider services)
+            IServiceProvider services
+        )
         {
             InitializeComponent();
             _kanbanViewModel = viewModel;
@@ -28,7 +29,7 @@ namespace FocusBot.App
             Content = _kanbanPage;
 
             // Set default window size
-            AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 1000));
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 1500));
         }
     }
 }

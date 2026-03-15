@@ -31,6 +31,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
+    private readonly ITaskSummaryService _taskSummaryService;
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
 
@@ -478,6 +479,7 @@ public partial class FocusPageViewModel : ObservableObject
         IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
         IAlignmentCacheRepository alignmentCacheRepository,
+        ITaskSummaryService taskSummaryService,
         IIntegrationService? integrationService = null,
         IUIThreadDispatcher? uiDispatcher = null
     )
@@ -495,6 +497,7 @@ public partial class FocusPageViewModel : ObservableObject
         _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
+        _taskSummaryService = taskSummaryService;
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
@@ -1135,6 +1138,7 @@ public partial class FocusPageViewModel : ObservableObject
             return;
 
         await FinalizeFocusScoreAndPersistAsync(taskToEnd.TaskId);
+        await _taskSummaryService.ComputeAndPersistSummaryAsync(taskToEnd.TaskId);
         await _repo.SetStatusToAsync(taskToEnd.TaskId, TaskStatus.Done);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         
@@ -1189,8 +1193,7 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand]
     private void ViewHistory()
     {
-        // TODO: Navigate to History page when it's created
-        // _navigationService.NavigateTo<HistoryPage>();
+        _navigationService.NavigateToHistory();
     }
 
     [RelayCommand]

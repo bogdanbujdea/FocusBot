@@ -69,15 +69,29 @@
                 CornerRadius="{StaticResource FbCornerRadiusMedium}"
                 automation:AutomationProperties.Name="Today's focus analytics">
             <StackPanel Spacing="8" Orientation="Vertical">
-                <!-- Collapsible Header -->
-                <Button Style="{StaticResource FbOutlineButtonStyle}"
-                        HorizontalAlignment="Left"
-                        Command="{x:Bind ViewModel.ToggleAnalyticsCommand}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="{x:Bind ViewModel.IsAnalyticsExpanded, Mode=OneWay, Converter={StaticResource BoolToChevronConverter}}" FontSize="16"/>
-                        <TextBlock Text="Today's Focus Analytics" FontSize="14" FontWeight="SemiBold"/>
-                    </StackPanel>
-                </Button>
+                <!-- Collapsible Header with View History -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Command="{x:Bind ViewModel.ToggleAnalyticsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="{x:Bind ViewModel.IsAnalyticsExpanded, Mode=OneWay, Converter={StaticResource BoolToChevronConverter}}" FontSize="16"/>
+                            <TextBlock Text="Today's Focus Analytics" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+                    <HyperlinkButton Grid.Column="2"
+                                     Content="View History"
+                                     Command="{x:Bind ViewModel.ViewHistoryCommand}"
+                                     HorizontalAlignment="Right"
+                                     VerticalAlignment="Center"
+                                     automation:AutomationProperties.Name="View history"/>
+                </Grid>
 
                 <!-- Analytics Content (collapsible) -->
                 <StackPanel Spacing="12" Orientation="Vertical" Visibility="{x:Bind ViewModel.IsAnalyticsExpanded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -431,9 +445,6 @@
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 Command="{x:Bind ViewModel.StartTaskCommand}"
                                 automation:AutomationProperties.Name="Start task"/>
-                        <HyperlinkButton Content="View History"
-                                         Command="{x:Bind ViewModel.ViewHistoryCommand}"
-                                         automation:AutomationProperties.Name="View history"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
