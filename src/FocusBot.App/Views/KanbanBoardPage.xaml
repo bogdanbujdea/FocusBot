@@ -263,14 +263,14 @@
                 <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
             </TextBlock>
 
-            <!-- Focus Status Bar (prominent, with dynamic background based on focus state) -->
+            <!-- Focus Status Bar (visible whenever a task is in progress, local or remote) -->
             <Border Grid.Row="1"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
                     Padding="14,10"
                     Background="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToBackgroundBrushConverter}}"
-                    Visibility="{x:Bind ViewModel.IsFocusScoreVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Focus status">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -280,13 +280,13 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Status icon (larger, more prominent) -->
+                    <!-- Status icon (always visible when status bar is shown, local or remote task) -->
                     <Image Grid.Column="0"
                            Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
                            Width="40" Height="40"
                            Margin="0,0,10,0"
                            VerticalAlignment="Center"
-                           Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                           Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                     <!-- Spinner only when classifying -->
                     <ProgressRing Grid.Column="1"
@@ -331,10 +331,26 @@
         <!-- Header with Settings -->
         <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Border Grid.Column="0"
+                    Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                    CornerRadius="12"
+                    Padding="10,4"
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Extension connected indicator">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE703;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Extension Connected"
+                               FontSize="12" FontWeight="SemiBold"
+                               Foreground="{StaticResource FbTextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                 <Button Content="?"
                         Style="{StaticResource FbOutlineButtonStyle}"
                         automation:AutomationProperties.Name="How it works"
@@ -500,17 +516,24 @@
                     <!-- Column Header with Count (tinted background) -->
                     <Border Grid.Row="0" Style="{StaticResource FbColumnHeaderAreaStyle}" 
                             Background="Transparent">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
-                            <TextBlock Text="IN PROGRESS" Style="{StaticResource FbColumnHeaderStyle}"/>
-                            <TextBlock Text="{x:Bind ViewModel.InProgressTasks.Count, Mode=OneWay}" 
-                                       Style="{StaticResource FbColumnCountStyle}"/>
+                        <StackPanel Orientation="Vertical" Spacing="4" Margin="12,0,12,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="IN PROGRESS" Style="{StaticResource FbColumnHeaderStyle}"/>
+                                <TextBlock Text="{x:Bind ViewModel.DisplayInProgressTasks.Count, Mode=OneWay}" 
+                                           Style="{StaticResource FbColumnCountStyle}"/>
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind ViewModel.IntegrationBlockedReason, Mode=OneWay}"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Visibility="{x:Bind ViewModel.IntegrationBlockedReason, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
                         </StackPanel>
                     </Border>
                     <!-- Header Divider -->
                     <Border Grid.Row="1" Style="{StaticResource FbDividerStyle}" Margin="0,4,0,4"/>
                     <!-- Task List -->
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.InProgressTasks, Mode=OneWay}">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.DisplayInProgressTasks, Mode=OneWay}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="entities:UserTask">
                                     <!-- Card with left accent bar (active/aligned) -->

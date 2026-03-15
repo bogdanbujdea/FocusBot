@@ -29,10 +29,18 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
+    private readonly IIntegrationService? _integrationService;
+    private readonly IUIThreadDispatcher? _uiDispatcher;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
+
+    private static readonly HashSet<string> BrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "chrome", "msedge", "firefox", "brave", "opera", "vivaldi",
+        "Google Chrome", "Microsoft Edge", "Firefox", "Brave Browser"
+    };
 
     /// <summary>
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
@@ -54,6 +62,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private const int PersistIntervalSeconds = 5;
     private bool _isTaskPaused;
     private DateTime? _sessionStartUtc;
+    private bool _extensionHasActiveTask;
 
     public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
@@ -159,12 +168,14 @@ public partial class KanbanBoardViewModel : ObservableObject
         : "Distracted";
 
     public string FocusStatusIcon =>
-        FocusScore switch
-        {
-            >= 6 => "ms-appx:///Assets/icon-focused.svg",
-            >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-            _ => "ms-appx:///Assets/icon-distracted.svg",
-        };
+        (IsMonitoring && !HasCurrentFocusResult)
+            ? "ms-appx:///Assets/icon-unclear.svg"
+            : FocusScore switch
+            {
+                >= 6 => "ms-appx:///Assets/icon-focused.svg",
+                >= 4 => "ms-appx:///Assets/icon-unclear.svg",
+                _ => "ms-appx:///Assets/icon-distracted.svg",
+            };
 
     public string FocusAccentBrushKey =>
         FocusScore switch
@@ -290,7 +301,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
     }
 
-    public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
+    public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
     public bool ShowMarkOverrideButton => 
         HasCurrentFocusResult && 
@@ -410,6 +421,40 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _isAnalyticsExpanded, value);
     }
 
+    private bool _isExtensionConnected;
+    public bool IsExtensionConnected
+    {
+        get => _isExtensionConnected;
+        private set => SetProperty(ref _isExtensionConnected, value);
+    }
+
+    private TaskStartedPayload? _remoteTaskFromExtension;
+    private FocusStatusPayload? _remoteTaskFocusStatus;
+    private DateTime? _remoteTaskStartedAtUtc;
+
+    /// <summary>
+    /// When the extension has an active task, we show it in the board. Null when no remote task.
+    /// </summary>
+    public TaskStartedPayload? RemoteTaskFromExtension
+    {
+        get => _remoteTaskFromExtension;
+        private set => SetProperty(ref _remoteTaskFromExtension, value);
+    }
+
+    /// <summary>
+    /// Latest focus status for the remote task (when extension is leading).
+    /// </summary>
+    public FocusStatusPayload? RemoteTaskFocusStatus
+    {
+        get => _remoteTaskFocusStatus;
+        private set => SetProperty(ref _remoteTaskFocusStatus, value);
+    }
+
+    /// <summary>
+    /// In-progress tasks to display: local InProgressTasks, or one synthetic task when extension has the task.
+    /// </summary>
+    public ObservableCollection<UserTask> DisplayInProgressTasks { get; } = new();
+
     public KanbanBoardViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -423,7 +468,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         IDistractionDetectorService distractionDetectorService,
         IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
-        IAlignmentCacheRepository alignmentCacheRepository
+        IAlignmentCacheRepository alignmentCacheRepository,
+        IIntegrationService? integrationService = null,
+        IUIThreadDispatcher? uiDispatcher = null
     )
     {
         _repo = repo;
@@ -439,11 +486,22 @@ public partial class KanbanBoardViewModel : ObservableObject
         _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
+        _integrationService = integrationService;
+        _uiDispatcher = uiDispatcher;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
         _idleDetection.UserBecameActive += OnUserBecameActive;
+
+        if (_integrationService != null)
+        {
+            _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
+            _integrationService.TaskStartedReceived += OnIntegrationTaskStarted;
+            _integrationService.TaskEndedReceived += OnIntegrationTaskEnded;
+            _integrationService.FocusStatusReceived += OnIntegrationFocusStatusReceived;
+        }
+
         _ = LoadBoardAsync();
     }
 
@@ -473,7 +531,14 @@ public partial class KanbanBoardViewModel : ObservableObject
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
+        {
+            if (RemoteTaskFromExtension != null && _remoteTaskStartedAtUtc.HasValue)
+            {
+                var elapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc.Value).TotalSeconds;
+                TaskElapsedTime = FormatElapsed(elapsed);
+            }
             return;
+        }
         _taskElapsedSeconds++;
         TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
         _windowElapsedSeconds++;
@@ -617,8 +682,19 @@ public partial class KanbanBoardViewModel : ObservableObject
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = FormatElapsed(newTotal);
 
-        if (InProgressTasks.Count == 0)
+        (string taskId, string description, string? context)? effectiveTask = InProgressTasks.Count > 0
+            ? (InProgressTasks[0].TaskId, InProgressTasks[0].Description, InProgressTasks[0].Context)
+            : RemoteTaskFromExtension != null
+                ? (RemoteTaskFromExtension.TaskId, RemoteTaskFromExtension.TaskText, RemoteTaskFromExtension.TaskHints)
+                : null;
+
+        if (effectiveTask == null)
         {
+            if (_integrationService is { IsExtensionConnected: true })
+            {
+                _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+            }
+
             FocusScore = 0;
             FocusReason = string.Empty;
             IsClassifying = false;
@@ -631,7 +707,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         }
 
-        var task = InProgressTasks[0];
+        var (taskId, taskDescription, taskContext) = effectiveTask.Value;
         var isViewingFocusBot = string.Equals(
             e.ProcessName,
             FocusBotProcessName,
@@ -668,17 +744,33 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
         _focusScoreService.StartPendingSegment(
-            task.TaskId,
+            taskId,
             contextHash,
             e.WindowTitle,
             e.ProcessName
         );
-        _ = ClassifyAndUpdateFocusAsync(
-            task.Description,
-            task.Context,
-            e.ProcessName,
-            e.WindowTitle
-        );
+
+        if (_integrationService is { IsExtensionConnected: true })
+            _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+
+        if (IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true })
+        {
+            _ = ClassifyWithBrowserContextAsync(
+                taskDescription,
+                taskContext,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
+        else
+        {
+            _ = ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -757,6 +849,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+        RefreshDisplayInProgressTasks();
         await RefreshAiSettingsAsync();
         await RefreshTodaySummaryAsync();
     }
@@ -1095,14 +1190,35 @@ public partial class KanbanBoardViewModel : ObservableObject
         ShowEditTaskInput = false;
     }
 
+    /// <summary>
+    /// When set, the extension has an active task and the user cannot start a local one. Shown in the UI.
+    /// </summary>
+    private string? _integrationBlockedReason;
+    public string? IntegrationBlockedReason
+    {
+        get => _integrationBlockedReason;
+        set => SetProperty(ref _integrationBlockedReason, value);
+    }
+
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task MoveToInProgressAsync(string? taskId)
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+
+        if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
+        {
+            IntegrationBlockedReason = "A task is already in progress in the browser extension. End it there first.";
+            return;
+        }
+        IntegrationBlockedReason = null;
+
         await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
         await LoadBoardAsync();
+
+        if (HasActiveTask())
+            await NotifyTaskStartedAsync(InProgressTasks[0]);
     }
 
     private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
@@ -1118,6 +1234,18 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+
+        if (RemoteTaskFromExtension != null && taskId == RemoteTaskFromExtension.TaskId)
+        {
+            await NotifyTaskEndedAsync(taskId);
+            ClearRemoteTask();
+            if (InProgressTasks.Count == 0)
+                _windowMonitor.Stop();
+            await LoadBoardAsync();
+            return;
+        }
+
+        await NotifyTaskEndedAsync(taskId);
         await FinalizeFocusScoreAndPersistAsync(taskId);
         await ShowSessionDistractionSummaryAsync(taskId);
         await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
@@ -1130,6 +1258,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(taskId))
             return;
+        await NotifyTaskEndedAsync(taskId);
         await FinalizeFocusScoreAndPersistAsync(taskId);
         await ShowSessionDistractionSummaryAsync(taskId);
         await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
@@ -1217,6 +1346,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(FocusStatusIcon));
         RaiseFocusOverlayStateChanged();
     }
 
@@ -1239,5 +1369,254 @@ public partial class KanbanBoardViewModel : ObservableObject
                 IsTaskPaused = _isTaskPaused,
             }
         );
+
+        if (_integrationService is { IsExtensionConnected: true } && hasActive && !_extensionHasActiveTask)
+        {
+            var classification = FocusScore >= 6 ? "Focused" : FocusScore >= 4 ? "Unclear" : "Distracted";
+            _ = _integrationService.SendFocusStatusAsync(new FocusStatusPayload
+            {
+                TaskId = InProgressTasks[0].TaskId,
+                Classification = classification,
+                Reason = FocusReason,
+                Score = FocusScore,
+                FocusScorePercent = CurrentFocusScorePercent,
+                ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
+                ContextTitle = CurrentWindowTitle
+            });
+        }
+    }
+
+    private static bool IsBrowserProcess(string processName) =>
+        BrowserProcessNames.Contains(processName);
+
+    private void OnExtensionConnectionChanged(object? sender, bool connected)
+    {
+        void updateAndMaybeSendState()
+        {
+            IsExtensionConnected = connected;
+
+            if (!connected)
+            {
+                _extensionHasActiveTask = false;
+                IntegrationBlockedReason = null;
+                return;
+            }
+
+            if (_integrationService == null)
+                return;
+
+            if (!HasActiveTask())
+            {
+                _ = _integrationService.SendHandshakeAsync(false, null, null, null);
+                return;
+            }
+
+            var task = InProgressTasks.Count > 0 ? InProgressTasks[0] : null;
+            if (task != null)
+            {
+                _ = _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
+            }
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                updateAndMaybeSendState();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            updateAndMaybeSendState();
+        }
+    }
+
+    private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
+    {
+        _extensionHasActiveTask = true;
+        _remoteTaskStartedAtUtc = !string.IsNullOrEmpty(payload.StartedAt) && DateTime.TryParse(payload.StartedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed)
+            ? parsed.ToUniversalTime()
+            : DateTime.UtcNow;
+
+        void apply()
+        {
+            _windowMonitor.Start();
+            _timeTracking.Start();
+            RemoteTaskFromExtension = payload;
+            RemoteTaskFocusStatus = null;
+            var initialElapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
+            TaskElapsedTime = FormatElapsed(initialElapsed);
+            RefreshDisplayInProgressTasks();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                apply();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            apply();
+        }
+    }
+
+    private void OnIntegrationTaskEnded(object? sender, EventArgs e)
+    {
+        _extensionHasActiveTask = false;
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                ClearRemoteTask();
+                if (InProgressTasks.Count == 0)
+                {
+                    _windowMonitor.Stop();
+                    _timeTracking.Stop();
+                }
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            ClearRemoteTask();
+            if (InProgressTasks.Count == 0)
+            {
+                _windowMonitor.Stop();
+                _timeTracking.Stop();
+            }
+        }
+    }
+
+    private void OnIntegrationFocusStatusReceived(object? sender, FocusStatusPayload payload)
+    {
+        if (RemoteTaskFromExtension == null || payload.TaskId != RemoteTaskFromExtension.TaskId)
+            return;
+        void apply()
+        {
+            RemoteTaskFocusStatus = payload;
+            FocusScore = payload.Score;
+            FocusReason = payload.Reason;
+            CurrentProcessName = payload.ContextType;
+            CurrentWindowTitle = payload.ContextTitle;
+            CurrentFocusScorePercent = payload.FocusScorePercent;
+            HasCurrentFocusResult = true;
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            RaiseFocusOverlayStateChanged();
+        }
+        if (_uiDispatcher != null)
+            _ = _uiDispatcher.RunOnUIThreadAsync(() => { apply(); return Task.CompletedTask; });
+        else
+            apply();
+    }
+
+    private void ClearRemoteTask()
+    {
+        _extensionHasActiveTask = false;
+        _remoteTaskStartedAtUtc = null;
+        IntegrationBlockedReason = null;
+        RemoteTaskFromExtension = null;
+        RemoteTaskFocusStatus = null;
+        RefreshDisplayInProgressTasks();
+    }
+
+    private void RefreshDisplayInProgressTasks()
+    {
+        DisplayInProgressTasks.Clear();
+        if (InProgressTasks.Count > 0)
+        {
+            foreach (var t in InProgressTasks)
+                DisplayInProgressTasks.Add(t);
+        }
+        else if (RemoteTaskFromExtension != null)
+        {
+            DisplayInProgressTasks.Add(new UserTask
+            {
+                TaskId = RemoteTaskFromExtension.TaskId,
+                Description = RemoteTaskFromExtension.TaskText,
+                Context = RemoteTaskFromExtension.TaskHints,
+                Status = TaskStatus.InProgress
+            });
+        }
+        IsMonitoring = DisplayInProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+    }
+
+    /// <summary>
+    /// Notifies the extension that a task has started (Full Mode). Called after a task moves to InProgress.
+    /// </summary>
+    public async Task NotifyTaskStartedAsync(UserTask task)
+    {
+        _extensionHasActiveTask = false;
+        if (_integrationService is { IsExtensionConnected: true })
+        {
+            await _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
+        }
+    }
+
+    /// <summary>
+    /// Notifies the extension that the current task has ended.
+    /// </summary>
+    public async Task NotifyTaskEndedAsync(string taskId)
+    {
+        if (_integrationService is { IsExtensionConnected: true })
+        {
+            await _integrationService.SendTaskEndedAsync(taskId);
+        }
+    }
+
+    /// <summary>
+    /// When a browser is in the foreground and we have context from the extension, classify using both process and URL.
+    /// </summary>
+    private async Task ClassifyWithBrowserContextAsync(
+        string taskDescription,
+        string? taskContext,
+        string processName,
+        string windowTitle
+    )
+    {
+        if (_integrationService is not { IsExtensionConnected: true })
+        {
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+            return;
+        }
+
+        var browserContext = _integrationService.LastBrowserContext;
+        if (browserContext != null && !string.IsNullOrEmpty(browserContext.Url))
+        {
+            var domain = Uri.TryCreate(browserContext.Url, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri
+                ? uri.Host
+                : browserContext.Url;
+            var displayTitle = $"Browser: {domain}";
+
+            if (_uiDispatcher != null)
+            {
+                await _uiDispatcher.RunOnUIThreadAsync(() =>
+                {
+                    CurrentWindowTitle = displayTitle;
+                    return Task.CompletedTask;
+                });
+            }
+            else
+            {
+                CurrentWindowTitle = displayTitle;
+            }
+
+            var combinedTitle = $"{browserContext.Title} ({browserContext.Url})";
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, combinedTitle);
+        }
+        else
+        {
+            await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, windowTitle);
+        }
     }
 }

@@ -48,7 +48,7 @@ The app monitors which applications and browser tabs the user switches to while 
 A three-column board (To Do, In Progress, Done) for organizing work. Supports adding, editing, deleting, and dragging tasks between columns. Only one task can be In Progress at a time; starting a new task automatically moves the previous one back to To Do.
 
 ### Real-Time Focus Status Bar & Browser Overlay
-When a task is In Progress, a status bar appears above the board showing the current foreground application and window title, along with the AI classification result:
+When a task is In Progress (whether started in the app or in the browser extension), a status bar appears above the board showing the current foreground application and window title, along with the AI classification result:
 
 | Status | Score Range | Color | Icon |
 |--------|-------------|-------|------|
