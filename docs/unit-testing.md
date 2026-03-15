@@ -20,7 +20,7 @@ tests/
         └── TaskRepositoryTests/
             ├── AddTaskAsyncShould.cs
             ├── GetByIdAsyncShould.cs
-            ├── SetStatusToAsyncShould.cs
+            ├── SetActiveAsyncAndSetCompletedAsyncShould.cs
             └── ...
 ```
 
@@ -45,10 +45,10 @@ Good:
 
 - `ReturnNull_WhenIdDoesNotExist`
 - `ReturnTask_WhenIdExists`
-- `SetTaskStatusToInProgress`
-- `MovePreviousInProgressTaskBackToToDo_EnforcingSingleInProgress`
+- `SetActiveAsync_MakesTaskActive`
+- `SetActiveAsync_MovesPreviousActiveTaskToCompleted`
 - `HaveNonEmptyTaskId`
-- `ReturnTrue_WhenStatusIsInProgress`
+- `ReturnTrue_WhenNotCompleted`
 
 Avoid:
 
@@ -177,7 +177,7 @@ We use [Awesome Assertions](https://awesomeassertions.org/) (community fork of F
 ```csharp
 task.Should().NotBeNull();
 task!.Description.Should().Be("Ship the feature");
-task.Status.Should().Be(TaskStatus.ToDo);
+task.IsCompleted.Should().BeFalse();
 found.Should().BeNull();
 ```
 
@@ -193,7 +193,7 @@ Guid.TryParse(task.TaskId, out _).Should().BeTrue();
 ```csharp
 toDo.Should().BeEmpty();
 toDo.Should().HaveCount(3);
-toDo.Should().OnlyContain(t => t.Status == TaskStatus.ToDo);
+completed.Should().OnlyContain(t => t.IsCompleted);
 ```
 
 **Comparisons**
@@ -252,7 +252,7 @@ public async Task AddTaskAsync_Works()
     var task = await Repository.AddTaskAsync("Do stuff");
     Assert.NotNull(task);
     Assert.Equal("Do stuff", task.Description);
-    Assert.Equal(TaskStatus.ToDo, task.Status);
+    task.IsCompleted.Should().BeFalse();
     Assert.True(Guid.TryParse(task.TaskId, out _));
 }
 ```
@@ -263,17 +263,17 @@ public async Task AddTaskAsync_Works()
 // AddTaskAsyncShould.cs
 
 [Fact]
-public async Task CreateToDoTaskWithDescription()
+public async Task CreateActiveTaskWithDescription()
 {
     var task = await Repository.AddTaskAsync("Ship the feature");
     task.Should().NotBeNull();
     task!.Description.Should().Be("Ship the feature");
-    task.Status.Should().Be(TaskStatus.ToDo);
+    task.IsCompleted.Should().BeFalse();
     Guid.TryParse(task.TaskId, out _).Should().BeTrue();
 }
 ```
 
-Each test has a single focus. When “CreateToDoTaskWithDescription” fails, you know the problem is with description, status, or id.
+Each test has a single focus. When “CreateActiveTaskWithDescription” fails, you know the problem is with description, active state, or id.
 
 ## Summary
 

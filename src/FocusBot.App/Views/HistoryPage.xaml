@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FocusBot.App.Views.HistoryPage"
+    x:Name="HistoryPageRoot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    xmlns:viewmodels="using:FocusBot.App.ViewModels"
+    xmlns:entities="using:FocusBot.Core.Entities"
+    mc:Ignorable="d"
+    Background="{StaticResource FbPageBackgroundBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32" Spacing="24">
+            <!-- Back Button -->
+            <Button Style="{StaticResource FbOutlineButtonStyle}"
+                    Command="{x:Bind ViewModel.BackCommand}"
+                    HorizontalAlignment="Left"
+                    automation:AutomationProperties.Name="Back to Focus">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE72B;" FontSize="12"/>
+                    <TextBlock Text="Back to Focus" FontSize="12"/>
+                </StackPanel>
+            </Button>
+
+            <!-- Date Range Selector -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Today"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        Command="{x:Bind ViewModel.ChangeRangeCommand}"
+                        CommandParameter="Today"
+                        automation:AutomationProperties.Name="Filter Today"/>
+                <Button Content="7 Days"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        Command="{x:Bind ViewModel.ChangeRangeCommand}"
+                        CommandParameter="Week"
+                        automation:AutomationProperties.Name="Filter 7 Days"/>
+                <Button Content="30 Days"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        Command="{x:Bind ViewModel.ChangeRangeCommand}"
+                        CommandParameter="Month"
+                        automation:AutomationProperties.Name="Filter 30 Days"/>
+                <Button Content="All Time"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        Command="{x:Bind ViewModel.ChangeRangeCommand}"
+                        CommandParameter="All"
+                        automation:AutomationProperties.Name="Filter All"/>
+            </StackPanel>
+
+            <!-- Loading -->
+            <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                          Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                          HorizontalAlignment="Center"/>
+
+            <!-- Summary Card -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="20"
+                    Visibility="{x:Bind ViewModel.HasData, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="History summary">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="Tasks" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalTasks, Mode=OneWay}"
+                                   Style="{StaticResource FbTaskTitleStyle}" FontSize="18"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="Focused" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalFocusedTimeText, Mode=OneWay}"
+                                   Foreground="{StaticResource FbAlignedAccentBrush}" FontSize="18" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="Avg Focus" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
+                        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource FbTextPrimaryBrush}">
+                            <Run Text="{x:Bind ViewModel.AverageFocusScore, Mode=OneWay}"/>
+                            <Run Text="%"/>
+                        </TextBlock>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="Distractions" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalDistractions, Mode=OneWay}"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}" FontSize="18"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Focus Score card: Aligned / Distracting + percentage -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16"
+                    Visibility="{x:Bind ViewModel.HasData, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Focus score card">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="FOCUS SCORE" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Aligned" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                                <TextBlock Text="{x:Bind ViewModel.TotalFocusedTimeText, Mode=OneWay}"
+                                           Foreground="{StaticResource FbAlignedAccentBrush}" FontSize="16" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Distracting" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                                <TextBlock Text="{x:Bind ViewModel.TotalDistractedTimeText, Mode=OneWay}"
+                                           Foreground="{StaticResource FbMisalignedAccentBrush}" FontSize="16" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,0,0,0">
+                        <TextBlock FontSize="28" FontWeight="Bold" Foreground="{StaticResource FbAlignedAccentBrush}" HorizontalAlignment="Center">
+                            <Run Text="{x:Bind ViewModel.FocusPercentage, Mode=OneWay}"/>
+                            <Run Text="%"/>
+                        </TextBlock>
+                        <TextBlock Text="FOCUS" Style="{StaticResource FbSecondaryTextStyle}" FontSize="10" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- KPI row: Deep Work, Sessions, Distractions -->
+            <Grid ColumnSpacing="12"
+                  Visibility="{x:Bind ViewModel.HasData, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="DEEP WORK" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalFocusedTimeText, Mode=OneWay}"
+                                   Foreground="{StaticResource FbAlignedAccentBrush}" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="Time aligned with task" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="SESSIONS" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalTasks, Mode=OneWay}"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalTrackedTimeSublabel, Mode=OneWay}" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="DISTRACTIONS" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Text="{x:Bind ViewModel.TotalDistractions, Mode=OneWay}"
+                                   Foreground="{StaticResource FbMisalignedAccentBrush}" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind ViewModel.AvgDistractionDurationSublabel, Mode=OneWay}" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Insights row: Best Focus Day, Avg Session Length -->
+            <Grid ColumnSpacing="12"
+                  Visibility="{x:Bind ViewModel.HasData, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}" Padding="14"
+                        Visibility="{x:Bind ViewModel.ShowBestFocusDay, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
+                                Background="{StaticResource FbAlignedAccentBrush}" Opacity="0.25"
+                                Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="BEST FOCUS DAY" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Text="{x:Bind ViewModel.BestFocusDayDisplay, Mode=OneWay}"
+                                       Foreground="{StaticResource FbAlignedAccentBrush}" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Border Grid.Column="1" Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}" Padding="14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
+                                Background="{StaticResource FbAccentBrush}" Opacity="0.25"
+                                Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="AVG SESSION LENGTH" Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock Text="{x:Bind ViewModel.AvgSessionLengthText, Mode=OneWay}"
+                                       Foreground="{StaticResource FbTextPrimaryBrush}" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Daily Activity stacked bar chart -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16"
+                    Visibility="{x:Bind ViewModel.ShowDailyChart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Daily activity chart">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Daily Activity" Style="{StaticResource FbSecondaryTextStyle}"
+                               FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource FbTextPrimaryBrush}"/>
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.DailyStats, Mode=OneWay}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:DailyStatGroup">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="24"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Bind DateDisplay}"
+                                               Style="{StaticResource FbSecondaryTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                    <Grid Grid.Row="1" Grid.Column="1" MinHeight="24" Margin="8,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding AlignedPercent, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                            <ColumnDefinition Width="{Binding DistractedPercent, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="{StaticResource FbAlignedAccentBrush}" CornerRadius="2" Margin="0,0,1,0"/>
+                                        <Border Grid.Column="1" Background="{StaticResource FbMisalignedAccentBrush}" CornerRadius="2" Margin="1,0,0,0"/>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Width="12" Height="12" CornerRadius="2" Background="{StaticResource FbAlignedAccentBrush}"/>
+                            <TextBlock Text="Aligned" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Width="12" Height="12" CornerRadius="2" Background="{StaticResource FbMisalignedAccentBrush}"/>
+                            <TextBlock Text="Distracting" Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Empty State -->
+            <TextBlock Text="No completed tasks in this range."
+                       Style="{StaticResource FbSecondaryTextStyle}"
+                       TextAlignment="Center"
+                       Visibility="{x:Bind ViewModel.ShowEmptyState, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- Daily table: header + rows -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="0"
+                    HorizontalAlignment="Stretch"
+                    Visibility="{x:Bind ViewModel.HasData, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="History daily table">
+                <StackPanel>
+                    <!-- Table header row -->
+                    <Grid Padding="16,12,16,10" BorderBrush="{StaticResource FbCardBorderBrush}" BorderThickness="0,0,0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="72"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Date"
+                                   Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="1" Text="Tasks"
+                                   Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="2" Text="Focus %"
+                                   Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Column="3" Text="Focused"
+                                   Style="{StaticResource FbSecondaryTextStyle}" FontSize="11" FontWeight="SemiBold"/>
+                    </Grid>
+                    <!-- Data rows (expandable per day) -->
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.DailyStats, Mode=OneWay}"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:DailyStatGroup">
+                                <Expander HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch"
+                                          Background="Transparent"
+                                          BorderThickness="0">
+                                    <Expander.Header>
+                                        <Grid Padding="16,10,16,10" HorizontalAlignment="Stretch">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="72"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind DateDisplay}"
+                                                       FontWeight="SemiBold" FontSize="13"
+                                                       Foreground="{StaticResource FbTextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind TaskCount, Mode=OneWay}"
+                                                       Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2"
+                                                       Foreground="{StaticResource FbAlignedAccentBrush}" FontSize="12"
+                                                       VerticalAlignment="Center">
+                                                <Run Text="{x:Bind AverageFocusScore, Mode=OneWay}"/>
+                                                <Run Text="%"/>
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="3" Text="{x:Bind FocusedTimeText, Mode=OneWay}"
+                                                       Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Expander.Header>
+                                    <Expander.Content>
+                                        <Border Background="{StaticResource FbPageBackgroundBrush}"
+                                                Margin="8,0,8,8" Padding="12,8" CornerRadius="{StaticResource FbCornerRadiusSmall}">
+                                            <ItemsControl ItemsSource="{x:Bind Tasks, Mode=OneWay}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="entities:UserTask">
+                                                        <Button Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Padding="8,6"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Command="{Binding ViewModel.ViewTaskDetailCommand, ElementName=HistoryPageRoot}"
+                                                                CommandParameter="{Binding TaskId}">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="70"/>
+                                                                    <ColumnDefinition Width="70"/>
+                                                                    <ColumnDefinition Width="56"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="{Binding Description}"
+                                                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           FontSize="12"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding TotalElapsedSeconds, Converter={StaticResource ElapsedSecondsToTimeStringConverter}}"
+                                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                                           FontFamily="Consolas" FontSize="12"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="2"
+                                                                           Text="{Binding FocusScorePercent, Converter={StaticResource NullableIntToPercentConverter}}"
+                                                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="3" Text="{Binding DistractionCount}"
+                                                                           Style="{StaticResource FbSecondaryTextStyle}" FontSize="12"
+                                                                           VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Border>
+                                    </Expander.Content>
+                                </Expander>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

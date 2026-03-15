@@ -28,7 +28,7 @@
 
 ## App Overview
 
-Focus Bot is a Windows desktop productivity application that helps users stay focused on their tasks. It combines a Kanban-style task board with real-time foreground window monitoring and AI-powered classification to produce a live Focus Score, a percentage (0-100%) showing how well the user is staying on track.
+Focus Bot is a Windows desktop productivity application that helps users stay focused on their tasks. It uses real-time foreground window monitoring and AI-powered classification to produce a live Focus Score, a percentage (0-100%) showing how well the user is staying on track.
 
 The app monitors which applications and browser tabs the user switches to while working on a task, sends that context to an AI provider for classification, and displays immediate feedback: Focused, Unclear, or Distracted, along with a reason from the AI.
 
@@ -44,11 +44,11 @@ The app monitors which applications and browser tabs the user switches to while 
 
 ## Features
 
-### Kanban Task Board
-A three-column board (To Do, In Progress, Done) for organizing work. Supports adding, editing, deleting, and dragging tasks between columns. Only one task can be In Progress at a time; starting a new task automatically moves the previous one back to To Do.
+### Single-Task Flow
+Start a single focus task at a time with a task title (required) and optional context hints for AI. When you start a task, it becomes the active task with real-time focus monitoring. End the task when complete to save the session summary. All completed tasks are available in the History page for review and analytics.
 
 ### Real-Time Focus Status Bar & Browser Overlay
-When a task is In Progress, a status bar appears above the board showing the current foreground application and window title, along with the AI classification result:
+When a task is active (whether started in the app or in the browser extension), a status bar appears showing the current foreground application and window title, along with the AI classification result:
 
 | Status | Score Range | Color | Icon |
 |--------|-------------|-------|------|
@@ -92,7 +92,7 @@ The default provider is OpenAI with the gpt-4o-mini model. Users can switch prov
 API keys are encrypted using Windows DPAPI (Data Protection API) before being stored locally in a JSON settings file. Keys are decrypted only when needed for AI requests.
 
 ### Distraction Tracking & Daily Analytics
-Focus Bot tracks distracted episodes throughout the day and provides a daily analytics summary displayed on the Kanban board:
+Focus Bot tracks distracted episodes throughout the day and provides a daily analytics summary:
 - **Daily Focus Score Bucket**: Aggregate focus quality for the current day (0-100 scale)
 - **Focused vs Distracted Time**: Visualizes how much time was spent focused versus distracted
 - **Distraction Count**: Total number of distracted episodes triggered during the day
@@ -117,10 +117,10 @@ All task data, focus scores, and classification history are stored locally in a 
 ## How It Works
 
 ### 1. Task Management
-Users create tasks on the Kanban board, stored in a local SQLite database. Each task has a title, an optional description, and optional context hints for the AI. Tasks track total elapsed time and a final Focus Score when completed.
+Users create tasks with a title and optional context hints for the AI. Tasks are stored in a local SQLite database. Each task tracks total elapsed time and a final Focus Score when completed. Only one task can be active at a time.
 
 ### 2. Window Monitoring (Win32 APIs)
-When a task enters In Progress, Focus Bot begins monitoring the foreground window using Win32 APIs from `user32.dll`:
+When a task is started, Focus Bot begins monitoring the foreground window using Win32 APIs from `user32.dll`:
 
 | API | Purpose |
 |-----|---------|
@@ -184,7 +184,6 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 | Role | Color |
 |------|-------|
 | Page background | `#110E1A` (deep purple) |
-| Column background | `#1C1730` |
 | Card background | `#2A2242` |
 | Card border | `#3A3058` |
 | Primary accent | `#A78BFA` (violet) |
@@ -218,7 +217,7 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 - Secondary text: 11px Regular
 
 ### Visual Hierarchy
-Three elevation layers (Page < Column < Card) with progressive lightening. Cards use a 3px left accent bar for state indication: violet for To Do, green for In Progress, muted green for Done.
+Single focused interface with elevation layers (Page < Status Bar < Main Card). The Active Task Card uses a 3px left accent bar that dynamically updates based on the current focus state: green for Focused, purple for Unclear, orange for Distracted.
 
 ### Materials
 Desktop Acrylic backdrop on the window, Acrylic brushes on surfaces with ~65-70% tint opacity. High Contrast mode disables all transparency and uses solid system colors.
@@ -238,10 +237,10 @@ Desktop Acrylic backdrop on the window, Acrylic brushes on surfaces with ~65-70%
 - [ ] **Privacy Policy URL** - Must be hosted at a publicly accessible URL. Must disclose that window titles and task descriptions are sent to AI providers for classification, that subscription management is handled via the Microsoft Store, and that no activity data is stored on any server.
 - [ ] **WACK Testing** - The app must pass the Windows App Certification Kit before submission.
 - [ ] **Screenshots** - At least one required; recommended at least 4. Resolution: 1366x768 or larger (supports up to 3840x2160). PNG format. Suggested screenshots:
-  1. Kanban board with tasks in all three columns
-  2. Focus Status Bar showing a Focused classification with a reason
+  1. Active task card showing focus status with a Focused classification and reason
+  2. Start task form with task title and context hints
   3. Settings page showing both pricing modes (BYOK and Subscription)
-  4. Add or Edit task popup with context hints
+  4. History page with completed tasks and analytics
 - [ ] **Store Description** - The description, product features, and release notes for the listing page.
 - [ ] **Subscription Add-on** - Created in Partner Center with the product ID `focusbot.subscription.monthly`.
 
@@ -308,7 +307,7 @@ The solution follows Clean Architecture with four layers:
 ```
 FocusBot.Core          - Entities, interfaces, domain logic (no Windows dependencies)
 FocusBot.Infrastructure - Win32 services, EF Core, AI integration, Store APIs, Distraction detection, Analytics
-FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies), Kanban board state, Daily analytics
+FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies), Single-task state, Daily analytics
 FocusBot.App            - WinUI 3 views, XAML, app entry point
 ```
 

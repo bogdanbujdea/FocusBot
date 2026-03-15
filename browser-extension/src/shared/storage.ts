@@ -1,4 +1,4 @@
-import type { FocusSession, SessionSummary, Settings } from "./types";
+import type { CompletedSession, FocusSession, SessionSummary, Settings } from "./types";
 import { APP_KEYS, DEFAULT_MODEL } from "./utils";
 
 type ClassificationCacheMap = Record<string, CacheEntry>;
@@ -17,6 +17,11 @@ const defaultSettings: Settings = {
   excludedDomains: []
 };
 
+// Storage implementation uses chrome.storage.local for all data.
+// API key is stored here and is only accessible by this extension
+// (not by web pages or other extensions). It is not encrypted at rest,
+// as the browser provides no DPAPI equivalent. This is the standard
+// "as safe as the platform allows" approach for BYOK mode.
 const getFromStorage = async <T>(key: string): Promise<T | null> => {
   const record = await chrome.storage.local.get(key);
   if (!(key in record)) {
@@ -80,6 +85,37 @@ export const saveSession = async (session: FocusSession): Promise<void> => {
   filtered.push(session);
   filtered.sort((left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt));
   await setInStorage(APP_KEYS.sessions, filtered);
+};
+
+export const loadCompletedSessions = async (): Promise<CompletedSession[]> =>
+  (await getFromStorage<CompletedSession[]>(APP_KEYS.completedSessions)) ?? [];
+
+export const saveCompletedSession = async (session: CompletedSession): Promise<void> => {
+  const current = await loadCompletedSessions();
+  const filtered = current.filter((item) => item.sessionId !== session.sessionId);
+  filtered.push(session);
+  filtered.sort((left, right) => Date.parse(right.endedAt) - Date.parse(left.endedAt));
+  await setInStorage(APP_KEYS.completedSessions, filtered);
+};
+
+export const setCompletedSessions = async (sessions: CompletedSession[]): Promise<void> => {
+  await setInStorage(APP_KEYS.completedSessions, sessions);
+};
+
+export const pruneOldSessions = async (
+  maxCount: number,
+  maxAgeDays: number
+): Promise<void> => {
+  const sessions = await loadCompletedSessions();
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+
+  const filtered = sessions
+    .filter((s) => new Date(s.endedAt) >= cutoffDate)
+    .sort((a, b) => Date.parse(b.endedAt) - Date.parse(a.endedAt))
+    .slice(0, maxCount);
+
+  await setInStorage(APP_KEYS.completedSessions, filtered);
 };
 
 export const loadClassificationCache = async (): Promise<ClassificationCacheMap> =>

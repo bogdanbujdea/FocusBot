@@ -1,7 +1,7 @@
 namespace FocusBot.Core.Entities;
 
 /// <summary>
-/// Represents a user-defined task on the Kanban board.
+/// Represents a user-defined task (single-task flow: active or completed).
 /// </summary>
 public class UserTask
 {
@@ -10,10 +10,16 @@ public class UserTask
     public string TaskId { get; set; } = Guid.NewGuid().ToString();
     public string Description { get; set; } = string.Empty;
     public string? Context { get; set; }
-    public TaskStatus Status { get; set; } = TaskStatus.ToDo;
+    public bool IsCompleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public long TotalElapsedSeconds { get; set; } = 0;
     public int? FocusScorePercent { get; set; }
 
-    public bool IsActive => Status == TaskStatus.InProgress;
+    public long FocusedSeconds { get; set; }
+    public long DistractedSeconds { get; set; }
+    public int DistractionCount { get; set; }
+    public int ContextSwitchCostSeconds { get; set; }
+    public string? TopDistractingApps { get; set; }
+
+    public bool IsActive => !IsCompleted;
 }

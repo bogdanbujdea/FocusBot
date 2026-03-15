@@ -374,4 +374,23 @@ describe("calculateLiveSummary", () => {
     expect(summary.distractingSeconds).toBe(30);
     expect(summary.topAlignedDomains.length).toBe(2);
   });
+
+  it("treats pausedBy idle and user the same for summary (metrics ignore pausedBy)", () => {
+    const base = {
+      startedAt: "2026-03-14T10:00:00.000Z",
+      pausedAt: "2026-03-14T10:05:00.000Z",
+      visits: [createVisit({ pageVisitId: "a", durationSeconds: 180, classification: "aligned" })],
+      currentVisit: createInProgressVisit({
+        enteredAt: "2026-03-14T10:03:00.000Z",
+        visitState: "classified",
+        classification: "aligned"
+      })
+    };
+    const summaryUser = calculateLiveSummary(createSession({ ...base, pausedBy: "user" }));
+    const summaryIdle = calculateLiveSummary(createSession({ ...base, pausedBy: "idle" }));
+
+    expect(summaryIdle.totalSessionSeconds).toBe(summaryUser.totalSessionSeconds);
+    expect(summaryIdle.totalTrackedSeconds).toBe(summaryUser.totalTrackedSeconds);
+    expect(summaryIdle.alignedSeconds).toBe(summaryUser.alignedSeconds);
+  });
 });

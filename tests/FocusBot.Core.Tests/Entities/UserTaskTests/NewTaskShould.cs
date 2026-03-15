@@ -1,5 +1,4 @@
 using FocusBot.Core.Entities;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.Core.Tests.Entities.UserTaskTests;
 
@@ -32,16 +31,16 @@ public class NewTaskShould
     }
 
     [Fact]
-    public void DefaultStatusToToDo()
+    public void DefaultIsCompletedToFalse()
     {
         // Arrange
         var task = new UserTask();
 
         // Act
-        var status = task.Status;
+        var isCompleted = task.IsCompleted;
 
         // Assert
-        status.Should().Be(TaskStatus.ToDo);
+        isCompleted.Should().BeFalse();
     }
 
     [Fact]

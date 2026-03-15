@@ -2,24 +2,24 @@ using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
 /// <summary>
-/// Shared in-memory DB and repo for KanbanBoardViewModel tests. Disposes the DbContext when disposed.
+/// Shared in-memory DB and repo for FocusPageViewModel tests. Disposes the DbContext when disposed.
 /// </summary>
-public sealed class KanbanBoardTestContext : IAsyncDisposable
+public sealed class FocusPageTestContext : IAsyncDisposable
 {
     private readonly AppDbContext _context;
 
     public ITaskRepository Repo { get; }
 
-    private KanbanBoardTestContext(AppDbContext context, ITaskRepository repo)
+    private FocusPageTestContext(AppDbContext context, ITaskRepository repo)
     {
         _context = context;
         Repo = repo;
     }
 
-    public static async Task<KanbanBoardTestContext> CreateAsync()
+    public static async Task<FocusPageTestContext> CreateAsync()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -27,7 +27,7 @@ public sealed class KanbanBoardTestContext : IAsyncDisposable
         var context = new AppDbContext(options);
         await context.Database.EnsureCreatedAsync();
         var repo = new TaskRepository(context);
-        return new KanbanBoardTestContext(context, repo);
+        return new FocusPageTestContext(context, repo);
     }
 
     public ValueTask DisposeAsync() => _context.DisposeAsync();

@@ -21,7 +21,8 @@ namespace FocusBot.App
         private Window? _window;
         private FocusOverlayWindow? _overlayWindow;
         private IServiceProvider? _services;
-        private KanbanBoardViewModel? _viewModel;
+        private FocusPageViewModel? _viewModel;
+        private IIntegrationService? _integrationService;
 
         public App()
         {
@@ -76,7 +77,9 @@ namespace FocusBot.App
             services.AddSingleton<IDistractionEventRepository, DistractionEventRepository>();
             services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
             services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
-            services.AddTransient<KanbanBoardViewModel>();
+            services.AddSingleton<ITaskSummaryService, TaskSummaryService>();
+            services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
+            services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
@@ -90,15 +93,18 @@ namespace FocusBot.App
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            _viewModel = _services!.GetRequiredService<KanbanBoardViewModel>();
+            _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
-            _window = new MainWindow(_viewModel, navigationService);
+            _integrationService = _services!.GetRequiredService<IIntegrationService>();
+            _window = new MainWindow(_viewModel);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
 
             var contextHolder = _services!.GetRequiredService<StoreContextHolder>();
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
+
+            _ = _integrationService.StartAsync();
             var storeContext = StoreContext.GetDefault();
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
             WinRT.Interop.InitializeWithWindow.Initialize(storeContext, hwnd);

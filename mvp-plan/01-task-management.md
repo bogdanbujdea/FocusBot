@@ -49,7 +49,7 @@
 ## Checklist
 
 - [ ] Create solution with FocusBot.Core, FocusBot.Infrastructure, FocusBot.App projects
-- [ ] Define `UserTask` entity and `TaskStatus` enum
+- [ ] Define `UserTask` entity (with `IsCompleted` for active/completed)
 - [ ] Define `ITaskRepository` interface
 - [ ] Set up `AppDbContext` with SQLite
 - [ ] Implement `TaskRepository`

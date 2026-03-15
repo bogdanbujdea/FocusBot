@@ -1,85 +1,80 @@
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
-
 namespace FocusBot.Infrastructure.Tests.Data.TaskRepositoryTests;
 
-public class SetStatusToAsyncShould : TaskRepositoryTestBase
+public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
 {
     [Fact]
-    public async Task SetTaskStatusToToDo()
-    {
-        // Arrange
-        var task = await Repository.AddTaskAsync("Pause this");
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
-
-        // Act
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.ToDo);
-        var fromDb = await Context.UserTasks.FindAsync(task.TaskId);
-
-        // Assert
-        fromDb.Should().NotBeNull();
-        fromDb!.Status.Should().Be(TaskStatus.ToDo);
-    }
-
-    [Fact]
-    public async Task SetTaskStatusToInProgress()
+    public async Task SetActiveAsync_MakesTaskActive()
     {
         // Arrange
         var task = await Repository.AddTaskAsync("Work on this");
 
         // Act
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await Repository.SetActiveAsync(task.TaskId);
         var fromDb = await Context.UserTasks.FindAsync(task.TaskId);
 
         // Assert
         fromDb.Should().NotBeNull();
-        fromDb!.Status.Should().Be(TaskStatus.InProgress);
+        fromDb!.IsCompleted.Should().BeFalse();
         fromDb.IsActive.Should().BeTrue();
     }
 
     [Fact]
-    public async Task MovePreviousInProgressTaskBackToToDo_WhenSettingAnotherToInProgress()
+    public async Task SetActiveAsync_MovesPreviousActiveTaskToCompleted()
     {
         // Arrange
         var first = await Repository.AddTaskAsync("First");
-        await Repository.SetStatusToAsync(first.TaskId, TaskStatus.InProgress);
+        await Repository.SetActiveAsync(first.TaskId);
         var second = await Repository.AddTaskAsync("Second");
 
         // Act
-        await Repository.SetStatusToAsync(second.TaskId, TaskStatus.InProgress);
+        await Repository.SetActiveAsync(second.TaskId);
         var firstUpdated = await Context.UserTasks.FindAsync(first.TaskId);
         var secondUpdated = await Context.UserTasks.FindAsync(second.TaskId);
 
         // Assert
         firstUpdated.Should().NotBeNull();
-        firstUpdated!.Status.Should().Be(TaskStatus.ToDo);
+        firstUpdated!.IsCompleted.Should().BeTrue();
         secondUpdated.Should().NotBeNull();
-        secondUpdated!.Status.Should().Be(TaskStatus.InProgress);
+        secondUpdated!.IsCompleted.Should().BeFalse();
     }
 
     [Fact]
-    public async Task SetTaskStatusToDone()
+    public async Task SetCompletedAsync_MarksTaskCompleted()
     {
         // Arrange
         var task = await Repository.AddTaskAsync("Finish this");
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await Repository.SetActiveAsync(task.TaskId);
 
         // Act
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.Done);
+        await Repository.SetCompletedAsync(task.TaskId);
         var fromDb = await Context.UserTasks.FindAsync(task.TaskId);
 
         // Assert
         fromDb.Should().NotBeNull();
-        fromDb!.Status.Should().Be(TaskStatus.Done);
+        fromDb!.IsCompleted.Should().BeTrue();
     }
 
     [Fact]
-    public async Task DoNothing_WhenTaskIdNotFound()
+    public async Task SetCompletedAsync_DoesNothing_WhenTaskIdNotFound()
     {
         // Arrange
         var taskId = Guid.NewGuid().ToString();
 
         // Act
-        await Repository.SetStatusToAsync(taskId, TaskStatus.Done);
+        await Repository.SetCompletedAsync(taskId);
+
+        // Assert
+        Context.UserTasks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_DoesNothing_WhenTaskIdNotFound()
+    {
+        // Arrange
+        var taskId = Guid.NewGuid().ToString();
+
+        // Act
+        await Repository.SetActiveAsync(taskId);
 
         // Assert
         Context.UserTasks.Should().BeEmpty();

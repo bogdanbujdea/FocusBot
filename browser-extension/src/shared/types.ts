@@ -41,9 +41,20 @@ export interface SessionSummary {
   topAlignedDomains: DomainAggregate[];
 }
 
+/** Completed session with only summary persisted; visits are not stored. */
+export interface CompletedSession {
+  sessionId: string;
+  taskText: string;
+  taskHints?: string;
+  startedAt: string;
+  endedAt: string;
+  summary: SessionSummary;
+}
+
 export interface FocusSession {
   sessionId: string;
   taskText: string;
+  taskHints?: string;
   startedAt: string;
   endedAt?: string;
   visits: PageVisit[];
@@ -53,6 +64,8 @@ export interface FocusSession {
   pausedAt?: string;
   /** Cumulative seconds the session has been paused (supports multiple pause/resume cycles). */
   totalPausedSeconds?: number;
+  /** When paused: who triggered the pause; only "idle" triggers auto-resume when user becomes active. */
+  pausedBy?: "user" | "idle";
 }
 
 export interface InProgressVisit {
@@ -89,7 +102,7 @@ export interface DailyStats {
   mostCommonAlignedDomains: DomainAggregate[];
 }
 
-export type DateRange = "today" | "7d" | "30d";
+export type DateRange = "today" | "7d" | "30d" | "all";
 
 export interface AnalyticsInsights {
   bestFocusDay: { date: string; focusPercentage: number } | null;
@@ -102,7 +115,8 @@ export interface AnalyticsResponse {
   to: string;
   statsByDay: DailyStats[];
   totals: Omit<DailyStats, "date">;
-  recentSessions: FocusSession[];
+  recentSessions: CompletedSession[];
+  sessionsByDay: Record<string, CompletedSession[]>;
   insights: AnalyticsInsights;
 }
 
@@ -115,7 +129,7 @@ export interface RuntimeState {
 
 export type RuntimeRequest =
   | { type: "GET_STATE" }
-  | { type: "START_SESSION"; taskText: string }
+  | { type: "START_SESSION"; taskText: string; taskHints?: string }
   | { type: "END_SESSION" }
   | { type: "PAUSE_SESSION" }
   | { type: "RESUME_SESSION" }
@@ -124,7 +138,8 @@ export type RuntimeRequest =
   | { type: "CLEAR_ERROR" }
   | { type: "OPEN_OPTIONS" }
   | { type: "OPEN_ANALYTICS" }
-  | { type: "OPEN_SIDE_PANEL" };
+  | { type: "OPEN_SIDE_PANEL" }
+  | { type: "GET_INTEGRATION_STATE" };
 
 export type RuntimeResponse<T = unknown> = {
   ok: boolean;

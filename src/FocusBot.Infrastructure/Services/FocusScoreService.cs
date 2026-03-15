@@ -102,7 +102,7 @@ public sealed class FocusScoreService : IFocusScoreService
         _currentSegmentStartTime = DateTime.UtcNow;
     }
 
-    public void PauseCurrentSegment()
+    public void PauseCurrentSegment(TimeSpan? backdateBy = null)
     {
         if (_hasPendingSegment)
         {
@@ -114,7 +114,10 @@ public sealed class FocusScoreService : IFocusScoreService
 
         if (_currentSegmentKey == null) return;
 
-        var elapsed = (int)(DateTime.UtcNow - _currentSegmentStartTime).TotalSeconds;
+        var rawElapsed = (DateTime.UtcNow - _currentSegmentStartTime).TotalSeconds;
+        var elapsed = backdateBy.HasValue
+            ? (int)Math.Max(0, rawElapsed - backdateBy.Value.TotalSeconds)
+            : (int)rawElapsed;
         if (elapsed > 0 && _segments.TryGetValue(_currentSegmentKey, out var current))
         {
             current.DurationSeconds += elapsed;

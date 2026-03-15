@@ -1,20 +1,18 @@
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FocusBot.Core;
 using FocusBot.Core.Configuration;
 using FocusBot.Core.DTOs;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels;
 
-public partial class KanbanBoardViewModel : ObservableObject
+public partial class FocusPageViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
@@ -26,13 +24,41 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly IFocusScoreService _focusScoreService;
     private readonly ITrialService _trialService;
     private readonly IDistractionDetectorService _distractionDetectorService;
-    private readonly IDistractionEventRepository _distractionEventRepository;
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
+    private readonly ITaskSummaryService _taskSummaryService;
+    private readonly IIntegrationService? _integrationService;
+    private readonly IUIThreadDispatcher? _uiDispatcher;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
+
+    private static readonly HashSet<string> BrowserProcessNames = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "chrome",
+        "msedge",
+        "firefox",
+        "brave",
+        "opera",
+        "vivaldi",
+        "Google Chrome",
+        "Microsoft Edge",
+        "Firefox",
+        "Brave Browser",
+    };
+
+    private static readonly HashSet<string> EdgeOrChromeProcessNames = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "msedge",
+        "chrome",
+        "Microsoft Edge",
+        "Google Chrome",
+    };
 
     /// <summary>
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
@@ -54,52 +80,28 @@ public partial class KanbanBoardViewModel : ObservableObject
     private const int PersistIntervalSeconds = 5;
     private bool _isTaskPaused;
     private DateTime? _sessionStartUtc;
+    private bool _extensionHasActiveTask;
 
-    public ObservableCollection<UserTask> ToDoTasks { get; } = new();
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
-    public ObservableCollection<UserTask> DoneTasks { get; } = new();
 
-    public string NewTaskDescription
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
+    // New single-task properties
+    [ObservableProperty]
+    private UserTask? _activeTask;
 
-    public string NewTaskContext
+    partial void OnActiveTaskChanged(UserTask? value)
     {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public bool ShowAddTaskInput
-    {
-        get;
-        set => SetProperty(ref field, value);
+        OnPropertyChanged(nameof(ShowStartForm));
+        OnPropertyChanged(nameof(IsActiveTaskVisible));
     }
 
-    public bool ShowEditTaskInput
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
+    [ObservableProperty]
+    private string _startTaskTitle = string.Empty;
 
-    public string? EditingTaskId
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
+    [ObservableProperty]
+    private string _startTaskContext = string.Empty;
 
-    public string EditTaskDescription
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public string EditTaskContext
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
+    public bool ShowStartForm => ActiveTask == null && !_extensionHasActiveTask;
+    public bool IsActiveTaskVisible => ActiveTask != null || _extensionHasActiveTask;
 
     public string CurrentProcessName
     {
@@ -159,12 +161,14 @@ public partial class KanbanBoardViewModel : ObservableObject
         : "Distracted";
 
     public string FocusStatusIcon =>
-        FocusScore switch
-        {
-            >= 6 => "ms-appx:///Assets/icon-focused.svg",
-            >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-            _ => "ms-appx:///Assets/icon-distracted.svg",
-        };
+        (IsMonitoring && !HasCurrentFocusResult)
+            ? "ms-appx:///Assets/icon-unclear.svg"
+            : FocusScore switch
+            {
+                >= 6 => "ms-appx:///Assets/icon-focused.svg",
+                >= 4 => "ms-appx:///Assets/icon-unclear.svg",
+                _ => "ms-appx:///Assets/icon-distracted.svg",
+            };
 
     public string FocusAccentBrushKey =>
         FocusScore switch
@@ -205,19 +209,17 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref field, value);
     } = "00:00:00";
 
-    private string _aiProviderDisplay = string.Empty;
     public string AiProviderDisplay
     {
-        get => _aiProviderDisplay;
-        set => SetProperty(ref _aiProviderDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
-    private string _aiModelDisplay = string.Empty;
     public string AiModelDisplay
     {
-        get => _aiModelDisplay;
-        set => SetProperty(ref _aiModelDisplay, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = string.Empty;
 
     private string _aiRequestError = string.Empty;
     public string AiRequestError
@@ -242,60 +244,52 @@ public partial class KanbanBoardViewModel : ObservableObject
             ? AiProviderDisplay
             : $"{AiProviderDisplay} · {AiModelDisplay}";
 
-    private bool _isAiConfigured;
     public bool IsAiConfigured
     {
-        get => _isAiConfigured;
-        private set => SetProperty(ref _isAiConfigured, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private bool _isTrialActive;
     public bool IsTrialActive
     {
-        get => _isTrialActive;
-        private set => SetProperty(ref _isTrialActive, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private bool _isTrialExpired;
     public bool IsTrialExpired
     {
-        get => _isTrialExpired;
-        private set => SetProperty(ref _isTrialExpired, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private DateTime? _trialEndTime;
     public DateTime? TrialEndTime
     {
-        get => _trialEndTime;
-        private set => SetProperty(ref _trialEndTime, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
-    private string _trialTimeRemainingFormatted = string.Empty;
     public string TrialTimeRemainingFormatted
     {
-        get => _trialTimeRemainingFormatted;
-        private set => SetProperty(ref _trialTimeRemainingFormatted, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = string.Empty;
 
     public bool ShowTrialBanner => IsTrialActive && !IsTrialExpired;
 
-    private bool _hasCurrentFocusResult;
     public bool HasCurrentFocusResult
     {
-        get => _hasCurrentFocusResult;
+        get;
         private set
         {
-            if (SetProperty(ref _hasCurrentFocusResult, value))
+            if (SetProperty(ref field, value))
                 OnPropertyChanged(nameof(ShowCheckingMessage));
         }
     }
 
-    public bool ShowCheckingMessage => !HasCurrentFocusResult && IsClassifying;
+    public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
-    public bool ShowMarkOverrideButton => 
-        HasCurrentFocusResult && 
-        !IsClassifying && 
-        !IsFocusBotWindow;
+    public bool ShowMarkOverrideButton =>
+        HasCurrentFocusResult && !IsClassifying && !IsFocusBotWindow;
 
     public string MarkOverrideButtonText
     {
@@ -315,11 +309,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         }
     }
 
-    private int _liveDistractionCount;
     public int LiveDistractionCount
     {
-        get => _liveDistractionCount;
-        private set => SetProperty(ref _liveDistractionCount, value);
+        get;
+        private set => SetProperty(ref field, value);
     }
 
     public int TodayFocusScoreBucket
@@ -403,14 +396,70 @@ public partial class KanbanBoardViewModel : ObservableObject
     public bool ShowTodayFocusScoreChip =>
         HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
 
-    private bool _isAnalyticsExpanded = true;
     public bool IsAnalyticsExpanded
     {
-        get => _isAnalyticsExpanded;
-        set => SetProperty(ref _isAnalyticsExpanded, value);
+        get;
+        set => SetProperty(ref field, value);
+    } = true;
+
+    public bool IsExtensionConnected
+    {
+        get;
+        private set
+        {
+            if (SetProperty(ref field, value))
+                OnPropertyChanged(nameof(ShowExtensionPromo));
+        }
     }
 
-    public KanbanBoardViewModel(
+    /// <summary>
+    /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
+    /// </summary>
+    public bool IsForegroundBrowserEdgeOrChrome =>
+        !string.IsNullOrEmpty(CurrentProcessName)
+        && EdgeOrChromeProcessNames.Contains(CurrentProcessName);
+
+    /// <summary>
+    /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
+    /// </summary>
+    public bool ShowExtensionPromo => !IsExtensionConnected && IsForegroundBrowserEdgeOrChrome;
+
+    /// <summary>
+    /// Microsoft Edge Add-ons store URL for the FocusBot extension.
+    /// </summary>
+    public Uri ExtensionStoreEdgeUri => ExtensionStoreLinks.EdgeAddOns;
+
+    /// <summary>
+    /// Chrome Web Store URL for the FocusBot extension.
+    /// </summary>
+    public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
+
+    private DateTime? _remoteTaskStartedAtUtc;
+
+    /// <summary>
+    /// When the extension has an active task, we show it in the board. Null when no remote task.
+    /// </summary>
+    public TaskStartedPayload? RemoteTaskFromExtension
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    /// <summary>
+    /// Latest focus status for the remote task (when extension is leading).
+    /// </summary>
+    public FocusStatusPayload? RemoteTaskFocusStatus
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    /// <summary>
+    /// In-progress tasks to display: local InProgressTasks, or one synthetic task when extension has the task.
+    /// </summary>
+    public ObservableCollection<UserTask> DisplayInProgressTasks { get; } = new();
+
+    public FocusPageViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
         ITimeTrackingService timeTracking,
@@ -421,9 +470,11 @@ public partial class KanbanBoardViewModel : ObservableObject
         IFocusScoreService focusScoreService,
         ITrialService trialService,
         IDistractionDetectorService distractionDetectorService,
-        IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
-        IAlignmentCacheRepository alignmentCacheRepository
+        IAlignmentCacheRepository alignmentCacheRepository,
+        ITaskSummaryService taskSummaryService,
+        IIntegrationService? integrationService = null,
+        IUIThreadDispatcher? uiDispatcher = null
     )
     {
         _repo = repo;
@@ -436,14 +487,25 @@ public partial class KanbanBoardViewModel : ObservableObject
         _focusScoreService = focusScoreService;
         _trialService = trialService;
         _distractionDetectorService = distractionDetectorService;
-        _distractionEventRepository = distractionEventRepository;
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
+        _taskSummaryService = taskSummaryService;
+        _integrationService = integrationService;
+        _uiDispatcher = uiDispatcher;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
         _idleDetection.UserBecameActive += OnUserBecameActive;
+
+        if (_integrationService != null)
+        {
+            _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
+            _integrationService.TaskStartedReceived += OnIntegrationTaskStarted;
+            _integrationService.TaskEndedReceived += OnIntegrationTaskEnded;
+            _integrationService.FocusStatusReceived += OnIntegrationFocusStatusReceived;
+        }
+
         _ = LoadBoardAsync();
     }
 
@@ -473,7 +535,14 @@ public partial class KanbanBoardViewModel : ObservableObject
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
+        {
+            if (RemoteTaskFromExtension != null && _remoteTaskStartedAtUtc.HasValue)
+            {
+                var elapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc.Value).TotalSeconds;
+                TaskElapsedTime = FormatElapsed(elapsed);
+            }
             return;
+        }
         _taskElapsedSeconds++;
         TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
         _windowElapsedSeconds++;
@@ -526,53 +595,28 @@ public partial class KanbanBoardViewModel : ObservableObject
         _ = _dailyAnalyticsService.RegisterDistractionEventAsync(e);
     }
 
-    public event EventHandler<SessionDistractionSummary>? SessionSummaryReady;
-
-    private async Task ShowSessionDistractionSummaryAsync(string taskId)
-    {
-        if (_sessionStartUtc is null)
-            return;
-
-        if (InProgressTasks.Count == 0)
-            return;
-
-        var fromUtc = _sessionStartUtc.Value;
-        var toUtc = DateTime.UtcNow;
-        var events =
-            await _distractionEventRepository
-                .GetEventsForTaskBetweenAsync(taskId, fromUtc, toUtc)
-                .ConfigureAwait(false) ?? Array.Empty<DistractionEvent>();
-
-        var totalCount = events.Count;
-        var topApps = events
-            .GroupBy(e => e.ProcessName)
-            .Select(g => new AppDistractionSummary
-            {
-                AppName = g.Key,
-                DistractionCount = g.Count(),
-                DistractedDurationSeconds = g.Sum(x => x.DistractedDurationSecondsAtEmit),
-            })
-            .OrderByDescending(a => a.DistractedDurationSeconds)
-            .ThenByDescending(a => a.DistractionCount)
-            .ThenBy(a => a.AppName)
-            .Take(3)
-            .ToList();
-
-        var summary = new SessionDistractionSummary
-        {
-            TotalDistractionCount = totalCount,
-            TopApps = topApps,
-        };
-
-        SessionSummaryReady?.Invoke(this, summary);
-    }
-
     private void OnUserBecameIdle(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
             return;
 
-        _focusScoreService.PauseCurrentSegment();
+        var backdateSeconds = (int)_idleDetection.IdleThreshold.TotalSeconds;
+        _taskElapsedSeconds = Math.Max(0L, _taskElapsedSeconds - backdateSeconds);
+        _windowElapsedSeconds = Math.Max(0L, _windowElapsedSeconds - backdateSeconds);
+        var key = GetCurrentWindowKey();
+        if (!string.IsNullOrEmpty(key))
+        {
+            var current = _perWindowTotalSeconds.GetValueOrDefault(key, 0L);
+            _perWindowTotalSeconds[key] = Math.Max(0L, current - backdateSeconds);
+        }
+
+        TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+        WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
+        WindowTotalElapsedTime = FormatElapsed(
+            _perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L)
+        );
+
+        _focusScoreService.PauseCurrentSegment(_idleDetection.IdleThreshold);
         _timeTracking.Stop();
         _windowMonitor.Stop();
     }
@@ -611,14 +655,36 @@ public partial class KanbanBoardViewModel : ObservableObject
 
         CurrentProcessName = e.ProcessName;
         CurrentWindowTitle = e.WindowTitle;
+        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(ShowExtensionPromo));
         _windowElapsedSeconds = 0;
         WindowElapsedTime = FormatElapsed(0);
         var newKey = GetCurrentWindowKey(e.ProcessName, e.WindowTitle);
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = FormatElapsed(newTotal);
 
-        if (InProgressTasks.Count == 0)
+        (string taskId, string description, string? context)? effectiveTask =
+            InProgressTasks.Count > 0
+                ? (
+                    InProgressTasks[0].TaskId,
+                    InProgressTasks[0].Description,
+                    InProgressTasks[0].Context
+                )
+            : RemoteTaskFromExtension != null
+                ? (
+                    RemoteTaskFromExtension.TaskId,
+                    RemoteTaskFromExtension.TaskText,
+                    RemoteTaskFromExtension.TaskHints
+                )
+            : null;
+
+        if (effectiveTask == null)
         {
+            if (_integrationService is { IsExtensionConnected: true })
+            {
+                _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+            }
+
             FocusScore = 0;
             FocusReason = string.Empty;
             IsClassifying = false;
@@ -631,7 +697,7 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
         }
 
-        var task = InProgressTasks[0];
+        var (taskId, taskDescription, taskContext) = effectiveTask.Value;
         var isViewingFocusBot = string.Equals(
             e.ProcessName,
             FocusBotProcessName,
@@ -667,18 +733,31 @@ public partial class KanbanBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowCheckingMessage));
 
         var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
-        _focusScoreService.StartPendingSegment(
-            task.TaskId,
-            contextHash,
-            e.WindowTitle,
-            e.ProcessName
-        );
-        _ = ClassifyAndUpdateFocusAsync(
-            task.Description,
-            task.Context,
-            e.ProcessName,
-            e.WindowTitle
-        );
+        _focusScoreService.StartPendingSegment(taskId, contextHash, e.WindowTitle, e.ProcessName);
+
+        if (_integrationService is { IsExtensionConnected: true })
+            _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
+
+        if (
+            IsBrowserProcess(e.ProcessName) && _integrationService is { IsExtensionConnected: true }
+        )
+        {
+            _ = ClassifyWithBrowserContextAsync(
+                taskDescription,
+                taskContext,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
+        else
+        {
+            _ = ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                e.ProcessName,
+                e.WindowTitle
+            );
+        }
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -704,7 +783,8 @@ public partial class KanbanBoardViewModel : ObservableObject
             {
                 FocusScore = response.Result.Score;
                 FocusReason = response.Result.Reason;
-                MarkOverrideButtonText = FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
+                MarkOverrideButtonText =
+                    FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
                 _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
@@ -726,17 +806,15 @@ public partial class KanbanBoardViewModel : ObservableObject
 
     private async Task LoadBoardAsync()
     {
-        ToDoTasks.Clear();
         InProgressTasks.Clear();
-        DoneTasks.Clear();
+        ActiveTask = null;
 
-        foreach (var t in await _repo.GetToDoTasksAsync())
-            ToDoTasks.Add(t);
         var inProgress = await _repo.GetInProgressTaskAsync();
         if (inProgress != null)
+        {
             InProgressTasks.Add(inProgress);
-        foreach (var t in await _repo.GetDoneTasksAsync())
-            DoneTasks.Add(t);
+            ActiveTask = InProgressTasks[0];
+        }
 
         if (HasActiveTask())
         {
@@ -757,6 +835,9 @@ public partial class KanbanBoardViewModel : ObservableObject
         else
             StopMonitoringAndResetFocusState();
         IsMonitoring = InProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+        RefreshDisplayInProgressTasks();
         await RefreshAiSettingsAsync();
         await RefreshTodaySummaryAsync();
     }
@@ -961,10 +1042,118 @@ public partial class KanbanBoardViewModel : ObservableObject
     public Task<bool> HasTrialStartedAsync() => _trialService.HasTrialStartedAsync();
 
     [RelayCommand]
-    private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;
+    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
+
+    [RelayCommand(CanExecute = nameof(CanStartTask))]
+    private async Task StartTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(StartTaskTitle))
+            return;
+
+        if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
+        {
+            IntegrationBlockedReason =
+                "A task is already in progress in the browser extension. End it there first.";
+            return;
+        }
+        IntegrationBlockedReason = null;
+
+        var context = string.IsNullOrWhiteSpace(StartTaskContext) ? null : StartTaskContext.Trim();
+
+        // Create task directly as InProgress
+        var task = await _repo.AddTaskAsync(StartTaskTitle.Trim(), context);
+        await _repo.SetActiveAsync(task.TaskId);
+
+        // Clear form
+        StartTaskTitle = string.Empty;
+        StartTaskContext = string.Empty;
+
+        // Reload board which will start monitoring
+        await LoadBoardAsync();
+
+        // Set ActiveTask
+        if (InProgressTasks.Count > 0)
+        {
+            ActiveTask = InProgressTasks[0];
+            await NotifyTaskStartedAsync(ActiveTask);
+        }
+    }
+
+    private bool CanStartTask() => !string.IsNullOrWhiteSpace(StartTaskTitle);
+
+    partial void OnStartTaskTitleChanged(string value)
+    {
+        StartTaskCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand]
-    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
+    private async Task EndTaskAsync()
+    {
+        if (ActiveTask == null && InProgressTasks.Count == 0)
+            return;
+
+        var taskToEnd = ActiveTask ?? InProgressTasks.FirstOrDefault();
+        if (taskToEnd == null)
+            return;
+
+        await FinalizeFocusScoreAndPersistAsync(taskToEnd.TaskId);
+        await _taskSummaryService.ComputeAndPersistSummaryAsync(taskToEnd.TaskId);
+        await _repo.SetCompletedAsync(taskToEnd.TaskId);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+
+        InProgressTasks.Clear();
+        ActiveTask = null;
+
+        StopMonitoringAndResetFocusState();
+        IsMonitoring = false;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+        RefreshDisplayInProgressTasks();
+
+        await RefreshTodaySummaryAsync();
+
+        if (_integrationService?.IsExtensionConnected == true)
+        {
+            await _integrationService.SendTaskEndedAsync(taskToEnd.TaskId);
+        }
+    }
+
+    [RelayCommand]
+    private void PauseTask()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _isTaskPaused = true;
+        OnPropertyChanged(nameof(IsTaskPaused));
+
+        _focusScoreService.PauseCurrentSegment();
+        _timeTracking.Stop();
+        _windowMonitor.Stop();
+
+        RaiseFocusOverlayStateChanged();
+    }
+
+    [RelayCommand]
+    private void ResumeTask()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _isTaskPaused = false;
+        OnPropertyChanged(nameof(IsTaskPaused));
+
+        _timeTracking.Start();
+        _windowMonitor.Start();
+
+        RaiseFocusOverlayStateChanged();
+    }
+
+    [RelayCommand]
+    private void ViewHistory()
+    {
+        _navigationService.NavigateToHistory();
+    }
 
     [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();
@@ -979,12 +1168,16 @@ public partial class KanbanBoardViewModel : ObservableObject
             return;
 
         int newScore = FocusScore >= 6 ? 2 : 9;
-        string newReason = FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
+        string newReason =
+            FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
 
         var taskId = InProgressTasks[0].TaskId;
         var taskDescription = InProgressTasks[0].Description;
         var taskContext = InProgressTasks[0].Context;
-        var contextHash = HashHelper.ComputeWindowContextHash(CurrentProcessName, CurrentWindowTitle);
+        var contextHash = HashHelper.ComputeWindowContextHash(
+            CurrentProcessName,
+            CurrentWindowTitle
+        );
         var taskContentHash = HashHelper.ComputeTaskContentHash(taskDescription, taskContext);
 
         var entry = new AlignmentCacheEntry
@@ -993,18 +1186,18 @@ public partial class KanbanBoardViewModel : ObservableObject
             TaskContentHash = taskContentHash,
             Score = newScore,
             Reason = newReason,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
 
         var windowContext = new WindowContext
         {
             ContextHash = contextHash,
             ProcessName = CurrentProcessName,
-            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle)
+            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle),
         };
 
         await _alignmentCacheRepository.SaveAsync(windowContext, entry);
-        
+
         await _focusScoreService.UpdateHistoricalSegmentsAsync(taskId, contextHash, newScore);
         await _dailyAnalyticsService.ReloadTodayFromDbAsync();
 
@@ -1041,68 +1234,10 @@ public partial class KanbanBoardViewModel : ObservableObject
         _navigationService.NavigateToTaskDetail(taskId);
     }
 
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task AddTaskAsync()
+    public string? IntegrationBlockedReason
     {
-        if (string.IsNullOrWhiteSpace(NewTaskDescription))
-            return;
-        var context = string.IsNullOrWhiteSpace(NewTaskContext) ? null : NewTaskContext.Trim();
-        var task = await _repo.AddTaskAsync(NewTaskDescription.Trim(), context);
-        ToDoTasks.Add(task);
-        CloseNewTaskPopup();
-    }
-
-    private void CloseNewTaskPopup()
-    {
-        NewTaskDescription = string.Empty;
-        NewTaskContext = string.Empty;
-        ShowAddTaskInput = false;
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task BeginEditTaskAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        var task = await _repo.GetByIdAsync(taskId);
-        if (task == null)
-            return;
-        EditingTaskId = taskId;
-        EditTaskDescription = task.Description;
-        EditTaskContext = task.Context ?? string.Empty;
-        ShowEditTaskInput = true;
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task SaveEditTaskAsync()
-    {
-        if (string.IsNullOrWhiteSpace(EditTaskDescription) || string.IsNullOrEmpty(EditingTaskId))
-            return;
-        var context = string.IsNullOrWhiteSpace(EditTaskContext) ? null : EditTaskContext.Trim();
-        await _repo.UpdateTaskAsync(EditingTaskId, EditTaskDescription.Trim(), context);
-        CloseEditTaskPopup();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand]
-    private void CloseEditTask() => ShowEditTaskInput = false;
-
-    private void CloseEditTaskPopup()
-    {
-        EditTaskDescription = string.Empty;
-        EditTaskContext = string.Empty;
-        EditingTaskId = null;
-        ShowEditTaskInput = false;
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToInProgressAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
+        get;
+        set => SetProperty(ref field, value);
     }
 
     private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
@@ -1112,70 +1247,6 @@ public partial class KanbanBoardViewModel : ObservableObject
         var scorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
         await _repo.UpdateFocusScoreAsync(taskId, scorePercent);
     }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToDoneAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        await FinalizeFocusScoreAndPersistAsync(taskId);
-        await ShowSessionDistractionSummaryAsync(taskId);
-        await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToToDoAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        await FinalizeFocusScoreAndPersistAsync(taskId);
-        await ShowSessionDistractionSummaryAsync(taskId);
-        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
-        await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task DeleteTaskAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        _focusScoreService.ClearTaskSegments(taskId);
-        await _repo.DeleteFocusSegmentsForTaskAsync(taskId);
-        await _distractionEventRepository.DeleteDistractionEventsForTaskAsync(taskId);
-        await _repo.DeleteTaskAsync(taskId);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    /// <summary>
-    /// Move task to the given status (used by drag-and-drop). Status name: ToDo, InProgress, Done.
-    /// </summary>
-    public async Task MoveToStatusAsync(string taskId, string status)
-    {
-        var task = await _repo.GetByIdAsync(taskId);
-        if (task == null)
-            return;
-        var statusEnum = Enum.Parse<TaskStatus>(status);
-        var isMovingCurrentInProgress = HasActiveTask() && InProgressTasks[0].TaskId == taskId;
-        if (!isMovingCurrentInProgress)
-            _taskElapsedSeconds = task.TotalElapsedSeconds;
-        await UpdateTaskStatusAndDuration(taskId, statusEnum);
-        await LoadBoardAsync();
-    }
-
-    private async Task UpdateTaskStatusAndDuration(string taskId, TaskStatus statusEnum)
-    {
-        if (HasActiveTask() && InProgressTasks[0].TaskId == taskId)
-            await FinalizeFocusScoreAndPersistAsync(taskId);
-        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
-        await _repo.SetStatusToAsync(taskId, statusEnum);
-    }
-
-    private bool HasValidFocusData() => FocusScore > 0 || !string.IsNullOrEmpty(FocusReason);
 
     private bool HasActiveTask() => InProgressTasks.Count > 0;
 
@@ -1213,10 +1284,13 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         CurrentProcessName = string.Empty;
         CurrentWindowTitle = string.Empty;
+        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(ShowExtensionPromo));
         FocusScore = 0;
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(FocusStatusIcon));
         RaiseFocusOverlayStateChanged();
     }
 
@@ -1239,5 +1313,304 @@ public partial class KanbanBoardViewModel : ObservableObject
                 IsTaskPaused = _isTaskPaused,
             }
         );
+
+        if (
+            _integrationService is { IsExtensionConnected: true }
+            && hasActive
+            && !_extensionHasActiveTask
+        )
+        {
+            var classification =
+                FocusScore >= 6 ? "Focused"
+                : FocusScore >= 4 ? "Unclear"
+                : "Distracted";
+            _ = _integrationService.SendFocusStatusAsync(
+                new FocusStatusPayload
+                {
+                    TaskId = InProgressTasks[0].TaskId,
+                    Classification = classification,
+                    Reason = FocusReason,
+                    Score = FocusScore,
+                    FocusScorePercent = CurrentFocusScorePercent,
+                    ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
+                    ContextTitle = CurrentWindowTitle,
+                }
+            );
+        }
+    }
+
+    private static bool IsBrowserProcess(string processName) =>
+        BrowserProcessNames.Contains(processName);
+
+    private void OnExtensionConnectionChanged(object? sender, bool connected)
+    {
+        void UpdateAndMaybeSendState()
+        {
+            IsExtensionConnected = connected;
+
+            if (!connected)
+            {
+                _extensionHasActiveTask = false;
+                IntegrationBlockedReason = null;
+                return;
+            }
+
+            if (_integrationService == null)
+                return;
+
+            if (!HasActiveTask())
+            {
+                _ = _integrationService.SendHandshakeAsync(false, null, null, null);
+                return;
+            }
+
+            var task = InProgressTasks.Count > 0 ? InProgressTasks[0] : null;
+            if (task != null)
+            {
+                _ = _integrationService.SendTaskStartedAsync(
+                    task.TaskId,
+                    task.Description,
+                    task.Context
+                );
+            }
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                UpdateAndMaybeSendState();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            UpdateAndMaybeSendState();
+        }
+    }
+
+    private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
+    {
+        _extensionHasActiveTask = true;
+        _remoteTaskStartedAtUtc =
+            !string.IsNullOrEmpty(payload.StartedAt)
+            && DateTime.TryParse(
+                payload.StartedAt,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var parsed
+            )
+                ? parsed.ToUniversalTime()
+                : DateTime.UtcNow;
+
+        void apply()
+        {
+            _windowMonitor.Start();
+            _timeTracking.Start();
+            RemoteTaskFromExtension = payload;
+            RemoteTaskFocusStatus = null;
+            var initialElapsed = (long)
+                (DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
+            TaskElapsedTime = FormatElapsed(initialElapsed);
+            RefreshDisplayInProgressTasks();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                apply();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            apply();
+        }
+    }
+
+    private void OnIntegrationTaskEnded(object? sender, EventArgs e)
+    {
+        _extensionHasActiveTask = false;
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                ClearRemoteTask();
+                if (InProgressTasks.Count == 0)
+                {
+                    _windowMonitor.Stop();
+                    _timeTracking.Stop();
+                }
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            ClearRemoteTask();
+            if (InProgressTasks.Count == 0)
+            {
+                _windowMonitor.Stop();
+                _timeTracking.Stop();
+            }
+        }
+    }
+
+    private void OnIntegrationFocusStatusReceived(object? sender, FocusStatusPayload payload)
+    {
+        if (RemoteTaskFromExtension == null || payload.TaskId != RemoteTaskFromExtension.TaskId)
+            return;
+        void Apply()
+        {
+            RemoteTaskFocusStatus = payload;
+            FocusScore = payload.Score;
+            FocusReason = payload.Reason;
+            CurrentProcessName = payload.ContextType;
+            CurrentWindowTitle = payload.ContextTitle;
+            OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+            OnPropertyChanged(nameof(ShowExtensionPromo));
+            CurrentFocusScorePercent = payload.FocusScorePercent;
+            HasCurrentFocusResult = true;
+            IsClassifying = false;
+            OnPropertyChanged(nameof(IsFocusScoreVisible));
+            OnPropertyChanged(nameof(FocusScoreCategory));
+            OnPropertyChanged(nameof(FocusStatusIcon));
+            OnPropertyChanged(nameof(FocusAccentBrushKey));
+            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            RaiseFocusOverlayStateChanged();
+        }
+        if (_uiDispatcher != null)
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Apply();
+                return Task.CompletedTask;
+            });
+        else
+            Apply();
+    }
+
+    private void ClearRemoteTask()
+    {
+        _extensionHasActiveTask = false;
+        _remoteTaskStartedAtUtc = null;
+        IntegrationBlockedReason = null;
+        RemoteTaskFromExtension = null;
+        RemoteTaskFocusStatus = null;
+        RefreshDisplayInProgressTasks();
+    }
+
+    private void RefreshDisplayInProgressTasks()
+    {
+        DisplayInProgressTasks.Clear();
+        if (InProgressTasks.Count > 0)
+        {
+            foreach (var t in InProgressTasks)
+                DisplayInProgressTasks.Add(t);
+        }
+        else if (RemoteTaskFromExtension != null)
+        {
+            DisplayInProgressTasks.Add(
+                new UserTask
+                {
+                    TaskId = RemoteTaskFromExtension.TaskId,
+                    Description = RemoteTaskFromExtension.TaskText,
+                    Context = RemoteTaskFromExtension.TaskHints,
+                    IsCompleted = false,
+                }
+            );
+        }
+        IsMonitoring = DisplayInProgressTasks.Count > 0;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+    }
+
+    /// <summary>
+    /// Refreshes IsExtensionConnected from the integration service. Call when the Focus page is shown
+    /// so the UI reflects the current connection state even if the connection event was missed or delivered on a background thread.
+    /// </summary>
+    public void RefreshExtensionConnectionState()
+    {
+        var connected = _integrationService?.IsExtensionConnected ?? false;
+        if (IsExtensionConnected != connected)
+            IsExtensionConnected = connected;
+    }
+
+    /// <summary>
+    /// Notifies the extension that a task has started (Full Mode). Called after a task moves to InProgress.
+    /// </summary>
+    public async Task NotifyTaskStartedAsync(UserTask task)
+    {
+        _extensionHasActiveTask = false;
+        if (_integrationService is { IsExtensionConnected: true })
+        {
+            await _integrationService.SendTaskStartedAsync(
+                task.TaskId,
+                task.Description,
+                task.Context
+            );
+        }
+    }
+
+    /// <summary>
+    /// When a browser is in the foreground and we have context from the extension, classify using both process and URL.
+    /// </summary>
+    private async Task ClassifyWithBrowserContextAsync(
+        string taskDescription,
+        string? taskContext,
+        string processName,
+        string windowTitle
+    )
+    {
+        if (_integrationService is not { IsExtensionConnected: true })
+        {
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                windowTitle
+            );
+            return;
+        }
+
+        var browserContext = _integrationService.LastBrowserContext;
+        if (browserContext != null && !string.IsNullOrEmpty(browserContext.Url))
+        {
+            var domain =
+                Uri.TryCreate(browserContext.Url, UriKind.Absolute, out var uri)
+                && uri.IsAbsoluteUri
+                    ? uri.Host
+                    : browserContext.Url;
+            var displayTitle = $"Browser: {domain}";
+
+            if (_uiDispatcher != null)
+            {
+                await _uiDispatcher.RunOnUIThreadAsync(() =>
+                {
+                    CurrentWindowTitle = displayTitle;
+                    return Task.CompletedTask;
+                });
+            }
+            else
+            {
+                CurrentWindowTitle = displayTitle;
+            }
+
+            var combinedTitle = $"{browserContext.Title} ({browserContext.Url})";
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                combinedTitle
+            );
+        }
+        else
+        {
+            await ClassifyAndUpdateFocusAsync(
+                taskDescription,
+                taskContext,
+                processName,
+                windowTitle
+            );
+        }
     }
 }

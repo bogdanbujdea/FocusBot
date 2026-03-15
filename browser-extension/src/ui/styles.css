@@ -668,3 +668,121 @@ button:disabled {
 .legend-dot.distracting {
   background: #ff6666;
 }
+
+/* Day history table (History by day) */
+.day-history-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.day-history-card h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(231, 236, 255, 0.8);
+  margin: 0 0 12px 0;
+}
+
+.day-history-table {
+  margin: 0;
+}
+
+.day-history-row {
+  cursor: pointer;
+}
+
+.day-history-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.day-history-date {
+  font-weight: 500;
+}
+
+.day-history-th-tasks,
+.day-history-th-focus,
+.day-history-th-focused,
+.day-history-tasks,
+.day-history-focus,
+.day-history-focused {
+  text-align: right;
+}
+
+.day-history-th-chevron,
+.day-history-chevron {
+  width: 32px;
+  text-align: center;
+}
+
+.day-history-chevron span {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: rgba(231, 236, 255, 0.5);
+  transition: transform 0.2s ease;
+}
+
+.day-history-chevron-open {
+  transform: rotate(180deg);
+}
+
+.day-history-expanded-cell {
+  padding: 12px 16px !important;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: top;
+}
+
+.day-history-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.day-history-session-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+
+.day-history-session-task {
+  font-weight: 500;
+  color: rgba(231, 236, 255, 0.95);
+}
+
+.day-history-session-meta {
+  color: rgba(231, 236, 255, 0.6);
+  font-size: 0.8rem;
+}
+
+.focus-pct-high {
+  color: #2db871;
+  font-weight: 600;
+}
+
+.focus-pct-low {
+  color: #ff6666;
+  font-weight: 600;
+}
+
+.focus-pct-mid {
+  color: rgba(231, 236, 255, 0.9);
+}
+
+.companion-card {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.companion-badge {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  width: fit-content;
+}

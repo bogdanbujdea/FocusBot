@@ -1,14 +1,13 @@
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
-
 namespace FocusBot.Infrastructure.Tests.Data.TaskRepositoryTests;
 
 public class GetInProgressTaskAsyncShould : TaskRepositoryTestBase
 {
     [Fact]
-    public async Task ReturnNull_WhenNoTaskIsInProgress()
+    public async Task ReturnNull_WhenNoActiveTask()
     {
         // Arrange
-        await Repository.AddTaskAsync("ToDo only");
+        var task = await Repository.AddTaskAsync("Only task");
+        await Repository.SetCompletedAsync(task.TaskId);
 
         // Act
         var result = await Repository.GetInProgressTaskAsync();
@@ -18,11 +17,11 @@ public class GetInProgressTaskAsyncShould : TaskRepositoryTestBase
     }
 
     [Fact]
-    public async Task ReturnTheInProgressTask()
+    public async Task ReturnTheActiveTask()
     {
         // Arrange
         var task = await Repository.AddTaskAsync("Active");
-        await Repository.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await Repository.SetActiveAsync(task.TaskId);
 
         // Act
         var inProgress = await Repository.GetInProgressTaskAsync();

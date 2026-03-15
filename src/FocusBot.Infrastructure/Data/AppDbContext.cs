@@ -21,8 +21,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.TaskId).HasMaxLength(64);
             entity.Property(e => e.Description).HasMaxLength(1024).IsRequired();
             entity.Property(e => e.Context).HasMaxLength(1024);
-            entity.Property(e => e.Status).HasConversion<int>();
-            entity.HasIndex(e => e.Status);
+            entity.Property(e => e.IsCompleted).IsRequired();
+            entity.Property(e => e.TopDistractingApps).HasMaxLength(2048);
+            entity.HasIndex(e => e.IsCompleted);
         });
 
         modelBuilder.Entity<WindowContext>(entity =>

@@ -1,5 +1,3 @@
-using FocusBot.Core.DTOs;
-
 namespace FocusBot.Core.DTOs;
 
 public class SessionDistractionSummary
@@ -9,4 +7,3 @@ public class SessionDistractionSummary
     public IReadOnlyList<AppDistractionSummary> TopApps { get; set; } =
         Array.Empty<AppDistractionSummary>();
 }
-

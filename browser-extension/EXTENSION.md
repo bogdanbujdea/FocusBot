@@ -34,7 +34,8 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
      ▼             ▼             ▼
 ┌─────────┐  ┌──────────┐  ┌──────────────┐
 │ Storage │  │Classifier│  │ Content      │
-│(IndexDB)│  │ (OpenAI) │  │ Script       │
+│ (chrome │  │ (OpenAI) │  │ Script       │
+│.storage)│  │          │  │              │
 └─────────┘  └──────────┘  └──────────────┘
 ```
 
@@ -55,7 +56,7 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
 3. **Shared Services**
    - `classifier.ts`: OpenAI API integration with caching and retry logic
    - `runtime.ts`: Message passing between UI and background
-   - `storage.ts`: IndexedDB persistence layer
+   - `storage.ts`: chrome.storage.local persistence layer
    - `analytics.ts`: Focus metrics aggregation
    - `metrics.ts`: Session summary calculations
 
@@ -70,7 +71,7 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
 
 ### Runtime State Structure
 
-All state is stored in IndexedDB and managed through `RuntimeState`:
+All state is stored in chrome.storage.local and managed through `RuntimeState`:
 
 ```typescript
 interface RuntimeState {
@@ -96,6 +97,7 @@ interface FocusSession {
   currentVisit?: InProgressVisit;  // Current page being tracked
   pausedAt?: string;           // When set, session is paused (no classification, overlay hidden)
   totalPausedSeconds?: number; // Cumulative seconds paused (supports multiple pause/resume cycles)
+  pausedBy?: "user" | "idle"; // Who triggered the pause; only "idle" triggers auto-resume when user becomes active
 }
 ```
 
@@ -332,10 +334,10 @@ All state mutations are serialized via `runExclusive()` promise queue:
 
 ### Pausing / Resuming
 
-The user can pause an active session and resume it later.
+The user can pause an active session and resume it later. The session is also **paused automatically when the system is idle** (no input for 5 minutes, or screen locked) and **resumed automatically when the user becomes active again**, using the `chrome.idle` API. Idle-based pause/resume cannot be disabled.
 
-- **When paused:** `pausedAt` is set to the pause timestamp. No new page classification runs (tab events are ignored). The distraction overlay is hidden. Elapsed time and session metrics freeze (time spent paused is excluded from totals via `totalPausedSeconds`).
-- **Resume:** Clears `pausedAt`, adds the current pause interval to `totalPausedSeconds`, then re-classifies the current tab.
+- **When paused:** `pausedAt` is set to the pause timestamp; `pausedBy` is set to `"user"` (manual) or `"idle"` (automatic). No new page classification runs (tab events are ignored). The distraction overlay is hidden. Elapsed time and session metrics freeze (time spent paused is excluded from totals via `totalPausedSeconds`).
+- **Resume:** Clears `pausedAt` and `pausedBy`, adds the current pause interval to `totalPausedSeconds`, then re-classifies the current tab. Only sessions paused by idle (`pausedBy === "idle"`) are auto-resumed when the user becomes active; manually paused sessions stay paused.
 - **Multiple pause/resume cycles** are supported; `totalPausedSeconds` accumulates all paused time so that `totalSessionSeconds` and elapsed display reflect only active time.
 
 ### Ending Session
@@ -420,7 +422,7 @@ Displays current session status and controls:
 - Start session form when no session is active
 
 **Status Badges:**
-- "Paused" - `session.pausedAt` is set
+- "Paused" or "Paused (idle)" - `session.pausedAt` is set; "Paused (idle)" when `session.pausedBy === "idle"`
 - "Analyzing page..." - `visitState: "classifying"`
 - "Aligned" - `classification: "aligned"`
 - "Distracting" - `classification: "distracting"`
@@ -452,13 +454,13 @@ Configuration:
 
 ## Storage
 
-### IndexedDB Schema
+### chrome.storage.local Schema
 
 **Stored Objects:**
 
 | Key | Type | Purpose |
 |-----|------|---------|
-| `focusbot.settings` | Settings | User configuration |
+| `focusbot.settings` | Settings | User configuration (including API key) |
 | `focusbot.activeSession` | FocusSession | Current session (if any) |
 | `focusbot.sessions` | FocusSession[] | Historical sessions |
 | `focusbot.classificationCache` | Record<string, CacheEntry> | Page classification cache |
@@ -467,7 +469,10 @@ Configuration:
 
 ### Data Persistence
 
-- All data is stored locally in IndexedDB
+- All data is stored locally in chrome.storage.local
+- API key is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions)
+- API key is not encrypted at rest; the browser has no DPAPI equivalent
+- This is the standard "as safe as the platform allows" approach for BYOK (bring your own key)
 - No cloud sync
 - No telemetry
 - No data shared beyond API calls to OpenAI
@@ -568,7 +573,7 @@ In the background service worker DevTools (chrome://extensions → Service Worke
 2. **Cache never expires** - User must manually clear extension data to reset cache
 3. **Single session only** - Only one active session per browser profile
 4. **No background persistence** - Service worker may unload; background script restarts on next event
-5. **API key in client** - API key is obfuscated but not truly secure (for BYOK mode only)
+5. **API key stored in client** - API key is stored in chrome.storage.local and is not encrypted at rest (for BYOK mode only). Only the extension can access it; web pages and other extensions cannot.
 
 ---
 

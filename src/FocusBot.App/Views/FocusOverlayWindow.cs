@@ -25,8 +25,8 @@ public sealed class FocusOverlayWindow : IDisposable
     private const int HighlightDurationMs = 3000; // 3 seconds
 
     // Theme colors (RGB format for GDI+)
-    private static readonly Color ColorFocused = Color.FromArgb(255, 0x22, 0xC5, 0x5E);    // Green #22C55E
-    private static readonly Color ColorNeutral = Color.FromArgb(255, 0x8B, 0x5C, 0xF6);    // Purple #8B5CF6
+    private static readonly Color ColorFocused = Color.FromArgb(255, 0x22, 0xC5, 0x5E); // Green #22C55E
+    private static readonly Color ColorNeutral = Color.FromArgb(255, 0x8B, 0x5C, 0xF6); // Purple #8B5CF6
     private static readonly Color ColorDistracted = Color.FromArgb(255, 0xEF, 0x44, 0x44); // Red #EF4444
 
     private static readonly uint WndClassAtom;
@@ -34,28 +34,27 @@ public sealed class FocusOverlayWindow : IDisposable
 
     private IntPtr _hwnd;
     private bool _dragging;
-    private int _dragStartX, _dragStartY;
-    private int _windowX, _windowY;
+    private int _dragStartX,
+        _dragStartY;
+    private int _windowX,
+        _windowY;
     private GCHandle _gcHandle;
 
     private bool _hasActiveTask;
     private int _focusScorePercent;
-    private FocusStatus _focusStatus = FocusStatus.Neutral;
     private FocusStatus? _previousStatus; // Track previous status to detect changes
     private Color _currentColor = ColorNeutral;
     private bool _isHighlighted; // True when showing glow effect
     private byte _currentOpacity = OpacityNormal;
-    private System.Threading.Timer? _highlightTimer;
+    private Timer? _highlightTimer;
 
     private bool _isHovering; // True when mouse is over the overlay
     private bool _isTrackingMouse; // True when TrackMouseEvent is active
-    private bool _isTaskPaused; // Pause state from ViewModel
 
     private readonly INavigationService? _navigationService;
 
     // Win32 constants
     private const uint WS_POPUP = 0x80000000;
-    private const uint WS_VISIBLE = 0x10000000;
     private const uint WS_EX_LAYERED = 0x00080000;
     private const uint WS_EX_TOPMOST = 0x00000008;
     private const uint WS_EX_TOOLWINDOW = 0x00000080;
@@ -95,11 +94,13 @@ public sealed class FocusOverlayWindow : IDisposable
             hInstance = HInstance,
             hCursor = LoadCursor(IntPtr.Zero, 0x7F00),
             hbrBackground = s_nullBrush,
-            lpszClassName = "FocusOverlayWindow"
+            lpszClassName = "FocusOverlayWindow",
         };
         WndClassAtom = RegisterClassExW(ref wc);
         if (WndClassAtom == 0)
-            throw new InvalidOperationException("RegisterClassEx failed: " + Marshal.GetLastWin32Error());
+            throw new InvalidOperationException(
+                "RegisterClassEx failed: " + Marshal.GetLastWin32Error()
+            );
     }
 
     public FocusOverlayWindow(INavigationService? navigationService = null)
@@ -112,16 +113,21 @@ public sealed class FocusOverlayWindow : IDisposable
             "FocusOverlayWindow",
             "",
             WS_POPUP,
-            _windowX, _windowY,
-            TotalSize, TotalSize,
+            _windowX,
+            _windowY,
+            TotalSize,
+            TotalSize,
             IntPtr.Zero,
             IntPtr.Zero,
             HInstance,
-            GCHandle.ToIntPtr(_gcHandle));
+            GCHandle.ToIntPtr(_gcHandle)
+        );
         if (_hwnd == IntPtr.Zero)
         {
             _gcHandle.Free();
-            throw new InvalidOperationException("CreateWindowEx failed: " + Marshal.GetLastWin32Error());
+            throw new InvalidOperationException(
+                "CreateWindowEx failed: " + Marshal.GetLastWin32Error()
+            );
         }
 
         SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -145,22 +151,26 @@ public sealed class FocusOverlayWindow : IDisposable
     /// Updates the overlay state and triggers a repaint.
     /// When status changes, shows a highlight effect for 3 seconds.
     /// </summary>
-    public void UpdateState(bool hasActiveTask, int focusScorePercent, FocusStatus status, bool isTaskPaused = false)
+    public void UpdateState(
+        bool hasActiveTask,
+        int focusScorePercent,
+        FocusStatus status,
+        bool isTaskPaused = false
+    )
     {
         _hasActiveTask = hasActiveTask;
         _focusScorePercent = focusScorePercent;
-        _isTaskPaused = isTaskPaused;
 
         // Check if status actually changed (and we have a previous status to compare)
-        var statusChanged = _previousStatus.HasValue && _previousStatus.Value != status && hasActiveTask;
+        var statusChanged =
+            _previousStatus.HasValue && _previousStatus.Value != status && hasActiveTask;
         _previousStatus = status;
 
-        _focusStatus = status;
         _currentColor = status switch
         {
             FocusStatus.Focused => ColorFocused,
             FocusStatus.Distracted => ColorDistracted,
-            _ => ColorNeutral
+            _ => ColorNeutral,
         };
 
         // If status changed, start highlight effect
@@ -179,7 +189,12 @@ public sealed class FocusOverlayWindow : IDisposable
 
         // Cancel any existing timer and start a new one
         _highlightTimer?.Dispose();
-        _highlightTimer = new System.Threading.Timer(OnHighlightTimerElapsed, null, HighlightDurationMs, Timeout.Infinite);
+        _highlightTimer = new Timer(
+            OnHighlightTimerElapsed,
+            null,
+            HighlightDurationMs,
+            Timeout.Infinite
+        );
     }
 
     private void OnHighlightTimerElapsed(object? state)
@@ -189,80 +204,90 @@ public sealed class FocusOverlayWindow : IDisposable
         UpdateLayeredBitmap();
     }
 
-/// <summary>
-/// Renders the overlay to a 32-bit ARGB bitmap and updates the layered window.
-/// This provides smooth anti-aliased edges via per-pixel alpha.
-/// Shows only the circle with score when not hovering, and always clickable to open the app.
-/// </summary>
-private void UpdateLayeredBitmap()
-{
-    if (_hwnd == IntPtr.Zero)
-        return;
-
-    using var bitmap = new Bitmap(TotalSize, TotalSize, PixelFormat.Format32bppPArgb);
-    using (var graphics = Graphics.FromImage(bitmap))
+    /// <summary>
+    /// Renders the overlay to a 32-bit ARGB bitmap and updates the layered window.
+    /// This provides smooth anti-aliased edges via per-pixel alpha.
+    /// Shows only the circle with score when not hovering, and always clickable to open the app.
+    /// </summary>
+    private void UpdateLayeredBitmap()
     {
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        graphics.Clear(Color.Transparent);
+        if (_hwnd == IntPtr.Zero)
+            return;
 
-        // Draw glow effect when highlighted
-        if (_isHighlighted)
+        using var bitmap = new Bitmap(TotalSize, TotalSize, PixelFormat.Format32bppPArgb);
+        using (var graphics = Graphics.FromImage(bitmap))
         {
-            // Draw multiple concentric rings with decreasing opacity for glow effect
-            for (int i = GlowPadding; i > 0; i -= 2)
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            graphics.Clear(Color.Transparent);
+
+            // Draw glow effect when highlighted
+            if (_isHighlighted)
             {
-                var glowAlpha = (int)(120 * (1.0 - (float)i / GlowPadding)); // Fade out toward edges
-                using var glowBrush = new SolidBrush(Color.FromArgb(glowAlpha, _currentColor));
-                var offset = GlowPadding - i;
-                var glowSize = SizePx + i * 2;
-                graphics.FillEllipse(glowBrush, offset, offset, glowSize, glowSize);
+                // Draw multiple concentric rings with decreasing opacity for glow effect
+                for (int i = GlowPadding; i > 0; i -= 2)
+                {
+                    var glowAlpha = (int)(120 * (1.0 - (float)i / GlowPadding)); // Fade out toward edges
+                    using var glowBrush = new SolidBrush(Color.FromArgb(glowAlpha, _currentColor));
+                    var offset = GlowPadding - i;
+                    var glowSize = SizePx + i * 2;
+                    graphics.FillEllipse(glowBrush, offset, offset, glowSize, glowSize);
+                }
+            }
+
+            // Fill main circle with current status color (centered with glow padding)
+            using var brush = new SolidBrush(_currentColor);
+            graphics.FillEllipse(brush, GlowPadding, GlowPadding, SizePx, SizePx);
+
+            // Always draw score when active task exists (no more buttons)
+            if (_hasActiveTask)
+            {
+                var scoreText = _focusScorePercent.ToString();
+                using var font = new Font("Segoe UI", 26, FontStyle.Bold, GraphicsUnit.Pixel);
+                using var textBrush = new SolidBrush(Color.White);
+
+                var textSize = graphics.MeasureString(scoreText, font);
+                var textX = GlowPadding + (SizePx - textSize.Width) / 2;
+                var textY = GlowPadding + (SizePx - textSize.Height) / 2;
+                graphics.DrawString(scoreText, font, textBrush, textX, textY);
             }
         }
 
-        // Fill main circle with current status color (centered with glow padding)
-        using var brush = new SolidBrush(_currentColor);
-        graphics.FillEllipse(brush, GlowPadding, GlowPadding, SizePx, SizePx);
+        // Update the layered window with the bitmap
+        var hdcScreen = GetDC(IntPtr.Zero);
+        var hdcMem = CreateCompatibleDC(hdcScreen);
+        var hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
+        var hOldBitmap = SelectObject(hdcMem, hBitmap);
 
-        // Always draw score when active task exists (no more buttons)
-        if (_hasActiveTask)
+        var blend = new BLENDFUNCTION
         {
-            var scoreText = _focusScorePercent.ToString();
-            using var font = new Font("Segoe UI", 26, FontStyle.Bold, GraphicsUnit.Pixel);
-            using var textBrush = new SolidBrush(Color.White);
+            BlendOp = AC_SRC_OVER,
+            BlendFlags = 0,
+            SourceConstantAlpha = _currentOpacity,
+            AlphaFormat = AC_SRC_ALPHA,
+        };
 
-            var textSize = graphics.MeasureString(scoreText, font);
-            var textX = GlowPadding + (SizePx - textSize.Width) / 2;
-            var textY = GlowPadding + (SizePx - textSize.Height) / 2;
-            graphics.DrawString(scoreText, font, textBrush, textX, textY);
-        }
+        var ptSrc = new POINT { x = 0, y = 0 };
+        var size = new SIZE { cx = TotalSize, cy = TotalSize };
+        var ptDst = new POINT { x = _windowX, y = _windowY };
+
+        UpdateLayeredWindow(
+            _hwnd,
+            hdcScreen,
+            ref ptDst,
+            ref size,
+            hdcMem,
+            ref ptSrc,
+            0,
+            ref blend,
+            ULW_ALPHA
+        );
+
+        SelectObject(hdcMem, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(IntPtr.Zero, hdcScreen);
     }
-
-    // Update the layered window with the bitmap
-    var hdcScreen = GetDC(IntPtr.Zero);
-    var hdcMem = CreateCompatibleDC(hdcScreen);
-    var hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
-    var hOldBitmap = SelectObject(hdcMem, hBitmap);
-
-    var blend = new BLENDFUNCTION
-    {
-        BlendOp = AC_SRC_OVER,
-        BlendFlags = 0,
-        SourceConstantAlpha = _currentOpacity,
-        AlphaFormat = AC_SRC_ALPHA
-    };
-
-    var ptSrc = new POINT { x = 0, y = 0 };
-    var size = new SIZE { cx = TotalSize, cy = TotalSize };
-    var ptDst = new POINT { x = _windowX, y = _windowY };
-
-    UpdateLayeredWindow(_hwnd, hdcScreen, ref ptDst, ref size, hdcMem, ref ptSrc, 0, ref blend, ULW_ALPHA);
-
-    SelectObject(hdcMem, hOldBitmap);
-    DeleteObject(hBitmap);
-    DeleteDC(hdcMem);
-    ReleaseDC(IntPtr.Zero, hdcScreen);
-}
 
     /// <summary>
     /// Positions the overlay in the bottom-right of the primary screen work area
@@ -371,7 +396,7 @@ private void UpdateLayeredBitmap()
                             cbSize = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
                             dwFlags = TME_LEAVE,
                             hwndTrack = hwnd,
-                            dwHoverTime = 0
+                            dwHoverTime = 0,
                         };
                         TrackMouseEvent(ref tme);
                         _isTrackingMouse = true;
@@ -416,13 +441,15 @@ private void UpdateLayeredBitmap()
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
     {
-        public int x, y;
+        public int x,
+            y;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SIZE
     {
-        public int cx, cy;
+        public int cx,
+            cy;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -437,7 +464,10 @@ private void UpdateLayeredBitmap()
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT
     {
-        public int Left, Top, Right, Bottom;
+        public int Left,
+            Top,
+            Right,
+            Bottom;
     }
 
     private delegate nint WndProcDelegate(IntPtr hWnd, uint msg, nuint wParam, nint lParam);
@@ -468,7 +498,10 @@ private void UpdateLayeredBitmap()
         public IntPtr hInstance;
         public IntPtr hMenu;
         public IntPtr hwndParent;
-        public int cy, cx, y, x;
+        public int cy,
+            cx,
+            y,
+            x;
         public int style;
         public IntPtr lpszName;
         public IntPtr lpszClass;
@@ -476,9 +509,20 @@ private void UpdateLayeredBitmap()
     }
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateWindowExW(uint dwExStyle, string lpClassName, string lpWindowName,
-        uint dwStyle, int x, int y, int nWidth, int nHeight,
-        IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+    private static extern IntPtr CreateWindowExW(
+        uint dwExStyle,
+        string lpClassName,
+        string lpWindowName,
+        uint dwStyle,
+        int x,
+        int y,
+        int nWidth,
+        int nHeight,
+        IntPtr hWndParent,
+        IntPtr hMenu,
+        IntPtr hInstance,
+        IntPtr lpParam
+    );
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern uint RegisterClassExW(ref WNDCLASSEXW lpwcx);
@@ -490,11 +534,28 @@ private void UpdateLayeredBitmap()
     private static extern bool DestroyWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
-    private static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr hdcDst, ref POINT pptDst, ref SIZE psize,
-        IntPtr hdcSrc, ref POINT pptSrc, uint crKey, ref BLENDFUNCTION pblend, int dwFlags);
+    private static extern bool UpdateLayeredWindow(
+        IntPtr hwnd,
+        IntPtr hdcDst,
+        ref POINT pptDst,
+        ref SIZE psize,
+        IntPtr hdcSrc,
+        ref POINT pptSrc,
+        uint crKey,
+        ref BLENDFUNCTION pblend,
+        int dwFlags
+    );
 
     [DllImport("user32.dll")]
-    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int X,
+        int Y,
+        int cx,
+        int cy,
+        uint uFlags
+    );
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -551,7 +612,12 @@ private void UpdateLayeredBitmap()
     private static extern IntPtr GetModuleHandleW(string? lpModuleName);
 
     [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SystemParametersInfoW(uint uiAction, uint uiParam, out RECT pvParam, uint fWinIni);
+    private static extern bool SystemParametersInfoW(
+        uint uiAction,
+        uint uiParam,
+        out RECT pvParam,
+        uint fWinIni
+    );
 
     #endregion
 }

@@ -6,10 +6,17 @@ namespace FocusBot.App
 {
     public sealed partial class MainWindow : Window
     {
-        public MainWindow(KanbanBoardViewModel viewModel, INavigationService navigationService)
+        private readonly FocusPage _kanbanPage;
+
+        public MainWindow(FocusPageViewModel viewModel)
         {
             InitializeComponent();
-            Content = new KanbanBoardPage { DataContext = viewModel };
+
+            _kanbanPage = new FocusPage { DataContext = viewModel };
+            Content = _kanbanPage;
+
+            // Set default window size
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(1500, 1500));
         }
     }
 }

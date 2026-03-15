@@ -1,22 +1,58 @@
 import { calculateAnalytics } from "../shared/analytics";
-import { classifyPage } from "../shared/classifier";
+import { classifyPage, classifyDesktopApp } from "../shared/classifier";
 import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
+  loadCompletedSessions,
   loadLastError,
   loadLastSummary,
   loadSessions,
   loadSettings,
   patchSettings,
+  pruneOldSessions,
   saveActiveSession,
+  saveCompletedSession,
   saveLastError,
   saveLastSummary,
-  saveSession
+  saveSession,
+  setCompletedSessions
 } from "../shared/storage";
-import type { ClassificationResult, FocusSession, InProgressVisit, RuntimeRequest, RuntimeResponse } from "../shared/types";
-import { createId, nowIso, secondsBetween, sleep } from "../shared/utils";
+import type {
+  ClassificationResult,
+  CompletedSession,
+  FocusSession,
+  InProgressVisit,
+  RuntimeRequest,
+  RuntimeResponse
+} from "../shared/types";
+import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
+import {
+  startIntegration,
+  setMessageHandler,
+  setHandshakeProvider,
+  sendHandshake,
+  sendTaskStarted,
+  sendTaskEnded,
+  sendFocusStatus,
+  sendBrowserContext,
+  getIntegrationState,
+  updateLeaderTask,
+  clearLeaderTask,
+  updateLastFocusStatus,
+  updateDesktopContext,
+  updateBrowserForeground,
+  onIntegrationStateChange,
+  isConnected
+} from "../shared/integration";
+import type {
+  IntegrationEnvelope,
+  TaskStartedPayload,
+  FocusStatusPayload,
+  DesktopForegroundPayload
+} from "../shared/integrationTypes";
+import { MESSAGE_TYPES } from "../shared/integrationTypes";
 
 let stateMutationQueue: Promise<void> = Promise.resolve();
 
@@ -58,6 +94,161 @@ const broadcastStateUpdate = async (): Promise<void> => {
     console.error("Icon state update error:", error);
   }
 };
+
+const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<void> => {
+  const integrationState = getIntegrationState();
+
+  switch (envelope.type) {
+    case MESSAGE_TYPES.HANDSHAKE: {
+      const payload = envelope.payload as { source: string; hasActiveTask: boolean; taskId?: string; taskText?: string; taskHints?: string } | undefined;
+      if (!payload) break;
+
+      const session = await loadActiveSession();
+      sendHandshake(
+        session !== null,
+        session?.sessionId,
+        session?.taskText,
+        undefined,
+        session?.startedAt
+      );
+
+      if (payload.hasActiveTask && payload.taskText) {
+        if (session) {
+          const endedAt = nowIso();
+          if (session.currentVisit?.tabId !== undefined) {
+            await sendDistractionAlert(session.currentVisit.tabId, { show: false });
+          }
+          if (session.pausedAt) {
+            session.totalPausedSeconds =
+              (session.totalPausedSeconds ?? 0) + secondsBetween(session.pausedAt, endedAt);
+          }
+          finalizeCurrentVisit(session, endedAt);
+          session.endedAt = endedAt;
+          const totalPaused = session.totalPausedSeconds ?? 0;
+          session.summary = calculateSessionSummary(
+            session.taskText,
+            session.startedAt,
+            endedAt,
+            session.visits,
+            totalPaused
+          );
+          const sessionForHistory = stripActiveSessionForHistory(session);
+          await saveSession(sessionForHistory);
+          await saveActiveSession(null);
+          stopBadgeInterval();
+        }
+        updateLeaderTask(payload.taskId ?? "", payload.taskText);
+      }
+      await pushBrowserContextToApp();
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.TASK_STARTED: {
+      const payload = envelope.payload as TaskStartedPayload | undefined;
+      if (!payload) break;
+
+      const sessionForStarted = await loadActiveSession();
+      if (sessionForStarted) {
+        const endedAt = nowIso();
+        if (sessionForStarted.currentVisit?.tabId !== undefined) {
+          await sendDistractionAlert(sessionForStarted.currentVisit.tabId, { show: false });
+        }
+        if (sessionForStarted.pausedAt) {
+          sessionForStarted.totalPausedSeconds =
+            (sessionForStarted.totalPausedSeconds ?? 0) + secondsBetween(sessionForStarted.pausedAt, endedAt);
+        }
+        finalizeCurrentVisit(sessionForStarted, endedAt);
+        sessionForStarted.endedAt = endedAt;
+        const totalPaused = sessionForStarted.totalPausedSeconds ?? 0;
+        sessionForStarted.summary = calculateSessionSummary(
+          sessionForStarted.taskText,
+          sessionForStarted.startedAt,
+          endedAt,
+          sessionForStarted.visits,
+          totalPaused
+        );
+        const sessionForHistory = stripActiveSessionForHistory(sessionForStarted);
+        await saveSession(sessionForHistory);
+        await saveActiveSession(null);
+        stopBadgeInterval();
+      }
+      updateLeaderTask(payload.taskId, payload.taskText);
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.TASK_ENDED: {
+      clearLeaderTask();
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.FOCUS_STATUS: {
+      const payload = envelope.payload as FocusStatusPayload | undefined;
+      if (!payload) break;
+
+      if (getIntegrationState().leaderTaskId) {
+        updateLastFocusStatus(payload);
+      }
+      await broadcastStateUpdate();
+      break;
+    }
+
+    case MESSAGE_TYPES.DESKTOP_FOREGROUND: {
+      const payload = envelope.payload as DesktopForegroundPayload | undefined;
+      if (!payload) break;
+
+      const session = await loadActiveSession();
+      if (!session || session.pausedAt) break;
+
+      const settings = await loadSettings();
+      try {
+        const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle, session.taskHints);
+
+        updateDesktopContext({
+          processName: payload.processName,
+          windowTitle: payload.windowTitle,
+          classification: result.classification,
+          reason: result.reason ?? "",
+          timestamp: Date.now()
+        });
+
+        sendFocusStatus({
+          taskId: session.sessionId,
+          classification: result.classification,
+          reason: result.reason ?? "",
+          score: result.classification === "aligned" ? 8 : 2,
+          focusScorePercent: calculateLiveSummary(session).focusPercentage,
+          contextType: "desktop",
+          contextTitle: `${payload.processName} - ${payload.windowTitle}`
+        });
+
+        await broadcastStateUpdate();
+      } catch (err) {
+        console.error("[Integration] Desktop classification failed:", err);
+      }
+      updateBrowserForeground(false);
+      break;
+    }
+
+  }
+};
+
+setMessageHandler(handleIntegrationMessage);
+setHandshakeProvider(async () => {
+  const session = await loadActiveSession();
+  return {
+    hasActiveTask: session !== null,
+    taskId: session?.sessionId,
+    taskText: session?.taskText,
+    startedAt: session?.startedAt
+  };
+});
+
+// Start desktop integration as soon as the background loads so we connect when the
+// Windows app is running without requiring the user to open the popup first.
+startIntegration();
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;
@@ -157,6 +348,23 @@ const updateIconState = async (): Promise<void> => {
     const title =
       session?.pausedAt != null ? "FocusBot - Paused" : stateLabels[iconState];
     await chrome.action.setTitle({ title });
+
+    if (session && isConnected()) {
+      const summary = calculateLiveSummary(session);
+      const state = getIntegrationState();
+      const desktopCtx = state.currentDesktopContext;
+      const cv = session.currentVisit;
+      const onDesktop = Boolean(desktopCtx);
+      sendFocusStatus({
+        taskId: session.sessionId,
+        classification: onDesktop ? desktopCtx!.classification : (cv?.classification ?? ""),
+        reason: onDesktop ? desktopCtx!.reason : (cv?.reason ?? ""),
+        score: onDesktop ? (desktopCtx!.classification === "aligned" ? 8 : 2) : (cv?.classification === "aligned" ? 8 : cv?.classification === "distracting" ? 2 : 0),
+        focusScorePercent: summary.focusPercentage,
+        contextType: onDesktop ? "desktop" : (cv ? "browser" : ""),
+        contextTitle: onDesktop ? `${desktopCtx!.processName} - ${desktopCtx!.windowTitle}` : (cv?.domain ?? "")
+      });
+    }
   } catch (error) {
     console.error("Failed to update icon:", error);
   }
@@ -280,7 +488,7 @@ const classifyWithPolicy = async (
     try {
       return {
         ok: true,
-        result: await classifyPage(settings, session.taskText, taskUrl, title, 8000)
+        result: await classifyPage(settings, session.taskText, taskUrl, title, 8000, session.taskHints)
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Classification failed.";
@@ -328,6 +536,19 @@ const classifyAndApplyVisit = async (
       await saveActiveSession(latest);
       await broadcastStateUpdate();
 
+      if (isConnected()) {
+        updateDesktopContext(undefined);
+        sendFocusStatus({
+          taskId: latest.sessionId,
+          classification: outcome.result.classification,
+          reason: outcome.result.reason ?? "",
+          score: outcome.result.classification === "aligned" ? 8 : 2,
+          focusScorePercent: calculateLiveSummary(latest).focusPercentage,
+          contextType: "browser",
+          contextTitle: latest.currentVisit.domain
+        });
+      }
+
       const showDistraction =
         !latest.pausedAt && outcome.result.classification === "distracting";
       await sendDistractionAlert(tabId, {
@@ -356,6 +577,7 @@ const classifyAndApplyVisit = async (
 
 const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
   runExclusive(async () => {
+    updateBrowserForeground(true);
     const session = await loadActiveSession();
     if (!session || tab.id === undefined || !tab.url || !isTrackableUrl(tab.url)) {
       return;
@@ -435,7 +657,21 @@ const captureCurrentActiveTab = async (): Promise<void> => {
   }
 };
 
-const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSession>> =>
+const pushBrowserContextToApp = async (): Promise<void> => {
+  if (!isConnected()) return;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (activeTab?.url != null) {
+      sendBrowserContext(activeTab.url, activeTab.title ?? "");
+    } else {
+      sendBrowserContext("", "");
+    }
+  } catch {
+    sendBrowserContext("", "");
+  }
+};
+
+const startSession = async (taskText: string, taskHints?: string): Promise<RuntimeResponse<FocusSession>> =>
   runExclusive(async () => {
     const trimmedTask = taskText.trim();
     if (!trimmedTask) {
@@ -447,6 +683,11 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
       return { ok: false, error: "Only one active session is allowed." };
     }
 
+    const integrationState = getIntegrationState();
+    if (integrationState.leaderTaskId && integrationState.connected) {
+      return { ok: false, error: "A task is already in progress on the desktop app. End it there first." };
+    }
+
     const settings = await loadSettings();
     if (!settings.openAiApiKey.trim()) {
       return { ok: false, error: "OpenAI API key is required. Add it in Settings first." };
@@ -455,6 +696,7 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     const session: FocusSession = {
       sessionId: createId(),
       taskText: trimmedTask,
+      taskHints: taskHints?.trim() || undefined,
       startedAt: nowIso(),
       visits: []
     };
@@ -465,10 +707,29 @@ const startSession = async (taskText: string): Promise<RuntimeResponse<FocusSess
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
 
+    if (isConnected()) {
+      sendTaskStarted(session.sessionId, session.taskText, session.taskHints, session.startedAt);
+      const summary = calculateLiveSummary(latest ?? session);
+      sendFocusStatus({
+        taskId: (latest ?? session).sessionId,
+        classification: "",
+        reason: "",
+        score: 0,
+        focusScorePercent: summary.focusPercentage,
+        contextType: "",
+        contextTitle: ""
+      });
+    }
+
     return { ok: true, data: latest ?? session };
   });
 
-const pauseSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+const IDLE_DETECTION_INTERVAL_SECONDS = 300;
+
+const pauseSession = async (
+  reason: "user" | "idle" = "user",
+  effectivePausedAt?: string
+): Promise<RuntimeResponse<FocusSession>> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session) {
@@ -478,8 +739,17 @@ const pauseSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       return { ok: false, error: "Session is already paused." };
     }
 
-    const pausedAt = nowIso();
+    let pausedAt: string;
+    if (reason === "idle" && effectivePausedAt) {
+      const enteredAt = session.currentVisit?.enteredAt;
+      pausedAt =
+        enteredAt && effectivePausedAt < enteredAt ? enteredAt : effectivePausedAt;
+    } else {
+      pausedAt = nowIso();
+    }
+
     session.pausedAt = pausedAt;
+    session.pausedBy = reason;
     const tabIdToHide = session.currentVisit?.tabId;
     finalizeCurrentVisit(session, pausedAt);
     if (tabIdToHide !== undefined) {
@@ -505,6 +775,7 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     const currentPauseSeconds = secondsBetween(session.pausedAt, now);
     session.totalPausedSeconds = (session.totalPausedSeconds ?? 0) + currentPauseSeconds;
     delete session.pausedAt;
+    delete session.pausedBy;
     await saveActiveSession(session);
     await broadcastStateUpdate();
     await startBadgeInterval();
@@ -515,7 +786,7 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     return { ok: true, data: latest ?? session };
   });
 
-const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
+const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session) {
@@ -541,14 +812,26 @@ const endSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       totalPaused
     );
 
-    const sessionForHistory = stripActiveSessionForHistory(session);
-    await saveSession(sessionForHistory);
+    const completedSession: CompletedSession = {
+      sessionId: session.sessionId,
+      taskText: session.taskText,
+      taskHints: session.taskHints,
+      startedAt: session.startedAt,
+      endedAt,
+      summary: session.summary
+    };
+    await saveCompletedSession(completedSession);
+    await pruneOldSessions(100, 90);
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
     stopBadgeInterval();
     await broadcastStateUpdate();
 
-    return { ok: true, data: sessionForHistory };
+    if (isConnected()) {
+      sendTaskEnded(session.sessionId);
+    }
+
+    return { ok: true, data: completedSession };
   });
 
 const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> => {
@@ -556,7 +839,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "GET_STATE":
       return { ok: true, data: await toRuntimeState() };
     case "START_SESSION":
-      return startSession(request.taskText);
+      return startSession(request.taskText, request.taskHints);
     case "END_SESSION":
       return endSession();
     case "PAUSE_SESSION":
@@ -564,7 +847,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "RESUME_SESSION":
       return resumeSession();
     case "GET_ANALYTICS": {
-      const sessions = await loadSessions();
+      const sessions = await loadCompletedSessions();
       return { ok: true, data: calculateAnalytics(request.range, sessions) };
     }
     case "UPDATE_SETTINGS": {
@@ -597,10 +880,14 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       await chrome.sidePanel.open({ windowId: currentWindow.id });
       return { ok: true };
     }
+    case "GET_INTEGRATION_STATE":
+      return { ok: true, data: getIntegrationState() };
     default:
       return { ok: false, error: "Unknown request." };
   }
 };
+
+const START_DESKTOP_INTEGRATION = "START_DESKTOP_INTEGRATION";
 
 chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
   if (
@@ -613,6 +900,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
     handleContentReady(sender.tab.id)
       .then(() => sendResponse({ ok: true }))
       .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    (message as { type: string }).type === START_DESKTOP_INTEGRATION
+  ) {
+    startIntegration();
+    sendResponse({ ok: true });
     return true;
   }
   handleRequest(message as RuntimeRequest)
@@ -632,6 +929,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   const tab = await chrome.tabs.get(tabId);
   await updateVisitFromTab(tab);
+  await pushBrowserContextToApp();
 });
 
 chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
@@ -639,6 +937,7 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
     return;
   }
   await updateVisitFromTab(tab);
+  await pushBrowserContextToApp();
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -649,6 +948,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   const [tab] = await chrome.tabs.query({ active: true, windowId });
   if (tab) {
     await updateVisitFromTab(tab);
+    await pushBrowserContextToApp();
   }
 });
 
@@ -660,11 +960,62 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
 });
 
+const migrateSessionsToCompletedSessions = async (): Promise<void> => {
+  const stored = await chrome.storage.local.get(APP_KEYS.completedSessions);
+  if (APP_KEYS.completedSessions in stored) {
+    return;
+  }
+  const oldSessions = await loadSessions();
+  const completed: CompletedSession[] = [];
+  for (const session of oldSessions) {
+    if (!session.endedAt || !session.summary) {
+      continue;
+    }
+    completed.push({
+      sessionId: session.sessionId,
+      taskText: session.taskText,
+      taskHints: session.taskHints,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      summary: session.summary
+    });
+  }
+  if (completed.length > 0) {
+    completed.sort((a, b) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    await setCompletedSessions(completed);
+  }
+};
+
 chrome.runtime.onInstalled.addListener(async () => {
+  await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
+});
+
+chrome.idle.setDetectionInterval(IDLE_DETECTION_INTERVAL_SECONDS);
+
+chrome.idle.onStateChanged.addListener((newState: chrome.IdleState) => {
+  if (newState === "idle" || newState === "locked") {
+    void runExclusive(async () => {
+      const session = await loadActiveSession();
+      if (!session || session.pausedAt) return;
+      const effectivePausedAt = new Date(
+        Date.now() - IDLE_DETECTION_INTERVAL_SECONDS * 1000
+      ).toISOString();
+      await pauseSession("idle", effectivePausedAt);
+    });
+    return;
+  }
+  if (newState === "active") {
+    void runExclusive(async () => {
+      const session = await loadActiveSession();
+      if (!session?.pausedAt || session.pausedBy !== "idle") return;
+      await resumeSession();
+    });
+  }
 });

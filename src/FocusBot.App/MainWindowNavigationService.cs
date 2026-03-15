@@ -32,7 +32,7 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
         if (_window == null || _boardContent == null)
             return;
         _window.Content = _boardContent;
-        if (_boardContent is KanbanBoardPage page && page.DataContext is KanbanBoardViewModel vm)
+        if (_boardContent is FocusPage page && page.DataContext is FocusPageViewModel vm)
             _ = vm.RefreshAiSettingsAsync();
     }
 
@@ -61,6 +61,22 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
         var page = new TaskDetailPage { DataContext = viewModel };
         _window.Content = page;
         _ = viewModel.InitializeAsync(taskId);
+    }
+
+    /// <inheritdoc />
+    public void NavigateToHistory()
+    {
+        if (_window == null)
+            return;
+        if (_boardContent == null)
+            _boardContent = _window.Content as UIElement;
+
+        using var scope = serviceProvider.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        var viewModel = new HistoryViewModel(repo, this);
+        var page = new HistoryPage { DataContext = viewModel };
+        _window.Content = page;
+        _ = viewModel.InitializeAsync();
     }
 
     /// <inheritdoc />

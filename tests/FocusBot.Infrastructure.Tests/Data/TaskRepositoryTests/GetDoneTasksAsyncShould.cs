@@ -1,20 +1,18 @@
-using TaskStatus = FocusBot.Core.Entities.TaskStatus;
-
 namespace FocusBot.Infrastructure.Tests.Data.TaskRepositoryTests;
 
 public class GetDoneTasksAsyncShould : TaskRepositoryTestBase
 {
     [Fact]
-    public async Task ReturnOnlyDoneTasks()
+    public async Task ReturnOnlyCompletedTasks()
     {
         // Arrange
         var t1 = await Repository.AddTaskAsync("Done 1");
-        await Repository.SetStatusToAsync(t1.TaskId, TaskStatus.InProgress);
-        await Repository.SetStatusToAsync(t1.TaskId, TaskStatus.Done);
+        await Repository.SetActiveAsync(t1.TaskId);
+        await Repository.SetCompletedAsync(t1.TaskId);
         var t2 = await Repository.AddTaskAsync("Done 2");
-        await Repository.SetStatusToAsync(t2.TaskId, TaskStatus.InProgress);
-        await Repository.SetStatusToAsync(t2.TaskId, TaskStatus.Done);
-        await Repository.AddTaskAsync("Still ToDo");
+        await Repository.SetActiveAsync(t2.TaskId);
+        await Repository.SetCompletedAsync(t2.TaskId);
+        await Repository.AddTaskAsync("Still active");
 
         // Act
         var done = await Repository.GetDoneTasksAsync();
@@ -22,7 +20,7 @@ public class GetDoneTasksAsyncShould : TaskRepositoryTestBase
 
         // Assert
         userTasks.Should().HaveCount(2);
-        userTasks.Should().OnlyContain(t => t.Status == TaskStatus.Done);
+        userTasks.Should().OnlyContain(t => t.IsCompleted);
     }
 
     [Fact]

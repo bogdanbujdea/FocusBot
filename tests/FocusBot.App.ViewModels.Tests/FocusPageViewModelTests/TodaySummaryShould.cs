@@ -1,9 +1,8 @@
 using FocusBot.Core.DTOs;
-using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
 public class TodaySummaryShould
 {
@@ -11,7 +10,7 @@ public class TodaySummaryShould
     public async Task PopulateTodayProperties_WhenSummaryIsAvailable()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -21,7 +20,6 @@ public class TodaySummaryShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
@@ -29,17 +27,19 @@ public class TodaySummaryShould
 
         dailyAnalyticsMock
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DailyFocusSummary
-            {
-                AnalyticsDateLocal = analyticsDate,
-                FocusScoreBucket = 7,
-                FocusedTime = TimeSpan.FromSeconds(120),
-                DistractedTime = TimeSpan.FromSeconds(30),
-                DistractionCount = 3,
-                AverageDistractionDuration = TimeSpan.FromSeconds(10)
-            });
+            .ReturnsAsync(
+                new DailyFocusSummary
+                {
+                    AnalyticsDateLocal = analyticsDate,
+                    FocusScoreBucket = 7,
+                    FocusedTime = TimeSpan.FromSeconds(120),
+                    DistractedTime = TimeSpan.FromSeconds(30),
+                    DistractionCount = 3,
+                    AverageDistractionDuration = TimeSpan.FromSeconds(10),
+                }
+            );
 
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -50,9 +50,10 @@ public class TodaySummaryShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionDetectorMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object
+        );
 
         // Act
         // LoadBoardAsync is invoked from the constructor; give it time to complete.
@@ -75,7 +76,7 @@ public class TodaySummaryShould
     public async Task HideTodaySummary_WhenNoDataForToday()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -85,7 +86,6 @@ public class TodaySummaryShould
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
         var distractionDetectorMock = new Mock<IDistractionDetectorService>();
-        var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
@@ -93,7 +93,7 @@ public class TodaySummaryShould
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DailyFocusSummary?)null);
 
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -104,9 +104,10 @@ public class TodaySummaryShould
             focusScoreMock.Object,
             trialMock.Object,
             distractionDetectorMock.Object,
-            distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object);
+            alignmentCacheMock.Object,
+            new Mock<ITaskSummaryService>().Object
+        );
 
         // Act
         await Task.Delay(10);
@@ -123,4 +124,3 @@ public class TodaySummaryShould
         vm.TodayDistractedPercent.Should().Be(0);
     }
 }
-

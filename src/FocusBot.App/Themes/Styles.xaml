@@ -97,32 +97,12 @@
         <Setter Property="Margin" Value="0,0,0,10"/>
     </Style>
 
-    <!-- Column header text style (TO DO, IN PROGRESS, DONE) -->
+    <!-- Column header text style -->
     <Style x:Key="FbColumnHeaderStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
         <Setter Property="FontSize" Value="28"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="CharacterSpacing" Value="80"/>
-    </Style>
-
-    <!-- Status badge pill styles (top-left of task cards) -->
-    <Style x:Key="FbStatusBadgeToDoStyle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource FbToDoAccentBrush}"/>
-        <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="HorizontalAlignment" Value="Left"/>
-    </Style>
-    <Style x:Key="FbStatusBadgeInProgressStyle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource FbMisalignedAccentBrush}"/>
-        <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="HorizontalAlignment" Value="Left"/>
-    </Style>
-    <Style x:Key="FbStatusBadgeCompletedStyle" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource FbCompletedBadgeBrush}"/>
-        <Setter Property="CornerRadius" Value="4"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="HorizontalAlignment" Value="Left"/>
     </Style>
 
     <!-- Column count badge style (used inside column header area) -->
@@ -202,10 +182,4 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
 
-    <!-- In-progress task timer (large, prominent) -->
-    <Style x:Key="FbTaskTimerInProgressStyle" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource FbTextPrimaryBrush}"/>
-        <Setter Property="FontSize" Value="22"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-    </Style>
 </ResourceDictionary>
