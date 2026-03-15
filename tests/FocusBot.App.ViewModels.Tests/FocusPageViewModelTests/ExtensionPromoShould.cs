@@ -2,14 +2,14 @@ using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
 public class ExtensionPromoShould
 {
     [Fact]
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Msedge()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
         RaiseForegroundWindowChanged(monitorMock, "msedge", "Some tab");
 
@@ -19,7 +19,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Chrome()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
         RaiseForegroundWindowChanged(monitorMock, "chrome", "Some tab");
 
@@ -29,7 +29,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Microsoft_Edge()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
         RaiseForegroundWindowChanged(monitorMock, "Microsoft Edge", "Some tab");
 
@@ -39,7 +39,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_Firefox()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
         RaiseForegroundWindowChanged(monitorMock, "firefox", "Some tab");
 
@@ -49,7 +49,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_NonBrowser()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
         RaiseForegroundWindowChanged(monitorMock, "devenv", "MyFile.cs");
 
@@ -59,7 +59,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task ShowExtensionPromo_BeTrue_When_ExtensionNotConnected_And_Foreground_Is_Edge()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(false);
         var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
@@ -71,7 +71,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task ShowExtensionPromo_BeFalse_When_ExtensionConnected()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(true);
         var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
@@ -84,7 +84,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task ShowExtensionPromo_BeFalse_When_ExtensionNotConnected_But_Foreground_Is_Firefox()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(false);
         var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
@@ -96,7 +96,7 @@ public class ExtensionPromoShould
     [Fact]
     public async Task ExtensionStoreUris_Be_Valid_Absolute_Uris()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var (vm, _) = CreateViewModelWithoutIntegration(ctx);
 
         vm.ExtensionStoreEdgeUri.Should().NotBeNull();
@@ -115,7 +115,7 @@ public class ExtensionPromoShould
         monitorMock.Raise(m => m.ForegroundWindowChanged += null, monitorMock.Object, eventArgs);
     }
 
-    private static (KanbanBoardViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithoutIntegration(KanbanBoardTestContext ctx)
+    private static (FocusPageViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithoutIntegration(FocusPageTestContext ctx)
     {
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
@@ -129,7 +129,7 @@ public class ExtensionPromoShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -148,8 +148,8 @@ public class ExtensionPromoShould
         return (vm, monitorMock);
     }
 
-    private static (KanbanBoardViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithIntegration(
-        KanbanBoardTestContext ctx,
+    private static (FocusPageViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithIntegration(
+        FocusPageTestContext ctx,
         IIntegrationService integrationService)
     {
         var monitorMock = new Mock<IWindowMonitorService>();
@@ -164,7 +164,7 @@ public class ExtensionPromoShould
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,

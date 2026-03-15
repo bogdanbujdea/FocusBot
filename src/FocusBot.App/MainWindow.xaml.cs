@@ -8,13 +8,13 @@ namespace FocusBot.App
 {
     public sealed partial class MainWindow : Window
     {
-        private readonly KanbanBoardViewModel _kanbanViewModel;
+        private readonly FocusPageViewModel _kanbanViewModel;
         private readonly IIntegrationService _integrationService;
         private readonly IServiceProvider _services;
-        private readonly KanbanBoardPage _kanbanPage;
+        private readonly FocusPage _kanbanPage;
 
         public MainWindow(
-            KanbanBoardViewModel viewModel,
+            FocusPageViewModel viewModel,
             INavigationService navigationService,
             IIntegrationService integrationService,
             IServiceProvider services)
@@ -24,8 +24,11 @@ namespace FocusBot.App
             _integrationService = integrationService;
             _services = services;
 
-            _kanbanPage = new KanbanBoardPage { DataContext = viewModel };
+            _kanbanPage = new FocusPage { DataContext = viewModel };
             Content = _kanbanPage;
+
+            // Set default window size
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 1000));
         }
     }
 }

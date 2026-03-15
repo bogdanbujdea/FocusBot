@@ -16,7 +16,7 @@ using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
 namespace FocusBot.App.ViewModels;
 
-public partial class KanbanBoardViewModel : ObservableObject
+public partial class FocusPageViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
@@ -75,47 +75,24 @@ public partial class KanbanBoardViewModel : ObservableObject
     public ObservableCollection<UserTask> InProgressTasks { get; } = new();
     public ObservableCollection<UserTask> DoneTasks { get; } = new();
 
-    public string NewTaskDescription
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
+    // New single-task properties
+    [ObservableProperty]
+    private UserTask? _activeTask;
 
-    public string NewTaskContext
+    partial void OnActiveTaskChanged(UserTask? value)
     {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public bool ShowAddTaskInput
-    {
-        get;
-        set => SetProperty(ref field, value);
+        OnPropertyChanged(nameof(ShowStartForm));
+        OnPropertyChanged(nameof(IsActiveTaskVisible));
     }
 
-    public bool ShowEditTaskInput
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
+    [ObservableProperty]
+    private string _startTaskTitle = string.Empty;
 
-    public string? EditingTaskId
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
+    [ObservableProperty]
+    private string _startTaskContext = string.Empty;
 
-    public string EditTaskDescription
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public string EditTaskContext
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
+    public bool ShowStartForm => ActiveTask == null && !_extensionHasActiveTask;
+    public bool IsActiveTaskVisible => ActiveTask != null || _extensionHasActiveTask;
 
     public string CurrentProcessName
     {
@@ -487,7 +464,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<UserTask> DisplayInProgressTasks { get; } = new();
 
-    public KanbanBoardViewModel(
+    public FocusPageViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
         ITimeTrackingService timeTracking,
@@ -1104,10 +1081,117 @@ public partial class KanbanBoardViewModel : ObservableObject
     public Task<bool> HasTrialStartedAsync() => _trialService.HasTrialStartedAsync();
 
     [RelayCommand]
-    private void ToggleAddTask() => ShowAddTaskInput = !ShowAddTaskInput;
+    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
+
+    [RelayCommand(CanExecute = nameof(CanStartTask))]
+    private async Task StartTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(StartTaskTitle))
+            return;
+
+        if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
+        {
+            IntegrationBlockedReason = "A task is already in progress in the browser extension. End it there first.";
+            return;
+        }
+        IntegrationBlockedReason = null;
+
+        var context = string.IsNullOrWhiteSpace(StartTaskContext) ? null : StartTaskContext.Trim();
+        
+        // Create task directly as InProgress
+        var task = await _repo.AddTaskAsync(StartTaskTitle.Trim(), context);
+        await _repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        
+        // Clear form
+        StartTaskTitle = string.Empty;
+        StartTaskContext = string.Empty;
+        
+        // Reload board which will start monitoring
+        await LoadBoardAsync();
+        
+        // Set ActiveTask
+        if (InProgressTasks.Count > 0)
+        {
+            ActiveTask = InProgressTasks[0];
+            await NotifyTaskStartedAsync(ActiveTask);
+        }
+    }
+
+    private bool CanStartTask() => !string.IsNullOrWhiteSpace(StartTaskTitle);
+
+    partial void OnStartTaskTitleChanged(string value)
+    {
+        StartTaskCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand]
-    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
+    private async Task EndTaskAsync()
+    {
+        if (ActiveTask == null && InProgressTasks.Count == 0)
+            return;
+
+        var taskToEnd = ActiveTask ?? InProgressTasks.FirstOrDefault();
+        if (taskToEnd == null)
+            return;
+
+        await FinalizeFocusScoreAndPersistAsync(taskToEnd.TaskId);
+        await _repo.SetStatusToAsync(taskToEnd.TaskId, TaskStatus.Done);
+        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+        
+        InProgressTasks.Clear();
+        ActiveTask = null;
+        
+        StopMonitoringAndResetFocusState();
+        IsMonitoring = false;
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
+        RefreshDisplayInProgressTasks();
+        
+        await RefreshTodaySummaryAsync();
+        
+        if (_integrationService?.IsExtensionConnected == true)
+        {
+            await _integrationService.SendTaskEndedAsync(taskToEnd.TaskId);
+        }
+    }
+
+    [RelayCommand]
+    private void PauseTask()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _isTaskPaused = true;
+        OnPropertyChanged(nameof(IsTaskPaused));
+
+        _focusScoreService.PauseCurrentSegment();
+        _timeTracking.Stop();
+        _windowMonitor.Stop();
+
+        RaiseFocusOverlayStateChanged();
+    }
+
+    [RelayCommand]
+    private void ResumeTask()
+    {
+        if (InProgressTasks.Count == 0)
+            return;
+
+        _isTaskPaused = false;
+        OnPropertyChanged(nameof(IsTaskPaused));
+
+        _timeTracking.Start();
+        _windowMonitor.Start();
+
+        RaiseFocusOverlayStateChanged();
+    }
+
+    [RelayCommand]
+    private void ViewHistory()
+    {
+        // TODO: Navigate to History page when it's created
+        // _navigationService.NavigateTo<HistoryPage>();
+    }
 
     [RelayCommand]
     private void OpenSettings() => _navigationService.NavigateToSettings();
@@ -1184,60 +1268,6 @@ public partial class KanbanBoardViewModel : ObservableObject
         _navigationService.NavigateToTaskDetail(taskId);
     }
 
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task AddTaskAsync()
-    {
-        if (string.IsNullOrWhiteSpace(NewTaskDescription))
-            return;
-        var context = string.IsNullOrWhiteSpace(NewTaskContext) ? null : NewTaskContext.Trim();
-        var task = await _repo.AddTaskAsync(NewTaskDescription.Trim(), context);
-        ToDoTasks.Add(task);
-        CloseNewTaskPopup();
-    }
-
-    private void CloseNewTaskPopup()
-    {
-        NewTaskDescription = string.Empty;
-        NewTaskContext = string.Empty;
-        ShowAddTaskInput = false;
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task BeginEditTaskAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        var task = await _repo.GetByIdAsync(taskId);
-        if (task == null)
-            return;
-        EditingTaskId = taskId;
-        EditTaskDescription = task.Description;
-        EditTaskContext = task.Context ?? string.Empty;
-        ShowEditTaskInput = true;
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task SaveEditTaskAsync()
-    {
-        if (string.IsNullOrWhiteSpace(EditTaskDescription) || string.IsNullOrEmpty(EditingTaskId))
-            return;
-        var context = string.IsNullOrWhiteSpace(EditTaskContext) ? null : EditTaskContext.Trim();
-        await _repo.UpdateTaskAsync(EditingTaskId, EditTaskDescription.Trim(), context);
-        CloseEditTaskPopup();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand]
-    private void CloseEditTask() => ShowEditTaskInput = false;
-
-    private void CloseEditTaskPopup()
-    {
-        EditTaskDescription = string.Empty;
-        EditTaskContext = string.Empty;
-        EditingTaskId = null;
-        ShowEditTaskInput = false;
-    }
-
     /// <summary>
     /// When set, the extension has an active task and the user cannot start a local one. Shown in the UI.
     /// </summary>
@@ -1248,108 +1278,12 @@ public partial class KanbanBoardViewModel : ObservableObject
         set => SetProperty(ref _integrationBlockedReason, value);
     }
 
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToInProgressAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-
-        if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
-        {
-            IntegrationBlockedReason = "A task is already in progress in the browser extension. End it there first.";
-            return;
-        }
-        IntegrationBlockedReason = null;
-
-        await _repo.SetStatusToAsync(taskId, TaskStatus.InProgress);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-
-        if (HasActiveTask())
-            await NotifyTaskStartedAsync(InProgressTasks[0]);
-    }
-
     private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
     {
         _focusScoreService.PauseCurrentSegment();
         await _focusScoreService.PersistSegmentsAsync();
         var scorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
         await _repo.UpdateFocusScoreAsync(taskId, scorePercent);
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToDoneAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-
-        if (RemoteTaskFromExtension != null && taskId == RemoteTaskFromExtension.TaskId)
-        {
-            await NotifyTaskEndedAsync(taskId);
-            ClearRemoteTask();
-            if (InProgressTasks.Count == 0)
-                _windowMonitor.Stop();
-            await LoadBoardAsync();
-            return;
-        }
-
-        await NotifyTaskEndedAsync(taskId);
-        await FinalizeFocusScoreAndPersistAsync(taskId);
-        await ShowSessionDistractionSummaryAsync(taskId);
-        await UpdateTaskStatusAndDuration(taskId, TaskStatus.Done);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MoveToToDoAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        await NotifyTaskEndedAsync(taskId);
-        await FinalizeFocusScoreAndPersistAsync(taskId);
-        await ShowSessionDistractionSummaryAsync(taskId);
-        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
-        await _repo.SetStatusToAsync(taskId, TaskStatus.ToDo);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task DeleteTaskAsync(string? taskId)
-    {
-        if (string.IsNullOrEmpty(taskId))
-            return;
-        _focusScoreService.ClearTaskSegments(taskId);
-        await _repo.DeleteFocusSegmentsForTaskAsync(taskId);
-        await _distractionEventRepository.DeleteDistractionEventsForTaskAsync(taskId);
-        await _repo.DeleteTaskAsync(taskId);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
-        await LoadBoardAsync();
-    }
-
-    /// <summary>
-    /// Move task to the given status (used by drag-and-drop). Status name: ToDo, InProgress, Done.
-    /// </summary>
-    public async Task MoveToStatusAsync(string taskId, string status)
-    {
-        var task = await _repo.GetByIdAsync(taskId);
-        if (task == null)
-            return;
-        var statusEnum = Enum.Parse<TaskStatus>(status);
-        var isMovingCurrentInProgress = HasActiveTask() && InProgressTasks[0].TaskId == taskId;
-        if (!isMovingCurrentInProgress)
-            _taskElapsedSeconds = task.TotalElapsedSeconds;
-        await UpdateTaskStatusAndDuration(taskId, statusEnum);
-        await LoadBoardAsync();
-    }
-
-    private async Task UpdateTaskStatusAndDuration(string taskId, TaskStatus statusEnum)
-    {
-        if (HasActiveTask() && InProgressTasks[0].TaskId == taskId)
-            await FinalizeFocusScoreAndPersistAsync(taskId);
-        await _repo.UpdateElapsedTimeAsync(taskId, _taskElapsedSeconds);
-        await _repo.SetStatusToAsync(taskId, statusEnum);
     }
 
     private bool HasValidFocusData() => FocusScore > 0 || !string.IsNullOrEmpty(FocusReason);

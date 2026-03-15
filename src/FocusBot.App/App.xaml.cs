@@ -21,7 +21,7 @@ namespace FocusBot.App
         private Window? _window;
         private FocusOverlayWindow? _overlayWindow;
         private IServiceProvider? _services;
-        private KanbanBoardViewModel? _viewModel;
+        private FocusPageViewModel? _viewModel;
         private IIntegrationService? _integrationService;
 
         public App()
@@ -78,7 +78,7 @@ namespace FocusBot.App
             services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
             services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
-            services.AddTransient<KanbanBoardViewModel>();
+            services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<SettingsViewModel>();
@@ -92,7 +92,7 @@ namespace FocusBot.App
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            _viewModel = _services!.GetRequiredService<KanbanBoardViewModel>();
+            _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
             _integrationService = _services!.GetRequiredService<IIntegrationService>();
             _window = new MainWindow(_viewModel, navigationService, _integrationService, _services!);

@@ -1,29 +1,31 @@
 using FocusBot.Core.Interfaces;
 using Moq;
+using TaskStatus = FocusBot.Core.Entities.TaskStatus;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
-public class DeleteTaskAsyncShould
+public class TaskElapsedTimeShould
 {
     [Fact]
-    public async Task RefreshAnalytics_AfterTaskDeleted()
+    public async Task IncrementEverySecond_WhenTimerTicks()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
+        var task = await ctx.Repo.AddTaskAsync("Tracked task");
+        await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
         var monitorMock = new Mock<IWindowMonitorService>();
+        var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var distractionDetectorMock = new Mock<IDistractionDetectorService>();
+        var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -33,47 +35,46 @@ public class DeleteTaskAsyncShould
             settingsMock.Object,
             focusScoreMock.Object,
             trialMock.Object,
-            distractionDetectorMock.Object,
+            distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object);
-
-        // Create a task
-        var task = await ctx.Repo.AddTaskAsync("Test task");
-        await Task.Delay(10);
+        await Task.Delay(150);
 
         // Act
-        await vm.DeleteTaskCommand.ExecuteAsync(task.TaskId);
+        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
 
         // Assert
-        dailyAnalyticsMock.Verify(d => d.ReloadTodayFromDbAsync(It.IsAny<CancellationToken>()), Times.Once);
-        distractionRepoMock.Verify(d => d.DeleteDistractionEventsForTaskAsync(task.TaskId, It.IsAny<CancellationToken>()), Times.Once);
-        vm.ToDoTasks.Should().BeEmpty();
+        vm.TaskElapsedTime.Should().Be("00:00:01");
+
+        // Act
+        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+
+        // Assert
+        vm.TaskElapsedTime.Should().Be("00:00:02");
     }
 
     [Fact]
-    public async Task ShowEmptyState_WhenLastTaskDeleted()
+    public async Task StartFromStoredValue_WhenTaskIsLoaded()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
+        var task = await ctx.Repo.AddTaskAsync("Resumed task");
+        await ctx.Repo.SetStatusToAsync(task.TaskId, TaskStatus.InProgress);
+        await ctx.Repo.UpdateElapsedTimeAsync(task.TaskId, 3661);
         var monitorMock = new Mock<IWindowMonitorService>();
+        var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var distractionDetectorMock = new Mock<IDistractionDetectorService>();
+        var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-
-        dailyAnalyticsMock
-            .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Core.DTOs.DailyFocusSummary?)null);
-
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -83,40 +84,34 @@ public class DeleteTaskAsyncShould
             settingsMock.Object,
             focusScoreMock.Object,
             trialMock.Object,
-            distractionDetectorMock.Object,
+            distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object);
-
-        // Create and delete a task
-        var task = await ctx.Repo.AddTaskAsync("Test task");
-        await Task.Delay(10);
-        await vm.DeleteTaskCommand.ExecuteAsync(task.TaskId);
+        await Task.Delay(150);
 
         // Assert
-        vm.ToDoTasks.Should().BeEmpty();
-        vm.HasTodayAnalytics.Should().BeFalse();
+        vm.TaskElapsedTime.Should().Be("01:01:01");
     }
 
     [Fact]
-    public async Task DeleteDistractionEvents_WhenTaskDeleted()
+    public async Task ResetToZero_WhenNoTaskInProgress()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
+        var timeTrackingMock = new Mock<ITimeTrackingService>();
+        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var focusScoreMock = new Mock<IFocusScoreService>();
         var trialMock = new Mock<ITrialService>();
-        var distractionDetectorMock = new Mock<IDistractionDetectorService>();
+        var distractionMock = new Mock<IDistractionDetectorService>();
         var distractionRepoMock = new Mock<IDistractionEventRepository>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -126,19 +121,13 @@ public class DeleteTaskAsyncShould
             settingsMock.Object,
             focusScoreMock.Object,
             trialMock.Object,
-            distractionDetectorMock.Object,
+            distractionMock.Object,
             distractionRepoMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object);
-
-        // Create and delete a task
-        var task = await ctx.Repo.AddTaskAsync("Test task");
-        await Task.Delay(10);
-        await vm.DeleteTaskCommand.ExecuteAsync(task.TaskId);
+        await Task.Delay(150);
 
         // Assert
-        distractionRepoMock.Verify(
-            d => d.DeleteDistractionEventsForTaskAsync(task.TaskId, It.IsAny<CancellationToken>()),
-            Times.Once);
+        vm.TaskElapsedTime.Should().Be("00:00:00");
     }
 }

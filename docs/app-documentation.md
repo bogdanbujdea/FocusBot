@@ -184,7 +184,6 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 | Role | Color |
 |------|-------|
 | Page background | `#110E1A` (deep purple) |
-| Column background | `#1C1730` |
 | Card background | `#2A2242` |
 | Card border | `#3A3058` |
 | Primary accent | `#A78BFA` (violet) |
@@ -218,7 +217,7 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 - Secondary text: 11px Regular
 
 ### Visual Hierarchy
-Three elevation layers (Page < Column < Card) with progressive lightening. Cards use a 3px left accent bar for state indication: violet for To Do, green for In Progress, muted green for Done.
+Single focused interface with elevation layers (Page < Status Bar < Main Card). The Active Task Card uses a 3px left accent bar that dynamically updates based on the current focus state: green for Focused, purple for Unclear, orange for Distracted.
 
 ### Materials
 Desktop Acrylic backdrop on the window, Acrylic brushes on surfaces with ~65-70% tint opacity. High Contrast mode disables all transparency and uses solid system colors.
@@ -238,10 +237,10 @@ Desktop Acrylic backdrop on the window, Acrylic brushes on surfaces with ~65-70%
 - [ ] **Privacy Policy URL** - Must be hosted at a publicly accessible URL. Must disclose that window titles and task descriptions are sent to AI providers for classification, that subscription management is handled via the Microsoft Store, and that no activity data is stored on any server.
 - [ ] **WACK Testing** - The app must pass the Windows App Certification Kit before submission.
 - [ ] **Screenshots** - At least one required; recommended at least 4. Resolution: 1366x768 or larger (supports up to 3840x2160). PNG format. Suggested screenshots:
-  1. Active task view showing focus status with a Focused classification and reason
-  2. Start task dialog with task title and context hints
+  1. Active task card showing focus status with a Focused classification and reason
+  2. Start task form with task title and context hints
   3. Settings page showing both pricing modes (BYOK and Subscription)
-  4. History of completed tasks with analytics
+  4. History page with completed tasks and analytics
 - [ ] **Store Description** - The description, product features, and release notes for the listing page.
 - [ ] **Subscription Add-on** - Created in Partner Center with the product ID `focusbot.subscription.monthly`.
 

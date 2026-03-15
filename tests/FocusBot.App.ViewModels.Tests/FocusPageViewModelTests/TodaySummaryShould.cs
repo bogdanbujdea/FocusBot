@@ -3,7 +3,7 @@ using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
 public class TodaySummaryShould
 {
@@ -11,7 +11,7 @@ public class TodaySummaryShould
     public async Task PopulateTodayProperties_WhenSummaryIsAvailable()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -39,7 +39,7 @@ public class TodaySummaryShould
                 AverageDistractionDuration = TimeSpan.FromSeconds(10)
             });
 
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
@@ -75,7 +75,7 @@ public class TodaySummaryShould
     public async Task HideTodaySummary_WhenNoDataForToday()
     {
         // Arrange
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var llmMock = new Mock<ILlmService>();
@@ -93,7 +93,7 @@ public class TodaySummaryShould
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DailyFocusSummary?)null);
 
-        var vm = new KanbanBoardViewModel(
+        var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,

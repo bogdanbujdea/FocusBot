@@ -2,14 +2,14 @@ using FocusBot.Core.DTOs;
 using FocusBot.Core.Interfaces;
 using Moq;
 
-namespace FocusBot.App.ViewModels.Tests.KanbanBoardViewModelTests;
+namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 
 public class IntegrationCompanionModeShould
 {
     [Fact]
     public async Task ShowRemoteTaskInDisplayInProgress_When_TaskStartedReceived_From_Extension()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
         var vm = CreateViewModel(ctx, monitorMock, integrationMock.Object, uiDispatcher: null);
@@ -31,7 +31,7 @@ public class IntegrationCompanionModeShould
     [Fact]
     public async Task StartWindowMonitor_When_TaskStartedReceived_From_Extension()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
         var vm = CreateViewModel(ctx, monitorMock, integrationMock.Object, uiDispatcher: null);
@@ -51,7 +51,7 @@ public class IntegrationCompanionModeShould
     [Fact]
     public async Task StopWindowMonitor_When_TaskEndedReceived_And_No_Local_InProgress_Task()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
         var integrationMock = new Mock<IIntegrationService>();
 
@@ -69,7 +69,7 @@ public class IntegrationCompanionModeShould
     [Fact]
     public async Task Not_StopWindowMonitor_When_TaskEndedReceived_And_Local_InProgress_Task_Exists()
     {
-        await using var ctx = await KanbanBoardTestContext.CreateAsync();
+        await using var ctx = await FocusPageTestContext.CreateAsync();
         var task = await ctx.Repo.AddTaskAsync("Local task");
         await ctx.Repo.SetStatusToAsync(task.TaskId, FocusBot.Core.Entities.TaskStatus.InProgress);
 
@@ -86,8 +86,8 @@ public class IntegrationCompanionModeShould
         monitorMock.Verify(m => m.Stop(), Times.Never);
     }
 
-    private static KanbanBoardViewModel CreateViewModel(
-        KanbanBoardTestContext ctx,
+    private static FocusPageViewModel CreateViewModel(
+        FocusPageTestContext ctx,
         Mock<IWindowMonitorService> monitorMock,
         IIntegrationService integrationService,
         IUIThreadDispatcher? uiDispatcher)
@@ -104,7 +104,7 @@ public class IntegrationCompanionModeShould
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
-        return new KanbanBoardViewModel(
+        return new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
             timeTrackingMock.Object,
