@@ -59,6 +59,7 @@ export interface DesktopClassificationResult {
 export interface IntegrationState {
   mode: IntegrationMode;
   connected: boolean;
+  browserInForeground: boolean;
   leaderTaskId?: string;
   leaderTaskText?: string;
   lastFocusStatus?: FocusStatusPayload;

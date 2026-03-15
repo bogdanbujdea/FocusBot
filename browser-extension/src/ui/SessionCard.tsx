@@ -72,7 +72,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
   }, [showingActive, active, displayStartedAt, tick]);
 
   const desktopCtx = integration?.mode === "fullMode" ? integration.currentDesktopContext : undefined;
-  const showDesktopContext = Boolean(desktopCtx) && !active?.currentVisit;
+  const showDesktopContext = Boolean(desktopCtx) && integration?.browserInForeground === false;
 
   const currentState = showDesktopContext
     ? (desktopCtx!.classification === "aligned" ? "Aligned" : "Distracting")

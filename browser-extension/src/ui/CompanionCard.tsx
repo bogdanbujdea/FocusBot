@@ -11,7 +11,6 @@ export const CompanionCard = ({ integration }: CompanionCardProps): JSX.Element 
   const classification = status?.classification ?? "Waiting...";
   const reason = status?.reason ?? "";
   const focusPercent = status?.focusScorePercent ?? 0;
-  const contextType = status?.contextType ?? "";
   const contextTitle = status?.contextTitle ?? "";
 
   const statusClass =
@@ -28,25 +27,27 @@ export const CompanionCard = ({ integration }: CompanionCardProps): JSX.Element 
         ? "Distracting"
         : "Waiting...";
 
-  const contextDisplay = contextTitle
-    ? `${contextType === "browser" ? "Browser" : "Desktop"}: ${contextTitle}`
+  const activeAppDisplay = contextTitle
+    ? contextTitle.replace(/^Browser:\s*/i, "").trim() || contextTitle
     : "";
 
   return (
     <section className="card companion-card">
-      <div className="companion-badge">Desktop App Connected</div>
       <h2>Companion Mode</h2>
       <div className="stack">
         <p className="muted">
-          <strong>Following:</strong> {taskText}
+          <strong>Source:</strong> Desktop App
+        </p>
+        <p className="muted">
+          <strong>Task:</strong> {taskText}
         </p>
         <p className={`status ${statusClass}`}>
           <strong>Status:</strong> {statusLabel}
         </p>
         {reason ? <p className="muted">{reason}</p> : null}
-        {contextDisplay ? (
+        {activeAppDisplay ? (
           <p className="muted">
-            <strong>Context:</strong> {contextDisplay}
+            <strong>Active desktop app:</strong> {activeAppDisplay}
           </p>
         ) : null}
         <p className="muted">

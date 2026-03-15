@@ -31,6 +31,7 @@ import {
   updateLeaderTask,
   updateLastFocusStatus,
   updateDesktopContext,
+  updateBrowserForeground,
   onIntegrationStateChange,
   isConnected
 } from "../shared/integration";
@@ -169,6 +170,7 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       } catch (err) {
         console.error("[Integration] Desktop classification failed:", err);
       }
+      updateBrowserForeground(false);
       break;
     }
 
@@ -511,6 +513,7 @@ const classifyAndApplyVisit = async (
 
 const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
   runExclusive(async () => {
+    updateBrowserForeground(true);
     const session = await loadActiveSession();
     if (!session || tab.id === undefined || !tab.url || !isTrackableUrl(tab.url)) {
       return;

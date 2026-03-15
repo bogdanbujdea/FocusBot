@@ -36,7 +36,8 @@ let shouldConnect = true;
 
 const state: IntegrationState = {
   mode: "standalone",
-  connected: false
+  connected: false,
+  browserInForeground: true
 };
 
 const stateListeners: Array<(state: IntegrationState) => void> = [];
@@ -84,6 +85,12 @@ export const updateDesktopContext = (context: DesktopClassificationResult | unde
   notifyStateChange();
 };
 
+export const updateBrowserForeground = (inForeground: boolean): void => {
+  if (state.browserInForeground === inForeground) return;
+  state.browserInForeground = inForeground;
+  notifyStateChange();
+};
+
 const scheduleReconnect = (): void => {
   if (!shouldConnect) return;
   const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, reconnectAttempt), RECONNECT_MAX_MS);
@@ -123,6 +130,7 @@ const connect = (): void => {
       state.leaderTaskText = undefined;
       state.lastFocusStatus = undefined;
     }
+    state.browserInForeground = true;
     notifyStateChange();
     ws = null;
     scheduleReconnect();
@@ -206,6 +214,7 @@ export const stopIntegration = (): void => {
   }
   state.connected = false;
   state.mode = "standalone";
+  state.browserInForeground = true;
   notifyStateChange();
 };
 

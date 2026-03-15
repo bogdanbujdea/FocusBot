@@ -31,6 +31,7 @@ public partial class KanbanBoardViewModel : ObservableObject
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly IIntegrationService? _integrationService;
+    private readonly IUIThreadDispatcher? _uiDispatcher;
 
     private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
 
@@ -444,7 +445,8 @@ public partial class KanbanBoardViewModel : ObservableObject
         IDistractionEventRepository distractionEventRepository,
         IDailyAnalyticsService dailyAnalyticsService,
         IAlignmentCacheRepository alignmentCacheRepository,
-        IIntegrationService? integrationService = null
+        IIntegrationService? integrationService = null,
+        IUIThreadDispatcher? uiDispatcher = null
     )
     {
         _repo = repo;
@@ -461,6 +463,7 @@ public partial class KanbanBoardViewModel : ObservableObject
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
         _integrationService = integrationService;
+        _uiDispatcher = uiDispatcher;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
@@ -1316,14 +1319,35 @@ public partial class KanbanBoardViewModel : ObservableObject
     {
         IsExtensionConnected = connected;
 
-        if (connected && _integrationService != null)
-        {
-            var hasActive = HasActiveTask();
-            var taskId = hasActive ? InProgressTasks[0].TaskId : null;
-            var taskText = hasActive ? InProgressTasks[0].Description : null;
-            var taskHints = hasActive ? InProgressTasks[0].Context : null;
+        if (!connected || _integrationService == null)
+            return;
 
-            _ = _integrationService.SendHandshakeAsync(hasActive, taskId, taskText, taskHints);
+        void sendStateOnConnect()
+        {
+            if (!HasActiveTask())
+            {
+                _ = _integrationService!.SendHandshakeAsync(false, null, null, null);
+                return;
+            }
+
+            var task = InProgressTasks.Count > 0 ? InProgressTasks[0] : null;
+            if (task != null)
+            {
+                _ = _integrationService.SendTaskStartedAsync(task.TaskId, task.Description, task.Context);
+            }
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                sendStateOnConnect();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            sendStateOnConnect();
         }
     }
 
@@ -1374,6 +1398,24 @@ public partial class KanbanBoardViewModel : ObservableObject
         var response = await _integrationService.RequestBrowserUrlAsync(TimeSpan.FromSeconds(3));
         if (response != null && !string.IsNullOrEmpty(response.Url))
         {
+            var domain = Uri.TryCreate(response.Url, UriKind.Absolute, out var uri) && uri.IsAbsoluteUri
+                ? uri.Host
+                : response.Url;
+            var displayTitle = $"Browser: {domain}";
+
+            if (_uiDispatcher != null)
+            {
+                await _uiDispatcher.RunOnUIThreadAsync(() =>
+                {
+                    CurrentWindowTitle = displayTitle;
+                    return Task.CompletedTask;
+                });
+            }
+            else
+            {
+                CurrentWindowTitle = displayTitle;
+            }
+
             var combinedTitle = $"{response.Title} ({response.Url})";
             await ClassifyAndUpdateFocusAsync(taskDescription, taskContext, processName, combinedTitle);
         }
