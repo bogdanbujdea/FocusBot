@@ -23,8 +23,7 @@ services:
       - "5251:8080"
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Database=focusbot;Username=focusbot;Password=focusbot_dev"
-      Supabase__Url: "https://your-project.supabase.co"
-      Supabase__JwtSecret: "your-supabase-jwt-secret-at-least-32-chars-long!!"
+      Supabase__Url: "https://mokjfxtnqmudypnukqsv.supabase.co"
       ASPNETCORE_ENVIRONMENT: Development
     depends_on:
       postgres:

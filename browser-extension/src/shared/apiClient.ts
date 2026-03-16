@@ -1,3 +1,48 @@
+import { loadFocusbotAuthSession } from "./focusbotAuth";
+
+const API_BASE_URL = "http://localhost:5251";
+
+async function authorizedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const session = await loadFocusbotAuthSession();
+  const headers = new Headers(init.headers ?? {});
+
+  if (session?.accessToken) {
+    headers.set("Authorization", `Bearer ${session.accessToken}`);
+  }
+
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return fetch(`${API_BASE_URL}${input}`, {
+    ...init,
+    headers
+  });
+}
+
+export interface MeResponse {
+  userId: string;
+  email: string;
+  subscriptionStatus: string;
+}
+
+export const fetchCurrentUser = async (): Promise<MeResponse> => {
+  const response = await authorizedFetch("/auth/me", {
+    method: "GET"
+  });
+
+  if (response.status === 401) {
+    throw new Error("Not authenticated with FocusBot. Please complete sign-in.");
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to load FocusBot account. ${response.status} ${text}`);
+  }
+
+  return (await response.json()) as MeResponse;
+};
+
 import { getAccessToken, refreshAccessToken } from "./authToken";
 
 const DEFAULT_BASE_URL = "https://api.focusbot.app";

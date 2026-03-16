@@ -1,4 +1,3 @@
-using System.Text;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
@@ -8,6 +7,7 @@ using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -17,12 +17,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApiDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ── Authentication ──────────────────────────────────────────────────────────
+// ── Authentication (ES256 via Supabase JWKS) ────────────────────────────────
+var jwksService = new JwksRefreshService(
+    builder.Configuration,
+    LoggerFactory.Create(b => b.AddConsole()).CreateLogger<JwksRefreshService>());
+builder.Services.AddSingleton(jwksService);
+builder.Services.AddHostedService(sp => sp.GetRequiredService<JwksRefreshService>());
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var supabaseUrl = builder.Configuration["Supabase:Url"] ?? string.Empty;
-        var jwtSecret = builder.Configuration["Supabase:JwtSecret"] ?? string.Empty;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -32,11 +37,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = "authenticated",
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
+            IssuerSigningKeyResolver = jwksService.ResolveSigningKeys
         };
     });
 
 builder.Services.AddAuthorization();
+
+// ── CORS ────────────────────────────────────────────────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? Array.Empty<string>();
+
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
+});
 
 // ── OpenAPI ─────────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi(options =>
@@ -87,6 +117,10 @@ app.MapScalarApiReference(options =>
 {
     options.WithTitle("FocusBot API");
 });
+
+app.UseStaticFiles();
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -6,11 +6,18 @@ export interface ClassificationResult {
   reason?: string;
 }
 
+export type AuthMode = "byok" | "focusbot-account";
+
 export interface Settings {
+  /** How the extension authenticates for classification and sync. */
+  authMode: AuthMode;
+  /** User-provided OpenAI API key when in BYOK mode. */
   openAiApiKey: string;
   classifierModel: string;
   onboardingCompleted: boolean;
   excludedDomains: string[];
+  /** Email associated with the FocusBot account when authMode === "focusbot-account". */
+  focusbotEmail?: string;
 }
 
 export interface PageVisit {

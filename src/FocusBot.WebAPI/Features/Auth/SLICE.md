@@ -31,3 +31,17 @@ When an authenticated request arrives, the `AuthService` checks for an existing 
 - Issuer: `{Supabase:Url}/auth/v1`
 - Audience: `authenticated`
 - Signing key: `Supabase:JwtSecret` (symmetric)
+
+## Browser Extension Client
+
+When a user chooses the **FocusBot account** mode in the browser extension, the extension:
+
+- Authenticates the user with Supabase using a magic link sent to their email.
+- Stores the Supabase access token locally inside the extension.
+- Sends that token as `Authorization: Bearer <access_token>` when calling `GET /auth/me`.
+
+On the first successful call from the extension:
+
+- `AuthService` looks up the user by Supabase `sub` claim.
+- If no row exists, a new `User` record is created from the JWT claims.
+- The response is returned to the extension, which displays the authenticated email and subscription status and can later use the same identity for multi-device sync.

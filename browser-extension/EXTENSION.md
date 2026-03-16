@@ -59,6 +59,9 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
    - `storage.ts`: chrome.storage.local persistence layer
    - `analytics.ts`: Focus metrics aggregation
    - `metrics.ts`: Session summary calculations
+   - `supabaseClient.ts`: Supabase JS client used for FocusBot account sign-in
+   - `focusbotAuth.ts`: Storage helpers for Supabase access token and linked email
+   - `apiClient.ts`: Thin wrapper for calling the WebAPI with the stored Supabase access token
 
 4. **Content Script (content/index.ts)**
    - Injected into every tab
@@ -446,9 +449,49 @@ Detailed analytics dashboard:
 ### SettingsPage
 
 Configuration:
-- OpenAI API key (encrypted in storage)
-- Model selection (dropdown)
-- Excluded domains (list add/remove)
+- **Account mode**
+  - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No FocusBot backend is involved.
+  - **FocusBot account** – user signs in with a FocusBot account via Supabase magic link. The extension then uses a managed key and can sync with the WebAPI.
+- **OpenAI API key** (BYOK mode only)
+  - When `authMode` is `"byok"`, the user can enter their own OpenAI key. It is stored in `focusbot.settings.openAiApiKey`.
+  - When `authMode` is `"focusbot-account"`, this input is disabled.
+- **Model selection**
+  - Classifier model name used in OpenAI calls (e.g. `gpt-4o-mini`).
+- **Excluded domains**
+  - Domains that should always be treated as aligned and never sent to the classifier.
+
+### FocusBot account authentication & sync (extension ↔ WebAPI)
+
+When the user selects **FocusBot account** in Settings:
+
+1. The Settings page displays a **FocusBot account email** field and a **Send magic link** button.
+2. On click, the extension uses `supabaseClient.ts` to call `supabase.auth.signInWithOtp({ email })`:
+   - Supabase sends a magic link email to the user.
+   - The link’s redirect target is configured to the extension options page (`chrome.runtime.getURL("src/options/index.html")`).
+3. When the user opens the magic link:
+   - Supabase finalizes the session and the options page receives an auth state change via `supabase.auth.onAuthStateChange`.
+   - The extension reads the `access_token` and `user.email` from the Supabase session.
+   - `focusbotAuth.saveFocusbotAuthSession` stores:
+     - Supabase access token in `focusbot.supabaseAccessToken`.
+     - Email in `focusbot.supabaseEmail`.
+     - Updates `focusbot.settings` with `authMode: "focusbot-account"` and `focusbotEmail`.
+4. The extension then calls the WebAPI with the stored token:
+   - `apiClient.fetchCurrentUser()` sends `GET /auth/me` to the WebAPI at `http://localhost:5251` with `Authorization: Bearer <access_token>`.
+   - The WebAPI validates the Supabase JWT using the same issuer/audience/key as the desktop app.
+   - On first call, the backend auto-provisions a `User` row from the JWT claims and returns the profile.
+5. The options UI shows:
+   - **Currently signed in as &lt;email&gt;** when the `/auth/me` call succeeds.
+   - Any errors from either Supabase or the WebAPI as status text under the FocusBot account section.
+6. The **Sign out** button:
+   - Clears the stored Supabase access token and email.
+   - Calls `supabase.auth.signOut()`.
+   - Resets `focusbotEmail` in `focusbot.settings`.
+
+This flow ensures that:
+
+- The browser extension never stores passwords.
+- Identity is managed by Supabase; the WebAPI trusts Supabase-issued JWTs.
+- The WebAPI auto-creates the backend user on first authenticated call and returns subscription status for future sync features.
 
 ---
 
@@ -469,13 +512,10 @@ Configuration:
 
 ### Data Persistence
 
-- All data is stored locally in chrome.storage.local
-- API key is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions)
-- API key is not encrypted at rest; the browser has no DPAPI equivalent
-- This is the standard "as safe as the platform allows" approach for BYOK (bring your own key)
-- No cloud sync
-- No telemetry
-- No data shared beyond API calls to OpenAI
+- All data is stored locally in chrome.storage.local. In FocusBot account mode, the Supabase access token and email are also stored locally.
+- The OpenAI API key (when using BYOK) is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions). It is not encrypted at rest; the browser has no DPAPI equivalent.
+- This is the standard "as safe as the platform allows" approach for BYOK (bring your own key).
+- In the initial implementation, there is **no automatic cloud sync of sessions or settings**; the WebAPI is only used to authenticate the FocusBot account and create the corresponding backend user. Future iterations can build on this identity for multi-device sync.
 
 ### Cache Entry Structure
 

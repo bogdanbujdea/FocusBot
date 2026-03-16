@@ -1,43 +1,17 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text;
 using FocusBot.WebAPI.Features.Subscriptions;
-using Microsoft.IdentityModel.Tokens;
 
 namespace FocusBot.WebAPI.IntegrationTests;
 
 public class SubscriptionTests(CustomWebApplicationFactory factory)
     : IClassFixture<CustomWebApplicationFactory>
 {
-    private static string GenerateTestJwt(Guid userId, string email = "test@example.com")
-    {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(CustomWebApplicationFactory.TestJwtSecret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim("sub", userId.ToString()),
-            new Claim("email", email)
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: $"{CustomWebApplicationFactory.TestSupabaseUrl}/auth/v1",
-            audience: "authenticated",
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
     private HttpClient CreateAuthenticatedClient(Guid userId)
     {
         var client = factory.CreateClient();
-        var token = GenerateTestJwt(userId);
+        var token = TestJwtHelper.GenerateTestJwt(userId);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
     }
