@@ -35,20 +35,23 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 .Where(d =>
                     d.ServiceType == typeof(DbContextOptions<ApiDbContext>)
                     || d.ServiceType == typeof(DbContextOptions)
+                    || d.ServiceType == typeof(ApiDbContext)
                     || (d.ServiceType.IsGenericType &&
-                        d.ServiceType.GetGenericTypeDefinition() == typeof(DbContextOptions<>))
-                    || d.ServiceType.FullName?.Contains("Npgsql") == true
-                    || d.ImplementationType?.FullName?.Contains("Npgsql") == true
-                    || d.ServiceType.FullName?.Contains("RelationalConnection") == true
-                    || d.ImplementationType?.FullName?.Contains("RelationalConnection") == true)
+                        d.ServiceType.GetGenericTypeDefinition() == typeof(DbContextOptions<>)))
                 .ToList();
 
             foreach (var d in toRemove)
                 services.Remove(d);
 
             var dbName = $"IntegrationTests_{Guid.NewGuid()}";
-            services.AddDbContext<ApiDbContext>(options =>
-                options.UseInMemoryDatabase(dbName));
+
+            services.AddScoped<ApiDbContext>(_ =>
+            {
+                var options = new DbContextOptionsBuilder<ApiDbContext>()
+                    .UseInMemoryDatabase(dbName)
+                    .Options;
+                return new ApiDbContext(options);
+            });
         });
     }
 }

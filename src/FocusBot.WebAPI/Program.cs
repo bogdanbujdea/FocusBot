@@ -1,6 +1,7 @@
 using System.Text;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Auth;
+using FocusBot.WebAPI.Features.Sessions;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,7 @@ builder.Services.AddOpenApi(options =>
 
 // ── Services ────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SessionService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
@@ -91,6 +93,7 @@ app.UseAuthorization();
 // ── Endpoints ───────────────────────────────────────────────────────────────
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
+app.MapSessionEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────
 if (!app.Environment.IsEnvironment("Testing"))

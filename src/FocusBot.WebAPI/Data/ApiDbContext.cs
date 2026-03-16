@@ -9,6 +9,7 @@ namespace FocusBot.WebAPI.Data;
 public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<Session> Sessions => Set<Session>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,18 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.Property(u => u.Id).ValueGeneratedNever();
             entity.HasIndex(u => u.Email).IsUnique();
             entity.Property(u => u.Email).HasMaxLength(320);
+        });
+
+        modelBuilder.Entity<Session>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
+            entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
+            entity.HasIndex(s => s.UserId)
+                .HasFilter("\"EndedAtUtc\" IS NULL")
+                .IsUnique();
+            entity.Property(s => s.TaskText).HasMaxLength(500);
+            entity.Property(s => s.Source).HasMaxLength(20);
         });
     }
 }
