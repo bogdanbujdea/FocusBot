@@ -3,6 +3,7 @@ using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
 using FocusBot.WebAPI.Features.Sessions;
+using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +72,7 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
+builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
@@ -97,6 +99,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapSessionEndpoints();
 app.MapClassificationEndpoints();
+app.MapSubscriptionEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────
 if (!app.Environment.IsEnvironment("Testing"))

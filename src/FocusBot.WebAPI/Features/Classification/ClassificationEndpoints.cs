@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FocusBot.WebAPI.Features.Subscriptions;
 
 namespace FocusBot.WebAPI.Features.Classification;
 
@@ -16,6 +17,7 @@ public static class ClassificationEndpoints
         group.MapPost("/", async (
             ClassifyRequest request,
             ClassificationService service,
+            SubscriptionService subscriptionService,
             HttpContext ctx,
             CancellationToken ct) =>
         {
@@ -29,6 +31,13 @@ public static class ClassificationEndpoints
                 return Results.BadRequest("TaskText is required.");
 
             var byokApiKey = ctx.Request.Headers["X-Api-Key"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(byokApiKey))
+            {
+                var isActive = await subscriptionService.IsSubscribedOrTrialActiveAsync(userId, ct);
+                if (!isActive)
+                    return Results.StatusCode(402);
+            }
 
             try
             {

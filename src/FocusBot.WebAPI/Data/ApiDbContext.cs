@@ -11,6 +11,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<ClassificationCache> ClassificationCaches => Set<ClassificationCache>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +45,16 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasIndex(c => new { c.UserId, c.ContextHash, c.TaskContentHash });
             entity.Property(c => c.ContextHash).HasMaxLength(64);
             entity.Property(c => c.TaskContentHash).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
+            entity.HasOne(s => s.User).WithOne().HasForeignKey<Subscription>(s => s.UserId);
+            entity.HasIndex(s => s.UserId).IsUnique();
+            entity.Property(s => s.PaddleSubscriptionId).HasMaxLength(100);
+            entity.Property(s => s.Status).HasMaxLength(20);
         });
     }
 }
