@@ -10,6 +10,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<ClassificationCache> ClassificationCaches => Set<ClassificationCache>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +34,16 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
                 .IsUnique();
             entity.Property(s => s.TaskText).HasMaxLength(500);
             entity.Property(s => s.Source).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<ClassificationCache>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).ValueGeneratedNever();
+            entity.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
+            entity.HasIndex(c => new { c.UserId, c.ContextHash, c.TaskContentHash });
+            entity.Property(c => c.ContextHash).HasMaxLength(64);
+            entity.Property(c => c.TaskContentHash).HasMaxLength(64);
         });
     }
 }
