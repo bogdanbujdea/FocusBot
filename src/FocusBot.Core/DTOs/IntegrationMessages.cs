@@ -117,6 +117,15 @@ public class BrowserContextPayload
     public string Title { get; set; } = string.Empty;
 }
 
+public class AuthTokenPayload
+{
+    [JsonPropertyName("accessToken")]
+    public string AccessToken { get; set; } = string.Empty;
+
+    [JsonPropertyName("refreshToken")]
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
 public static class IntegrationMessageTypes
 {
     public const string Handshake = "HANDSHAKE";
@@ -125,4 +134,5 @@ public static class IntegrationMessageTypes
     public const string FocusStatus = "FOCUS_STATUS";
     public const string DesktopForeground = "DESKTOP_FOREGROUND";
     public const string BrowserContext = "BROWSER_CONTEXT";
+    public const string AuthToken = "AUTH_TOKEN";
 }
