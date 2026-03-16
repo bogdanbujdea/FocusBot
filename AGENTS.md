@@ -39,6 +39,12 @@ FocusBot is a Windows desktop productivity app + browser extension + nascent Web
 - **.NET (Linux-compatible projects)**: `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj` or build individual projects. There is no `.sln` file.
 - **Browser extension**: `cd browser-extension && npm run build`
 
+### Infrastructure (Terraform + CI/CD)
+
+- Terraform configs live in `infra/terraform/`. Validate with `terraform init -backend=false && terraform validate` (backend requires Azure credentials).
+- CI/CD workflow at `.github/workflows/ci.yml` runs build + tests on push/PR, deploys to Azure on `main` push.
+- See `infra/terraform/README.md` for deployment prerequisites and step-by-step instructions.
+
 ### Key caveats
 
 - .NET 10 SDK is required (installed at `/usr/share/dotnet`). The VM snapshot includes the SDK; the update script restores NuGet and npm packages only.
