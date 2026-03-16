@@ -82,20 +82,18 @@ var app = builder.Build();
 // ── Middleware pipeline ─────────────────────────────────────────────────────
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options.WithTitle("FocusBot API");
-    });
-}
+    options.WithTitle("FocusBot API");
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
 app.MapHealthChecks("/health");
+app.MapGet("/", () => Results.Ok("FocusBot API"));
 app.MapAuthEndpoints();
 app.MapSessionEndpoints();
 app.MapClassificationEndpoints();

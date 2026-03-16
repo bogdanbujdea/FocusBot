@@ -17,7 +17,6 @@ public class SupabaseAuthService : IAuthService
     private readonly ILogger<SupabaseAuthService> _logger;
 
     private string? _accessToken;
-    private string? _refreshToken;
     private bool _isAuthenticated;
 
     private const string SupabaseUrlKey = "Supabase_Url";
@@ -31,7 +30,8 @@ public class SupabaseAuthService : IAuthService
     public SupabaseAuthService(
         HttpClient httpClient,
         ISettingsService settingsService,
-        ILogger<SupabaseAuthService> logger)
+        ILogger<SupabaseAuthService> logger
+    )
     {
         _httpClient = httpClient;
         _settingsService = settingsService;
@@ -58,7 +58,11 @@ public class SupabaseAuthService : IAuthService
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Magic link request failed: {StatusCode} {Body}", response.StatusCode, body);
+                _logger.LogWarning(
+                    "Magic link request failed: {StatusCode} {Body}",
+                    response.StatusCode,
+                    body
+                );
                 return false;
             }
 
@@ -89,8 +93,8 @@ public class SupabaseAuthService : IAuthService
                 return true;
             }
 
-            var code = query["code"]
-                       ?? System.Web.HttpUtility.ParseQueryString(parsed.Query)["code"];
+            var code =
+                query["code"] ?? System.Web.HttpUtility.ParseQueryString(parsed.Query)["code"];
 
             if (string.IsNullOrEmpty(code))
             {
@@ -102,7 +106,10 @@ public class SupabaseAuthService : IAuthService
             if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(anonKey))
                 return false;
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{url}/auth/v1/token?grant_type=pkce");
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{url}/auth/v1/token?grant_type=pkce"
+            );
             request.Headers.Add("apikey", anonKey);
             request.Content = JsonContent.Create(new { code });
 
@@ -110,14 +117,20 @@ public class SupabaseAuthService : IAuthService
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Token exchange failed: {StatusCode} {Body}", response.StatusCode, body);
+                _logger.LogWarning(
+                    "Token exchange failed: {StatusCode} {Body}",
+                    response.StatusCode,
+                    body
+                );
                 return false;
             }
 
             var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
-            if (tokenResponse is null
+            if (
+                tokenResponse is null
                 || string.IsNullOrEmpty(tokenResponse.AccessToken)
-                || string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                || string.IsNullOrEmpty(tokenResponse.RefreshToken)
+            )
             {
                 _logger.LogWarning("Token response missing access or refresh token");
                 return false;
@@ -147,10 +160,16 @@ public class SupabaseAuthService : IAuthService
                 var (url, anonKey) = await GetSupabaseConfigAsync();
                 if (!string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(anonKey))
                 {
-                    using var request = new HttpRequestMessage(HttpMethod.Post, $"{url}/auth/v1/logout");
+                    using var request = new HttpRequestMessage(
+                        HttpMethod.Post,
+                        $"{url}/auth/v1/logout"
+                    );
                     request.Headers.Add("apikey", anonKey);
                     request.Headers.Authorization =
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+                        new System.Net.Http.Headers.AuthenticationHeaderValue(
+                            "Bearer",
+                            _accessToken
+                        );
 
                     try
                     {
@@ -166,7 +185,6 @@ public class SupabaseAuthService : IAuthService
         finally
         {
             _accessToken = null;
-            _refreshToken = null;
             _isAuthenticated = false;
 
             await _settingsService.SetSettingAsync<string?>(StoredAccessTokenKey, null);
@@ -179,7 +197,6 @@ public class SupabaseAuthService : IAuthService
     private async Task StoreTokensAsync(string accessToken, string refreshToken)
     {
         _accessToken = accessToken;
-        _refreshToken = refreshToken;
         _isAuthenticated = true;
 
         await _settingsService.SetSettingAsync(StoredAccessTokenKey, accessToken);
