@@ -30,7 +30,7 @@ FocusBot is a Windows desktop productivity app + browser extension + nascent Web
 - **.NET Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj` (25 tests, xUnit)
 - **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (xUnit, InMemory EF Core)
 - **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (xUnit, `WebApplicationFactory` with InMemory DB)
-- **Browser extension tests**: `cd browser-extension && npm test` (66 tests, Vitest)
+- **Browser extension tests**: `cd browser-extension && npm test` (76 tests, Vitest)
 - The Windows-targeted test projects (`FocusBot.Infrastructure.Tests`, `FocusBot.App.ViewModels.Tests`) cannot run on Linux.
 - Integration tests use `CustomWebApplicationFactory` which swaps Npgsql for InMemory. The factory manually registers `ApiDbContext` as scoped (instead of using `AddDbContext`) to avoid dual-provider conflicts with Npgsql services that survive `AddDbContext` replacement.
 
