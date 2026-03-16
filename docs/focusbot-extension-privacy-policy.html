@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Focus Bot Browser Extension – Privacy Policy</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 42rem; margin: 0 auto; padding: 1.5rem; color: #1a1a1a; }
+    h1 { font-size: 1.35rem; margin-top: 0; }
+    h2 { font-size: 1.1rem; margin-top: 1.5rem; }
+    p, li { margin: 0.5rem 0; }
+    ul { padding-left: 1.5rem; }
+    a { color: #0066cc; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 1.5rem 0; }
+    .updated { font-size: 0.9rem; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Focus Bot Browser Extension – Privacy Policy</h1>
+  <p class="updated"><strong>Last updated:</strong> March 2025</p>
+  <p>This privacy policy describes how the Focus Bot browser extension ("the extension") handles data. The extension is published for Chrome and Edge and does not operate a separate website or backend server.</p>
+
+  <hr>
+  <h2>1. Data the extension uses</h2>
+  <p>The extension uses the following data to provide its functionality (helping you see whether your browsing matches a single task you set):</p>
+  <ul>
+    <li><strong>Focus task text</strong> – The task description you enter when starting a session (e.g. "code review" or "research"). Stored only on your device.</li>
+    <li><strong>Browsing data for the active session</strong> – For each tab you visit during a focus session, the extension uses: <strong>page URL</strong>, <strong>page title</strong>, and <strong>time you entered the page</strong> (timestamp).</li>
+    <li><strong>Settings</strong> – Your preferences, including any OpenAI API key you provide and domains you choose to exclude from classification. Stored only on your device.</li>
+    <li><strong>Session history and summaries</strong> – Completed session data and daily analytics (URLs, titles, timestamps, aligned/distracting labels) used to show summaries and analytics. Stored only on your device.</li>
+  </ul>
+  <p>The extension does <strong>not</strong> collect your name, email, address, health or financial data, passwords, or personal communications. It does not log keystrokes or monitor activity outside of the browser tabs used during a focus session.</p>
+
+  <hr>
+  <h2>2. Where data is stored</h2>
+  <p>All of the data above is stored <strong>only on your device</strong> in the browser's local storage (Chrome/Edge storage APIs). It is <strong>not</strong> sent to any server operated by the extension's developer. There is no account, no sign-in, and no backend database.</p>
+
+  <hr>
+  <h2>3. Third-party processing (OpenAI)</h2>
+  <p>When you configure an <strong>OpenAI API key</strong> in the extension:</p>
+  <ul>
+    <li>The extension sends to <strong>OpenAI's API</strong> only the data needed for classification: the <strong>current page URL</strong>, <strong>page title</strong>, and your <strong>focus task text</strong>.</li>
+    <li>No other data (e.g. full page content, history from other sessions) is sent.</li>
+    <li>Your API key is stored locally in the extension and is used only to authenticate requests to OpenAI. The extension developer does not have access to your API key or to the requests you make.</li>
+    <li>OpenAI's handling of data sent to their API is governed by <strong>OpenAI's privacy policy</strong>: <a href="https://openai.com/policies/privacy-policy">https://openai.com/policies/privacy-policy</a>.</li>
+  </ul>
+  <p>If you do <strong>not</strong> provide an API key, the extension does not send any data to the internet for classification (it will only show an error or prompt you to add a key).</p>
+
+  <hr>
+  <h2>4. How we use and do not use data</h2>
+  <ul>
+    <li>Data is used <strong>only</strong> to provide the extension's single purpose: to classify pages as aligned or distracting with your task, and to show session summaries and daily analytics.</li>
+    <li>We <strong>do not</strong> sell or transfer user data to third parties for advertising, marketing, or any purpose other than the approved use (sending URL, title, and task to OpenAI when you have configured an API key).</li>
+    <li>We <strong>do not</strong> use or transfer user data for purposes unrelated to the extension's single purpose.</li>
+    <li>We <strong>do not</strong> use or transfer user data to determine creditworthiness or for lending purposes.</li>
+  </ul>
+
+  <hr>
+  <h2>5. Data retention and your control</h2>
+  <ul>
+    <li>Data stays in your browser until you remove the extension or clear the extension's storage. The extension does not retain data on any server.</li>
+    <li>You can clear stored data at any time by removing the extension or by clearing site/extension data for the extension in your browser settings.</li>
+  </ul>
+
+  <hr>
+  <h2>6. Changes to this policy</h2>
+  <p>If this privacy policy changes, the updated version will be posted at the same URL. The "Last updated" date at the top will be revised. For the browser extension, we encourage you to check this page when you update the extension.</p>
+
+  <hr>
+  <h2>7. Contact</h2>
+  <p>For questions about this privacy policy or the Focus Bot extension, please open an issue or contact the maintainers through the project's repository or website.</p>
+</body>
+</html>
