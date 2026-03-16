@@ -1,0 +1,70 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, webapi]
+  pull_request:
+    branches: [main, webapi]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore src/FocusBot.WebAPI/FocusBot.WebAPI.csproj
+      - name: Build
+        run: dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj --no-restore
+      - name: Unit Tests
+        run: dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj --no-restore
+      - name: Integration Tests
+        run: dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj --no-restore
+
+  deploy:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login to ACR
+        run: az acr login --name ${{ vars.ACR_NAME }}
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ vars.ACR_LOGIN_SERVER }}/focusbot-api:${{ github.sha }} -f src/FocusBot.WebAPI/Dockerfile .
+          docker push ${{ vars.ACR_LOGIN_SERVER }}/focusbot-api:${{ github.sha }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve -var="container_image_tag=${{ github.sha }}"
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          TF_VAR_postgresql_admin_password: ${{ secrets.POSTGRESQL_ADMIN_PASSWORD }}
+          TF_VAR_supabase_url: ${{ secrets.SUPABASE_URL }}
+          TF_VAR_supabase_jwt_secret: ${{ secrets.SUPABASE_JWT_SECRET }}
+          TF_VAR_managed_openai_key: ${{ secrets.MANAGED_OPENAI_KEY }}
+          TF_VAR_paddle_webhook_secret: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
