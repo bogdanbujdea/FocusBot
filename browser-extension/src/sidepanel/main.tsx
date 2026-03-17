@@ -16,6 +16,7 @@ const SidePanelApp = (): JSX.Element => {
       loading={loading}
       refreshState={refreshState}
       integration={integration}
+      showHeaderMeta={false}
     />
   );
 };

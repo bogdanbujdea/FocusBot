@@ -888,6 +888,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
 };
 
 const START_DESKTOP_INTEGRATION = "START_DESKTOP_INTEGRATION";
+const FOCUSBOT_AUTH_SESSION_STORED = "FOCUSBOT_AUTH_SESSION_STORED";
 
 chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
   if (
@@ -910,6 +911,28 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
   ) {
     startIntegration();
     sendResponse({ ok: true });
+    return true;
+  }
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    (message as { type: string }).type === FOCUSBOT_AUTH_SESSION_STORED
+  ) {
+    const email = "email" in message && typeof (message as { email?: unknown }).email === "string"
+      ? (message as { email: string }).email
+      : undefined;
+
+    runExclusive(async () => {
+      await patchSettings({
+        authMode: "focusbot-account",
+        focusbotEmail: email,
+        onboardingCompleted: true
+      });
+      await broadcastStateUpdate();
+    })
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
   handleRequest(message as RuntimeRequest)

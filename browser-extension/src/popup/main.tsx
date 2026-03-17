@@ -17,6 +17,7 @@ const PopupApp = (): JSX.Element => {
       compact
       refreshState={refreshState}
       integration={integration}
+      showHeaderMeta={false}
     />
   );
 };

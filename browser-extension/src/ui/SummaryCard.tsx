@@ -102,19 +102,10 @@ export const SummaryCard = ({ state }: SummaryCardProps): JSX.Element => {
     return calculateLiveSummary(state.activeSession);
   }, [state.activeSession, tick]);
 
-  const hasActiveSession = Boolean(state.activeSession && liveSummary);
   const todayHasData = todayAnalytics && todayAnalytics.totals.totalSessions > 0;
 
   return (
     <section className="card">
-      {hasActiveSession ? (
-        <>
-          <h2>Current task</h2>
-          <p className="popup-task-text">{state.activeSession!.taskText}</p>
-          <SummaryBlock title="Current task analytics" summary={sessionSummaryToMetrics(liveSummary!)} />
-        </>
-      ) : null}
-
       <h2>Today&apos;s analytics</h2>
       {todayHasData ? (
         <SummaryBlock title="" summary={todayTotalsToMetrics(todayAnalytics!.totals)} />

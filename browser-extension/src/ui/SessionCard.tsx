@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
 import type { IntegrationState } from "../shared/integrationTypes";
+import { calculateLiveSummary } from "../shared/metrics";
 import { formatSeconds } from "../shared/utils";
 
 interface SessionCardProps {
@@ -30,6 +31,32 @@ const classificationToLabel = (
     return "Distracting";
   }
   return "Waiting for signal";
+};
+
+const MiniFocusGauge = ({ percentage }: { percentage: number }): JSX.Element => {
+  const size = 60;
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="mini-focus-gauge">
+      <svg viewBox={`0 0 ${size} ${size}`}>
+        <circle className="mini-focus-gauge-bg" cx={size / 2} cy={size / 2} r={radius} />
+        <circle
+          className="mini-focus-gauge-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+        />
+      </svg>
+      <div className="mini-focus-gauge-text">
+        <span className="mini-focus-gauge-value">{percentage.toFixed(0)}%</span>
+      </div>
+    </div>
+  );
 };
 
 export const SessionCard = ({ state, compact = false, onChanged, integration }: SessionCardProps): JSX.Element => {
@@ -70,6 +97,11 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
     const rawElapsed = (endMs - Date.parse(displayStartedAt)) / 1000;
     return Math.max(0, Math.round(rawElapsed - totalPaused));
   }, [showingActive, active, displayStartedAt, tick]);
+
+  const liveSummary = useMemo(() => {
+    if (!active) return null;
+    return calculateLiveSummary(active);
+  }, [active, tick]);
 
   const desktopCtx = active ? integration?.currentDesktopContext : undefined;
   const showDesktopContext = Boolean(desktopCtx) && integration?.browserInForeground === false;
@@ -206,9 +238,6 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
           <p className="muted">
             <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
           </p>
-          <p className="muted">
-            <strong>Minutes on current task:</strong> {Math.floor(elapsedSeconds / 60)}
-          </p>
           <p className={`status ${displayStatusClass}`}>
             <strong>Status:</strong> {displayStatus}
           </p>
@@ -237,6 +266,26 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
               End Task
             </button>
           </div>
+
+          {active && liveSummary ? (
+            <div className="popup-summary" style={{ marginTop: 8 }}>
+              <MiniFocusGauge percentage={liveSummary.focusPercentage} />
+              <div className="popup-summary-metrics">
+                <p className="popup-metric">
+                  <span className="popup-metric-label">Focus</span>
+                  <span className="popup-metric-value">{liveSummary.focusPercentage.toFixed(0)}%</span>
+                </p>
+                <p className="popup-metric">
+                  <span className="popup-metric-label">Distractions</span>
+                  <span className="popup-metric-value">{liveSummary.distractionCount}</span>
+                </p>
+                <p className="popup-metric">
+                  <span className="popup-metric-label">Avg switch cost</span>
+                  <span className="popup-metric-value">{formatSeconds(liveSummary.contextSwitchCostSeconds)}</span>
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="stack">

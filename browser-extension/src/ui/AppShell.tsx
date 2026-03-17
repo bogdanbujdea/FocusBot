@@ -13,7 +13,40 @@ interface AppShellProps {
   compact?: boolean;
   refreshState: () => Promise<void>;
   integration?: IntegrationState | null;
+  showHeaderMeta?: boolean;
 }
+
+type ShellStatus = "aligned" | "distracting" | null;
+
+const getShellStatus = (state: RuntimeState, integration?: IntegrationState | null): ShellStatus => {
+  // Desktop integration overrides when the browser is not foreground.
+  if (integration?.leaderTaskId) {
+    const classification = integration.lastFocusStatus?.classification;
+    if (classification === "aligned" || classification === "Focused" || classification === "Aligned") {
+      return "aligned";
+    }
+    if (classification === "distracting" || classification === "Distracted" || classification === "Distracting") {
+      return "distracting";
+    }
+    return null;
+  }
+
+  const active = state.activeSession;
+  if (!active) return null;
+  if (active.pausedAt) return null;
+
+  const desktopCtx = integration?.currentDesktopContext;
+  const showDesktopContext = Boolean(desktopCtx) && integration?.browserInForeground === false;
+  if (showDesktopContext) {
+    return desktopCtx!.classification === "aligned" ? "aligned" : "distracting";
+  }
+
+  const visit = active.currentVisit;
+  if (!visit) return null;
+  if (visit.visitState === "classifying") return null;
+  if (visit.visitState === "error") return "distracting";
+  return visit.classification ?? null;
+};
 
 export const AppShell = ({
   title,
@@ -22,20 +55,28 @@ export const AppShell = ({
   loading,
   compact = false,
   refreshState,
-  integration
-}: AppShellProps): JSX.Element => (
-  <main className={`app-shell ${compact ? "compact" : ""}`}>
+  integration,
+  showHeaderMeta = true
+}: AppShellProps): JSX.Element => {
+  const shellStatus = getShellStatus(state, integration);
+  const statusClass =
+    shellStatus === "aligned" ? "ui-status-aligned" : shellStatus === "distracting" ? "ui-status-distracting" : "";
+
+  return (
+    <main className={`app-shell ${compact ? "compact" : ""} ${statusClass}`}>
     <header className="app-shell-header">
       <div className="app-shell-header-text">
         <h1>{title}</h1>
-        <p className="muted">{description}</p>
-        {integration?.connected ? (
-          <span className="pill" style={{ marginTop: 4, fontSize: "0.75rem" }}>Desktop App Connected</span>
-        ) : integration ? (
-          <p className="muted" style={{ marginTop: 4, fontSize: "0.75rem" }}>
-            {INSTALL_APP_MESSAGE}{" "}
-            <a href={WINDOWS_STORE_APP_URL} target="_blank" rel="noopener noreferrer">Microsoft Store</a>
-          </p>
+        {showHeaderMeta && description ? <p className="muted">{description}</p> : null}
+        {showHeaderMeta ? (
+          integration?.connected ? (
+            <span className="pill" style={{ marginTop: 4, fontSize: "0.75rem" }}>Desktop App Connected</span>
+          ) : integration ? (
+            <p className="muted" style={{ marginTop: 4, fontSize: "0.75rem" }}>
+              {INSTALL_APP_MESSAGE}{" "}
+              <a href={WINDOWS_STORE_APP_URL} target="_blank" rel="noopener noreferrer">Microsoft Store</a>
+            </p>
+          ) : null
         ) : null}
       </div>
       <div className="quick-actions">
@@ -78,5 +119,6 @@ export const AppShell = ({
 
     <SessionCard state={state} compact={compact} onChanged={refreshState} integration={integration} />
     <SummaryCard state={state} />
-  </main>
-);
+    </main>
+  );
+};

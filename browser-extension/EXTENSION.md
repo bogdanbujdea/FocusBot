@@ -432,6 +432,11 @@ Displays current session status and controls:
 - "Classifier error" - `visitState: "error"`
 - "Waiting for signal" - No currentVisit (shouldn't happen in normal flow)
 
+**Side panel visibility indicator (full-panel tint):**
+- When the current status is **Distracting**, the top-level shell (`AppShell`) applies a subtle red background tint across the entire panel with a gentle pulse animation.
+- Tint is **not** shown when the session is paused, when the visit is still classifying, or when there is no current visit classification yet.
+- If the user has **reduced motion** enabled (`prefers-reduced-motion: reduce`), the pulse animation is disabled (static tint only).
+
 ### SummaryCard (Session Metrics)
 
 - **When a session is active:** Shows **Current Session** with live-updating metrics (focus %, aligned/distracting time, context switch cost, distraction count, tracked time, top distracting domains). Values refresh every second as the current page visit duration grows.

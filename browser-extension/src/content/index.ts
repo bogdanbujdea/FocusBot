@@ -131,6 +131,8 @@ window.addEventListener("message", (event) => {
     "focusbot.supabaseAccessToken": accessToken,
     "focusbot.supabaseEmail": email
   });
+
+  chrome.runtime.sendMessage({ type: "FOCUSBOT_AUTH_SESSION_STORED", email }).catch(() => {});
 });
 
 chrome.runtime.sendMessage({ type: "FOCUSBOT_CONTENT_READY" });
