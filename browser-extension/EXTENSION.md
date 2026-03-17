@@ -452,13 +452,15 @@ Configuration:
 - **Account mode**
   - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No FocusBot backend is involved.
   - **FocusBot account** – user signs in with a FocusBot account via Supabase magic link. The extension then uses a managed key and can sync with the WebAPI.
-- **OpenAI API key** (BYOK mode only)
-  - When `authMode` is `"byok"`, the user can enter their own OpenAI key. It is stored in `focusbot.settings.openAiApiKey`.
-  - When `authMode` is `"focusbot-account"`, this input is disabled.
-- **Model selection**
-  - Classifier model name used in OpenAI calls (e.g. `gpt-4o-mini`).
+- **OpenAI API key + validation** (BYOK mode only)
+  - When `authMode` is `"byok"`, the user can enter their own OpenAI key (stored in `focusbot.settings.openAiApiKey`).
+  - A **Validate key** button makes a minimal `chat/completions` request ("Ping") using the selected model to confirm the key + model work (mirrors the desktop app’s credential validation).
+  - When `authMode` is `"focusbot-account"`, BYOK controls are hidden.
+- **Model selection** (BYOK mode only)
+  - Dropdown restricted to `gpt-4o-mini` and `gpt-5-mini`.
 - **Excluded domains**
   - Domains that should always be treated as aligned and never sent to the classifier.
+  - Shown under the authentication section in Settings.
 
 ### FocusBot account authentication & sync (extension ↔ WebAPI)
 

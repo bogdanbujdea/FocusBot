@@ -74,6 +74,8 @@
         return;
       }
 
+      const refreshToken = params.get("refresh_token") || "";
+
       try {
         const response = await fetch("/auth/me", {
           headers: {
@@ -89,6 +91,16 @@
         }
 
         const me = await response.json();
+
+        // Relay tokens to the FocusBot content script so the extension
+        // can store them in chrome.storage.local.
+        window.postMessage({
+          type: "FOCUSBOT_AUTH_CALLBACK",
+          accessToken,
+          refreshToken,
+          email: me.email
+        }, "*");
+
         statusEl.textContent = `Signed in as ${me.email}. You can now close this tab and return to FocusBot.`;
       } catch (error) {
         statusEl.textContent = "Network error while completing sign-in. Please verify the API is running and try again.";
