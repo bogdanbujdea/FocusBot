@@ -184,12 +184,14 @@ The URL must be "trackable" (see `url.ts` for domain whitelist).
          │ 2. Is known distraction? │
          └───────┬──────────────────┘
                  │
-         ┌───────▼─────────────────────────┐
-         │ Call OpenAI API (with retries)  │
-         │ - 3 attempts                     │
-         │ - 300-600ms backoff              │
-         │ - 8 second timeout               │
-         └───────┬─────────────────────────┘
+        ┌───────▼──────────────────────────────────────────────┐
+        │ Call classifier (with retries)                        │
+        │ - BYOK mode: direct call to OpenAI                    │
+        │ - Foqus account mode: call Foqus WebAPI POST /classify│
+        │ - 3 attempts                                          │
+        │ - 300-600ms backoff                                   │
+        │ - 8 second timeout                                    │
+        └───────┬──────────────────────────────────────────────┘
                  │
          ┌───────▼──────────────────┐
          │ Cache result             │
@@ -237,6 +239,20 @@ POST https://api.openai.com/v1/chat/completions
   ]
 }
 ```
+
+### Foqus WebAPI Classification (Foqus account mode)
+
+When `authMode` is `"foqus-account"`, the extension sends classification requests to the Foqus WebAPI instead of calling OpenAI directly. The WebAPI uses a managed provider key and returns a **score (1–10)**:
+
+- **Endpoint:** `POST /classify` (auth required)
+- **Auth:** `Authorization: Bearer <Supabase access token>`
+- **Response:** `{ score: 1-10, reason: string, cached: boolean }`
+
+The extension maps the score into the UI status:
+
+- **score > 5:** Aligned
+- **score == 5:** Neutral
+- **score < 5:** Distracted
 
 ### Expected Response
 
@@ -456,11 +472,11 @@ Detailed analytics dashboard:
 Configuration:
 - **Account mode**
   - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No Foqus backend is involved.
-  - **Foqus account** – user signs in with a Foqus account via Supabase magic link. The extension then uses a managed key and can sync with the WebAPI.
+  - **Foqus account** – user signs in with a Foqus account via Supabase magic link. The extension sends classification calls to the Foqus WebAPI (`POST /classify`) which uses a managed key.
 - **OpenAI API key + validation** (BYOK mode only)
   - When `authMode` is `"byok"`, the user can enter their own OpenAI key (stored in `focusbot.settings.openAiApiKey`).
   - A **Validate key** button makes a minimal `chat/completions` request ("Ping") using the selected model to confirm the key + model work (mirrors the desktop app’s credential validation).
-  - When `authMode` is `"focusbot-account"`, BYOK controls are hidden.
+  - When `authMode` is `"foqus-account"`, BYOK controls are hidden.
 - **Model selection** (BYOK mode only)
   - Dropdown restricted to `gpt-4o-mini` and `gpt-5-mini`.
 - **Excluded domains**
@@ -481,7 +497,7 @@ When the user selects **Foqus account** in Settings:
    - `focusbotAuth.saveFocusbotAuthSession` stores:
      - Supabase access token in `focusbot.supabaseAccessToken`.
      - Email in `focusbot.supabaseEmail`.
-     - Updates `focusbot.settings` with `authMode: "focusbot-account"` and `focusbotEmail`.
+     - Updates `focusbot.settings` with `authMode: "foqus-account"` and `focusbotEmail`.
 4. The extension then calls the WebAPI with the stored token:
    - `apiClient.fetchCurrentUser()` sends `GET /auth/me` to the WebAPI at `http://localhost:5251` with `Authorization: Bearer <access_token>`.
    - The WebAPI validates the Supabase JWT using the same issuer/audience/key as the desktop app.

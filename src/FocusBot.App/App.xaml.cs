@@ -51,6 +51,13 @@ namespace FocusBot.App
                 sp.GetRequiredService<ILogger<SettingsService>>(),
                 appDataRoot
             ));
+            services.AddSingleton<IAuthService>(sp =>
+                new SupabaseAuthService(
+                    new HttpClient(),
+                    sp.GetRequiredService<ISettingsService>(),
+                    sp.GetRequiredService<ILogger<SupabaseAuthService>>()
+                )
+            );
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
             services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
             services.AddSingleton<IIdleDetectionService, IdleDetectionService>();
@@ -67,6 +74,15 @@ namespace FocusBot.App
 #endif
             services.AddSingleton<IManagedKeyProvider, EmbeddedManagedKeyProvider>();
             services.AddSingleton<ITrialService, TrialService>();
+            services.AddSingleton<IFocusBotApiClient>(sp =>
+            {
+                var baseUrl = GetFocusBotApiBaseUrl();
+                return new FocusBotApiClient(
+                    new HttpClient { BaseAddress = new Uri(baseUrl) },
+                    sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<ILogger<FocusBotApiClient>>()
+                );
+            });
             services.AddSingleton<LlmService>();
             services.AddSingleton<ILlmService>(sp => new AlignmentClassificationCacheDecorator(
                 sp.GetRequiredService<LlmService>(),
@@ -167,5 +183,14 @@ namespace FocusBot.App
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
+
+        private static string GetFocusBotApiBaseUrl()
+        {
+#if DEBUG
+            return "http://localhost:5251";
+#else
+            return "https://api.foqus.me";
+#endif
+        }
     }
 }

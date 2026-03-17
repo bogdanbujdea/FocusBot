@@ -28,6 +28,7 @@ import type {
 import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
+import { loadFocusbotAuthSession } from "../shared/focusbotAuth";
 import {
   startIntegration,
   setMessageHandler,
@@ -306,6 +307,10 @@ const getIconStateFromSession = (session: FocusSession | null): IconState => {
     return "aligned";
   }
 
+  if (session.currentVisit.classification === "neutral") {
+    return "neutral";
+  }
+
   if (session.currentVisit.classification === "distracting") {
     console.log("Classification is distracting, returning distracting");
     return "distracting";
@@ -323,6 +328,7 @@ const updateIconState = async (): Promise<void> => {
     const badgeConfig: Record<IconState, { color: string }> = {
       default: { color: "#6366f1" },
       aligned: { color: "#10b981" },
+      neutral: { color: "#f59e0b" },
       distracting: { color: "#ef4444" },
       analyzing: { color: "#a855f7" },
       error: { color: "#a855f7" }
@@ -340,6 +346,7 @@ const updateIconState = async (): Promise<void> => {
     const stateLabels: Record<IconState, string> = {
       default: "Foqus Deep Work",
       aligned: "Foqus - Aligned",
+      neutral: "Foqus - Neutral",
       distracting: "Foqus - Distracting",
       analyzing: "Foqus - Analyzing",
       error: "Foqus - Error"
@@ -530,7 +537,8 @@ const classifyAndApplyVisit = async (
         visitState: "classified",
         classification: outcome.result.classification,
         confidence: outcome.result.confidence,
-        reason: outcome.result.reason
+        reason: outcome.result.reason,
+        score: outcome.result.score
       };
       await saveLastError(null);
       await saveActiveSession(latest);
@@ -689,8 +697,15 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     }
 
     const settings = await loadSettings();
-    if (!settings.openAiApiKey.trim()) {
-      return { ok: false, error: "OpenAI API key is required. Add it in Settings first." };
+    if (settings.authMode === "byok") {
+      if (!settings.openAiApiKey.trim()) {
+        return { ok: false, error: "OpenAI API key is required. Add it in Settings first." };
+      }
+    } else {
+      const auth = await loadFocusbotAuthSession();
+      if (!auth?.accessToken) {
+        return { ok: false, error: "Foqus account sign-in is required. Complete sign-in in Settings first." };
+      }
     }
 
     const session: FocusSession = {
@@ -925,7 +940,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
 
     runExclusive(async () => {
       await patchSettings({
-        authMode: "focusbot-account",
+        authMode: "foqus-account",
         focusbotEmail: email,
         onboardingCompleted: true
       });

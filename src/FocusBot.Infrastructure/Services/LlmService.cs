@@ -14,6 +14,7 @@ public class LlmService(
     ISubscriptionService subscriptionService,
     IManagedKeyProvider managedKeyProvider,
     ITrialService trialService,
+    IFocusBotApiClient focusBotApiClient,
     ILogger<LlmService> logger
 ) : ILlmService
 {
@@ -50,6 +51,29 @@ public class LlmService(
         bool bypassCache = false
     )
     {
+        // Try WebAPI first if user is authenticated to Foqus
+        if (focusBotApiClient.IsConfigured)
+        {
+            try
+            {
+                var payload = new ClassifyPayload(taskDescription, taskContext, processName, windowTitle);
+                var result = await focusBotApiClient.ClassifyAsync(payload);
+
+                if (result != null)
+                {
+                    logger.LogInformation("Classification via WebAPI succeeded with score {Score}", result.Score);
+                    var alignment = new AlignmentResult { Score = result.Score, Reason = result.Reason };
+                    return new ClassifyAlignmentResponse(alignment, null);
+                }
+
+                logger.LogWarning("WebAPI returned null; falling back to direct LLM call");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "WebAPI classification failed; falling back to direct LLM call");
+            }
+        }
+
         var mode = await settingsService.GetApiKeyModeAsync();
         string apiKey;
         string providerId;

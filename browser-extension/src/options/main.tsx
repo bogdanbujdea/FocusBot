@@ -32,7 +32,7 @@ const SettingsPage = (): JSX.Element => {
   }, []);
 
   useEffect(() => {
-    if (settings.authMode !== "focusbot-account") {
+    if (settings.authMode !== "foqus-account") {
       return;
     }
 
@@ -42,7 +42,7 @@ const SettingsPage = (): JSX.Element => {
       if (existing && !cancelled) {
         setSettings((current) => ({
           ...current,
-          authMode: "focusbot-account",
+          authMode: "foqus-account",
           focusbotEmail: existing.email
         }));
       }
@@ -63,7 +63,7 @@ const SettingsPage = (): JSX.Element => {
           if (session) {
             setSettings((current) => ({
               ...current,
-              authMode: "focusbot-account",
+              authMode: "foqus-account",
               focusbotEmail: session.email
             }));
             setFocusbotStatus(`Signed in as ${session.email}`);
@@ -129,15 +129,15 @@ const SettingsPage = (): JSX.Element => {
               </span>
             </span>
           </label>
-            <label className="settings-radio-card" data-selected={settings.authMode === "focusbot-account"}>
+            <label className="settings-radio-card" data-selected={settings.authMode === "foqus-account"}>
             <input
               type="radio"
               name="auth-mode"
-              checked={settings.authMode === "focusbot-account"}
+              checked={settings.authMode === "foqus-account"}
               onChange={() =>
                 setSettings((current) => ({
                   ...current,
-                  authMode: "focusbot-account"
+                  authMode: "foqus-account"
                 }))
               }
             />
@@ -186,7 +186,7 @@ const SettingsPage = (): JSX.Element => {
             </div>
           ) : null}
 
-          {settings.authMode === "focusbot-account" ? (
+          {settings.authMode === "foqus-account" ? (
             <div className="settings-form">
               <div className="settings-field">
                 <label className="label" htmlFor="focusbot-email">

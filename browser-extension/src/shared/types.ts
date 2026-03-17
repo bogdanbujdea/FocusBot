@@ -1,12 +1,13 @@
-export type Classification = "aligned" | "distracting";
+export type Classification = "aligned" | "neutral" | "distracting";
 
 export interface ClassificationResult {
   classification: Classification;
   confidence: number;
   reason?: string;
+  score?: number;
 }
 
-export type AuthMode = "byok" | "focusbot-account";
+export type AuthMode = "byok" | "foqus-account";
 
 export interface Settings {
   /** How the extension authenticates for classification and sync. */
@@ -16,7 +17,7 @@ export interface Settings {
   classifierModel: string;
   onboardingCompleted: boolean;
   excludedDomains: string[];
-  /** Email associated with the FocusBot account when authMode === "focusbot-account". */
+  /** Email associated with the FocusBot account when authMode === "foqus-account". */
   focusbotEmail?: string;
 }
 
@@ -33,6 +34,7 @@ export interface PageVisit {
   classification: Classification;
   confidence: number;
   reason?: string;
+  score?: number;
 }
 
 export interface SessionSummary {
@@ -86,6 +88,7 @@ export interface InProgressVisit {
   classification?: Classification;
   confidence?: number;
   reason?: string;
+  score?: number;
   /** Set when classification was reused from previous visit (same tab, same domain); no alert should be sent. */
   reusedClassification?: true;
 }
@@ -154,7 +157,7 @@ export type RuntimeResponse<T = unknown> = {
   data?: T;
 };
 
-export type IconState = "default" | "aligned" | "distracting" | "analyzing" | "error";
+export type IconState = "default" | "aligned" | "neutral" | "distracting" | "analyzing" | "error";
 
 const createSvgDataUrl = (bg: string, symbol: string): string => {
   const svg = `<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
@@ -167,6 +170,7 @@ const createSvgDataUrl = (bg: string, symbol: string): string => {
 export const ICON_DATA_URLS: Record<IconState, string> = {
   default: createSvgDataUrl("#6366f1", ""),
   aligned: createSvgDataUrl("#10b981", "✓"),
+  neutral: createSvgDataUrl("#f59e0b", "•"),
   distracting: createSvgDataUrl("#ef4444", "✕"),
   analyzing: createSvgDataUrl("#a855f7", "…"),
   error: createSvgDataUrl("#a855f7", "!")

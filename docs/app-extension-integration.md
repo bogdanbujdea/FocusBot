@@ -64,6 +64,35 @@ The status bar shows the **current app/window** and **focus status**. It behaves
   - **App-side:** When any task is in progress (local or remote), the app runs focus classification on foreground window changes. In `OnForegroundWindowChanged`, the “effective” task is either the first local in-progress task or, if there are no local in-progress tasks, the remote task from `RemoteTaskFromExtension` (using its `TaskId`, `TaskText`, `TaskHints`). The app then calls `ClassifyAndUpdateFocusAsync` or `ClassifyWithBrowserContextAsync` (using **BROWSER_CONTEXT** when a browser is in front). The result sets `FocusScore`, `FocusReason`, `HasCurrentFocusResult`, and notifies the status bar bindings.
   - **Extension:** If the extension sends **FOCUS_STATUS** for the current remote task, the app applies the payload in `OnIntegrationFocusStatusReceived` (score, reason, contextType, contextTitle, focusScorePercent) and updates the same status bar properties, so the bar can show either app or extension classification.
 
+## Classification routing (BYOK vs Foqus account)
+
+### Browser Extension
+
+The browser extension supports two modes:
+
+- **BYOK ("bring your own key")**: the extension sends page and desktop classification requests directly to OpenAI from the browser.
+- **Foqus account ("managed key")**: after the user completes magic-link login, the extension sends classification requests to the Foqus WebAPI `POST /classify` using the Supabase access token.
+
+When using the WebAPI classifier, the backend returns a **score (1–10)** which the extension maps to the UI:
+
+- **score > 5:** Aligned
+- **score == 5:** Neutral
+- **score < 5:** Distracted
+
+### Windows Desktop App
+
+The Windows app follows the same pattern:
+
+- **User-provided API key (BYOK)**: Classification requests go directly to the configured AI provider (OpenAI, Anthropic, etc.) from the desktop app. Behavior is unchanged from before.
+- **Foqus account (authenticated user)**: When the user is authenticated to Foqus via the app (Supabase JWT available), classification requests are sent to the Foqus WebAPI `POST /classify` first. If the WebAPI returns a result, it is used immediately. If the WebAPI is unavailable or returns null, the app falls back to the managed key direct call for graceful degradation.
+- **Trial or no configuration**: During the trial period or when using the managed key subscription without authentication, the app calls OpenAI directly using the managed key.
+
+The Windows app interprets scores the same way:
+
+- **score >= 6:** Focused (green icon)
+- **score 4–5:** Unclear/Neutral (gray icon)
+- **score < 4:** Distracted (red icon)
+
 ---
 
 ## Message Types and Payloads

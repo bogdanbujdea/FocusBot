@@ -43,6 +43,59 @@ export const fetchCurrentUser = async (): Promise<MeResponse> => {
   return (await response.json()) as MeResponse;
 };
 
+export type WebApiClassifyRequest = {
+  taskText: string;
+  taskHints?: string;
+  processName?: string;
+  windowTitle?: string;
+  url?: string;
+  pageTitle?: string;
+  providerId?: string;
+  modelId?: string;
+};
+
+export type WebApiClassifyResponse = {
+  score: number;
+  reason: string;
+  cached: boolean;
+};
+
+const getWebApiBaseUrl = (): string => {
+  const configured = (import.meta as any)?.env?.VITE_FOQUS_API_BASE_URL as string | undefined;
+  if (configured && configured.trim()) return configured.trim().replace(/\/+$/, "");
+
+  const isDev = Boolean((import.meta as any)?.env?.DEV);
+  return isDev ? "http://localhost:5251" : "https://api.foqus.me";
+};
+
+export const classifyViaWebApi = async (request: WebApiClassifyRequest): Promise<WebApiClassifyResponse> => {
+  const session = await loadFocusbotAuthSession();
+  if (!session?.accessToken) {
+    throw new Error("Not authenticated with Foqus. Please complete sign-in.");
+  }
+
+  const baseUrl = getWebApiBaseUrl();
+  const response = await fetch(`${baseUrl}/classify`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(request)
+  });
+
+  if (response.status === 401) {
+    throw new Error("Not authenticated with Foqus. Please complete sign-in.");
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Foqus classification failed. ${response.status} ${text}`.trim());
+  }
+
+  return (await response.json()) as WebApiClassifyResponse;
+};
+
 import { getAccessToken, refreshAccessToken } from "./authToken";
 
 const DEFAULT_BASE_URL = "https://api.foqus.me";

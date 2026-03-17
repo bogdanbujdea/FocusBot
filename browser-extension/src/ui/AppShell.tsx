@@ -45,6 +45,7 @@ const getShellStatus = (state: RuntimeState, integration?: IntegrationState | nu
   if (!visit) return null;
   if (visit.visitState === "classifying") return null;
   if (visit.visitState === "error") return "distracting";
+  if (visit.classification === "neutral") return null;
   return visit.classification ?? null;
 };
 

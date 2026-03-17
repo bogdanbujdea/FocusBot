@@ -14,7 +14,8 @@ interface SessionCardProps {
 
 const classificationToLabel = (
   visitState: "classifying" | "classified" | "error" | undefined,
-  classification: "aligned" | "distracting" | undefined
+  classification: "aligned" | "neutral" | "distracting" | undefined,
+  score: number | undefined
 ): string => {
   if (visitState === "classifying") {
     return "Analyzing page...";
@@ -25,10 +26,13 @@ const classificationToLabel = (
   }
 
   if (classification === "aligned") {
-    return "Aligned";
+    return score ? `Aligned (${score}/10)` : "Aligned";
+  }
+  if (classification === "neutral") {
+    return score ? `Neutral (${score}/10)` : "Neutral";
   }
   if (classification === "distracting") {
-    return "Distracting";
+    return score ? `Distracting (${score}/10)` : "Distracting";
   }
   return "Waiting for signal";
 };
@@ -108,7 +112,7 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
 
   const currentState = showDesktopContext
     ? (desktopCtx!.classification === "aligned" ? "Aligned" : "Distracting")
-    : classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification);
+    : classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification, active?.currentVisit?.score);
   const isPaused = Boolean(active?.pausedAt);
   const statusClass =
     isPaused

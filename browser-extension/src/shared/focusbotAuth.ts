@@ -31,7 +31,7 @@ export const saveFocusbotAuthSession = async (session: FocusbotAuthSession): Pro
   const settings = await loadSettings();
   const next: Settings = {
     ...settings,
-    authMode: "focusbot-account",
+    authMode: "foqus-account",
     focusbotEmail: session.email,
     onboardingCompleted: true
   };
