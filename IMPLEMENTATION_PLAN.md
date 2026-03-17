@@ -1,7 +1,7 @@
-# FocusBot MVP: Detailed Implementation Plan
+# Foqus MVP: Detailed Implementation Plan
 
 ## Overview
-Transform FocusBot from a Kanban-based multi-task system to a single-task flow with minimal data storage and history/analytics views. This achieves parity between the Windows app and browser extension while keeping the MVP simple for validation.
+Transform Foqus from a Kanban-based multi-task system to a single-task flow with minimal data storage and history/analytics views. This achieves parity between the Windows app and browser extension while keeping the MVP simple for validation.
 
 ---
 

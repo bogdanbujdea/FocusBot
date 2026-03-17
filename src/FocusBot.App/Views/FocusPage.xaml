@@ -374,7 +374,7 @@
                     Visibility="{x:Bind ViewModel.ShowExtensionPromo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     automation:AutomationProperties.Name="Install extension promo">
                 <StackPanel Spacing="6" MaxWidth="380">
-                    <TextBlock Text="Web page focus accuracy is improved when you use the FocusBot browser extension."
+                    <TextBlock Text="Web page focus accuracy is improved when you use the Foqus browser extension."
                                Style="{StaticResource FbSecondaryTextStyle}"
                                FontSize="12"
                                TextWrapping="Wrap"/>

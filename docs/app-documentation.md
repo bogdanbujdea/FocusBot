@@ -1,10 +1,10 @@
-# Focus Bot - App Documentation
+# Foqus - App Documentation
 
 ## App Identity & Store Properties
 
 | Property | Value |
 |----------|-------|
-| **Display Name** | Focus Bot |
+| **Display Name** | Foqus |
 | **Publisher** | Bogdan Bujdea |
 | **Publisher Identity** | `CN=4E87F883-6FEA-4B8F-9088-5E5336A782BD` |
 | **Version** | 1.0.0.0 |
@@ -17,7 +17,7 @@
 
 | Property | Value |
 |----------|-------|
-| **Add-on Title** | FocusBot Pro |
+| **Add-on Title** | Foqus Premium |
 | **Product ID** | `focusbot.subscription.monthly` |
 | **Store ID** | `9P6D9DGTVXLR` |
 | **Period** | Monthly, auto-renewing |
@@ -28,7 +28,7 @@
 
 ## App Overview
 
-Focus Bot is a Windows desktop productivity application that helps users stay focused on their tasks. It uses real-time foreground window monitoring and AI-powered classification to produce a live Focus Score, a percentage (0-100%) showing how well the user is staying on track.
+Foqus is a Windows desktop productivity application that helps users stay focused on their tasks. It uses real-time foreground window monitoring and AI-powered classification to produce a live Focus Score, a percentage (0-100%) showing how well the user is staying on track.
 
 The app monitors which applications and browser tabs the user switches to while working on a task, sends that context to an AI provider for classification, and displays immediate feedback: Focused, Unclear, or Distracted, along with a reason from the AI.
 
@@ -78,7 +78,7 @@ Tracking pauses automatically when the user is idle (no keyboard or mouse input 
 Users can provide optional context when creating or editing a task (e.g., "Outlook is work email", "Slack messages are for standup coordination"). The AI uses these hints as authoritative guidance to improve classification accuracy.
 
 ### Multi-Provider AI Support
-Focus Bot supports multiple AI providers through the [LlmTornado](https://github.com/lofcz/LlmTornado) NuGet package:
+Foqus supports multiple AI providers through the [LlmTornado](https://github.com/lofcz/LlmTornado) NuGet package:
 
 | Provider | Example Models |
 |----------|---------------|
@@ -92,7 +92,7 @@ The default provider is OpenAI with the gpt-4o-mini model. Users can switch prov
 API keys are encrypted using Windows DPAPI (Data Protection API) before being stored locally in a JSON settings file. Keys are decrypted only when needed for AI requests.
 
 ### Distraction Tracking & Daily Analytics
-Focus Bot tracks distracted episodes throughout the day and provides a daily analytics summary:
+Foqus tracks distracted episodes throughout the day and provides a daily analytics summary:
 - **Daily Focus Score Bucket**: Aggregate focus quality for the current day (0-100 scale)
 - **Focused vs Distracted Time**: Visualizes how much time was spent focused versus distracted
 - **Distraction Count**: Total number of distracted episodes triggered during the day
@@ -120,7 +120,7 @@ All task data, focus scores, and classification history are stored locally in a 
 Users create tasks with a title and optional context hints for the AI. Tasks are stored in a local SQLite database. Each task tracks total elapsed time and a final Focus Score when completed. Only one task can be active at a time.
 
 ### 2. Window Monitoring (Win32 APIs)
-When a task is started, Focus Bot begins monitoring the foreground window using Win32 APIs from `user32.dll`:
+When a task is started, Foqus begins monitoring the foreground window using Win32 APIs from `user32.dll`:
 
 | API | Purpose |
 |-----|---------|
@@ -129,7 +129,7 @@ When a task is started, Focus Bot begins monitoring the foreground window using 
 | `GetWindowThreadProcessId` | Gets the process ID that owns the window, used to resolve the process name |
 | `GetLastInputInfo` | Gets the timestamp of the last keyboard or mouse input, used for idle detection |
 
-The monitor polls every 1 second and compares the current foreground window to the previous state. When a change is detected, it raises an event with the new process name and window title. System processes (like SearchHost and ShellExperienceHost) and Focus Bot's own window are filtered out.
+The monitor polls every 1 second and compares the current foreground window to the previous state. When a change is detected, it raises an event with the new process name and window title. System processes (like SearchHost and ShellExperienceHost) and Foqus's own window are filtered out.
 
 Browser tab changes are also detected through title polling, since browsers update their window title when the active tab changes.
 
@@ -151,7 +151,7 @@ Distraction detection analyzes focus samples every second. When the focus score 
 | Tier | Price | Description |
 |------|-------|-------------|
 | **Free (Bring Your Own Key)** | $0/month | User provides their own API key from OpenAI, Anthropic, or Google. Full features, unlimited usage. |
-| **FocusBot Pro** | $4.99/month | No API key needed. Managed through the Windows Store as a subscription add-on. Cancel anytime. |
+| **Foqus Premium** | $4.99/month | No API key needed. Managed through the Windows Store as a subscription add-on. Cancel anytime. |
 
 ### Cost Analysis
 
@@ -271,7 +271,7 @@ The app must be usable at 100% and 200% display scaling.
 
 ## Browser Extension
 
-FocusBot includes a standalone Chrome/Edge browser extension that enables focus session tracking and distraction analysis **directly within your browser**. See [Browser Extension Documentation](../browser-extension/EXTENSION.md) for detailed technical information.
+Foqus includes a standalone Chrome/Edge browser extension that enables focus session tracking and distraction analysis **directly within your browser**. See [Browser Extension Documentation](../browser-extension/EXTENSION.md) for detailed technical information.
 
 **Key features:**
 - Single active focus session with one task

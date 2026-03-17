@@ -35,9 +35,11 @@ public class LlmService(
         Respond with valid JSON only: {"score": N, "reason": "brief explanation"}
 
         Score guidelines (1-10):
-        - 10: Directly executing the task or on a resource explicitly mentioned in context
-        - 5: Possibly related but connection is unclear
-        - 1: Clearly un-related work to that task
+        - 9-10: Directly executing the task or on a resource explicitly mentioned in context
+        - 7-8: Strongly supports the task (related tools, research, reference material)
+        - 5-6: Possibly related but connection is unclear
+        - 3-4: Unlikely to be related
+        - 1-2: Clearly off-task (entertainment, social media unrelated to work)
         """;
 
     public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
@@ -45,8 +47,7 @@ public class LlmService(
         string? taskContext,
         string processName,
         string windowTitle,
-        bool bypassCache = false,
-        CancellationToken ct = default
+        bool bypassCache = false
     )
     {
         var mode = await settingsService.GetApiKeyModeAsync();
@@ -78,7 +79,7 @@ public class LlmService(
             {
                 return new ClassifyAlignmentResponse(
                     null,
-                    "Please subscribe to use FocusBot Pro, or switch to using your own API key."
+                    "Please subscribe to use Foqus Premium, or switch to using your own API key."
                 );
             }
 
@@ -123,7 +124,7 @@ public class LlmService(
                 .Chat.CreateConversation(model)
                 .AppendSystemMessage(SystemPrompt)
                 .AppendUserInput(userMessage)
-                .GetResponse(ct);
+                .GetResponse();
 
             if (string.IsNullOrWhiteSpace(response))
                 return new ClassifyAlignmentResponse(null, null);

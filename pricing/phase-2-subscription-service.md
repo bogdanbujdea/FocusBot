@@ -11,7 +11,7 @@ After this phase, users will see:
 **Not Subscribed:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ ○ Subscribe to FocusBot Pro ($4.99/month)                   │
+│ ○ Subscribe to Foqus Premium ($4.99/month)                  │
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
 │   │ Unlock AI-powered focus tracking without managing   │   │
@@ -25,7 +25,7 @@ After this phase, users will see:
 **Subscribed:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ ● Subscribe to FocusBot Pro ($4.99/month)                   │
+│ ● Subscribe to Foqus Premium ($4.99/month)                  │
 │                                                             │
 │   ✓ Active subscription                                     │
 │   Renews on March 22, 2026                                  │
@@ -322,7 +322,7 @@ public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         if (!isSubscribed)
         {
             return new ClassifyAlignmentResponse(null, 
-                "Please subscribe to use FocusBot Pro, or switch to using your own API key.");
+                "Please subscribe to use Foqus Premium, or switch to using your own API key.");
         }
         
         // Phase 2: Subscribed but managed key not yet implemented

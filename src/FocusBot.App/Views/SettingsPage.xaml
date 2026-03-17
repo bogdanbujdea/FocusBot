@@ -188,9 +188,9 @@
                                  GroupName="ApiKeyMode"
                                  IsChecked="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay}"
                                  Command="{x:Bind ViewModel.ApiKeySection.SelectSubscriptionModeCommand}"
-                                 automation:AutomationProperties.Name="Subscribe to FocusBot Pro">
+                                 automation:AutomationProperties.Name="Subscribe to Foqus Premium">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Subscribe to FocusBot Pro ($4.99/month)"
+                            <TextBlock Text="Subscribe to Foqus Premium ($4.99/month)"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="No API key needed - we handle everything"
                                        Foreground="{StaticResource FbTextSecondaryBrush}"
@@ -297,7 +297,7 @@
                     <TextBlock Text="Help"
                                Style="{StaticResource FbColumnHeaderStyle}"
                                FontSize="14"/>
-                    <TextBlock Text="Learn how Focus Bot works and how your data is stored locally."
+                    <TextBlock Text="Learn how Foqus works and how your data is stored locally."
                                Foreground="{StaticResource FbTextSecondaryBrush}"
                                FontSize="13"
                                TextWrapping="Wrap"/>

@@ -75,9 +75,9 @@ builder.Services.AddOpenApi(options =>
     {
         document.Info = new OpenApiInfo
         {
-            Title = "FocusBot API",
+            Title = "Foqus API",
             Version = "v1",
-            Description = "FocusBot backend API for focus sessions, classification, and subscriptions"
+            Description = "Foqus backend API for focus sessions, classification, and subscriptions"
         };
         return Task.CompletedTask;
     });
@@ -115,7 +115,7 @@ app.UseExceptionHandler();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
-    options.WithTitle("FocusBot API");
+    options.WithTitle("Foqus API");
 });
 
 app.UseStaticFiles();
@@ -127,7 +127,7 @@ app.UseAuthorization();
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
 app.MapHealthChecks("/health");
-app.MapGet("/", () => Results.Ok("FocusBot API"));
+app.MapGet("/", () => Results.Ok("Foqus API"));
 app.MapAuthEndpoints();
 app.MapSessionEndpoints();
 app.MapClassificationEndpoints();

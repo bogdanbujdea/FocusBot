@@ -88,7 +88,7 @@ Add methods for:
 - Implement domain parser as isolated service with clear contract:
   - input: process name + window title,
   - output: normalized domain or failure result.
-- Keep parsing table/rules easy to extend for browsers used by FocusBot users.
+- Keep parsing table/rules easy to extend for browsers used by Foqus users.
 
 ### Time and Date Handling
 - Continue using local-day boundaries from Subfeature 2.

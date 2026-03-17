@@ -707,7 +707,7 @@ public partial class FocusPageViewModel : ObservableObject
         if (isViewingFocusBot)
         {
             FocusScore = 4;
-            FocusReason = "Viewing FocusBot";
+            FocusReason = "Viewing Foqus";
             IsClassifying = false;
             HasCurrentFocusResult = true;
             OnPropertyChanged(nameof(IsFocusScoreVisible));

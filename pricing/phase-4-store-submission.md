@@ -55,7 +55,7 @@ Tips:
 
 Create listing for each language you support:
 
-**Title**: FocusBot Pro
+**Title**: Foqus Premium
 
 **Description**:
 ```
@@ -90,7 +90,7 @@ Add pricing information to your main app description:
 Use your own AI API key from OpenAI, Anthropic, or other providers.
 Full features, unlimited usage, $0/month.
 
-**FocusBot Pro ($4.99/month)**
+**Foqus Premium ($4.99/month)**
 No API key needed - we handle everything.
 Unlimited AI-powered focus tracking, cancel anytime.
 ```
@@ -109,7 +109,7 @@ Your privacy policy must disclose:
 ```
 ## AI Services and Data Processing
 
-When using FocusBot Pro (subscription):
+When using Foqus Premium (subscription):
 - Window titles and task descriptions are sent to OpenAI for classification
 - Data is processed according to OpenAI's privacy policy
 - We do not store your window activity data on our servers
@@ -120,7 +120,7 @@ When using your own API key:
 
 ## Subscription Management
 
-FocusBot Pro subscriptions are managed through Microsoft Store.
+Foqus Premium subscriptions are managed through Microsoft Store.
 You can cancel anytime from your Microsoft account settings.
 Subscription fees are non-refundable for partial billing periods.
 ```
@@ -233,7 +233,7 @@ This update adds subscription support:
 
 To test Pro subscription:
 1. Go to Settings
-2. Select "Subscribe to FocusBot Pro"
+2. Select "Subscribe to Foqus Premium"
 3. Complete purchase
 4. AI classification should work automatically
 ```

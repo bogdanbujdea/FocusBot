@@ -38,7 +38,7 @@ beforeEach(() => {
     }
   });
 
-  setApiBaseUrl("https://test.focusbot.app");
+  setApiBaseUrl("https://test.foqus.me");
   store["focusbot.accessToken"] = "test-access-token";
   store["focusbot.refreshToken"] = "test-refresh-token";
 });
@@ -70,7 +70,7 @@ describe("classify", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://test.focusbot.app/classify");
+    expect(url).toBe("https://test.foqus.me/classify");
     expect(init?.method).toBe("POST");
 
     const headers = init?.headers as Record<string, string>;
@@ -107,7 +107,7 @@ describe("startSession", () => {
 
     expect(result).toEqual(responseBody);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://test.focusbot.app/sessions");
+    expect(url).toBe("https://test.foqus.me/sessions");
     expect(init?.method).toBe("POST");
 
     const body = JSON.parse(init?.body as string);
@@ -125,7 +125,7 @@ describe("endSession", () => {
 
     expect(result).toEqual(responseBody);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://test.focusbot.app/sessions/s1/end");
+    expect(url).toBe("https://test.foqus.me/sessions/s1/end");
     expect(init?.method).toBe("POST");
   });
 });
@@ -139,7 +139,7 @@ describe("getSubscriptionStatus", () => {
 
     expect(result).toEqual(responseBody);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://test.focusbot.app/subscriptions/status");
+    expect(url).toBe("https://test.foqus.me/subscriptions/status");
   });
 });
 
@@ -152,7 +152,7 @@ describe("getMe", () => {
 
     expect(result).toEqual(responseBody);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe("https://test.focusbot.app/auth/me");
+    expect(url).toBe("https://test.foqus.me/auth/me");
   });
 });
 
@@ -193,7 +193,7 @@ describe("401 retry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
 
     const [refreshUrl] = mockFetch.mock.calls[1];
-    expect(refreshUrl).toBe("https://api.focusbot.app/auth/refresh");
+    expect(refreshUrl).toBe("https://api.foqus.me/auth/refresh");
   });
 
   it("returns null when refresh fails on 401", async () => {

@@ -1,6 +1,6 @@
-# FocusBot: Desktop App and Browser Extension Integration
+# Foqus: Desktop App and Browser Extension Integration
 
-This document describes the integration between the FocusBot Windows desktop app and the FocusBot browser extension. The two communicate over a local WebSocket to keep a single shared task in sync and to exchange context (foreground app, browser URL) for focus classification.
+This document describes the integration between the Foqus Windows desktop app and the Foqus browser extension. The two communicate over a local WebSocket to keep a single shared task in sync and to exchange context (foreground app, browser URL) for focus classification.
 
 ---
 
@@ -208,8 +208,8 @@ Each side can prompt users to install the other component. Store URLs are define
 
 When the extension UI is open and the desktop app is not connected, the extension shows a short message and a link to the Windows app:
 
-- **Message (exact):** “Track the Windows apps you use and get focus alignment for them too. Install the FocusBot Windows app from the Microsoft Store.”
-- **Link:** One clickable link to the Microsoft Store listing for the FocusBot Windows app.
+- **Message (exact):** "Track the Windows apps you use and get focus alignment for them too. Install the Foqus Windows app from the Microsoft Store."
+- **Link:** One clickable link to the Microsoft Store listing for the Foqus Windows app.
 - **Where defined:** Extension: `browser-extension/src/shared/constants.ts` (`WINDOWS_STORE_APP_URL`, `INSTALL_APP_MESSAGE`). Rendered in `browser-extension/src/ui/AppShell.tsx`.
 
 ### App-only users (extension not installed or not connected)
@@ -219,7 +219,7 @@ The Windows app shows the extension message and store links in two places:
 1. **How It Works dialog** — Always shown when the user opens the “?” help dialog. Section “Browser extension” with the message and two links: “Get it for Edge”, “Get it for Chrome”.
 2. **Kanban header** — Shown only when the extension is **not** connected **and** the foreground window is **Microsoft Edge or Google Chrome** (not Firefox or other apps). Same message and the same two store links. When the extension is connected, the header shows “Extension Connected” instead; when the foreground app is not Edge/Chrome, the promo is hidden.
 
-- **Message:** “Web page focus accuracy is improved when you use the FocusBot browser extension.”
+- **Message:** "Web page focus accuracy is improved when you use the Foqus browser extension."
 - **Links:** Microsoft Edge Add-ons and Chrome Web Store (e.g. “Get it for Edge”, “Get it for Chrome”).
 - **Where defined:** App: `FocusBot.Core/ExtensionStoreLinks.cs` (`EdgeAddOns`, `ChromeWebStore`). Used by `KanbanBoardViewModel` (`ExtensionStoreEdgeUri`, `ExtensionStoreChromeUri`) and by `HowItWorksDialog` code-behind for the dialog links.
 

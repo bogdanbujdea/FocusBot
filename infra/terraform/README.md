@@ -1,6 +1,6 @@
-# FocusBot Infrastructure — Terraform
+# Foqus Infrastructure — Terraform
 
-This directory contains Terraform configuration for deploying the FocusBot WebAPI to Azure.
+This directory contains Terraform configuration for deploying the Foqus WebAPI to Azure.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ This directory contains Terraform configuration for deploying the FocusBot WebAP
 | Resource Group | Logical container for all resources |
 | Container Registry (ACR) | Stores Docker images for the API |
 | Container Apps Environment | Serverless hosting with Log Analytics |
-| Container App | Runs the FocusBot WebAPI (0–2 replicas) |
+| Container App | Runs the Foqus WebAPI (0–2 replicas) |
 | PostgreSQL Flexible Server | Managed PostgreSQL 16 database |
 
 ## Prerequisites

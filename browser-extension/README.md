@@ -1,4 +1,4 @@
-# FocusBot Deep Work Browser Extension (MVP)
+# Foqus Deep Work Browser Extension (MVP)
 
 Standalone Chrome/Edge extension implementing:
 

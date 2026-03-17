@@ -8,12 +8,12 @@ Changes made to the app package manifest (`src/FocusBot.App/Package.appxmanifest
 
 **Problem:** Partner Center reported that the package's manifest used a display name that had not been reserved: `FocusBot.App`.
 
-**Change:** Updated the manifest to use the reserved name **Focus Bot** in:
+**Change:** Updated the manifest to use the reserved name **Foqus** in:
 
 - **Package/Properties/DisplayName** — value used by the Store for validation and listing.
 - **uap:VisualElements** — `DisplayName` and `Description` (name shown in Start menu, taskbar, and Store).
 
-**Requirement:** Ensure **Focus Bot** is reserved for your app in Partner Center (App identity / Manage app names). Rebuild and create a new .msix after this change; the generated `AppxManifest.xml` will contain the updated display name.
+**Requirement:** Ensure **Foqus** is reserved for your app in Partner Center (App identity / Manage app names). Rebuild and create a new .msix after this change; the generated `AppxManifest.xml` will contain the updated display name.
 
 ## 2. Device family (desktop only)
 
@@ -29,7 +29,7 @@ Changes made to the app package manifest (`src/FocusBot.App/Package.appxmanifest
 
 | Item            | Before              | After        |
 |-----------------|---------------------|--------------|
-| Display name    | FocusBot.App        | Focus Bot    |
+| Display name    | FocusBot.App        | Foqus    |
 | Target families | Universal + Desktop | Desktop only |
 
 Rebuild the app, create a new .msix, and upload it to Partner Center. The **runFullTrust** capability warning is expected for a full-trust desktop app and is handled separately (approval/declaration in the submission flow).

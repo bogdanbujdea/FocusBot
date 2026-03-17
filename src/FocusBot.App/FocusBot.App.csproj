@@ -82,7 +82,7 @@
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed>False</PublishTrimmed>
-    <AssemblyName>Focus Bot</AssemblyName>
-    <AssemblyTitle>Focus Bot</AssemblyTitle>
+    <AssemblyName>Foqus</AssemblyName>
+    <AssemblyTitle>Foqus</AssemblyTitle>
   </PropertyGroup>
 </Project>

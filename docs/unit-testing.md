@@ -1,6 +1,6 @@
 # Unit Testing Guide
 
-This document describes how we write unit tests in FocusBot: structure, naming, Roy Osherove's principles, and the Awesome Assertions library.
+This document describes how we write unit tests in Foqus: structure, naming, Roy Osherove's principles, and the Awesome Assertions library.
 
 ## Test Structure (Per Method)
 

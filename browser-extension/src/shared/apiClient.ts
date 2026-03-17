@@ -32,12 +32,12 @@ export const fetchCurrentUser = async (): Promise<MeResponse> => {
   });
 
   if (response.status === 401) {
-    throw new Error("Not authenticated with FocusBot. Please complete sign-in.");
+    throw new Error("Not authenticated with Foqus. Please complete sign-in.");
   }
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to load FocusBot account. ${response.status} ${text}`);
+    throw new Error(`Failed to load Foqus account. ${response.status} ${text}`);
   }
 
   return (await response.json()) as MeResponse;
@@ -45,7 +45,7 @@ export const fetchCurrentUser = async (): Promise<MeResponse> => {
 
 import { getAccessToken, refreshAccessToken } from "./authToken";
 
-const DEFAULT_BASE_URL = "https://api.focusbot.app";
+const DEFAULT_BASE_URL = "https://api.foqus.me";
 
 let baseUrl = DEFAULT_BASE_URL;
 
@@ -133,7 +133,7 @@ const apiFetch = async <T>(
     }
 
     if (!response.ok) {
-      console.warn(`[FocusBot API] ${init.method ?? "GET"} ${path} failed with status ${response.status}`);
+      console.warn(`[Foqus API] ${init.method ?? "GET"} ${path} failed with status ${response.status}`);
       return null;
     }
 
@@ -141,7 +141,7 @@ const apiFetch = async <T>(
     if (!text) return null;
     return JSON.parse(text) as T;
   } catch (error) {
-    console.warn(`[FocusBot API] ${init.method ?? "GET"} ${path} error:`, error);
+    console.warn(`[Foqus API] ${init.method ?? "GET"} ${path} error:`, error);
     return null;
   }
 };

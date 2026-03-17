@@ -338,15 +338,15 @@ const updateIconState = async (): Promise<void> => {
     await chrome.action.setBadgeBackgroundColor({ color: config.color });
 
     const stateLabels: Record<IconState, string> = {
-      default: "FocusBot Deep Work",
-      aligned: "FocusBot - Aligned",
-      distracting: "FocusBot - Distracting",
-      analyzing: "FocusBot - Analyzing",
-      error: "FocusBot - Error"
+      default: "Foqus Deep Work",
+      aligned: "Foqus - Aligned",
+      distracting: "Foqus - Distracting",
+      analyzing: "Foqus - Analyzing",
+      error: "Foqus - Error"
     };
 
     const title =
-      session?.pausedAt != null ? "FocusBot - Paused" : stateLabels[iconState];
+      session?.pausedAt != null ? "Foqus - Paused" : stateLabels[iconState];
     await chrome.action.setTitle({ title });
 
     if (session && isConnected()) {

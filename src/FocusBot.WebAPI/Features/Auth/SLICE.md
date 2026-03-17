@@ -34,7 +34,7 @@ When an authenticated request arrives, the `AuthService` checks for an existing 
 
 ## Browser Extension Client
 
-When a user chooses the **FocusBot account** mode in the browser extension, the extension:
+When a user chooses the **Foqus account** mode in the browser extension, the extension:
 
 - Authenticates the user with Supabase using a magic link sent to their email.
 - Stores the Supabase access token locally inside the extension.

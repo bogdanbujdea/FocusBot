@@ -1,12 +1,12 @@
 # Coding Guidelines
 
-This document defines the coding standards for FocusBot. All new code should follow these guidelines, and existing code should be refactored to comply when touched.
+This document defines the coding standards for Foqus. All new code should follow these guidelines, and existing code should be refactored to comply when touched.
 
 ---
 
 ## Architecture
 
-FocusBot follows **Clean Architecture** with the following layers:
+Foqus follows **Clean Architecture** with the following layers:
 
 ```
 FocusBot.Core           <- Domain: Entities, Interfaces, Events (no dependencies)
@@ -17,7 +17,7 @@ FocusBot.App            <- UI/XAML (depends on ViewModels, Infrastructure)
 
 ### Dependency Rules
 
-- **Core** has no dependencies on other FocusBot projects
+- **Core** has no dependencies on other Foqus projects
 - **Infrastructure** depends only on Core
 - **ViewModels** depend only on Core (interfaces)
 - **App** wires everything together via DI

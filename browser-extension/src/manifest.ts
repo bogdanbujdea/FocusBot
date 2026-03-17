@@ -2,7 +2,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 
 export default defineManifest({
   manifest_version: 3,
-  name: "Focus Bot",
+  name: "Foqus",
   version: "0.1.0",
   description:
     "Single-task assistant: see if your browsing matches your task, get session summaries and daily analytics.",
@@ -15,7 +15,7 @@ export default defineManifest({
   permissions: ["storage", "tabs", "sidePanel", "alarms", "idle"],
   host_permissions: ["https://api.openai.com/*", "<all_urls>"],
   action: {
-    default_title: "Focus Bot",
+    default_title: "Foqus",
     default_popup: "src/popup/index.html",
     default_icons: {
       16: "icons/icon-default-16.png",

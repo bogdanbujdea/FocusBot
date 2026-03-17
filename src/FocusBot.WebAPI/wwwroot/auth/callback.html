@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>FocusBot Login</title>
+  <title>Foqus Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -56,7 +56,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>Completing FocusBot sign-in</h1>
+    <h1>Completing Foqus sign-in</h1>
     <p>This window can be closed once sign-in is finished.</p>
     <p id="status" class="status">Validating your login link...</p>
   </main>
@@ -92,7 +92,7 @@
 
         const me = await response.json();
 
-        // Relay tokens to the FocusBot content script so the extension
+        // Relay tokens to the Foqus content script so the extension
         // can store them in chrome.storage.local.
         window.postMessage({
           type: "FOCUSBOT_AUTH_CALLBACK",
@@ -101,7 +101,7 @@
           email: me.email
         }, "*");
 
-        statusEl.textContent = `Signed in as ${me.email}. You can now close this tab and return to FocusBot.`;
+        statusEl.textContent = `Signed in as ${me.email}. You can now close this tab and return to Foqus.`;
       } catch (error) {
         statusEl.textContent = "Network error while completing sign-in. Please verify the API is running and try again.";
         statusEl.classList.add("error");

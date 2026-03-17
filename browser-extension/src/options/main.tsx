@@ -5,11 +5,10 @@ import type { Settings } from "../shared/types";
 import { supabase } from "../shared/supabaseClient";
 import { clearFocusbotAuthSession, loadFocusbotAuthSession } from "../shared/focusbotAuth";
 import { parseExcludedDomains } from "../shared/url";
-import { validateOpenAiKey } from "../shared/openaiValidation";
+import "../ui/styles.css";
 import "./settings.css";
 
 const SettingsPage = (): JSX.Element => {
-  const allowedModels = useMemo(() => ["gpt-4o-mini", "gpt-5-mini"] as const, []);
   const [settings, setSettings] = useState<Settings>({
     authMode: "byok",
     openAiApiKey: "",
@@ -21,26 +20,16 @@ const SettingsPage = (): JSX.Element => {
   const [status, setStatus] = useState("");
   const [focusbotEmailInput, setFocusbotEmailInput] = useState("");
   const [focusbotStatus, setFocusbotStatus] = useState("");
-  const [byokStatus, setByokStatus] = useState("");
-  const [isValidatingByok, setIsValidatingByok] = useState(false);
-  const [showOpenAiKey, setShowOpenAiKey] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const response = await sendRuntimeRequest<{ settings: Settings }>({ type: "GET_STATE" });
       if (response.ok && response.data) {
-        const nextSettings = response.data.settings;
-        setSettings({
-          ...nextSettings,
-          classifierModel: allowedModels.includes(nextSettings.classifierModel as (typeof allowedModels)[number])
-            ? nextSettings.classifierModel
-            : "gpt-4o-mini"
-        });
-        setExcludedDomainsInput(nextSettings.excludedDomains.join("\n"));
-        setFocusbotEmailInput(nextSettings.focusbotEmail ?? "");
+        setSettings(response.data.settings);
+        setExcludedDomainsInput(response.data.settings.excludedDomains.join("\n"));
       }
     })();
-  }, [allowedModels]);
+  }, []);
 
   useEffect(() => {
     if (settings.authMode !== "focusbot-account") {
@@ -56,7 +45,6 @@ const SettingsPage = (): JSX.Element => {
           authMode: "focusbot-account",
           focusbotEmail: existing.email
         }));
-        setFocusbotEmailInput(existing.email);
       }
     })();
 
@@ -78,7 +66,6 @@ const SettingsPage = (): JSX.Element => {
               authMode: "focusbot-account",
               focusbotEmail: session.email
             }));
-            setFocusbotEmailInput(session.email);
             setFocusbotStatus(`Signed in as ${session.email}`);
           }
         })();
@@ -89,15 +76,6 @@ const SettingsPage = (): JSX.Element => {
   }, []);
 
   const excludedPreview = useMemo(() => parseExcludedDomains(excludedDomainsInput), [excludedDomainsInput]);
-
-  const goBack = (): void => {
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-
-    window.close();
-  };
 
   const save = async (): Promise<void> => {
     setStatus("Saving...");
@@ -121,66 +99,55 @@ const SettingsPage = (): JSX.Element => {
   return (
     <main className="app-shell settings-page">
       <header>
-        <div className="settings-header-row">
-          <div className="settings-header-text">
-            <h1>FocusBot Settings</h1>
-            <p className="muted">Configure your OpenAI key and task-alignment classifier behavior.</p>
-          </div>
-          <button type="button" className="settings-back-button" onClick={goBack}>
-            Back
-          </button>
-        </div>
+        <h1>Foqus Settings</h1>
+        <p className="muted">Configure your OpenAI key and task-alignment classifier behavior.</p>
       </header>
 
-      <section className="card settings-section">
-        <div className="settings-section-title">
-          <h2>Account mode</h2>
-          <p className="muted">
-            Choose how FocusBot authenticates and runs classifications. You can switch modes later in this settings page.
-          </p>
-        </div>
-
+      <section className="card">
+        <h2>Account mode</h2>
+        <p className="muted">
+          Choose how Foqus authenticates and runs classifications. You can switch modes later in this settings page.
+        </p>
         <div className="settings-auth-mode">
-          <div className="settings-auth-cards" role="radiogroup" aria-label="Account mode">
+          <div className="settings-auth-cards">
             <label className="settings-radio-card" data-selected={settings.authMode === "byok"}>
-              <input
-                type="radio"
-                name="auth-mode"
-                checked={settings.authMode === "byok"}
-                onChange={() =>
-                  setSettings((current) => ({
-                    ...current,
-                    authMode: "byok"
-                  }))
-                }
-              />
-              <span>
-                <span className="settings-radio-card-title">Bring your own OpenAI key</span>
-                <span className="settings-radio-card-desc">
-                  Your browser uses your OpenAI API key directly. Data is never sent to FocusBot servers.
-                </span>
+            <input
+              type="radio"
+              name="auth-mode"
+              checked={settings.authMode === "byok"}
+              onChange={() =>
+                setSettings((current) => ({
+                  ...current,
+                  authMode: "byok"
+                }))
+              }
+            />
+            <span>
+              <span className="settings-radio-card-title">Bring your own OpenAI key</span>
+              <span className="settings-radio-card-desc">
+                Your browser uses your OpenAI API key directly. Data is never sent to Foqus servers.
               </span>
-            </label>
-
+            </span>
+          </label>
             <label className="settings-radio-card" data-selected={settings.authMode === "focusbot-account"}>
-              <input
-                type="radio"
-                name="auth-mode"
-                checked={settings.authMode === "focusbot-account"}
-                onChange={() =>
-                  setSettings((current) => ({
-                    ...current,
-                    authMode: "focusbot-account"
-                  }))
-                }
-              />
-              <span>
-                <span className="settings-radio-card-title">FocusBot account (managed key)</span>
-                <span className="settings-radio-card-desc">
-                  Sign in with a FocusBot account to use a managed key and enable multi-device sync.
-                </span>
+            <input
+              type="radio"
+              name="auth-mode"
+              checked={settings.authMode === "focusbot-account"}
+              onChange={() =>
+                setSettings((current) => ({
+                  ...current,
+                  authMode: "focusbot-account"
+                }))
+              }
+            />
+            <span>
+              <span className="settings-radio-card-title">Foqus account (managed key)</span>
+              <span className="settings-radio-card-desc">
+                Sign in with a Foqus account to use a managed key and enable multi-device sync.
               </span>
-            </label>
+            </span>
+          </label>
           </div>
 
           {settings.authMode === "byok" ? (
@@ -191,94 +158,31 @@ const SettingsPage = (): JSX.Element => {
                 </label>
                 <input
                   id="api-key"
-                  type={showOpenAiKey ? "text" : "password"}
+                  type="password"
                   value={settings.openAiApiKey}
-                  onChange={(event) => {
-                    setByokStatus("");
-                    setSettings((current) => ({ ...current, openAiApiKey: event.target.value }));
-                  }}
+                  onChange={(event) => setSettings((current) => ({ ...current, openAiApiKey: event.target.value }))}
                   placeholder="sk-..."
                 />
-                <div className="settings-inline-actions">
-                  <button type="button" onClick={() => setShowOpenAiKey((current) => !current)}>
-                    {showOpenAiKey ? "Hide" : "Reveal"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!settings.openAiApiKey.trim()}
-                    onClick={async () => {
-                      setByokStatus("");
-                      if (!settings.openAiApiKey.trim()) {
-                        setByokStatus("Please enter an API key.");
-                        return;
-                      }
-                      try {
-                        await navigator.clipboard.writeText(settings.openAiApiKey);
-                        setByokStatus("API key copied to clipboard.");
-                      } catch {
-                        setByokStatus("Unable to copy to clipboard. Please reveal the key and copy it manually.");
-                      }
-                    }}
-                  >
-                    Copy
-                  </button>
-                </div>
               </div>
 
               <div className="settings-field">
                 <label className="label" htmlFor="model">
                   Classifier model
                 </label>
-                <select
+                <input
                   id="model"
-                  value={
-                    allowedModels.includes(settings.classifierModel as (typeof allowedModels)[number])
-                      ? (settings.classifierModel as (typeof allowedModels)[number])
-                      : "gpt-4o-mini"
-                  }
-                  onChange={(event) => {
-                    setByokStatus("");
-                    setSettings((current) => ({ ...current, classifierModel: event.target.value }));
-                  }}
-                >
-                  {allowedModels.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
+                  type="text"
+                  value={settings.classifierModel}
+                  onChange={(event) => setSettings((current) => ({ ...current, classifierModel: event.target.value }))}
+                />
               </div>
 
-              <div className="settings-inline-actions">
-                <button
-                  type="button"
-                  disabled={isValidatingByok}
-                  onClick={async () => {
-                    setByokStatus("");
-                    if (!settings.openAiApiKey.trim()) {
-                      setByokStatus("Please enter an API key.");
-                      return;
-                    }
-
-                    setIsValidatingByok(true);
-                    try {
-                      const result = await validateOpenAiKey({
-                        apiKey: settings.openAiApiKey.trim(),
-                        model: settings.classifierModel
-                      });
-                      setByokStatus(result.ok ? "API key validated." : result.error ?? "Unable to validate API key.");
-                    } catch (error) {
-                      setByokStatus(error instanceof Error ? error.message : "Unable to validate API key.");
-                    } finally {
-                      setIsValidatingByok(false);
-                    }
-                  }}
-                >
-                  Validate key
-                </button>
+              <div className="settings-help">
+                <p className="muted">
+                  Data disclosure: task text and page URL/title are sent to OpenAI for classification. Page body content is
+                  not sent. Some URLs can contain sensitive information.
+                </p>
               </div>
-
-              {byokStatus ? <p className="muted">{byokStatus}</p> : null}
             </div>
           ) : null}
 
@@ -286,7 +190,7 @@ const SettingsPage = (): JSX.Element => {
             <div className="settings-form">
               <div className="settings-field">
                 <label className="label" htmlFor="focusbot-email">
-                  FocusBot account email
+                  Foqus account email
                 </label>
                 <input
                   id="focusbot-email"
@@ -294,53 +198,48 @@ const SettingsPage = (): JSX.Element => {
                   value={focusbotEmailInput}
                   onChange={(event) => setFocusbotEmailInput(event.target.value)}
                   placeholder="you@example.com"
-                  disabled={Boolean(settings.focusbotEmail)}
                 />
               </div>
 
               <div className="settings-inline-actions">
-                {!settings.focusbotEmail ? (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!focusbotEmailInput.trim()) {
-                        setFocusbotStatus("Enter an email address first.");
-                        return;
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!focusbotEmailInput.trim()) {
+                      setFocusbotStatus("Enter an email address first.");
+                      return;
+                    }
+                    setFocusbotStatus("Sending magic link...");
+                    const { error } = await supabase.auth.signInWithOtp({
+                      email: focusbotEmailInput.trim(),
+                      options: {
+                        shouldCreateUser: true,
+                        emailRedirectTo: "http://localhost:5251/auth/callback.html"
                       }
-                      setFocusbotStatus("Sending magic link...");
-                      const { error } = await supabase.auth.signInWithOtp({
-                        email: focusbotEmailInput.trim(),
-                        options: {
-                          shouldCreateUser: true,
-                          emailRedirectTo: "http://localhost:5251/auth/callback.html"
-                        }
-                      });
-                      if (error) {
-                        setFocusbotStatus(error.message);
-                        return;
-                      }
-                      setFocusbotStatus("Magic link sent. Open the link from this device to finish sign-in.");
-                    }}
-                  >
-                    Send magic link
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await clearFocusbotAuthSession();
-                      await supabase.auth.signOut();
-                      setSettings((current) => ({
-                        ...current,
-                        focusbotEmail: undefined
-                      }));
-                      setFocusbotStatus("Signed out.");
-                      setFocusbotEmailInput("");
-                    }}
-                  >
-                    Sign out
-                  </button>
-                )}
+                    });
+                    if (error) {
+                      setFocusbotStatus(error.message);
+                      return;
+                    }
+                    setFocusbotStatus("Magic link sent. Open the link from this device to finish sign-in.");
+                  }}
+                >
+                  Send magic link
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await clearFocusbotAuthSession();
+                    await supabase.auth.signOut();
+                    setSettings((current) => ({
+                      ...current,
+                      focusbotEmail: undefined
+                    }));
+                    setFocusbotStatus("Signed out.");
+                  }}
+                >
+                  Sign out
+                </button>
               </div>
 
               {settings.focusbotEmail ? (
@@ -352,37 +251,29 @@ const SettingsPage = (): JSX.Element => {
             </div>
           ) : null}
         </div>
+      </section>
 
-        <div className="settings-form">
-          <div className="settings-field">
-            <label className="label" htmlFor="excluded-domains">
-              Excluded domains (comma or newline separated)
-            </label>
-            <textarea
-              id="excluded-domains"
-              rows={7}
-              value={excludedDomainsInput}
-              onChange={(event) => setExcludedDomainsInput(event.target.value)}
-              placeholder="localhost
+      <section className="card">
+        <h2>Classifier behavior</h2>
+        <label className="label" htmlFor="excluded-domains">
+          Excluded domains (comma or newline separated)
+        </label>
+        <textarea
+          id="excluded-domains"
+          rows={7}
+          value={excludedDomainsInput}
+          onChange={(event) => setExcludedDomainsInput(event.target.value)}
+          placeholder="localhost
 internal.company.com"
-            />
-          </div>
+        />
 
-          <div className="settings-help">
-            <p className="muted">
-              Data disclosure: task text and page URL/title are sent to OpenAI for classification. Page body content is
-              not sent. Some URLs can contain sensitive information.
-            </p>
-            <p className="muted">Excluded domains bypass OpenAI classification and are counted as aligned visits.</p>
-          </div>
+        <p className="muted">Excluded domains bypass OpenAI classification and are counted as aligned visits.</p>
 
-          <div className="settings-actions">
-            <button onClick={() => void save()}>Save settings</button>
-            <span className="pill">{excludedPreview.length} excluded domains</span>
-          </div>
-
-          {status ? <p className="muted">{status}</p> : null}
+        <div className="actions-row">
+          <button onClick={() => void save()}>Save settings</button>
+          <span className="pill">{excludedPreview.length} excluded domains</span>
         </div>
+        {status ? <p className="muted">{status}</p> : null}
       </section>
     </main>
   );

@@ -1,8 +1,8 @@
-# FocusBot Browser Extension - Technical Documentation
+# Foqus Browser Extension - Technical Documentation
 
 ## Overview
 
-The FocusBot Browser Extension is a standalone Chrome/Edge extension that enables **real-time session tracking and task-alignment analysis** directly within your web browser. Unlike the desktop app which monitors all Windows applications, the extension focuses specifically on web browsing behavior.
+The Foqus Browser Extension is a standalone Chrome/Edge extension that enables **real-time session tracking and task-alignment analysis** directly within your web browser. Unlike the desktop app which monitors all Windows applications, the extension focuses specifically on web browsing behavior.
 
 **Target Use Case:** Users who want to stay aligned with a single stated task while browsing—whether work (e.g. code review, research, marketing, documentation) or breaks (e.g. watch movies, browse social). Classification is based only on whether the current page matches the user's task, not on productivity or "deep work" norms.
 
@@ -59,7 +59,7 @@ The FocusBot Browser Extension is a standalone Chrome/Edge extension that enable
    - `storage.ts`: chrome.storage.local persistence layer
    - `analytics.ts`: Focus metrics aggregation
    - `metrics.ts`: Session summary calculations
-   - `supabaseClient.ts`: Supabase JS client used for FocusBot account sign-in
+   - `supabaseClient.ts`: Supabase JS client used for Foqus account sign-in
    - `focusbotAuth.ts`: Storage helpers for Supabase access token and linked email
    - `apiClient.ts`: Thin wrapper for calling the WebAPI with the stored Supabase access token
 
@@ -455,8 +455,8 @@ Detailed analytics dashboard:
 
 Configuration:
 - **Account mode**
-  - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No FocusBot backend is involved.
-  - **FocusBot account** – user signs in with a FocusBot account via Supabase magic link. The extension then uses a managed key and can sync with the WebAPI.
+  - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No Foqus backend is involved.
+  - **Foqus account** – user signs in with a Foqus account via Supabase magic link. The extension then uses a managed key and can sync with the WebAPI.
 - **OpenAI API key + validation** (BYOK mode only)
   - When `authMode` is `"byok"`, the user can enter their own OpenAI key (stored in `focusbot.settings.openAiApiKey`).
   - A **Validate key** button makes a minimal `chat/completions` request ("Ping") using the selected model to confirm the key + model work (mirrors the desktop app’s credential validation).
@@ -467,11 +467,11 @@ Configuration:
   - Domains that should always be treated as aligned and never sent to the classifier.
   - Shown under the authentication section in Settings.
 
-### FocusBot account authentication & sync (extension ↔ WebAPI)
+### Foqus account authentication & sync (extension ↔ WebAPI)
 
-When the user selects **FocusBot account** in Settings:
+When the user selects **Foqus account** in Settings:
 
-1. The Settings page displays a **FocusBot account email** field and a **Send magic link** button.
+1. The Settings page displays a **Foqus account email** field and a **Send magic link** button.
 2. On click, the extension uses `supabaseClient.ts` to call `supabase.auth.signInWithOtp({ email })`:
    - Supabase sends a magic link email to the user.
    - The link’s redirect target is configured to the extension options page (`chrome.runtime.getURL("src/options/index.html")`).
@@ -488,7 +488,7 @@ When the user selects **FocusBot account** in Settings:
    - On first call, the backend auto-provisions a `User` row from the JWT claims and returns the profile.
 5. The options UI shows:
    - **Currently signed in as &lt;email&gt;** when the `/auth/me` call succeeds.
-   - Any errors from either Supabase or the WebAPI as status text under the FocusBot account section.
+   - Any errors from either Supabase or the WebAPI as status text under the Foqus account section.
 6. The **Sign out** button:
    - Clears the stored Supabase access token and email.
    - Calls `supabase.auth.signOut()`.
@@ -519,10 +519,10 @@ This flow ensures that:
 
 ### Data Persistence
 
-- All data is stored locally in chrome.storage.local. In FocusBot account mode, the Supabase access token and email are also stored locally.
+- All data is stored locally in chrome.storage.local. In Foqus account mode, the Supabase access token and email are also stored locally.
 - The OpenAI API key (when using BYOK) is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions). It is not encrypted at rest; the browser has no DPAPI equivalent.
 - This is the standard "as safe as the platform allows" approach for BYOK (bring your own key).
-- In the initial implementation, there is **no automatic cloud sync of sessions or settings**; the WebAPI is only used to authenticate the FocusBot account and create the corresponding backend user. Future iterations can build on this identity for multi-device sync.
+- In the initial implementation, there is **no automatic cloud sync of sessions or settings**; the WebAPI is only used to authenticate the Foqus account and create the corresponding backend user. Future iterations can build on this identity for multi-device sync.
 
 ### Cache Entry Structure
 

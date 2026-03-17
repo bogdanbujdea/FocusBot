@@ -31,14 +31,14 @@ export const refreshAccessToken = async (): Promise<boolean> => {
   if (!refreshToken) return false;
 
   try {
-    const response = await fetch("https://api.focusbot.app/auth/refresh", {
+    const response = await fetch("https://api.foqus.me/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken })
     });
 
     if (!response.ok) {
-      console.warn("[FocusBot] Token refresh failed:", response.status);
+      console.warn("[Foqus] Token refresh failed:", response.status);
       return false;
     }
 
@@ -46,7 +46,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
     await storeTokens(data);
     return true;
   } catch (error) {
-    console.warn("[FocusBot] Token refresh error:", error);
+    console.warn("[Foqus] Token refresh error:", error);
     return false;
   }
 };

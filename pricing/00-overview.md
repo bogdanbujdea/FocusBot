@@ -1,8 +1,8 @@
-# FocusBot Pricing Model
+# Foqus Pricing Model
 
 ## Overview
 
-FocusBot uses a dual-tier pricing model that balances accessibility with monetization:
+Foqus uses a dual-tier pricing model that balances accessibility with monetization:
 
 | Tier | Price | Target User | Revenue |
 |------|-------|-------------|---------|
@@ -130,7 +130,7 @@ When revenue justifies infrastructure investment, migrate to a server proxy:
 
 ## Windows Store Integration
 
-FocusBot uses the `Windows.Services.Store` namespace for:
+Foqus uses the `Windows.Services.Store` namespace for:
 
 - Checking subscription status
 - Triggering the purchase UI

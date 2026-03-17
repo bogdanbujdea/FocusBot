@@ -21,8 +21,8 @@ public interface ILlmService
         string? taskContext,
         string processName,
         string windowTitle,
-        bool bypassCache = false,
-        CancellationToken ct = default);
+        bool bypassCache = false
+    );
 
     /// <summary>
     /// Validates that the given API key and provider/model can be used to call the API.
@@ -32,7 +32,8 @@ public interface ILlmService
         string apiKey,
         string providerId,
         string modelId,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// Returns whether the app has a valid AI configuration (own key or active subscription with managed key).

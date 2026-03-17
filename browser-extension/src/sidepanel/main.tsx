@@ -10,7 +10,7 @@ const SidePanelApp = (): JSX.Element => {
 
   return (
     <AppShell
-      title="FocusBot Side Panel"
+      title="Foqus"
       description="Live focus state while you work."
       state={state}
       loading={loading}

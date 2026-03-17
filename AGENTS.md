@@ -4,7 +4,7 @@
 
 ### Architecture overview
 
-FocusBot is a Windows desktop productivity app + browser extension + Web API (vertical slice architecture). See `docs/coding-guidelines.md` for code conventions.
+Foqus is a Windows desktop productivity app + browser extension + Web API (vertical slice architecture). See `docs/coding-guidelines.md` for code conventions.
 
 | Project | Target | Builds on Linux? |
 |---|---|---|
