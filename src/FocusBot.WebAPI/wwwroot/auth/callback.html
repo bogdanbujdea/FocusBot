@@ -64,13 +64,24 @@
     (async () => {
       const statusEl = document.getElementById("status");
 
+      const searchParams = new URLSearchParams(window.location.search);
+      const source = searchParams.get("source");
+
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const accessToken = params.get("access_token");
 
       if (!accessToken) {
-        statusEl.textContent = "No access token was found in this link. Please request a new magic link from the extension.";
+        statusEl.textContent = "No access token was found in this link. Please request a new magic link from Foqus.";
         statusEl.classList.add("error");
+        return;
+      }
+
+      // Desktop app deep link: immediately redirect to foqus:// so the WinUI app can
+      // handle the Supabase callback via its protocol handler.
+      if (source === "desktop") {
+        const fullHash = window.location.hash || "";
+        window.location.href = "foqus://auth-callback" + fullHash;
         return;
       }
 

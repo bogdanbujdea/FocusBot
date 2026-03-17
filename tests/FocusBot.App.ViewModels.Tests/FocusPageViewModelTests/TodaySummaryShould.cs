@@ -39,6 +39,10 @@ public class TodaySummaryShould
                 }
             );
 
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -52,7 +56,8 @@ public class TodaySummaryShould
             distractionDetectorMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object
+            new Mock<ITaskSummaryService>().Object,
+            accountVm
         );
 
         // Act
@@ -93,6 +98,10 @@ public class TodaySummaryShould
             .Setup(s => s.GetTodaySummaryAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DailyFocusSummary?)null);
 
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -106,7 +115,8 @@ public class TodaySummaryShould
             distractionDetectorMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object
+            new Mock<ITaskSummaryService>().Object,
+            accountVm
         );
 
         // Act

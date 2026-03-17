@@ -173,6 +173,17 @@ With the Windows Store taking a 15% cut (for apps earning under $25M/year), the 
 - Regional pricing for developing markets
 - 7-day free trial for the Pro tier
 
+### Foqus Account Sign-In (Magic Link)
+
+Foqus also supports signing in with a Foqus account using a passwordless magic link, powered by Supabase:
+
+- From the Settings page or the home Focus view, enter your email address and select **Send magic link**.
+- Supabase sends an email containing a `foqus://auth-callback` link.
+- Opening the link on the same Windows device launches Foqus, which handles the callback and stores a Supabase access token locally.
+- The token is then used when calling the Foqus WebAPI (for example, to classify windows or check subscription status), using the same identity as the browser extension.
+
+Signing in is optional in Own Key mode, but required for any features that rely on the managed Foqus backend identity.
+
 ---
 
 ## Design Language

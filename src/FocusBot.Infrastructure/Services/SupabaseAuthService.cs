@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using Supabase;
+using Supabase.Gotrue;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -19,6 +21,7 @@ public class SupabaseAuthService : IAuthService
     private readonly HttpClient _httpClient;
     private readonly ISettingsService _settingsService;
     private readonly ILogger<SupabaseAuthService> _logger;
+    private Supabase.Client? _supabaseClient;
 
     private string? _accessToken;
     private string? _refreshToken;
@@ -30,6 +33,18 @@ public class SupabaseAuthService : IAuthService
     private const string StoredAccessTokenKey = "Auth_AccessToken";
     private const string StoredRefreshTokenKey = "Auth_RefreshToken";
     private const string StoredExpiresAtKey = "Auth_ExpiresAtUtc";
+
+    // Keep these in sync with browser-extension/src/shared/supabaseClient.ts and WebAPI host.
+    private const string DefaultSupabaseUrl = "https://mokjfxtnqmudypnukqsv.supabase.co";
+    private const string DefaultSupabasePublishableKey =
+        "sb_publishable_U9dKqMzxtpms_EGvvUybCg_IKGoPc3t";
+#if DEBUG
+    private const string DefaultMagicLinkRedirectTo =
+        "http://localhost:5251/auth/callback.html?source=desktop";
+#else
+    private const string DefaultMagicLinkRedirectTo =
+        "https://api.foqus.me/auth/callback.html?source=desktop";
+#endif
 
     /// <summary>
     /// The buffer time before token expiry at which a proactive refresh is triggered.
@@ -48,7 +63,8 @@ public class SupabaseAuthService : IAuthService
     public SupabaseAuthService(
         HttpClient httpClient,
         ISettingsService settingsService,
-        ILogger<SupabaseAuthService> logger)
+        ILogger<SupabaseAuthService> logger
+    )
     {
         _httpClient = httpClient;
         _settingsService = settingsService;
@@ -60,31 +76,24 @@ public class SupabaseAuthService : IAuthService
     {
         try
         {
-            var config = await GetSupabaseConfigAsync();
-            if (config is null)
+            var client = await GetSupabaseClientAsync();
+
+            var options = new SignInOptions
             {
-                _logger.LogWarning("Supabase URL or publishable key not configured");
-                return false;
+                RedirectTo = DefaultMagicLinkRedirectTo
+            };
+
+            var didSendMagicLink = await client.Auth.SendMagicLink(email, options);
+            if (!didSendMagicLink)
+            {
+                _logger.LogWarning("Supabase SendMagicLink returned false for {Email}", email);
+            }
+            else
+            {
+                _logger.LogInformation("Magic link sent to {Email}", email);
             }
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{config.Url}/auth/v1/otp");
-            request.Headers.Add("apikey", config.PublishableKey);
-            request.Content = JsonContent.Create(new { email });
-
-            var response = await _httpClient.SendAsync(request);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning(
-                    "Magic link request failed: {StatusCode} {Body}",
-                    response.StatusCode,
-                    body);
-                return false;
-            }
-
-            _logger.LogInformation("Magic link sent to {Email}", email);
-            return true;
+            return didSendMagicLink;
         }
         catch (Exception ex)
         {
@@ -128,7 +137,8 @@ public class SupabaseAuthService : IAuthService
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"{config.Url}/auth/v1/token?grant_type=pkce");
+                $"{config.Url}/auth/v1/token?grant_type=pkce"
+            );
             request.Headers.Add("apikey", config.PublishableKey);
             request.Content = JsonContent.Create(new { code });
 
@@ -139,14 +149,17 @@ public class SupabaseAuthService : IAuthService
                 _logger.LogWarning(
                     "Token exchange failed: {StatusCode} {Body}",
                     response.StatusCode,
-                    body);
+                    body
+                );
                 return false;
             }
 
             var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
-            if (tokenResponse is null
+            if (
+                tokenResponse is null
                 || string.IsNullOrEmpty(tokenResponse.AccessToken)
-                || string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                || string.IsNullOrEmpty(tokenResponse.RefreshToken)
+            )
             {
                 _logger.LogWarning("Token response missing access or refresh token");
                 return false;
@@ -155,7 +168,8 @@ public class SupabaseAuthService : IAuthService
             await StoreTokensAsync(
                 tokenResponse.AccessToken,
                 tokenResponse.RefreshToken,
-                tokenResponse.ExpiresIn);
+                tokenResponse.ExpiresIn
+            );
             return true;
         }
         catch (Exception ex)
@@ -197,12 +211,14 @@ public class SupabaseAuthService : IAuthService
                 {
                     using var request = new HttpRequestMessage(
                         HttpMethod.Post,
-                        $"{config.Url}/auth/v1/logout");
+                        $"{config.Url}/auth/v1/logout"
+                    );
                     request.Headers.Add("apikey", config.PublishableKey);
                     request.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue(
                             "Bearer",
-                            _accessToken);
+                            _accessToken
+                        );
 
                     try
                     {
@@ -236,7 +252,9 @@ public class SupabaseAuthService : IAuthService
         try
         {
             var storedAccess = await _settingsService.GetSettingAsync<string>(StoredAccessTokenKey);
-            var storedRefresh = await _settingsService.GetSettingAsync<string>(StoredRefreshTokenKey);
+            var storedRefresh = await _settingsService.GetSettingAsync<string>(
+                StoredRefreshTokenKey
+            );
             var storedExpiry = await _settingsService.GetSettingAsync<string>(StoredExpiresAtKey);
 
             if (string.IsNullOrEmpty(storedAccess) || string.IsNullOrEmpty(storedRefresh))
@@ -248,7 +266,14 @@ public class SupabaseAuthService : IAuthService
             _accessToken = storedAccess;
             _refreshToken = storedRefresh;
 
-            if (DateTime.TryParse(storedExpiry, null, System.Globalization.DateTimeStyles.RoundtripKind, out var expiry))
+            if (
+                DateTime.TryParse(
+                    storedExpiry,
+                    null,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var expiry
+                )
+            )
             {
                 _expiresAtUtc = expiry;
             }
@@ -292,7 +317,8 @@ public class SupabaseAuthService : IAuthService
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"{config.Url}/auth/v1/token?grant_type=refresh_token");
+                $"{config.Url}/auth/v1/token?grant_type=refresh_token"
+            );
             request.Headers.Add("apikey", config.PublishableKey);
             request.Content = JsonContent.Create(new { refresh_token = _refreshToken });
 
@@ -303,14 +329,17 @@ public class SupabaseAuthService : IAuthService
                 _logger.LogWarning(
                     "Token refresh failed: {StatusCode} {Body}",
                     response.StatusCode,
-                    body);
+                    body
+                );
                 return false;
             }
 
             var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
-            if (tokenResponse is null
+            if (
+                tokenResponse is null
                 || string.IsNullOrEmpty(tokenResponse.AccessToken)
-                || string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                || string.IsNullOrEmpty(tokenResponse.RefreshToken)
+            )
             {
                 _logger.LogWarning("Refresh response missing tokens");
                 return false;
@@ -319,7 +348,8 @@ public class SupabaseAuthService : IAuthService
             await StoreTokensAsync(
                 tokenResponse.AccessToken,
                 tokenResponse.RefreshToken,
-                tokenResponse.ExpiresIn);
+                tokenResponse.ExpiresIn
+            );
 
             _logger.LogInformation("Access token refreshed successfully");
             return true;
@@ -331,7 +361,11 @@ public class SupabaseAuthService : IAuthService
         }
     }
 
-    private async Task StoreTokensAsync(string accessToken, string refreshToken, int expiresInSeconds)
+    private async Task StoreTokensAsync(
+        string accessToken,
+        string refreshToken,
+        int expiresInSeconds
+    )
     {
         _accessToken = accessToken;
         _refreshToken = refreshToken;
@@ -360,15 +394,32 @@ public class SupabaseAuthService : IAuthService
     private async Task<SupabaseConfig?> GetSupabaseConfigAsync()
     {
         var url = await _settingsService.GetSettingAsync<string>(SupabaseUrlKey);
-        var publishableKey = await _settingsService.GetSettingAsync<string>(SupabasePublishableKeyKey);
+        var publishableKey = await _settingsService.GetSettingAsync<string>(
+            SupabasePublishableKeyKey
+        );
 
         if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(publishableKey))
         {
-            _logger.LogWarning("Supabase URL or publishable key not configured");
-            return null;
+            _logger.LogInformation(
+                "Supabase URL or publishable key not configured; using built-in defaults"
+            );
+            return new SupabaseConfig(DefaultSupabaseUrl, DefaultSupabasePublishableKey);
         }
 
         return new SupabaseConfig(url, publishableKey);
+    }
+
+    private async Task<Supabase.Client> GetSupabaseClientAsync()
+    {
+        if (_supabaseClient is not null)
+            return _supabaseClient;
+
+        var config = await GetSupabaseConfigAsync();
+        var options = new SupabaseOptions { AutoConnectRealtime = false };
+
+        _supabaseClient = new Supabase.Client(config!.Url, config.PublishableKey, options);
+        await _supabaseClient.InitializeAsync();
+        return _supabaseClient;
     }
 
     private sealed class SupabaseTokenResponse
