@@ -212,6 +212,13 @@ resource "cloudflare_dns_record" "website_txt" {
   type     = "TXT"
   proxied  = false
   ttl      = 1
+
+  # Azure may stop returning `validation_token` once the domain is validated.
+  # When that happens, the Cloudflare provider would attempt to update this TXT
+  # record with `content = null`, which Cloudflare rejects.
+  lifecycle {
+    ignore_changes = [content]
+  }
 }
 
 # ── Container App Custom Domain (api.foqus.me) ─────────────────────────────
