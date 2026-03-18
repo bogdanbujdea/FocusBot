@@ -1,14 +1,21 @@
 # Copy this file to terraform.tfvars and fill in the values.
 # Do NOT commit terraform.tfvars to source control.
 
-resource_group_name = "focusbot-prod"
+resource_group_name = "foqus-me-rg"
 location            = "westeurope"
 environment         = "prod"
+
+static_web_app_name = "foqus-website"
+static_web_app_sku  = "Free"
+domain_name         = "foqus.me"
 
 postgresql_admin_password = "CHANGE_ME_strong_password_here"
 supabase_url              = "https://your-project.supabase.co"
 supabase_jwt_secret       = "your-supabase-jwt-secret"
 managed_openai_key        = ""
 paddle_webhook_secret     = ""
+mailerlite_api_key        = "" 
+cloudflare_api_token     = "CHANGE_ME_cloudflare_api_token"
+cloudflare_zone_id       = "CHANGE_ME_cloudflare_zone_id"
 
 container_image_tag = "latest"

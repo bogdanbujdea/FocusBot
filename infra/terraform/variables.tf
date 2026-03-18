@@ -1,7 +1,7 @@
 variable "resource_group_name" {
   description = "Name of the Azure resource group"
   type        = string
-  default     = "focusbot-prod"
+  default     = "foqus-me-rg"
 }
 
 variable "location" {
@@ -52,4 +52,40 @@ variable "container_image_tag" {
   description = "Docker image tag to deploy (typically a git SHA)"
   type        = string
   default     = "latest"
+}
+
+variable "static_web_app_name" {
+  description = "Name of the Azure Static Web App"
+  type        = string
+  default     = "foqus-website"
+}
+
+variable "static_web_app_sku" {
+  description = "SKU for Static Web App (Free or Standard)"
+  type        = string
+  default     = "Free"
+}
+
+variable "domain_name" {
+  description = "Root domain name (used for foqus.me and api.foqus.me)"
+  type        = string
+  default     = "foqus.me"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with Zone:Edit permissions"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for the root domain"
+  type        = string
+}
+
+variable "mailerlite_api_key" {
+  description = "MailerLite API key (used by the API container)"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
