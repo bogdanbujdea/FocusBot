@@ -1,6 +1,6 @@
 # Browser extension store listing requirements
 
-Reference for publishing the Focus Bot extension to Chrome Web Store / Edge Add-ons.
+Reference for publishing the Foqus extension to Chrome Web Store / Edge Add-ons.
 
 | What | Status |
 |------|--------|
@@ -18,7 +18,7 @@ Reference for publishing the Focus Bot extension to Chrome Web Store / Edge Add-
 
 - **Source:** Taken from the package **manifest** (not editable in the store form).
 - **To change:** Update `name` in `browser-extension/src/manifest.ts`, then rebuild and re-upload the package.
-- **Current value:** `Focus Bot`
+- **Current value:** `Foqus`
 
 ---
 
@@ -27,7 +27,7 @@ Reference for publishing the Focus Bot extension to Chrome Web Store / Edge Add-
 Use this text in the store listing "Description" field:
 
 ```
-Focus Bot helps you stay on task while browsing. Set a single task, and the extension shows you whether each page you visit is aligned with that task or distracting.
+Foqus helps you stay on task while browsing. Set a single task, and the extension shows you whether each page you visit is aligned with that task or distracting.
 
 Features:
 • Set a focus task and start a session from the popup or side panel.
@@ -38,7 +38,7 @@ Features:
 • Exclude domains (e.g. work SSO) from classification.
 • Works with your own OpenAI API key; your data is not sent to any third party except the API you configure.
 
-Use Focus Bot for work (e.g. code review, research, docs) or for breaks (e.g. watching videos, social browsing)—you define the task, the extension helps you see how your browsing matches it.
+Use Foqus for work (e.g. code review, research, docs) or for breaks (e.g. watching videos, social browsing)—you define the task, the extension helps you see how your browsing matches it.
 ```
 
 ---
@@ -91,7 +91,7 @@ Use these in the developer dashboard under "Single purpose", "Permission justifi
 ### Single purpose description
 
 ```
-Focus Bot has one purpose: help you see whether your browsing matches a single task you set. You start a focus session with a task (e.g. "code review" or "research"). The extension classifies each page you visit as aligned or distracting with that task using AI, shows session summaries and daily analytics, and can display a gentle overlay on distracting pages. All logic runs from the extension package; the only external call is to the OpenAI API (using your own API key) for classification. No remote code is loaded or executed.
+Foqus has one purpose: help you see whether your browsing matches a single task you set. You start a focus session with a task (e.g. "code review" or "research"). The extension classifies each page you visit as aligned or distracting with that task using AI, shows session summaries and daily analytics, and can display a gentle overlay on distracting pages. All logic runs from the extension package; the only external call is to the OpenAI API (using your own API key) for classification. No remote code is loaded or executed.
 ```
 
 ### storage justification
@@ -163,7 +163,7 @@ Then upload the new `focusbot-extension.zip` and complete the listing fields (de
 
 ## Privacy policy URL
 
-The store requires a **Privacy policy URL** if the extension uses user data (e.g. web history, user activity). Focus Bot does, so you must provide a URL that serves the privacy policy.
+The store requires a **Privacy policy URL** if the extension uses user data (e.g. web history, user activity). Foqus does, so you must provide a URL that serves the privacy policy.
 
 **What’s in the repo:**
 

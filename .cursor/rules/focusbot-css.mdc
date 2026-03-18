@@ -1,0 +1,69 @@
+---
+description: "FocusBot CSS standards: prevent duplicate selectors, avoid unintended overrides, and match the desktop app look & feel."
+globs: "**/*.css"
+alwaysApply: false
+---
+
+# FocusBot CSS Rules
+
+Applies when editing any `.css` file (extension UI).
+
+## Primary goals
+
+- **No duplicated CSS**: do not introduce duplicate selectors or duplicated declarations across files.
+- **No unintended overrides**: add styles in a way that does not change existing UI unless explicitly requested.
+- **Match FocusBot desktop aesthetic**: dark, glassy materials, clear elevation, subtle borders, strong focus states.
+
+## Workflow (mandatory)
+
+- **Before adding a selector**: scan the target CSS file to ensure the selector (or an equivalent one) does not already exist.
+- **Before adding a new rule**: check whether an existing utility/component class can be reused instead.
+- **If a selector already exists**:
+  - Prefer **editing the existing block** rather than adding a second block for the same selector.
+  - If you need a variant, add a **new class** (e.g. `.component--variant`) instead of increasing specificity.
+
+## Scoping & architecture
+
+- **Scope new page styles under a wrapper** (e.g. `.settings-page ...`) to avoid leaking into other surfaces.
+- Prefer **component/page-prefixed classes** (BEM-ish):
+  - `.settings-section`, `.settings-section-title`, `.settings-radio-card`, `.settings-radio-card-desc`
+- Avoid global element selectors for styling (e.g. `div`, `span`, `p`) unless it is a truly global base style.
+- Keep specificity low:
+  - Prefer `.class` over `main .class` over `.outer .inner .class`.
+  - Avoid `!important` except as a last resort to fix third-party/UA behavior; document why in the PR description (not in CSS).
+
+## Design alignment (desktop app → extension)
+
+The desktop app uses a **3 elevation layer** structure and glassy materials. Mirror that in extension CSS:
+
+- **3 surface layers**: page (darkest) < column/section < card (lightest).
+- **Dark palette guidance** (use as inspiration; keep consistent across the page):
+  - Page: `#110E1A` / `#0f1220`-like
+  - Section: `#1C1730`-like
+  - Card: `#2A2242`-like
+- **Borders**: subtle 1px borders with low-alpha white (e.g. `rgba(255,255,255,0.08–0.18)`).
+- **Corner radius**: Small 6px, Medium 10px, Large 12px.
+- **Focus**: always provide visible focus indicators (`:focus-visible` / `:focus-within`) with an accent outline.
+- **Meaning**: never encode meaning with color alone (pair with text/labels).
+
+Prefer using **CSS variables** for the page/module to keep consistent color + elevation:
+
+- Define variables on the page wrapper, e.g. `.settings-page { --surface-1: ...; --surface-2: ...; }`
+- Use variables instead of repeating raw hex values.
+
+## “Don’t overwrite older styles” guardrails
+
+- Do not change shared/base selectors (e.g. `body`, `button`, `input`, `.card`) unless the user explicitly requested a global redesign.
+- Prefer additive classes and wrapper scoping over overrides.
+- If you must override existing behavior:
+  - Scope it under a wrapper (`.settings-page .card { ... }`)
+  - Keep the change minimal and localized
+  - Avoid relying on cascade order across multiple files
+
+## Quick checklist before finishing
+
+- [ ] No duplicate selectors were added.
+- [ ] New styles are scoped (wrapper + component classes).
+- [ ] Specificity is minimal (no deep selector chains).
+- [ ] Focus states are visible.
+- [ ] Colors/elevation feel consistent with FocusBot desktop (3 layers, subtle borders, glassy feel).

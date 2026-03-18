@@ -117,4 +117,22 @@ chrome.runtime.onMessage.addListener((message: DistractionAlertMessage) => {
   showTooltip(`${domain} doesn't seem to be aligned with the current task because ${reasonSuffix}`);
 });
 
+// Listen for auth callback tokens posted by the FocusBot callback page
+// (served at localhost:5251/auth/callback.html) so the extension can
+// persist them in chrome.storage.local.
+window.addEventListener("message", (event) => {
+  if (event.source !== window || event.data?.type !== "FOCUSBOT_AUTH_CALLBACK") {
+    return;
+  }
+  const { accessToken, email } = event.data as { accessToken: string; email: string };
+  if (!accessToken || !email) return;
+
+  void chrome.storage.local.set({
+    "focusbot.supabaseAccessToken": accessToken,
+    "focusbot.supabaseEmail": email
+  });
+
+  chrome.runtime.sendMessage({ type: "FOCUSBOT_AUTH_SESSION_STORED", email }).catch(() => {});
+});
+
 chrome.runtime.sendMessage({ type: "FOCUSBOT_CONTENT_READY" });

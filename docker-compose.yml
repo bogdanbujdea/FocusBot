@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: focusbot
+      POSTGRES_USER: focusbot
+      POSTGRES_PASSWORD: focusbot_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U focusbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/FocusBot.WebAPI/Dockerfile
+    ports:
+      - "5251:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=focusbot;Username=focusbot;Password=focusbot_dev"
+      Supabase__Url: "https://mokjfxtnqmudypnukqsv.supabase.co"
+      MailerLite__ApiKey: ${MAILERLITE_API_KEY}
+      MailerLite__WaitlistGroupId: ${MAILERLITE_WAITLIST_GROUP_ID}
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

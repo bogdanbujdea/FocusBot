@@ -1,8 +1,8 @@
-# Focus Bot Browser Extension – Privacy Policy
+# Foqus Browser Extension – Privacy Policy
 
 **Last updated:** March 2025
 
-This privacy policy describes how the Focus Bot browser extension ("the extension") handles data. The extension is published for Chrome and Edge and does not operate a separate website or backend server.
+This privacy policy describes how the Foqus browser extension ("the extension") handles data. The extension is published for Chrome and Edge and does not operate a separate website or backend server.
 
 ---
 
@@ -64,4 +64,4 @@ If this privacy policy changes, the updated version will be posted at the same U
 
 ## 7. Contact
 
-For questions about this privacy policy or the Focus Bot extension, please open an issue or contact the maintainers through the project’s repository or website.
+For questions about this privacy policy or the Foqus extension, please open an issue or contact the maintainers through the project's repository or website.

@@ -2,10 +2,10 @@
 
 ## Overview
 
-The Focus Overlay is a circular indicator that stays on top of all windows and shows the current focus status (distracted, neutral, or focused). It displays the focus score percentage when a task is active and is always visible so the user can see their status without switching to the FocusBot window. Hovering over the overlay reveals a pause/play button to pause or resume the active task.
+The Focus Overlay is a circular indicator that stays on top of all windows and shows the current focus status (distracted, neutral, or focused). It displays the focus score percentage when a task is active and is always visible so the user can see their status without switching to the Foqus window. Hovering over the overlay reveals a pause/play button to pause or resume the active task.
 
 **User-facing description:**
-> A 96px semi-transparent circle appears in the corner of your screen when FocusBot is running. It stays on top of other windows and can be dragged to reposition. The color changes based on your focus status: green when focused, purple when neutral, and orange when distracted. When you have an active task, your focus score percentage is shown inside the circle. Hover over the circle to reveal a pause/play button that lets you temporarily pause your task (stops time tracking, window monitoring, and AI classification). Click the circle when no task is active to bring the main window to the foreground.
+> A 96px semi-transparent circle appears in the corner of your screen when Foqus is running. It stays on top of other windows and can be dragged to reposition. The color changes based on your focus status: green when focused, purple when neutral, and orange when distracted. When you have an active task, your focus score percentage is shown inside the circle. Hover over the circle to reveal a pause/play button that lets you temporarily pause your task (stops time tracking, window monitoring, and AI classification). Click the circle when no task is active to bring the main window to the foreground.
 
 ## How It Works
 

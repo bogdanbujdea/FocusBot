@@ -1,0 +1,75 @@
+:root {
+  color-scheme: dark;
+
+  /* Core palette (aligned with extension / docs) */
+  --fb-bg: #0f1220;
+  --fb-text: #e7ecff;
+  --fb-text-muted: rgba(231, 236, 255, 0.78);
+  --fb-border: rgba(255, 255, 255, 0.12);
+
+  --fb-accent: #365cff;
+  --fb-accent-soft: rgba(54, 92, 255, 0.2);
+  --fb-aligned: #2db871;
+  --fb-distracting: #ff6666;
+
+  /* Elevation */
+  --fb-surface-1: rgba(255, 255, 255, 0.04);
+  --fb-surface-2: rgba(255, 255, 255, 0.06);
+  --fb-surface-3: rgba(15, 18, 32, 0.72);
+  --fb-surface-border: rgba(255, 255, 255, 0.14);
+
+  /* Radii (extension uses 8-14px) */
+  --fb-radius-sm: 8px;
+  --fb-radius-md: 10px;
+  --fb-radius-lg: 14px;
+
+  /* Shadows */
+  --fb-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+
+  /* Typography */
+  --fb-sans: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --fb-mono: ui-monospace, Consolas, "SFMono-Regular", Menlo, Monaco, "Liberation Mono", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--fb-bg);
+  color: var(--fb-text);
+  font-family: var(--fb-sans);
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: 0.18px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Keep the app centered, like the existing skeleton. */
+#root {
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  font-family: var(--fb-mono);
+}
+
+/* Accessible focus: use a consistent ring across controls. */
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--fb-accent);
+  outline-offset: 2px;
+}

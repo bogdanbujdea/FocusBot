@@ -27,6 +27,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly IDailyAnalyticsService _dailyAnalyticsService;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly ITaskSummaryService _taskSummaryService;
+    public AccountSettingsViewModel AccountSection { get; }
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
 
@@ -473,6 +474,7 @@ public partial class FocusPageViewModel : ObservableObject
         IDailyAnalyticsService dailyAnalyticsService,
         IAlignmentCacheRepository alignmentCacheRepository,
         ITaskSummaryService taskSummaryService,
+        AccountSettingsViewModel accountSection,
         IIntegrationService? integrationService = null,
         IUIThreadDispatcher? uiDispatcher = null
     )
@@ -490,6 +492,7 @@ public partial class FocusPageViewModel : ObservableObject
         _dailyAnalyticsService = dailyAnalyticsService;
         _alignmentCacheRepository = alignmentCacheRepository;
         _taskSummaryService = taskSummaryService;
+        AccountSection = accountSection;
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
         _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
@@ -707,7 +710,7 @@ public partial class FocusPageViewModel : ObservableObject
         if (isViewingFocusBot)
         {
             FocusScore = 4;
-            FocusReason = "Viewing FocusBot";
+            FocusReason = "Viewing Foqus";
             IsClassifying = false;
             HasCurrentFocusResult = true;
             OnPropertyChanged(nameof(IsFocusScoreVisible));

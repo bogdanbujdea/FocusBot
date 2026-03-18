@@ -23,6 +23,9 @@ public class OnForegroundWindowChangedShould
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -36,7 +39,8 @@ public class OnForegroundWindowChangedShould
             distractionMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            taskSummaryMock.Object);
+            taskSummaryMock.Object,
+            accountVm);
         var eventArgs = new ForegroundWindowChangedEventArgs
         {
             ProcessName = "devenv",

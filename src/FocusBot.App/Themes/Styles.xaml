@@ -168,7 +168,7 @@
         <Setter Property="CharacterSpacing" Value="40"/>
     </Style>
 
-    <!-- Focus Status reason text (e.g. "Viewing FocusBot") -->
+    <!-- Focus Status reason text (e.g. "Viewing Foqus") -->
     <Style x:Key="FbFocusStatusReasonStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource FbTextSecondaryBrush}"/>
         <Setter Property="FontSize" Value="14"/>

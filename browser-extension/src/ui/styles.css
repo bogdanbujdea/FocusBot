@@ -1,23 +1,117 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   font-family: Inter, Segoe UI, Roboto, sans-serif;
 }
 
 body {
   margin: 0;
-  min-width: 360px;
   background: #0f1220;
   color: #e7ecff;
+}
+
+body.popup {
+  min-width: 360px;
+  overflow-x: hidden;
 }
 
 .app-shell {
   padding: 16px;
   display: grid;
   gap: 12px;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  position: relative;
+  box-sizing: border-box;
+  align-content: start;
 }
 
 .app-shell.compact {
   padding: 12px;
+}
+
+.app-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell.ui-status-aligned::before,
+.app-shell.ui-status-distracting::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-shell.ui-status-aligned::before {
+  background: radial-gradient(1200px 700px at 18% 10%, rgba(45, 184, 113, 0.35) 0%, rgba(45, 184, 113, 0) 60%),
+    radial-gradient(900px 600px at 85% 38%, rgba(45, 184, 113, 0.22) 0%, rgba(45, 184, 113, 0) 64%);
+  opacity: 0.55;
+}
+
+.app-shell.ui-status-distracting::before {
+  background: radial-gradient(1200px 700px at 20% 10%, rgba(255, 66, 66, 0.42) 0%, rgba(255, 66, 66, 0) 58%),
+    radial-gradient(900px 600px at 80% 34%, rgba(255, 66, 66, 0.26) 0%, rgba(255, 66, 66, 0) 64%);
+  opacity: 0.65;
+  animation: distractingPulse 2.6s ease-in-out infinite;
+}
+
+.app-shell.ui-status-aligned,
+.app-shell.ui-status-distracting {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.app-shell.ui-status-aligned {
+  background: rgba(45, 184, 113, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(45, 184, 113, 0.24), 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.app-shell.ui-status-distracting {
+  background: rgba(255, 66, 66, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 66, 66, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.12);
+  animation: distractingEnter 220ms ease-out;
+}
+
+/* Keep cards readable, but let status tint show around them. */
+.app-shell.ui-status-aligned .card,
+.app-shell.ui-status-distracting .card {
+  background: rgba(15, 18, 32, 0.72);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.ui-status-distracting::before {
+    animation: none;
+  }
+
+  .app-shell.ui-status-distracting {
+    animation: none;
+  }
+}
+
+@keyframes distractingPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+
+@keyframes distractingEnter {
+  from {
+    transform: translateY(0);
+    filter: saturate(1.05) brightness(1.02);
+  }
+  to {
+    transform: translateY(0);
+    filter: saturate(1) brightness(1);
+  }
 }
 
 .app-shell-header {
@@ -137,6 +231,16 @@ h3 {
   font-size: 0.9rem;
 }
 
+.app-shell.ui-status-aligned .muted,
+.app-shell.ui-status-distracting .muted {
+  color: rgba(231, 236, 255, 0.86);
+}
+
+.app-shell.ui-status-aligned button,
+.app-shell.ui-status-distracting button {
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
 .label {
   font-size: 0.85rem;
 }
@@ -152,6 +256,11 @@ select {
   color: inherit;
   padding: 8px;
   font: inherit;
+}
+
+select option {
+  background: #0f1220;
+  color: #e7ecff;
 }
 
 textarea {
@@ -323,6 +432,7 @@ button:disabled {
   line-height: 1.35;
   overflow: hidden;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }

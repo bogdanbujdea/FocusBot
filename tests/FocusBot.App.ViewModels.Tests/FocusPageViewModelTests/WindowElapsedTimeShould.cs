@@ -24,6 +24,9 @@ public class WindowElapsedTimeShould
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -37,7 +40,8 @@ public class WindowElapsedTimeShould
             distractionMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            taskSummaryMock.Object);
+            taskSummaryMock.Object,
+            accountVm);
         await Task.Delay(150);
 
         timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
@@ -74,6 +78,9 @@ public class WindowElapsedTimeShould
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var taskSummaryMock = new Mock<ITaskSummaryService>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -87,7 +94,8 @@ public class WindowElapsedTimeShould
             distractionMock.Object,
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
-            taskSummaryMock.Object);
+            taskSummaryMock.Object,
+            accountVm);
         await Task.Delay(150);
 
         // Act

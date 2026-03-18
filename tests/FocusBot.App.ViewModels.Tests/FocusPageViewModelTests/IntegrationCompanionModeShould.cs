@@ -103,6 +103,10 @@ public class IntegrationCompanionModeShould
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
 
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+
         return new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -117,6 +121,7 @@ public class IntegrationCompanionModeShould
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             new Mock<ITaskSummaryService>().Object,
+            accountVm,
             integrationService,
             uiDispatcher);
     }

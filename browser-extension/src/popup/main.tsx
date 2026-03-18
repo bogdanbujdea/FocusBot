@@ -10,13 +10,14 @@ const PopupApp = (): JSX.Element => {
 
   return (
     <AppShell
-      title="FocusBot Deep Work"
+      title="Foqus Deep Work"
       description="Set one task, track alignment, and review distraction cost."
       state={state}
       loading={loading}
       compact
       refreshState={refreshState}
       integration={integration}
+      showHeaderMeta={false}
     />
   );
 };

@@ -9,12 +9,15 @@ namespace FocusBot.App.ViewModels;
 public partial class SettingsViewModel(
     ApiKeySettingsViewModel apiKeySection,
     OverlaySettingsViewModel overlaySection,
+    AccountSettingsViewModel accountSection,
     INavigationService navigationService
 ) : ObservableObject
 {
     public ApiKeySettingsViewModel ApiKeySection { get; } = apiKeySection;
 
     public OverlaySettingsViewModel OverlaySection { get; } = overlaySection;
+
+    public AccountSettingsViewModel AccountSection { get; } = accountSection;
 
     [RelayCommand]
     private void Back()

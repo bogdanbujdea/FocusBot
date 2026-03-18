@@ -6,7 +6,7 @@ namespace FocusBot.Core;
 public static class ExtensionStoreLinks
 {
     public static Uri EdgeAddOns =>
-        new("https://microsoftedge.microsoft.com/addons/detail/focusbot/placeholder");
+        new("https://microsoftedge.microsoft.com/addons/detail/foqus/placeholder");
     public static Uri ChromeWebStore =>
-        new("https://chrome.google.com/webstore/detail/focusbot/placeholder");
+        new("https://chrome.google.com/webstore/detail/foqus/placeholder");
 }

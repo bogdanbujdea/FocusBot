@@ -5,16 +5,16 @@
 The Focus Score measures how well a user stays focused on task-relevant applications while working. It provides real-time feedback as a percentage (0-100%) displayed on active task cards, helping users understand their focus patterns.
 
 **User-facing description:**
-> FocusBot tracks which applications you use while working on a task and uses AI to determine how relevant each app is. Your Focus Score shows the percentage of time spent in task-related apps, helping you stay on track.
+> Foqus tracks which applications you use while working on a task and uses AI to determine how relevant each app is. Your Focus Score shows the percentage of time spent in task-related apps, helping you stay on track.
 
 ## How It Works
 
 ### 1. Window Monitoring
 
-When a task is "In Progress", FocusBot monitors foreground window changes:
+When a task is "In Progress", Foqus monitors foreground window changes:
 
 1. User switches to a new window
-2. FocusBot captures the **process name** and **window title**
+2. Foqus captures the **process name** and **window title**
 3. A **context hash** is computed from these values (SHA256)
 4. The AI classifies how aligned this window is with the current task (1-10 scale)
 5. Time spent in that window is tracked and aggregated
@@ -165,9 +165,9 @@ This approach ensures:
 - `HasRealScore` correctly indicates whether we have AI-classified data
 - No time is tracked for segments that never receive a classification
 
-### FocusBot Window Exclusion
+### Foqus Window Exclusion
 
-The application ignores its own window to avoid tracking time spent in FocusBot itself:
+The application ignores its own window to avoid tracking time spent in Foqus itself:
 
 ```csharp
 if (string.Equals(e.ProcessName, "FocusBot", StringComparison.OrdinalIgnoreCase))

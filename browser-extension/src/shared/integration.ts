@@ -90,7 +90,7 @@ export const updateBrowserForeground = (inForeground: boolean): void => {
 
 const scheduleReconnect = (): void => {
   if (!shouldConnect) return;
-  console.info("[FocusBot] Desktop app not available; will retry in 5s.");
+  console.info("[Foqus] Desktop app not available; will retry in 5s.");
   reconnectTimer = setTimeout(() => connect(), RECONNECT_INTERVAL_MS);
 };
 
@@ -105,7 +105,7 @@ const connect = (): void => {
   }
 
   ws.onopen = async () => {
-    console.info("[FocusBot] Connected to desktop app.");
+    console.info("[Foqus] Connected to desktop app.");
     state.connected = true;
     notifyStateChange();
 
@@ -116,7 +116,7 @@ const connect = (): void => {
   };
 
   ws.onclose = () => {
-    console.info("[FocusBot] Desktop app disconnected.");
+    console.info("[Foqus] Desktop app disconnected.");
     state.connected = false;
     clearLeaderTask();
     state.browserInForeground = true;
@@ -128,7 +128,7 @@ const connect = (): void => {
   };
 
   ws.onerror = () => {
-    console.info("[FocusBot] Desktop app connection failed (optional; will retry).");
+    console.info("[Foqus] Desktop app connection failed (optional; will retry).");
   };
 
   ws.onmessage = (event) => {

@@ -98,7 +98,7 @@ public sealed partial class FocusPage : Page
         {
             XamlRoot = XamlRoot,
             Title = "Free Trial Expired",
-            Content = "Your 24-hour free trial has ended. To continue using AI-powered focus tracking, please subscribe to FocusBot Pro or enter your own API key.",
+            Content = "Your 24-hour free trial has ended. To continue using AI-powered focus tracking, please subscribe to Foqus Premium or enter your own API key.",
             PrimaryButtonText = "Open Settings",
             CloseButtonText = "Later",
             DefaultButton = ContentDialogButton.Primary

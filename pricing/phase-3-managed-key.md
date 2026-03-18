@@ -6,7 +6,7 @@ Provide subscribed users with a managed API key so they can use the app without 
 
 ## User Experience
 
-After this phase, subscribed users selecting "FocusBot Pro" mode will:
+After this phase, subscribed users selecting "Foqus Premium" mode will:
 
 1. Have AI classification work automatically
 2. See no API key configuration fields
@@ -14,7 +14,7 @@ After this phase, subscribed users selecting "FocusBot Pro" mode will:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ ● Subscribe to FocusBot Pro ($4.99/month)                   │
+│ ● Subscribe to Foqus Premium ($4.99/month)                  │
 │                                                             │
 │   ✓ Active subscription                                     │
 │   Renews on March 22, 2026                                  │
@@ -243,7 +243,7 @@ public async Task<ClassifyAlignmentResponse> ClassifyAlignmentAsync(
         if (!isSubscribed)
         {
             return new ClassifyAlignmentResponse(null,
-                "Please subscribe to use FocusBot Pro, or switch to using your own API key.");
+                "Please subscribe to use Foqus Premium, or switch to using your own API key.");
         }
         
         // Get managed key
@@ -468,13 +468,13 @@ Consider using ConfuserEx or Dotfuscator for additional protection.
 ### Manual Testing
 
 1. **Managed Mode + Subscribed**
-   - Select "FocusBot Pro" mode
+   - Select "Foqus Premium" mode
    - With active subscription → Classifications should work
    - Focus overlay should show correct colors
    - No API key configuration needed
 
 2. **Managed Mode + Not Subscribed**
-   - Select "FocusBot Pro" mode
+   - Select "Foqus Premium" mode
    - Without subscription → Shows "Please subscribe" message
    - Classification returns error (not default score)
 
@@ -555,7 +555,7 @@ public async Task EmbeddedManagedKeyProvider_ReturnsKey()
 After Phase 3, the complete pricing flow works:
 
 ```
-User selects "FocusBot Pro" → 
+User selects "Foqus Premium" → 
   App checks subscription →
     Not subscribed → "Subscribe Now" button →
       User purchases → Subscription active

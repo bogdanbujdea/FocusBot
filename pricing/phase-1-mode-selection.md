@@ -21,7 +21,7 @@ After this phase, users will see:
 │   ├─ Model:    [gpt-4o-mini      ▼]                         │
 │   └─ [Test Connection]                                      │
 │                                                             │
-│ ○ Subscribe to FocusBot Pro ($4.99/month)                   │
+│ ○ Subscribe to Foqus Premium ($4.99/month)                 │
 │   └─ Coming soon! Use your own API key for now.             │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -213,7 +213,7 @@ Add radio button group for mode selection:
                  IsChecked="{x:Bind ViewModel.IsSubscriptionMode, Mode=TwoWay}"
                  Command="{x:Bind ViewModel.SelectSubscriptionModeCommand}">
         <StackPanel>
-            <TextBlock Text="Subscribe to FocusBot Pro ($4.99/month)" 
+            <TextBlock Text="Subscribe to Foqus Premium ($4.99/month)" 
                        FontWeight="SemiBold"/>
             <TextBlock Text="No API key needed - we handle everything"
                        Style="{StaticResource CaptionTextBlockStyle}"

@@ -11,6 +11,7 @@ export interface CacheEntry {
 }
 
 const defaultSettings: Settings = {
+  authMode: "byok",
   openAiApiKey: "",
   classifierModel: DEFAULT_MODEL,
   onboardingCompleted: false,
@@ -44,7 +45,9 @@ export const loadSettings = async (): Promise<Settings> => {
   return {
     ...defaultSettings,
     ...stored,
-    excludedDomains: stored.excludedDomains ?? []
+    authMode: stored.authMode ?? "byok",
+    excludedDomains: stored.excludedDomains ?? [],
+    focusbotEmail: stored.focusbotEmail
   };
 };
 

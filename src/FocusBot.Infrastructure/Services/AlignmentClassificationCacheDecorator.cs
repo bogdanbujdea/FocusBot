@@ -13,7 +13,10 @@ public class AlignmentClassificationCacheDecorator : ILlmService
     private readonly ILlmService _inner;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public AlignmentClassificationCacheDecorator(ILlmService inner, IServiceScopeFactory scopeFactory)
+    public AlignmentClassificationCacheDecorator(
+        ILlmService inner,
+        IServiceScopeFactory scopeFactory
+    )
     {
         _inner = inner;
         _scopeFactory = scopeFactory;
@@ -24,8 +27,8 @@ public class AlignmentClassificationCacheDecorator : ILlmService
         string? taskContext,
         string processName,
         string windowTitle,
-        bool bypassCache = false,
-        CancellationToken ct = default)
+        bool bypassCache = false
+    )
     {
         var contextHash = HashHelper.ComputeWindowContextHash(processName, windowTitle);
         var taskContentHash = HashHelper.ComputeTaskContentHash(taskDescription, taskContext);
@@ -37,11 +40,20 @@ public class AlignmentClassificationCacheDecorator : ILlmService
                 var cache = scope.ServiceProvider.GetRequiredService<IAlignmentCacheRepository>();
                 var cached = await cache.GetAsync(contextHash, taskContentHash);
                 if (cached != null)
-                    return new ClassifyAlignmentResponse(new AlignmentResult { Score = cached.Score, Reason = cached.Reason }, null);
+                    return new ClassifyAlignmentResponse(
+                        new AlignmentResult { Score = cached.Score, Reason = cached.Reason },
+                        null
+                    );
             }
         }
 
-        var response = await _inner.ClassifyAlignmentAsync(taskDescription, taskContext, processName, windowTitle, bypassCache: false, ct);
+        var response = await _inner.ClassifyAlignmentAsync(
+            taskDescription,
+            taskContext,
+            processName,
+            windowTitle,
+            bypassCache: false
+        );
         if (response.Result == null)
             return response;
 
@@ -51,7 +63,7 @@ public class AlignmentClassificationCacheDecorator : ILlmService
         {
             ContextHash = contextHash,
             ProcessName = processName,
-            WindowTitle = normalizedTitle
+            WindowTitle = normalizedTitle,
         };
         var entry = new AlignmentCacheEntry
         {
@@ -59,7 +71,7 @@ public class AlignmentClassificationCacheDecorator : ILlmService
             TaskContentHash = taskContentHash,
             Score = result.Score,
             Reason = result.Reason,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
 
         using (var scope = _scopeFactory.CreateScope())
@@ -75,8 +87,8 @@ public class AlignmentClassificationCacheDecorator : ILlmService
         string apiKey,
         string providerId,
         string modelId,
-        CancellationToken ct = default) =>
-        _inner.ValidateCredentialsAsync(apiKey, providerId, modelId, ct);
+        CancellationToken ct = default
+    ) => _inner.ValidateCredentialsAsync(apiKey, providerId, modelId, ct);
 
     public Task<bool> IsConfiguredAsync() => _inner.IsConfiguredAsync();
 }

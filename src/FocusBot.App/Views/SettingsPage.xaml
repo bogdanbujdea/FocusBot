@@ -188,9 +188,9 @@
                                  GroupName="ApiKeyMode"
                                  IsChecked="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay}"
                                  Command="{x:Bind ViewModel.ApiKeySection.SelectSubscriptionModeCommand}"
-                                 automation:AutomationProperties.Name="Subscribe to FocusBot Pro">
+                                 automation:AutomationProperties.Name="Subscribe to Foqus Premium">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Subscribe to FocusBot Pro ($4.99/month)"
+                            <TextBlock Text="Subscribe to Foqus Premium ($4.99/month)"
                                        FontWeight="SemiBold"/>
                             <TextBlock Text="No API key needed - we handle everything"
                                        Foreground="{StaticResource FbTextSecondaryBrush}"
@@ -265,6 +265,53 @@
                 </StackPanel>
             </Border>
 
+            <!-- Foqus Account (Supabase magic link) -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Foqus Account"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+                    <TextBlock Text="Sign in with a Foqus account using a magic link sent to your email. This uses the same account as the browser extension."
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               FontSize="13"
+                               TextWrapping="Wrap"/>
+                    <TextBox Text="{x:Bind ViewModel.AccountSection.Email, Mode=TwoWay}"
+                             PlaceholderText="you@example.com"
+                             CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                             automation:AutomationProperties.Name="Foqus account email"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Send magic link"
+                                Style="{StaticResource FbAccentButtonStyle}"
+                                Command="{x:Bind ViewModel.AccountSection.SendMagicLinkCommand}"
+                                IsEnabled="{x:Bind ViewModel.AccountSection.IsBusy, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
+                                automation:AutomationProperties.Name="Send magic link"/>
+                        <Button Content="Sign out"
+                                Style="{StaticResource FbOutlineButtonStyle}"
+                                Command="{x:Bind ViewModel.AccountSection.SignOutCommand}"
+                                IsEnabled="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay}"
+                                automation:AutomationProperties.Name="Sign out"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.AccountSection.StatusMessage, Mode=OneWay}"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                    <TextBlock Text="Currently signed in"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="Not signed in"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                </StackPanel>
+            </Border>
+
             <!-- Overlay Settings -->
             <Border Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
@@ -297,7 +344,7 @@
                     <TextBlock Text="Help"
                                Style="{StaticResource FbColumnHeaderStyle}"
                                FontSize="14"/>
-                    <TextBlock Text="Learn how Focus Bot works and how your data is stored locally."
+                    <TextBlock Text="Learn how Foqus works and how your data is stored locally."
                                Foreground="{StaticResource FbTextSecondaryBrush}"
                                FontSize="13"
                                TextWrapping="Wrap"/>

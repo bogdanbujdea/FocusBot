@@ -1,5 +1,6 @@
 import type { ClassificationResult, Settings } from "./types";
 import { loadClassificationCache, saveClassificationCache } from "./storage";
+import { classifyViaWebApi } from "./apiClient";
 
 const cacheKey = (taskText: string, url: string): string =>
   `${taskText.trim().toLowerCase()}::${url.trim().toLowerCase()}`;
@@ -29,11 +30,16 @@ const classifierPrompt = (taskText: string, url: string, title: string, taskHint
 const parseClassification = (raw: string): ClassificationResult => {
   try {
     const parsed = JSON.parse(raw) as Partial<ClassificationResult>;
-    if (parsed.classification === "aligned" || parsed.classification === "distracting") {
+    if (
+      parsed.classification === "aligned" ||
+      parsed.classification === "neutral" ||
+      parsed.classification === "distracting"
+    ) {
       return {
         classification: parsed.classification,
         confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5,
-        reason: parsed.reason
+        reason: parsed.reason,
+        score: typeof parsed.score === "number" ? Math.max(1, Math.min(10, parsed.score)) : undefined
       };
     }
   } catch {
@@ -47,6 +53,12 @@ const parseClassification = (raw: string): ClassificationResult => {
     confidence: 0.5,
     reason: "Fallback parser used due to non-JSON response."
   };
+};
+
+const mapScoreToClassification = (score: number): "aligned" | "neutral" | "distracting" => {
+  if (score > 5) return "aligned";
+  if (score < 5) return "distracting";
+  return "neutral";
 };
 
 const desktopClassifierPrompt = (taskText: string, processName: string, windowTitle: string, taskHints?: string): string => {
@@ -82,6 +94,21 @@ export const classifyDesktopApp = async (
   taskHints?: string,
   timeoutMs = 8000
 ): Promise<ClassificationResult> => {
+  if (settings.authMode === "foqus-account") {
+    const web = await classifyViaWebApi({
+      taskText,
+      taskHints,
+      processName,
+      windowTitle
+    });
+    return {
+      classification: mapScoreToClassification(web.score),
+      confidence: Math.max(0, Math.min(1, web.score / 10)),
+      reason: web.reason,
+      score: web.score
+    };
+  }
+
   if (!settings.openAiApiKey.trim()) {
     throw new Error("OpenAI API key is required.");
   }
@@ -164,6 +191,21 @@ export const classifyPage = async (
   timeoutMs = 8000,
   taskHints?: string
 ): Promise<ClassificationResult> => {
+  if (settings.authMode === "foqus-account") {
+    const web = await classifyViaWebApi({
+      taskText,
+      taskHints,
+      url,
+      pageTitle: title
+    });
+    return {
+      classification: mapScoreToClassification(web.score),
+      confidence: Math.max(0, Math.min(1, web.score / 10)),
+      reason: web.reason,
+      score: web.score
+    };
+  }
+
   if (!settings.openAiApiKey.trim()) {
     throw new Error("OpenAI API key is required.");
   }

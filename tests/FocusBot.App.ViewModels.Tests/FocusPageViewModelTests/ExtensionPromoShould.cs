@@ -128,6 +128,9 @@ public class ExtensionPromoShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -142,6 +145,7 @@ public class ExtensionPromoShould
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             new Mock<ITaskSummaryService>().Object,
+            accountVm,
             integrationService: null,
             uiDispatcher: null);
         return (vm, monitorMock);
@@ -162,6 +166,9 @@ public class ExtensionPromoShould
         var distractionMock = new Mock<IDistractionDetectorService>();
         var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
         var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
@@ -176,6 +183,7 @@ public class ExtensionPromoShould
             dailyAnalyticsMock.Object,
             alignmentCacheMock.Object,
             new Mock<ITaskSummaryService>().Object,
+            accountVm,
             integrationService,
             uiDispatcher: null);
         return (vm, monitorMock);

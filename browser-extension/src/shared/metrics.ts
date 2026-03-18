@@ -47,18 +47,21 @@ export const calculateSessionSummary = (
   const alignedSeconds = visits
     .filter((visit) => visit.classification === "aligned")
     .reduce((sum, visit) => sum + visit.durationSeconds, 0);
+  const neutralSeconds = visits
+    .filter((visit) => visit.classification === "neutral")
+    .reduce((sum, visit) => sum + visit.durationSeconds, 0);
   const distractingSeconds = visits
     .filter((visit) => visit.classification === "distracting")
     .reduce((sum, visit) => sum + visit.durationSeconds, 0);
-  const totalTrackedSeconds = alignedSeconds + distractingSeconds;
+  const totalTrackedSeconds = alignedSeconds + neutralSeconds + distractingSeconds;
 
   let distractionCount = 0;
-  let previousClassification: "aligned" | "distracting" | undefined;
+  let previousClassification: "aligned" | "neutral" | "distracting" | undefined;
 
   for (const visit of visits) {
     if (
       visit.classification === "distracting" &&
-      (previousClassification === undefined || previousClassification === "aligned")
+      (previousClassification === undefined || previousClassification !== "distracting")
     ) {
       distractionCount += 1;
     }
@@ -108,7 +111,8 @@ export const calculateLiveSummary = (session: FocusSession): SessionSummary => {
       durationSeconds,
       classification: cv.classification,
       confidence: cv.confidence ?? 0,
-      reason: cv.reason
+      reason: cv.reason,
+      score: cv.score
     });
   }
 

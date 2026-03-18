@@ -11,6 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
+using Windows.ApplicationModel.Activation;
 using Windows.Services.Store;
 using Windows.Storage;
 
@@ -51,6 +53,14 @@ namespace FocusBot.App
                 sp.GetRequiredService<ILogger<SettingsService>>(),
                 appDataRoot
             ));
+            services.AddTransient<AccountSettingsViewModel>();
+            services.AddSingleton<IAuthService>(sp =>
+                new SupabaseAuthService(
+                    new HttpClient(),
+                    sp.GetRequiredService<ISettingsService>(),
+                    sp.GetRequiredService<ILogger<SupabaseAuthService>>()
+                )
+            );
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
             services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
             services.AddSingleton<IIdleDetectionService, IdleDetectionService>();
@@ -67,6 +77,15 @@ namespace FocusBot.App
 #endif
             services.AddSingleton<IManagedKeyProvider, EmbeddedManagedKeyProvider>();
             services.AddSingleton<ITrialService, TrialService>();
+            services.AddSingleton<IFocusBotApiClient>(sp =>
+            {
+                var baseUrl = GetFocusBotApiBaseUrl();
+                return new FocusBotApiClient(
+                    new HttpClient { BaseAddress = new Uri(baseUrl) },
+                    sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<ILogger<FocusBotApiClient>>()
+                );
+            });
             services.AddSingleton<LlmService>();
             services.AddSingleton<ILlmService>(sp => new AlignmentClassificationCacheDecorator(
                 sp.GetRequiredService<LlmService>(),
@@ -91,8 +110,11 @@ namespace FocusBot.App
             db.Database.Migrate();
         }
 
-        protected override void OnLaunched(LaunchActivatedEventArgs args)
+        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            var activationArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
+            HandleActivation(activationArgs);
+
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
             _integrationService = _services!.GetRequiredService<IIntegrationService>();
@@ -132,6 +154,77 @@ namespace FocusBot.App
             }
         }
 
+        public void HandleActivation(AppActivationArguments activationArgs)
+        {
+            if (_services is null)
+                return;
+
+            var request = ActivationRequest.From(activationArgs);
+            if (!request.IsSupported)
+                return;
+
+            var dispatcher = _services.GetRequiredService<AppUIThreadDispatcher>();
+            if (dispatcher.DispatcherQueue is not null)
+            {
+                _ = dispatcher.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await HandleActivationAsync(request);
+                });
+            }
+            else
+            {
+                _ = HandleActivationAsync(request);
+            }
+        }
+
+        public async Task HandleActivationAsync(ActivationRequest request)
+        {
+            if (_services is null)
+                return;
+
+            var auth = _services.GetRequiredService<IAuthService>();
+
+            // Restore any existing session as early as possible.
+            await auth.TryRestoreSessionAsync();
+            if (request.Kind != ExtendedActivationKind.Protocol || string.IsNullOrWhiteSpace(request.ProtocolUri))
+                return;
+
+            var handled = await auth.HandleCallbackAsync(request.ProtocolUri);
+            if (!handled)
+            {
+                ShowExceptionMessage("Sign-in failed", new Exception("Auth callback failed."));
+            }
+        }
+
+        public readonly record struct ActivationRequest(
+            ExtendedActivationKind Kind,
+            string? ProtocolUri
+        )
+        {
+            public bool IsSupported => Kind == ExtendedActivationKind.Protocol;
+
+            public static ActivationRequest From(AppActivationArguments activationArgs)
+            {
+                try
+                {
+                    var kind = activationArgs.Kind;
+                    if (kind != ExtendedActivationKind.Protocol)
+                        return new ActivationRequest(kind, null);
+
+                    if (activationArgs.Data is not ProtocolActivatedEventArgs protocolArgs)
+                        return new ActivationRequest(kind, null);
+
+                    return new ActivationRequest(kind, protocolArgs.Uri?.ToString());
+                }
+                catch (COMException)
+                {
+                    // AppActivationArguments is a WinRT object and may not be agile across threads.
+                    // If we can't safely read Data here, treat activation as unsupported.
+                    return new ActivationRequest(default, null);
+                }
+            }
+        }
+
         private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
         {
             _overlayWindow?.UpdateState(
@@ -167,5 +260,14 @@ namespace FocusBot.App
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
+
+        private static string GetFocusBotApiBaseUrl()
+        {
+#if DEBUG
+            return "http://localhost:5251";
+#else
+            return "https://api.foqus.me";
+#endif
+        }
     }
 }

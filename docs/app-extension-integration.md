@@ -1,6 +1,6 @@
-# FocusBot: Desktop App and Browser Extension Integration
+# Foqus: Desktop App and Browser Extension Integration
 
-This document describes the integration between the FocusBot Windows desktop app and the FocusBot browser extension. The two communicate over a local WebSocket to keep a single shared task in sync and to exchange context (foreground app, browser URL) for focus classification.
+This document describes the integration between the Foqus Windows desktop app and the Foqus browser extension. The two communicate over a local WebSocket to keep a single shared task in sync and to exchange context (foreground app, browser URL) for focus classification.
 
 ---
 
@@ -63,6 +63,35 @@ The status bar shows the **current app/window** and **focus status**. It behaves
 - **Source of classification:**
   - **App-side:** When any task is in progress (local or remote), the app runs focus classification on foreground window changes. In `OnForegroundWindowChanged`, the “effective” task is either the first local in-progress task or, if there are no local in-progress tasks, the remote task from `RemoteTaskFromExtension` (using its `TaskId`, `TaskText`, `TaskHints`). The app then calls `ClassifyAndUpdateFocusAsync` or `ClassifyWithBrowserContextAsync` (using **BROWSER_CONTEXT** when a browser is in front). The result sets `FocusScore`, `FocusReason`, `HasCurrentFocusResult`, and notifies the status bar bindings.
   - **Extension:** If the extension sends **FOCUS_STATUS** for the current remote task, the app applies the payload in `OnIntegrationFocusStatusReceived` (score, reason, contextType, contextTitle, focusScorePercent) and updates the same status bar properties, so the bar can show either app or extension classification.
+
+## Classification routing (BYOK vs Foqus account)
+
+### Browser Extension
+
+The browser extension supports two modes:
+
+- **BYOK ("bring your own key")**: the extension sends page and desktop classification requests directly to OpenAI from the browser.
+- **Foqus account ("managed key")**: after the user completes magic-link login, the extension sends classification requests to the Foqus WebAPI `POST /classify` using the Supabase access token.
+
+When using the WebAPI classifier, the backend returns a **score (1–10)** which the extension maps to the UI:
+
+- **score > 5:** Aligned
+- **score == 5:** Neutral
+- **score < 5:** Distracted
+
+### Windows Desktop App
+
+The Windows app follows the same pattern:
+
+- **User-provided API key (BYOK)**: Classification requests go directly to the configured AI provider (OpenAI, Anthropic, etc.) from the desktop app. Behavior is unchanged from before.
+- **Foqus account (authenticated user)**: When the user is authenticated to Foqus via the app (Supabase JWT available), classification requests are sent to the Foqus WebAPI `POST /classify` first. If the WebAPI returns a result, it is used immediately. If the WebAPI is unavailable or returns null, the app falls back to the managed key direct call for graceful degradation.
+- **Trial or no configuration**: During the trial period or when using the managed key subscription without authentication, the app calls OpenAI directly using the managed key.
+
+The Windows app interprets scores the same way:
+
+- **score >= 6:** Focused (green icon)
+- **score 4–5:** Unclear/Neutral (gray icon)
+- **score < 4:** Distracted (red icon)
 
 ---
 
@@ -208,8 +237,8 @@ Each side can prompt users to install the other component. Store URLs are define
 
 When the extension UI is open and the desktop app is not connected, the extension shows a short message and a link to the Windows app:
 
-- **Message (exact):** “Track the Windows apps you use and get focus alignment for them too. Install the FocusBot Windows app from the Microsoft Store.”
-- **Link:** One clickable link to the Microsoft Store listing for the FocusBot Windows app.
+- **Message (exact):** "Track the Windows apps you use and get focus alignment for them too. Install the Foqus Windows app from the Microsoft Store."
+- **Link:** One clickable link to the Microsoft Store listing for the Foqus Windows app.
 - **Where defined:** Extension: `browser-extension/src/shared/constants.ts` (`WINDOWS_STORE_APP_URL`, `INSTALL_APP_MESSAGE`). Rendered in `browser-extension/src/ui/AppShell.tsx`.
 
 ### App-only users (extension not installed or not connected)
@@ -219,7 +248,7 @@ The Windows app shows the extension message and store links in two places:
 1. **How It Works dialog** — Always shown when the user opens the “?” help dialog. Section “Browser extension” with the message and two links: “Get it for Edge”, “Get it for Chrome”.
 2. **Kanban header** — Shown only when the extension is **not** connected **and** the foreground window is **Microsoft Edge or Google Chrome** (not Firefox or other apps). Same message and the same two store links. When the extension is connected, the header shows “Extension Connected” instead; when the foreground app is not Edge/Chrome, the promo is hidden.
 
-- **Message:** “Web page focus accuracy is improved when you use the FocusBot browser extension.”
+- **Message:** "Web page focus accuracy is improved when you use the Foqus browser extension."
 - **Links:** Microsoft Edge Add-ons and Chrome Web Store (e.g. “Get it for Edge”, “Get it for Chrome”).
 - **Where defined:** App: `FocusBot.Core/ExtensionStoreLinks.cs` (`EdgeAddOns`, `ChromeWebStore`). Used by `KanbanBoardViewModel` (`ExtensionStoreEdgeUri`, `ExtensionStoreChromeUri`) and by `HowItWorksDialog` code-behind for the dialog links.
 
