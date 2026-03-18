@@ -147,6 +147,11 @@ resource "azurerm_container_app" "api" {
         value = var.mailerlite_api_key
       }
 
+      env {
+        name  = "MailerLite__WaitlistGroupId"
+        value = var.mailerlite_waitlist_group_id
+      }
+
       liveness_probe {
         transport = "HTTP"
         path      = "/health"

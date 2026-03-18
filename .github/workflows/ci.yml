@@ -67,6 +67,7 @@ jobs:
           TF_VAR_managed_openai_key: ${{ secrets.MANAGED_OPENAI_KEY }}
           TF_VAR_paddle_webhook_secret: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
           TF_VAR_mailerlite_api_key: ${{ secrets.MAILERLITE_API_KEY }}
+          TF_VAR_mailerlite_waitlist_group_id: ${{ vars.MAILERLITE_WAITLIST_GROUP_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
@@ -125,6 +126,7 @@ jobs:
           TF_VAR_managed_openai_key: ${{ secrets.MANAGED_OPENAI_KEY }}
           TF_VAR_paddle_webhook_secret: ${{ secrets.PADDLE_WEBHOOK_SECRET }}
           TF_VAR_mailerlite_api_key: ${{ secrets.MAILERLITE_API_KEY }}
+          TF_VAR_mailerlite_waitlist_group_id: ${{ vars.MAILERLITE_WAITLIST_GROUP_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 

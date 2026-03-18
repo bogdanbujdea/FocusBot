@@ -98,3 +98,10 @@ variable "mailerlite_api_key" {
   sensitive   = true
   default     = ""
 }
+
+variable "mailerlite_waitlist_group_id" {
+  description = "MailerLite group ID for waitlist subscribers (API container)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
