@@ -37,6 +37,32 @@ const classificationToLabel = (
   return "Waiting for signal";
 };
 
+const formatMmSs = (seconds: number): string => {
+  const safe = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const remainingSeconds = safe % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+};
+
+const BASE_FRAGMENTATION_SEGMENTS = [
+  { kind: "aligned" as const, width: 22 },
+  { kind: "distracted" as const, width: 4 },
+  { kind: "aligned" as const, width: 18 },
+  { kind: "distracted" as const, width: 5 },
+  { kind: "aligned" as const, width: 20 },
+  { kind: "distracted" as const, width: 5 },
+  { kind: "aligned" as const, width: 26 }
+] as const;
+
+const BASE_FRAGMENTATION_ALIGNED_TOTAL = 86;
+const BASE_FRAGMENTATION_DISTRACTED_TOTAL = 14;
+
 const MiniFocusGauge = ({ percentage }: { percentage: number }): JSX.Element => {
   const size = 60;
   const radius = 24;
@@ -128,6 +154,67 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
     ? (isPaused ? (active.pausedBy === "idle" ? "Paused (idle)" : "Paused") : currentState)
     : "Starting...";
   const displayStatusClass = active ? statusClass : "neutral";
+
+  const pillLabel = active
+    ? isPaused
+      ? active.pausedBy === "idle"
+        ? "Paused (idle)"
+        : "Paused"
+      : displayStatusClass === "aligned"
+        ? "Aligned"
+        : displayStatusClass === "distracting"
+          ? "Distracting"
+          : displayStatus
+    : displayStatus;
+
+  const pillClass =
+    displayStatusClass === "aligned"
+      ? "preview-pill-aligned"
+      : displayStatusClass === "distracting"
+        ? "preview-pill-distracting"
+        : "preview-pill-neutral";
+
+  const aiReasonText =
+    active && !isPaused
+      ? active.currentVisit?.reason ??
+        (showDesktopContext && desktopCtx?.reason ? desktopCtx.reason : undefined) ??
+        ""
+      : "";
+
+  const currentLocationLabel = showDesktopContext ? "Current app" : "Current website";
+  const currentLocationValue =
+    showDesktopContext
+      ? desktopCtx?.windowTitle ?? desktopCtx?.processName ?? "Unknown"
+      : active?.currentVisit?.domain ?? "Unknown";
+
+  const liveAlignedSeconds = liveSummary?.alignedSeconds ?? 0;
+  const liveDistractingSeconds = liveSummary?.distractingSeconds ?? 0;
+  const liveNonNeutralSeconds = liveAlignedSeconds + liveDistractingSeconds;
+  const liveAlignedPct = liveSummary
+    ? liveNonNeutralSeconds > 0
+      ? (liveAlignedSeconds / liveNonNeutralSeconds) * 100
+      : 100
+    : 0;
+  const liveDistractedPct = liveSummary ? 100 - liveAlignedPct : 0;
+  const liveAlignedPctRounded = Math.round(liveAlignedPct);
+  const liveDistractedPctRounded = Math.max(0, 100 - liveAlignedPctRounded);
+
+  const fragmentationSegments =
+    liveSummary
+      ? BASE_FRAGMENTATION_SEGMENTS.map((seg) => {
+          const alignedScale = liveAlignedPct / BASE_FRAGMENTATION_ALIGNED_TOTAL;
+          const distractedScale = liveDistractedPct / BASE_FRAGMENTATION_DISTRACTED_TOTAL;
+          const scaledWidth =
+            seg.kind === "aligned"
+              ? seg.width * alignedScale
+              : seg.width * distractedScale;
+
+          return {
+            kind: seg.kind,
+            widthPercent: scaledWidth
+          };
+        })
+      : [];
 
   const startSession = async (): Promise<void> => {
     setBusy(true);
@@ -233,29 +320,109 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
 
   return (
     <section className="card">
-      <h2>{compact ? "Start a task" : "Current Focus Session"}</h2>
+      {showingActive ? (
+        <div className="preview-card-header">
+          <span className="preview-title">Current Focus Session</span>
+          <span className={`preview-pill ${pillClass}`}>{pillLabel}</span>
+        </div>
+      ) : (
+        <h2>{compact ? "Start a task" : "Current Focus Session"}</h2>
+      )}
       {showingActive ? (
         <div className="stack">
-          <p className="muted">
-            <strong>Task:</strong> {displayTaskText}
-          </p>
-          <p className="muted">
-            <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
-          </p>
-          <p className={`status ${displayStatusClass}`}>
-            <strong>Status:</strong> {displayStatus}
-          </p>
-          {active?.currentVisit?.reason && !isPaused ? (
-            <p className="muted">{active.currentVisit.reason}</p>
-          ) : null}
-          {showDesktopContext && desktopCtx ? (
+          {active && liveSummary ? (
+            <>
+              <div className="preview-context">
+                <span className="preview-context-label">{currentLocationLabel}</span>
+                <span className="preview-context-value">{currentLocationValue}</span>
+              </div>
+
+              <div className="preview-grid">
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Task</span>
+                  <span className="preview-metric-value">{displayTaskText}</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Focus</span>
+                  <span className="preview-metric-value preview-metric-value-aligned">{liveAlignedPctRounded}%</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Focus time</span>
+                  <span className="preview-metric-value">{formatMmSs(liveAlignedSeconds)}</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Distracted time</span>
+                  <span className="preview-metric-value">{formatMmSs(liveDistractingSeconds)}</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Context switches</span>
+                  <span className="preview-metric-value">{liveSummary.distractionCount}</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Avg recovery time</span>
+                  <span className="preview-metric-value">{formatMmSs(liveSummary.contextSwitchCostSeconds)}</span>
+                </div>
+              </div>
+
+              <div
+                className="fragmentation"
+                aria-label={`Time fragmentation: ${liveAlignedPctRounded} percent aligned, ${liveDistractedPctRounded} percent distracted`}
+              >
+                <div className="fragmentation-header">
+                  <span className="fragmentation-label">Fragmentation</span>
+                </div>
+
+                <div className="fragmentation-bar" role="img" aria-label="Time fragmentation bar">
+                  {fragmentationSegments.map((seg, idx) => (
+                    <span
+                      key={`${seg.kind}-${idx}`}
+                      className={`fragmentation-segment fragmentation-segment-${seg.kind}`}
+                      style={{ width: `${seg.widthPercent}%` }}
+                    >
+                      <span className="fragmentation-sr">{seg.kind === "aligned" ? "Aligned segment" : "Distracted segment"}</span>
+                    </span>
+                  ))}
+                </div>
+
+                <div className="fragmentation-legend" aria-label="Legend">
+                  <div className="fragmentation-legend-item">
+                    <span className="fragmentation-dot fragmentation-dot-aligned" aria-hidden="true" />
+                    <span className="fragmentation-legend-text">Aligned {liveAlignedPctRounded}%</span>
+                  </div>
+                  <div className="fragmentation-legend-item">
+                    <span className="fragmentation-dot fragmentation-dot-distracted" aria-hidden="true" />
+                    <span className="fragmentation-legend-text">Distracted {liveDistractedPctRounded}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {aiReasonText ? (
+                <div className="status-line">
+                  <span
+                    className={`status-accent ${
+                      displayStatusClass === "distracting" ? "status-accent-distracting" : displayStatusClass === "aligned" ? "status-accent-aligned" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <p className="status-text">
+                    <strong>AI Reason:</strong> {aiReasonText}
+                  </p>
+                </div>
+              ) : null}
+            </>
+          ) : (
             <>
               <p className="muted">
-                <strong>Desktop:</strong> {desktopCtx.processName} - {desktopCtx.windowTitle}
+                <strong>Task:</strong> {displayTaskText}
               </p>
-              {desktopCtx.reason ? <p className="muted">{desktopCtx.reason}</p> : null}
+              <p className="muted">
+                <strong>Elapsed:</strong> {formatSeconds(elapsedSeconds)}
+              </p>
+              <p className={`status ${displayStatusClass}`}>
+                <strong>Status:</strong> {displayStatus}
+              </p>
             </>
-          ) : null}
+          )}
           <div className="actions-row">
             {isPaused ? (
               <button disabled={busy} onClick={() => void resumeSession()}>
@@ -270,26 +437,6 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
               End Task
             </button>
           </div>
-
-          {active && liveSummary ? (
-            <div className="popup-summary" style={{ marginTop: 8 }}>
-              <MiniFocusGauge percentage={liveSummary.focusPercentage} />
-              <div className="popup-summary-metrics">
-                <p className="popup-metric">
-                  <span className="popup-metric-label">Focus</span>
-                  <span className="popup-metric-value">{liveSummary.focusPercentage.toFixed(0)}%</span>
-                </p>
-                <p className="popup-metric">
-                  <span className="popup-metric-label">Distractions</span>
-                  <span className="popup-metric-value">{liveSummary.distractionCount}</span>
-                </p>
-                <p className="popup-metric">
-                  <span className="popup-metric-label">Avg switch cost</span>
-                  <span className="popup-metric-value">{formatSeconds(liveSummary.contextSwitchCostSeconds)}</span>
-                </p>
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : (
         <div className="stack">

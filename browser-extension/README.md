@@ -10,6 +10,8 @@ Standalone Chrome/Edge extension implementing:
 - daily analytics for today / last 7 days / last 30 days,
 - user-managed OpenAI API key and excluded domains.
 
+The popup/sidepanel live “Current Focus Session” block follows the same design as the landing-page preview.
+
 ## Development
 
 ```bash

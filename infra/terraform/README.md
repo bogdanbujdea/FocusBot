@@ -24,17 +24,17 @@ This directory contains Terraform configuration for deploying the Foqus WebAPI t
 Terraform state is stored in an Azure Storage Account. Create it once:
 
 ```bash
-az group create --name focusbot-tfstate --location westeurope
+az group create --name foqusbot-tfstate --location westeurope
 
 az storage account create \
-  --name focusbottfstate \
-  --resource-group focusbot-tfstate \
+  --name foqusbottfstate \
+  --resource-group foqusbot-tfstate \
   --location westeurope \
   --sku Standard_LRS
 
 az storage container create \
   --name tfstate \
-  --account-name focusbottfstate
+  --account-name foqusbottfstate
 ```
 
 ## 2 — Configure variables
