@@ -6,6 +6,7 @@ terraform {
     }
     cloudflare = {
       source = "cloudflare/cloudflare"
+      version = "~> 5"
     }
     azapi = {
       source = "azure/azapi"
@@ -70,6 +71,22 @@ resource "azurerm_container_app_environment" "main" {
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
 }
 
+# ── Managed identity for ACR image pulls ───────────────────────────────────
+#
+# Container Apps need ACR pull permissions to provision the app revision.
+# Using a managed identity avoids baking ACR admin credentials into the app config.
+resource "azurerm_user_assigned_identity" "container_app_acr_pull" {
+  name                = "focusbot-acr-pull-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location           = azurerm_resource_group.main.location
+}
+
+resource "azurerm_role_assignment" "container_app_acr_pull" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.container_app_acr_pull.principal_id
+}
+
 # ── Container App ──────────────────────────────────────────────────────────
 
 resource "azurerm_container_app" "api" {
@@ -77,6 +94,18 @@ resource "azurerm_container_app" "api" {
   resource_group_name          = azurerm_resource_group.main.name
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
+
+  depends_on = [azurerm_role_assignment.container_app_acr_pull]
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.container_app_acr_pull.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.container_app_acr_pull.id
+  }
 
   template {
     min_replicas = 0
@@ -154,7 +183,7 @@ resource "azurerm_static_web_app" "website" {
   sku_size = var.static_web_app_sku
 }
 
-resource "cloudflare_record" "website_cname" {
+resource "cloudflare_dns_record" "website_cname" {
   zone_id = var.cloudflare_zone_id
   name    = "@"
   content = azurerm_static_web_app.website.default_host_name
@@ -166,9 +195,23 @@ resource "cloudflare_record" "website_cname" {
 resource "azurerm_static_web_app_custom_domain" "root" {
   static_web_app_id = azurerm_static_web_app.website.id
   domain_name       = var.domain_name
-  validation_type   = "cname-delegation"
+  validation_type   = "dns-txt-token"
 
-  depends_on = [cloudflare_record.website_cname]
+  depends_on = [cloudflare_dns_record.website_cname]
+}
+
+# Azure Static Web Apps apex-domain TXT validation token.
+#
+# For root domains validated using dns-txt-token, Azure expects a TXT record
+# with the host prefix `_dnsauth` and the value provided by the Azure
+# custom domain binding.
+resource "cloudflare_dns_record" "website_txt" {
+  zone_id  = var.cloudflare_zone_id
+  name     = "_dnsauth"
+  content  = azurerm_static_web_app_custom_domain.root.validation_token
+  type     = "TXT"
+  proxied  = false
+  ttl      = 1
 }
 
 # ── Container App Custom Domain (api.foqus.me) ─────────────────────────────
@@ -183,10 +226,10 @@ data "azapi_resource" "container_app_custom_domain_verification_id" {
 }
 
 locals {
-  api_custom_domain_verification_id = jsondecode(data.azapi_resource.container_app_custom_domain_verification_id.output).properties.customDomainConfiguration.customDomainVerificationId
+  api_custom_domain_verification_id = data.azapi_resource.container_app_custom_domain_verification_id.output.properties.customDomainConfiguration.customDomainVerificationId
 }
 
-resource "cloudflare_record" "api_cname" {
+resource "cloudflare_dns_record" "api_cname" {
   zone_id = var.cloudflare_zone_id
   name    = "api"
   content = azurerm_container_app.api.ingress[0].fqdn
@@ -195,7 +238,7 @@ resource "cloudflare_record" "api_cname" {
   ttl     = 1
 }
 
-resource "cloudflare_record" "api_txt" {
+resource "cloudflare_dns_record" "api_txt" {
   zone_id = var.cloudflare_zone_id
   name    = "asuid.api"
   content = local.api_custom_domain_verification_id
@@ -206,7 +249,7 @@ resource "cloudflare_record" "api_txt" {
 
 resource "time_sleep" "api_dns_propagation" {
   create_duration = "60s"
-  depends_on      = [cloudflare_record.api_cname, cloudflare_record.api_txt]
+  depends_on      = [cloudflare_dns_record.api_cname, cloudflare_dns_record.api_txt]
 }
 
 # Step 1: register the hostname in the container app environment (Disabled binding)
@@ -215,7 +258,7 @@ resource "azapi_update_resource" "api_custom_domain_disabled" {
   resource_id = azurerm_container_app.api.id
   depends_on  = [time_sleep.api_dns_propagation]
 
-  body = jsonencode({
+  body = {
     properties = {
       configuration = {
         ingress = {
@@ -228,7 +271,7 @@ resource "azapi_update_resource" "api_custom_domain_disabled" {
         }
       }
     }
-  })
+  }
 }
 
 # Step 2: create a managed certificate for the hostname
@@ -240,12 +283,12 @@ resource "azapi_resource" "api_managed_certificate" {
 
   depends_on = [azapi_update_resource.api_custom_domain_disabled]
 
-  body = jsonencode({
+  body = {
     properties = {
       subjectName             = local.api_domain
       domainControlValidation = "CNAME"
     }
-  })
+  }
 }
 
 # Step 3: bind the hostname to the managed certificate (SNI enabled)
@@ -254,7 +297,7 @@ resource "azapi_update_resource" "api_custom_domain_binding" {
   resource_id = azurerm_container_app.api.id
   depends_on  = [azapi_resource.api_managed_certificate]
 
-  body = jsonencode({
+  body = {
     properties = {
       configuration = {
         ingress = {
@@ -262,13 +305,14 @@ resource "azapi_update_resource" "api_custom_domain_binding" {
             {
               bindingType   = "SniEnabled"
               name          = local.api_domain
-              certificateId = jsondecode(azapi_resource.api_managed_certificate.output).id
+              # azapi_resource.*.output is already an object; jsondecode() expects a string.
+              certificateId = azapi_resource.api_managed_certificate.output.id
             }
           ]
         }
       }
     }
-  })
+  }
 }
 
 # ── PostgreSQL Flexible Server ─────────────────────────────────────────────
@@ -276,7 +320,7 @@ resource "azapi_update_resource" "api_custom_domain_binding" {
 resource "azurerm_postgresql_flexible_server" "main" {
   name                          = "focusbot-pg-${var.environment}"
   resource_group_name           = azurerm_resource_group.main.name
-  location                      = azurerm_resource_group.main.location
+  location                      = var.postgresql_location
   version                       = "16"
   administrator_login           = "focusadmin"
   administrator_password        = var.postgresql_admin_password

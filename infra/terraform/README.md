@@ -55,7 +55,9 @@ terraform apply # provision resources
 
 ## 4 — Post-deployment steps
 
-1. **Push the Docker image** to the ACR login server shown in `terraform output acr_login_server`.
+1. **Push the Docker image** to the ACR login server shown in `terraform output acr_login_server` before running `terraform apply`.
+   - The Container App provisions a revision during `apply`, and it must be able to pull the image immediately.
+   - The Container App pulls that image using a managed identity with `AcrPull` permissions (so you do not need to configure ACR admin credentials on the app itself).
 2. **Run EF Core migrations** — the API applies pending migrations on startup, but you may also run them manually:
 
    ```bash

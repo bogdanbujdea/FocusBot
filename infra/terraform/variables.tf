@@ -7,7 +7,16 @@ variable "resource_group_name" {
 variable "location" {
   description = "Azure region for all resources"
   type        = string
+  # Match current deployed production locations to avoid Terraform
+  # replacing/destroying resources when CI doesn't pass this variable.
   default     = "westeurope"
+}
+
+variable "postgresql_location" {
+  description = "Azure region for PostgreSQL Flexible Server (can differ from `location`)"
+  type        = string
+  # Match current deployed production locations to avoid replacements.
+  default     = "northeurope"
 }
 
 variable "environment" {
