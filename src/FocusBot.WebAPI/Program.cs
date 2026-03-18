@@ -3,13 +3,16 @@ using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
 using FocusBot.WebAPI.Features.Sessions;
 using FocusBot.WebAPI.Features.Subscriptions;
+using FocusBot.WebAPI.Features.Waitlist;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +71,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Rate limiting ───────────────────────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("Waitlist", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+});
+
 // ── OpenAPI ─────────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi(options =>
 {
@@ -103,9 +124,24 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
 builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<WaitlistService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
+
+builder.Services.AddHttpClient(WaitlistService.HttpClientName, (sp, client) =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var apiKey = configuration["MailerLite:ApiKey"];
+
+    client.BaseAddress = new Uri("https://connect.mailerlite.com/api/");
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+
+    if (!string.IsNullOrWhiteSpace(apiKey))
+    {
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+    }
+});
 
 var app = builder.Build();
 
@@ -122,6 +158,8 @@ app.UseStaticFiles();
 
 app.UseCors("Frontend");
 
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -132,6 +170,7 @@ app.MapAuthEndpoints();
 app.MapSessionEndpoints();
 app.MapClassificationEndpoints();
 app.MapSubscriptionEndpoints();
+app.MapWaitlistEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────
 if (!app.Environment.IsEnvironment("Testing"))

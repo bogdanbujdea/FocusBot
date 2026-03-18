@@ -40,14 +40,48 @@ function App() {
   const emailId = useId();
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => email.trim().length > 3 && email.includes("@"), [email]);
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!canSubmit) return;
-    setSubmittedEmail(email.trim());
-    setEmail("");
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const normalizedEmail = email.trim();
+
+    try {
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const company = String(formData.get("company") ?? "");
+
+      const apiBase = import.meta.env.VITE_FOQUS_API_BASE as string | undefined;
+      const endpoint = `${apiBase ?? ""}/api/waitlist`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail, company })
+      });
+
+      if (!response.ok) {
+        setSubmitError("Could not join the waitlist right now. Please try again in a moment.");
+        return;
+      }
+
+      setSubmittedEmail(normalizedEmail);
+      setEmail("");
+      form.reset();
+    } catch {
+      setSubmitError("Could not join the waitlist right now. Please try again in a moment.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -207,30 +241,6 @@ function App() {
           </div>
         </section>
 
-        <section className="landing-section landing-section-band" aria-labelledby="blocks-fail-title">
-          <div className="landing-section-header">
-            <h2 id="blocks-fail-title">Why deep work blocks fail</h2>
-            <p className="muted">The problem is not effort. It’s invisible slippage.</p>
-            <p className="muted">Foqus catches drift early, before a 90-minute block turns into 20 minutes of real work.</p>
-          </div>
-          <div className="blocks-fail-content">
-            <ol className="timeline">
-              <li className="timeline-item">
-                <p className="timeline-text">You start with one task</p>
-              </li>
-              <li className="timeline-item">
-                <p className="timeline-text">Small detours feel harmless</p>
-              </li>
-              <li className="timeline-item">
-                <p className="timeline-text">The block becomes fragmented</p>
-              </li>
-              <li className="timeline-item">
-                <p className="timeline-text">Getting back on track takes longer than it should</p>
-              </li>
-            </ol>
-          </div>
-        </section>
-
         <section className="landing-section" aria-labelledby="not-timer-title">
           <div className="landing-section-header">
             <h2 id="not-timer-title">Not another pomodoro timer</h2>
@@ -324,15 +334,29 @@ function App() {
                   placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
                 />
-                <button type="submit" disabled={!canSubmit}>
-                  Get early access
+                <input
+                  className="waitlist-honeypot"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  autoComplete="off"
+                  name="company"
+                  type="text"
+                  defaultValue=""
+                />
+                <button type="submit" disabled={!canSubmit || isSubmitting}>
+                  {isSubmitting ? "Joining..." : "Get early access"}
                 </button>
               </div>
               <p className="trust-note muted">One email when it launches. No spam.</p>
               {submittedEmail ? (
                 <p className="muted" role="status">
-                  Added <strong>{submittedEmail}</strong>. We’ll be in touch.
+                  Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
+                </p>
+              ) : submitError ? (
+                <p className="muted" role="status">
+                  {submitError}
                 </p>
               ) : (
                 <p className="muted" role="status">

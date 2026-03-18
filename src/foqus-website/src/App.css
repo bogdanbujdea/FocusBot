@@ -463,25 +463,6 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.landing-section-band {
-  position: relative;
-}
-
-.landing-section-band::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(900px 520px at 10% 30%, rgba(54, 92, 255, 0.12) 0%, rgba(54, 92, 255, 0) 60%),
-    radial-gradient(900px 520px at 90% 70%, rgba(45, 184, 113, 0.08) 0%, rgba(45, 184, 113, 0) 62%);
-  opacity: 0.75;
-}
-
-.landing-section-band > * {
-  position: relative;
-  z-index: 1;
-}
-
 .landing-section-header {
   display: grid;
   gap: 6px;
@@ -591,60 +572,6 @@
   gap: 10px;
 }
 
-.blocks-fail-content {
-  max-width: 860px;
-  margin: 0 auto;
-}
-
-.timeline {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-  position: relative;
-}
-
-.timeline::before {
-  content: "";
-  position: absolute;
-  left: 14px;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.timeline-item {
-  position: relative;
-  padding-left: 34px;
-  background: var(--fb-surface-1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--fb-radius-lg);
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-right: 14px;
-}
-
-.timeline-item::before {
-  content: "";
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(54, 92, 255, 0.95);
-  box-shadow: 0 0 0 4px rgba(54, 92, 255, 0.15);
-}
-
-.timeline-text {
-  margin: 0;
-  color: rgba(231, 236, 255, 0.82);
-  font-weight: 700;
-}
-
 
 .role-grid {
   display: flex;
@@ -748,6 +675,16 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
+}
+
+.waitlist-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 input {

@@ -24,6 +24,8 @@ services:
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Database=focusbot;Username=focusbot;Password=focusbot_dev"
       Supabase__Url: "https://mokjfxtnqmudypnukqsv.supabase.co"
+      MailerLite__ApiKey: ${MAILERLITE_API_KEY}
+      MailerLite__WaitlistGroupId: ${MAILERLITE_WAITLIST_GROUP_ID}
       ASPNETCORE_ENVIRONMENT: Development
     depends_on:
       postgres:
