@@ -60,8 +60,10 @@ function App() {
       const formData = new FormData(form);
       const company = String(formData.get("company") ?? "");
 
-      const apiBase = import.meta.env.VITE_FOQUS_API_BASE as string | undefined;
-      const endpoint = `${apiBase ?? ""}/api/waitlist`;
+      // Production safety net: if the build-time env var is missing, default to the deployed API host.
+      // In dev, prefer relative URLs unless explicitly configured.
+      const apiBase = (import.meta.env.VITE_FOQUS_API_BASE as string | undefined) ?? (import.meta.env.PROD ? "https://api.foqus.me" : "");
+      const endpoint = `${apiBase}/api/waitlist`;
 
       const response = await fetch(endpoint, {
         method: "POST",
