@@ -8,6 +8,11 @@ output "acr_login_server" {
   value       = azurerm_container_registry.acr.login_server
 }
 
+output "acr_name" {
+  description = "ACR resource name for `az acr login --name`"
+  value       = azurerm_container_registry.acr.name
+}
+
 output "resource_group_name" {
   description = "Name of the deployed resource group"
   value       = azurerm_resource_group.main.name

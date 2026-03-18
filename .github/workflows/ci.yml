@@ -31,6 +31,8 @@ jobs:
     environment: production
     outputs:
       swa_api_key: ${{ steps.swa_token.outputs.swa_api_key }}
+      acr_login_server: ${{ steps.swa_token.outputs.acr_login_server }}
+      acr_name: ${{ steps.swa_token.outputs.acr_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -71,7 +73,10 @@ jobs:
       - name: Capture SWA API token
         working-directory: infra/terraform
         id: swa_token
-        run: echo "swa_api_key=$(terraform output -raw static_web_app_api_key)" >> $GITHUB_OUTPUT
+        run: |
+          echo "swa_api_key=$(terraform output -raw static_web_app_api_key)" >> $GITHUB_OUTPUT
+          echo "acr_login_server=$(terraform output -raw acr_login_server)" >> $GITHUB_OUTPUT
+          echo "acr_name=$(terraform output -raw acr_name)" >> $GITHUB_OUTPUT
 
   deploy-backend:
     needs: terraform_infra
@@ -87,12 +92,12 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Login to ACR
-        run: az acr login --name ${{ vars.ACR_NAME }}
+        run: az acr login --name ${{ needs.terraform_infra.outputs.acr_name }}
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ vars.ACR_LOGIN_SERVER }}/focusbot-api:${{ github.sha }} -f src/FocusBot.WebAPI/Dockerfile .
-          docker push ${{ vars.ACR_LOGIN_SERVER }}/focusbot-api:${{ github.sha }}
+          docker build -t ${{ needs.terraform_infra.outputs.acr_login_server }}/focusbot-api:${{ github.sha }} -f src/FocusBot.WebAPI/Dockerfile .
+          docker push ${{ needs.terraform_infra.outputs.acr_login_server }}/focusbot-api:${{ github.sha }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
