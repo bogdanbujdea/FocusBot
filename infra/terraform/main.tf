@@ -252,36 +252,14 @@ resource "time_sleep" "api_dns_propagation" {
   depends_on      = [cloudflare_dns_record.api_cname, cloudflare_dns_record.api_txt]
 }
 
-# Step 1: register the hostname in the container app environment (Disabled binding)
-resource "azapi_update_resource" "api_custom_domain_disabled" {
-  type        = "Microsoft.App/containerApps@2023-05-01"
-  resource_id = azurerm_container_app.api.id
-  depends_on  = [time_sleep.api_dns_propagation]
-
-  body = {
-    properties = {
-      configuration = {
-        ingress = {
-          customDomains = [
-            {
-              bindingType = "Disabled"
-              name        = local.api_domain
-            }
-          ]
-        }
-      }
-    }
-  }
-}
-
-# Step 2: create a managed certificate for the hostname
+# Step 1: create a managed certificate for the hostname
 resource "azapi_resource" "api_managed_certificate" {
   type      = "Microsoft.App/ManagedEnvironments/managedCertificates@2023-05-01"
   name      = "api-${var.environment}-cert"
   parent_id = azurerm_container_app_environment.main.id
   location  = azurerm_resource_group.main.location
 
-  depends_on = [azapi_update_resource.api_custom_domain_disabled]
+  depends_on = [time_sleep.api_dns_propagation]
 
   body = {
     properties = {
