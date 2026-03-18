@@ -79,7 +79,7 @@ jobs:
           echo "acr_name=$(terraform output -raw acr_name)" >> $GITHUB_OUTPUT
 
   deploy-backend:
-    needs: terraform_infra
+    needs: [terraform_infra, deploy-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -129,7 +129,7 @@ jobs:
           TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
   deploy-frontend:
-    needs: deploy-backend
+    needs: terraform_infra
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -144,8 +144,8 @@ jobs:
         id: idtoken
         with:
           script: |
-            const core = require('@actions/core')
-            return core.getIDToken()
+            const actionsCore = require('@actions/core')
+            return actionsCore.getIDToken()
           result-encoding: string
 
       - name: Build And Deploy
