@@ -39,6 +39,8 @@ The backend must be configured to call MailerLite server-side:
 - `MailerLite:ApiKey`: MailerLite API token (Bearer token)
 - `MailerLite:WaitlistGroupId`: MailerLite Group ID to add subscribers to
 
+Production: Terraform sets `MailerLite__ApiKey` and `MailerLite__WaitlistGroupId` on the API container; CI passes `MAILERLITE_WAITLIST_GROUP_ID` (GitHub variable) as `TF_VAR_mailerlite_waitlist_group_id`.
+
 The backend upserts subscribers using MailerLite’s API docs: [Subscribers](https://developers.mailerlite.com/docs/subscribers.html).
 
 ### Double opt-in for API signups
