@@ -85,6 +85,32 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
+    public async Task<ApiSessionResponse?> GetActiveSessionAsync()
+    {
+        try
+        {
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Get, "/sessions/active");
+            if (request is null) return null;
+
+            var response = await _httpClient.SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return null;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("GetActiveSession failed: {StatusCode}", response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetActiveSession request failed");
+            return null;
+        }
+    }
+
     public async Task<ApiClassifyResponse?> ClassifyAsync(ClassifyPayload payload, string? byokApiKey = null)
     {
         try

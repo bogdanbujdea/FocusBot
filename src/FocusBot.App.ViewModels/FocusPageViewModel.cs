@@ -290,93 +290,6 @@ public partial class FocusPageViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    public int TodayFocusScoreBucket
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public string TodayDateLabel
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public double TodayFocusedPercent
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public double TodayUnclearPercent
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public double TodayDistractedPercent
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public string TodayFocusedPercentText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "0% focused";
-
-    public string TodayFocusedTimeText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "00:00:00";
-
-    public string TodayDistractedTimeText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "00:00:00";
-
-    public int TodayDistractionCount
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public string TodayAverageDistractionCostText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "—";
-
-    public string TodayMostPopularDistractionAppText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "—";
-
-    public string TodayLongestFocusedSessionText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "—";
-
-    public bool HasTodayAnalytics
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public bool ShowTodayFocusScoreChip =>
-        HasTodayAnalytics && IsAiConfigured && TodayFocusScoreBucket > 0;
-
-    public bool IsAnalyticsExpanded
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = true;
-
     public bool IsExtensionConnected
     {
         get;
@@ -779,7 +692,9 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowCheckingMessage));
         RefreshDisplayInProgressTasks();
         await RefreshAiSettingsAsync();
-        await RefreshTodaySummaryAsync();
+
+        // Sync backend session state so EndTask can close it properly
+        await SyncBackendSessionAsync();
     }
 
     /// <summary>
@@ -840,15 +755,8 @@ public partial class FocusPageViewModel : ObservableObject
             AiRequestError = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
     }
 
-
-    private Task RefreshTodaySummaryAsync() => Task.CompletedTask;
-
-
-    [RelayCommand]
-    private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
 
     [RelayCommand(CanExecute = nameof(CanStartTask))]
     private async Task StartTaskAsync()
@@ -930,8 +838,6 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(ShowCheckingMessage));
         RefreshDisplayInProgressTasks();
-
-        await RefreshTodaySummaryAsync();
 
         if (_integrationService?.IsExtensionConnected == true)
         {
@@ -1060,7 +966,47 @@ public partial class FocusPageViewModel : ObservableObject
         var payload = new StartSessionPayload(task.Description, task.Context, deviceId);
         var response = await _apiClient.StartSessionAsync(payload);
         if (response is not null)
+        {
             _backendSessionId = response.Id;
+            return;
+        }
+
+        // StartSession failed — likely 409 Conflict (active session already exists).
+        // End the stale session and retry creating a new one for the current task.
+        var staleSession = await _apiClient.GetActiveSessionAsync();
+        if (staleSession is null)
+            return; // No active session found, nothing more we can do
+
+        // End the stale session with empty metrics (user is abandoning it)
+        var abandonPayload = new EndSessionPayload(
+            FocusScorePercent: 0,
+            FocusedSeconds: 0,
+            DistractedSeconds: 0,
+            DistractionCount: 0,
+            ContextSwitchCount: 0,
+            TopDistractingApps: null,
+            TopAlignedApps: null,
+            DeviceId: deviceId);
+        await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
+
+        // Retry starting the new session
+        var retryResponse = await _apiClient.StartSessionAsync(payload);
+        if (retryResponse is not null)
+            _backendSessionId = retryResponse.Id;
+    }
+
+    /// <summary>
+    /// Syncs the backend session state on startup. If an active session exists on the backend,
+    /// adopts it so that EndTask can properly close it.
+    /// </summary>
+    private async Task SyncBackendSessionAsync()
+    {
+        if (!_apiClient.IsConfigured)
+            return;
+
+        var activeSession = await _apiClient.GetActiveSessionAsync();
+        if (activeSession is not null)
+            _backendSessionId = activeSession.Id;
     }
 
     private bool HasActiveTask() => InProgressTasks.Count > 0;
