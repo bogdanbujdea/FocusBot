@@ -20,10 +20,11 @@ public class SubscriptionService(ApiDbContext db)
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
-            return new SubscriptionStatusResponse("none", null, null);
+            return new SubscriptionStatusResponse("none", Data.Entities.PlanType.FreeBYOK, null, null);
 
         return new SubscriptionStatusResponse(
             subscription.Status,
+            subscription.PlanType,
             subscription.TrialEndsAtUtc,
             subscription.CurrentPeriodEndsAtUtc);
     }

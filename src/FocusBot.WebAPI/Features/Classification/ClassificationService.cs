@@ -40,9 +40,11 @@ public class ClassificationService(
         Respond with valid JSON only: {"score": N, "reason": "brief explanation"}
 
         Score guidelines (1-10):
-        - 10: Directly executing the task or on a resource explicitly mentioned in context
-        - 5: Possibly related but connection is unclear
-        - 1: Clearly un-related work to that task
+        - 9-10: Directly executing the task or on a resource explicitly mentioned in context
+        - 7-8: Strongly supports the task (related tools, reference material, research directly relevant to the task)
+        - 5-6: Possibly related but connection is unclear
+        - 3-4: Unlikely to be related to the task
+        - 1-2: Clearly off-task (entertainment, social media, or work unrelated to the task)
         """;
 
     /// <summary>
@@ -121,6 +123,39 @@ public class ClassificationService(
         return (managedKey, DefaultProviderId, DefaultModelId);
     }
 
+    /// <summary>
+    /// Validates a BYOK API key by making a minimal test request to the chosen provider.
+    /// Returns a structured result without throwing.
+    /// </summary>
+    public async Task<ValidateKeyResponse> ValidateKeyAsync(
+        string providerId, string modelId, string apiKey, CancellationToken ct = default)
+    {
+        try
+        {
+            var provider = MapProvider(providerId);
+            var api = new TornadoApi(provider, apiKey);
+
+            var response = await api
+                .Chat.CreateConversation(modelId)
+                .AppendUserInput("Ping")
+                .GetResponse(ct);
+
+            return new ValidateKeyResponse(Valid: true, Error: null);
+        }
+        catch (Exception ex) when (IsInvalidKeyException(ex))
+        {
+            return new ValidateKeyResponse(Valid: false, Error: "invalid_key");
+        }
+        catch (Exception ex) when (IsRateLimitException(ex))
+        {
+            return new ValidateKeyResponse(Valid: false, Error: "rate_limited");
+        }
+        catch (Exception)
+        {
+            return new ValidateKeyResponse(Valid: false, Error: "provider_unavailable");
+        }
+    }
+
     protected virtual async Task<ClassifyResponse> CallLlmAsync(
         string apiKey,
         string providerId,
@@ -132,17 +167,43 @@ public class ClassificationService(
         var provider = MapProvider(providerId);
         var api = new TornadoApi(provider, apiKey);
 
-        var response = await api
-            .Chat.CreateConversation(modelId)
-            .AppendSystemMessage(SystemPrompt)
-            .AppendUserInput(userMessage)
-            .GetResponse(ct);
+        try
+        {
+            var response = await api
+                .Chat.CreateConversation(modelId)
+                .AppendSystemMessage(SystemPrompt)
+                .AppendUserInput(userMessage)
+                .GetResponse(ct);
 
-        if (string.IsNullOrWhiteSpace(response))
-            throw new InvalidOperationException("LLM returned an empty response.");
+            if (string.IsNullOrWhiteSpace(response))
+                throw new InvalidOperationException("LLM returned an empty response.");
 
-        return ParseLlmResponse(response);
+            return ParseLlmResponse(response);
+        }
+        catch (Exception ex) when (IsInvalidKeyException(ex))
+        {
+            throw new ClassificationProviderException(ClassificationErrorCode.InvalidKey, "The API key is invalid or has been revoked.", ex);
+        }
+        catch (Exception ex) when (IsRateLimitException(ex))
+        {
+            throw new ClassificationProviderException(ClassificationErrorCode.RateLimited, "The LLM provider rate limit has been reached. Please try again later.", ex);
+        }
+        catch (Exception ex) when (ex is not ClassificationProviderException && ex is not OperationCanceledException)
+        {
+            throw new ClassificationProviderException(ClassificationErrorCode.ProviderUnavailable, $"The LLM provider is currently unavailable: {ex.Message}", ex);
+        }
     }
+
+    private static bool IsInvalidKeyException(Exception ex) =>
+        ex.Message.Contains("401", StringComparison.Ordinal) ||
+        ex.Message.Contains("invalid_api_key", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("authentication", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRateLimitException(Exception ex) =>
+        ex.Message.Contains("429", StringComparison.Ordinal) ||
+        ex.Message.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase);
 
     private static string BuildUserMessage(ClassifyRequest request)
     {

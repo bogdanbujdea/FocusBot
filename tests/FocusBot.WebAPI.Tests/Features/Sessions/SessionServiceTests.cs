@@ -21,7 +21,7 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var service = new SessionService(db);
         var userId = Guid.NewGuid();
-        var request = new StartSessionRequest("Write tests", "Unit tests only");
+        var request = new StartSessionRequest("Write tests", "Unit tests only", DeviceId: null);
 
         var result = await service.StartSessionAsync(userId, request);
 
@@ -46,7 +46,7 @@ public class SessionServiceTests
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
-        var result = await service.StartSessionAsync(userId, new StartSessionRequest("New session", null));
+        var result = await service.StartSessionAsync(userId, new StartSessionRequest("New session", null, DeviceId: null));
 
         result.StatusCode.Should().Be(409);
         result.Error.Should().Contain("active session");
@@ -68,7 +68,15 @@ public class SessionServiceTests
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
-        var endRequest = new EndSessionRequest(85, 2400, 300, 5, 120, "[\"Slack\"]");
+        var endRequest = new EndSessionRequest(
+            FocusScorePercent: 85,
+            FocusedSeconds: 2400,
+            DistractedSeconds: 300,
+            DistractionCount: 5,
+            ContextSwitchCount: 120,
+            TopDistractingApps: "[\"Slack\"]",
+            TopAlignedApps: null,
+            DeviceId: null);
 
         var result = await service.EndSessionAsync(userId, sessionId, endRequest);
 
@@ -79,7 +87,7 @@ public class SessionServiceTests
         result.Session.FocusedSeconds.Should().Be(2400);
         result.Session.DistractedSeconds.Should().Be(300);
         result.Session.DistractionCount.Should().Be(5);
-        result.Session.ContextSwitchCostSeconds.Should().Be(120);
+        result.Session.ContextSwitchCount.Should().Be(120);
         result.Session.TopDistractingApps.Should().Be("[\"Slack\"]");
     }
 

@@ -23,6 +23,7 @@ public class SessionService(ApiDbContext db)
             UserId = userId,
             TaskText = request.TaskText,
             TaskHints = request.TaskHints,
+            DeviceId = request.DeviceId,
             StartedAtUtc = DateTime.UtcNow,
             Source = "api"
         };
@@ -50,8 +51,12 @@ public class SessionService(ApiDbContext db)
         session.FocusedSeconds = request.FocusedSeconds;
         session.DistractedSeconds = request.DistractedSeconds;
         session.DistractionCount = request.DistractionCount;
-        session.ContextSwitchCostSeconds = request.ContextSwitchCostSeconds;
+        session.ContextSwitchCount = request.ContextSwitchCount;
         session.TopDistractingApps = request.TopDistractingApps;
+        session.TopAlignedApps = request.TopAlignedApps;
+
+        if (request.DeviceId.HasValue)
+            session.DeviceId = request.DeviceId;
 
         await db.SaveChangesAsync(ct);
         return SessionResult.Success(ToResponse(session));
@@ -90,10 +95,10 @@ public class SessionService(ApiDbContext db)
             .FirstOrDefaultAsync(ct);
 
     private static SessionResponse ToResponse(Session s) =>
-        new(s.Id, s.TaskText, s.TaskHints, s.StartedAtUtc, s.EndedAtUtc,
+        new(s.Id, s.TaskText, s.TaskHints, s.DeviceId, s.StartedAtUtc, s.EndedAtUtc,
             s.FocusScorePercent, s.FocusedSeconds, s.DistractedSeconds,
-            s.DistractionCount, s.ContextSwitchCostSeconds,
-            s.TopDistractingApps, s.Source);
+            s.DistractionCount, s.ContextSwitchCount,
+            s.TopDistractingApps, s.TopAlignedApps, s.Source);
 }
 
 /// <summary>Encapsulates the outcome of a session mutation operation.</summary>

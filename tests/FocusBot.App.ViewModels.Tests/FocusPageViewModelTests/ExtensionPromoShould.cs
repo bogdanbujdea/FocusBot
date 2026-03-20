@@ -119,15 +119,9 @@ public class ExtensionPromoShould
     {
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
-        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
-        var focusScoreMock = new Mock<IFocusScoreService>();
-        var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
-        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
@@ -137,14 +131,11 @@ public class ExtensionPromoShould
             timeTrackingMock.Object,
             idleDetectionMock.Object,
             navMock.Object,
-            llmMock.Object,
+            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            focusScoreMock.Object,
-            trialMock.Object,
-            distractionMock.Object,
-            dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object,
+            Mock.Of<ILocalSessionTracker>(),
+            Mock.Of<IAlignmentCacheRepository>(),
+            Mock.Of<IFocusBotApiClient>(),
             accountVm,
             integrationService: null,
             uiDispatcher: null);
@@ -157,15 +148,9 @@ public class ExtensionPromoShould
     {
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
-        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
         var timeTrackingMock = new Mock<ITimeTrackingService>();
         var idleDetectionMock = new Mock<IIdleDetectionService>();
-        var focusScoreMock = new Mock<IFocusScoreService>();
-        var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
-        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
@@ -175,14 +160,11 @@ public class ExtensionPromoShould
             timeTrackingMock.Object,
             idleDetectionMock.Object,
             navMock.Object,
-            llmMock.Object,
+            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            focusScoreMock.Object,
-            trialMock.Object,
-            distractionMock.Object,
-            dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object,
-            new Mock<ITaskSummaryService>().Object,
+            Mock.Of<ILocalSessionTracker>(),
+            Mock.Of<IAlignmentCacheRepository>(),
+            Mock.Of<IFocusBotApiClient>(),
             accountVm,
             integrationService,
             uiDispatcher: null);

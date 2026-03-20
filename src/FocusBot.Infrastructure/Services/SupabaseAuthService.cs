@@ -48,14 +48,21 @@ public class SupabaseAuthService : IAuthService
 
     /// <summary>
     /// The buffer time before token expiry at which a proactive refresh is triggered.
+    /// Five minutes gives enough headroom to retry across transient network failures.
     /// </summary>
-    private static readonly TimeSpan RefreshBuffer = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan RefreshBuffer = TimeSpan.FromMinutes(5);
+
+    /// <summary>Maximum number of refresh attempts before giving up and requesting re-login.</summary>
+    private const int MaxRefreshAttempts = 3;
 
     /// <inheritdoc />
     public bool IsAuthenticated => _isAuthenticated;
 
     /// <inheritdoc />
     public event Action? AuthStateChanged;
+
+    /// <inheritdoc />
+    public event Action? ReAuthRequired;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SupabaseAuthService"/> class.
@@ -191,8 +198,9 @@ public class SupabaseAuthService : IAuthService
             var refreshed = await RefreshTokenAsync();
             if (!refreshed)
             {
-                _logger.LogWarning("Proactive token refresh failed");
-                return _accessToken; // Return potentially expired token; caller handles 401.
+                _logger.LogWarning("Proactive token refresh failed after {MaxAttempts} attempts; re-auth required", MaxRefreshAttempts);
+                ReAuthRequired?.Invoke();
+                return null;
             }
         }
 
@@ -309,56 +317,74 @@ public class SupabaseAuthService : IAuthService
             return false;
         }
 
-        try
+        for (var attempt = 1; attempt <= MaxRefreshAttempts; attempt++)
         {
-            var config = await GetSupabaseConfigAsync();
-            if (config is null)
-                return false;
-
-            using var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"{config.Url}/auth/v1/token?grant_type=refresh_token"
-            );
-            request.Headers.Add("apikey", config.PublishableKey);
-            request.Content = JsonContent.Create(new { refresh_token = _refreshToken });
-
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning(
-                    "Token refresh failed: {StatusCode} {Body}",
-                    response.StatusCode,
-                    body
+                var config = await GetSupabaseConfigAsync();
+                if (config is null)
+                    return false;
+
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{config.Url}/auth/v1/token?grant_type=refresh_token"
                 );
-                return false;
-            }
+                request.Headers.Add("apikey", config.PublishableKey);
+                request.Content = JsonContent.Create(new { refresh_token = _refreshToken });
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
-            if (
-                tokenResponse is null
-                || string.IsNullOrEmpty(tokenResponse.AccessToken)
-                || string.IsNullOrEmpty(tokenResponse.RefreshToken)
-            )
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning(
+                        "Token refresh attempt {Attempt}/{Max} failed: {StatusCode} {Body}",
+                        attempt,
+                        MaxRefreshAttempts,
+                        response.StatusCode,
+                        body
+                    );
+
+                    // 4xx errors (e.g. 400 invalid_grant) are not retryable
+                    if ((int)response.StatusCode is >= 400 and < 500)
+                        return false;
+
+                    if (attempt < MaxRefreshAttempts)
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+
+                    continue;
+                }
+
+                var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
+                if (
+                    tokenResponse is null
+                    || string.IsNullOrEmpty(tokenResponse.AccessToken)
+                    || string.IsNullOrEmpty(tokenResponse.RefreshToken)
+                )
+                {
+                    _logger.LogWarning("Refresh response missing tokens on attempt {Attempt}", attempt);
+                    return false;
+                }
+
+                await StoreTokensAsync(
+                    tokenResponse.AccessToken,
+                    tokenResponse.RefreshToken,
+                    tokenResponse.ExpiresIn
+                );
+
+                _logger.LogInformation("Access token refreshed successfully on attempt {Attempt}", attempt);
+                return true;
+            }
+            catch (Exception ex)
             {
-                _logger.LogWarning("Refresh response missing tokens");
-                return false;
+                _logger.LogError(ex, "Token refresh attempt {Attempt}/{Max} threw an exception", attempt, MaxRefreshAttempts);
+
+                if (attempt < MaxRefreshAttempts)
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
             }
-
-            await StoreTokensAsync(
-                tokenResponse.AccessToken,
-                tokenResponse.RefreshToken,
-                tokenResponse.ExpiresIn
-            );
-
-            _logger.LogInformation("Access token refreshed successfully");
-            return true;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to refresh token");
-            return false;
-        }
+
+        _logger.LogError("All {Max} token refresh attempts failed", MaxRefreshAttempts);
+        return false;
     }
 
     private async Task StoreTokensAsync(

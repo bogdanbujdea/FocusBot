@@ -61,28 +61,7 @@ public partial class TaskDetailViewModel(ITaskRepository repo, INavigationServic
         OnPropertyChanged(nameof(HasContext));
         OnPropertyChanged(nameof(HasFocusScore));
 
-        await LoadWindowActivityAsync(taskId);
-    }
-
-    private async Task LoadWindowActivityAsync(string taskId)
-    {
-        WindowActivity.Clear();
-        var segments = await repo.GetFocusSegmentsForTaskAsync(taskId);
-        var sortedSegments = segments.OrderByDescending(s => s.DurationSeconds).ToList();
-
-        foreach (var segment in sortedSegments)
-        {
-            WindowActivity.Add(
-                new WindowActivityItem
-                {
-                    ProcessName = segment.ProcessName ?? "Unknown",
-                    WindowTitle = segment.WindowTitle ?? "Unknown",
-                    Duration = FormatElapsed(segment.DurationSeconds),
-                    DurationSeconds = segment.DurationSeconds,
-                    AlignmentScore = segment.AlignmentScore,
-                }
-            );
-        }
+        await Task.CompletedTask;
     }
 
     private static string FormatElapsed(long totalSeconds)

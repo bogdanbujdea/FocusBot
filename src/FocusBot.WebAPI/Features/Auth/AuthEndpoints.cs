@@ -1,3 +1,5 @@
+using FocusBot.WebAPI.Features.Subscriptions;
+
 namespace FocusBot.WebAPI.Features.Auth;
 
 /// <summary>
@@ -11,13 +13,18 @@ public static class AuthEndpoints
             .WithTags("Auth")
             .RequireAuthorization();
 
-        group.MapGet("/me", async (AuthService authService, HttpContext ctx, CancellationToken ct) =>
+        group.MapGet("/me", async (
+            AuthService authService,
+            SubscriptionService subscriptionService,
+            HttpContext ctx,
+            CancellationToken ct) =>
         {
             var user = await authService.GetOrProvisionUserAsync(ctx.User, ct);
-            return Results.Ok(new MeResponse(user.Id, user.Email, "none"));
+            var status = await subscriptionService.GetStatusAsync(user.Id, ct);
+            return Results.Ok(new MeResponse(user.Id, user.Email, status.Status, status.PlanType));
         })
         .WithName("GetMe")
-        .WithSummary("Returns the current user's profile");
+        .WithSummary("Returns the current user's profile and subscription plan");
 
         return group;
     }

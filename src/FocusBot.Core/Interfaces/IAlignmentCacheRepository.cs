@@ -9,7 +9,7 @@ public interface IAlignmentCacheRepository
 {
     Task<AlignmentCacheEntry?> GetAsync(string contextHash, string taskContentHash);
 
-    Task SaveAsync(WindowContext context, AlignmentCacheEntry entry);
+    Task SaveAsync(AlignmentCacheEntry entry);
 
     Task<int> DeleteEntriesOlderThanAsync(TimeSpan age);
 }

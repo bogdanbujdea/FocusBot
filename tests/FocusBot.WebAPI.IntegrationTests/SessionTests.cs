@@ -22,7 +22,7 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Test task", null));
+            new StartSessionRequest("Test task", null, DeviceId: null));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -39,7 +39,7 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         // Start a session
         var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Integration test task", "Some hints"));
+            new StartSessionRequest("Integration test task", "Some hints", DeviceId: null));
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -53,11 +53,19 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         // Starting another session should conflict
         var conflictResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Second task", null));
+            new StartSessionRequest("Second task", null, DeviceId: null));
         conflictResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         // End the session
-        var endRequest = new EndSessionRequest(90, 1800, 200, 3, 60, null);
+        var endRequest = new EndSessionRequest(
+            FocusScorePercent: 90,
+            FocusedSeconds: 1800,
+            DistractedSeconds: 200,
+            DistractionCount: 3,
+            ContextSwitchCount: 60,
+            TopDistractingApps: null,
+            TopAlignedApps: null,
+            DeviceId: null);
         var endResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/end", endRequest);
         endResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 

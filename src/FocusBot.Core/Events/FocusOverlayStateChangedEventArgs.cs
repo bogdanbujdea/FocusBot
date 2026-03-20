@@ -31,4 +31,19 @@ public class FocusOverlayStateChangedEventArgs : EventArgs
 
     /// <summary>Whether the task is currently paused.</summary>
     public bool IsTaskPaused { get; init; }
+
+    /// <summary>
+    /// True when a task is active but no classification result has been received yet
+    /// (waiting for the first backend response).
+    /// </summary>
+    public bool IsLoading { get; init; }
+
+    /// <summary>
+    /// True when the last classification attempt resulted in an error
+    /// (network failure, provider error, invalid key, etc.).
+    /// </summary>
+    public bool HasError { get; init; }
+
+    /// <summary>Short tooltip text describing the current overlay state.</summary>
+    public string TooltipText { get; init; } = string.Empty;
 }

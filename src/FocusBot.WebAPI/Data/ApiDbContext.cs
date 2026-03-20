@@ -12,6 +12,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<ClassificationCache> ClassificationCaches => Set<ClassificationCache>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Device> Devices => Set<Device>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasKey(s => s.Id);
             entity.Property(s => s.Id).ValueGeneratedNever();
             entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
+            entity.HasOne<Device>().WithMany().HasForeignKey(s => s.DeviceId).IsRequired(false);
             entity.HasIndex(s => s.UserId)
                 .HasFilter("\"EndedAtUtc\" IS NULL")
                 .IsUnique();
@@ -55,6 +57,18 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasIndex(s => s.UserId).IsUnique();
             entity.Property(s => s.PaddleSubscriptionId).HasMaxLength(100);
             entity.Property(s => s.Status).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<Device>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.Id).ValueGeneratedNever();
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+            entity.HasIndex(d => new { d.UserId, d.Fingerprint }).IsUnique();
+            entity.Property(d => d.Name).HasMaxLength(100);
+            entity.Property(d => d.Fingerprint).HasMaxLength(100);
+            entity.Property(d => d.AppVersion).HasMaxLength(50);
+            entity.Property(d => d.Platform).HasMaxLength(100);
         });
     }
 }

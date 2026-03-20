@@ -25,9 +25,11 @@ public sealed class FocusOverlayWindow : IDisposable
     private const int HighlightDurationMs = 3000; // 3 seconds
 
     // Theme colors (RGB format for GDI+)
-    private static readonly Color ColorFocused = Color.FromArgb(255, 0x22, 0xC5, 0x5E); // Green #22C55E
-    private static readonly Color ColorNeutral = Color.FromArgb(255, 0x8B, 0x5C, 0xF6); // Purple #8B5CF6
-    private static readonly Color ColorDistracted = Color.FromArgb(255, 0xEF, 0x44, 0x44); // Red #EF4444
+    private static readonly Color ColorFocused = Color.FromArgb(255, 0x22, 0xC5, 0x5E);    // Green  #22C55E
+    private static readonly Color ColorNeutral = Color.FromArgb(255, 0x8B, 0x5C, 0xF6);    // Purple #8B5CF6
+    private static readonly Color ColorDistracted = Color.FromArgb(255, 0xEF, 0x44, 0x44); // Red    #EF4444
+    private static readonly Color ColorLoading = Color.FromArgb(255, 0x6B, 0x72, 0x80);    // Gray   #6B7280
+    private static readonly Color ColorError = Color.FromArgb(255, 0xF9, 0x73, 0x16);      // Orange #F97316
 
     private static readonly uint WndClassAtom;
     private static readonly IntPtr HInstance;
@@ -155,7 +157,10 @@ public sealed class FocusOverlayWindow : IDisposable
         bool hasActiveTask,
         int focusScorePercent,
         FocusStatus status,
-        bool isTaskPaused = false
+        bool isTaskPaused = false,
+        bool isLoading = false,
+        bool hasError = false,
+        string tooltipText = ""
     )
     {
         _hasActiveTask = hasActiveTask;
@@ -166,15 +171,21 @@ public sealed class FocusOverlayWindow : IDisposable
             _previousStatus.HasValue && _previousStatus.Value != status && hasActiveTask;
         _previousStatus = status;
 
-        _currentColor = status switch
-        {
-            FocusStatus.Focused => ColorFocused,
-            FocusStatus.Distracted => ColorDistracted,
-            _ => ColorNeutral,
-        };
+        _currentColor = hasError ? ColorError
+            : isLoading ? ColorLoading
+            : status switch
+            {
+                FocusStatus.Focused => ColorFocused,
+                FocusStatus.Distracted => ColorDistracted,
+                _ => ColorNeutral,
+            };
+
+        // Update tray tooltip text
+        if (!string.IsNullOrEmpty(tooltipText))
+            SetWindowTextW(_hwnd, tooltipText);
 
         // If status changed, start highlight effect
-        if (statusChanged)
+        if (statusChanged && !isLoading && !hasError)
         {
             StartHighlight();
         }
@@ -532,6 +543,9 @@ public sealed class FocusOverlayWindow : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool DestroyWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool SetWindowTextW(IntPtr hWnd, string lpString);
 
     [DllImport("user32.dll")]
     private static extern bool UpdateLayeredWindow(

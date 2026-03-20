@@ -45,4 +45,9 @@ public interface IAuthService
     /// Raised when the authentication state changes (sign-in, sign-out, or token refresh).
     /// </summary>
     event Action? AuthStateChanged;
+
+    /// <summary>
+    /// Raised when the refresh token is exhausted and the user must sign in again.
+    /// </summary>
+    event Action? ReAuthRequired;
 }

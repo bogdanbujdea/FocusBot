@@ -9,10 +9,24 @@ public class Subscription
     public Guid UserId { get; set; }
     public string? PaddleSubscriptionId { get; set; }
     public string? PaddleCustomerId { get; set; }
-    public string Status { get; set; } = "none"; // none, trial, active, expired, canceled
+
+    /// <summary>Billing/trial lifecycle status: none, trial, active, expired, canceled.</summary>
+    public string Status { get; set; } = "none";
+
+    /// <summary>The subscription tier the user is on.</summary>
+    public PlanType PlanType { get; set; } = PlanType.FreeBYOK;
+
     public DateTime? TrialEndsAtUtc { get; set; }
     public DateTime? CurrentPeriodEndsAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public User User { get; set; } = null!;
+}
+
+/// <summary>The three Foqus subscription tiers.</summary>
+public enum PlanType
+{
+    FreeBYOK = 0,
+    CloudBYOK = 1,
+    CloudManaged = 2,
 }

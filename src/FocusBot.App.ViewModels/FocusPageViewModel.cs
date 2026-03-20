@@ -19,14 +19,13 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly ITimeTrackingService _timeTracking;
     private readonly IIdleDetectionService _idleDetection;
     private readonly INavigationService _navigationService;
-    private readonly ILlmService _llmService;
+    private readonly IClassificationService _classificationService;
     private readonly ISettingsService _settingsService;
-    private readonly IFocusScoreService _focusScoreService;
-    private readonly ITrialService _trialService;
-    private readonly IDistractionDetectorService _distractionDetectorService;
-    private readonly IDailyAnalyticsService _dailyAnalyticsService;
+    private readonly ILocalSessionTracker _sessionTracker;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
-    private readonly ITaskSummaryService _taskSummaryService;
+    private readonly IFocusBotApiClient _apiClient;
+    private readonly IDeviceService? _deviceService;
+    private Guid? _backendSessionId;
     public AccountSettingsViewModel AccountSection { get; }
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
@@ -71,10 +70,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public event EventHandler<FocusOverlayStateChangedEventArgs>? FocusOverlayStateChanged;
 
-    /// <summary>
-    /// Raised when the trial expires while the app is running. The view shows an expiration dialog.
-    /// </summary>
-    public event EventHandler? TrialExpired;
 
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
@@ -186,7 +181,7 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     public bool IsFocusScorePercentVisible =>
-        IsMonitoring && _focusScoreService.HasRealScore && IsAiConfigured;
+        IsMonitoring && CurrentFocusScorePercent > 0 && IsAiConfigured;
 
     public string TaskElapsedTime
     {
@@ -251,31 +246,10 @@ public partial class FocusPageViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    public bool IsTrialActive
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public bool IsTrialExpired
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public DateTime? TrialEndTime
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    public string TrialTimeRemainingFormatted
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public bool ShowTrialBanner => IsTrialActive && !IsTrialExpired;
+    // Stubs for XAML binding compatibility - will be replaced in Phase 4 Plan UI
+    public bool ShowTrialBanner => false;
+    public string TrialTimeRemainingFormatted => string.Empty;
+    public DateTime? TrialEndTime => null;
 
     public bool HasCurrentFocusResult
     {
@@ -466,17 +440,15 @@ public partial class FocusPageViewModel : ObservableObject
         ITimeTrackingService timeTracking,
         IIdleDetectionService idleDetection,
         INavigationService navigationService,
-        ILlmService llmService,
+        IClassificationService classificationService,
         ISettingsService settingsService,
-        IFocusScoreService focusScoreService,
-        ITrialService trialService,
-        IDistractionDetectorService distractionDetectorService,
-        IDailyAnalyticsService dailyAnalyticsService,
+        ILocalSessionTracker sessionTracker,
         IAlignmentCacheRepository alignmentCacheRepository,
-        ITaskSummaryService taskSummaryService,
+        IFocusBotApiClient apiClient,
         AccountSettingsViewModel accountSection,
         IIntegrationService? integrationService = null,
-        IUIThreadDispatcher? uiDispatcher = null
+        IUIThreadDispatcher? uiDispatcher = null,
+        IDeviceService? deviceService = null
     )
     {
         _repo = repo;
@@ -484,18 +456,15 @@ public partial class FocusPageViewModel : ObservableObject
         _timeTracking = timeTracking;
         _idleDetection = idleDetection;
         _navigationService = navigationService;
-        _llmService = llmService;
+        _classificationService = classificationService;
         _settingsService = settingsService;
-        _focusScoreService = focusScoreService;
-        _trialService = trialService;
-        _distractionDetectorService = distractionDetectorService;
-        _dailyAnalyticsService = dailyAnalyticsService;
+        _sessionTracker = sessionTracker;
         _alignmentCacheRepository = alignmentCacheRepository;
-        _taskSummaryService = taskSummaryService;
+        _apiClient = apiClient;
         AccountSection = accountSection;
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
-        _distractionDetectorService.DistractionEventCreated += OnDistractionEventCreated;
+        _deviceService = deviceService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
@@ -532,9 +501,6 @@ public partial class FocusPageViewModel : ObservableObject
         return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
     }
 
-    private static string FormatTimeSpan(TimeSpan timeSpan) =>
-        FormatElapsed((long)timeSpan.TotalSeconds);
-
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
         if (InProgressTasks.Count == 0)
@@ -558,45 +524,17 @@ public partial class FocusPageViewModel : ObservableObject
             WindowTotalElapsedTime = FormatElapsed(total);
         }
         var taskId = InProgressTasks[0].TaskId;
-        CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
-        var status = FocusScore switch
-        {
-            >= 6 => FocusStatus.Focused,
-            >= 4 => FocusStatus.Neutral,
-            _ => FocusStatus.Distracted,
-        };
-        _ = _distractionDetectorService.OnSampleAsync(
-            taskId,
-            status,
-            CurrentProcessName,
-            CurrentWindowTitle,
-            DateTime.UtcNow
-        );
-        _ = _dailyAnalyticsService.UpdateForTickAsync(DateTime.UtcNow, status);
+        CurrentFocusScorePercent = _sessionTracker.GetFocusScore();
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();
-        _ = RefreshTodaySummaryAsync();
         _secondsSinceLastPersist++;
         if (_secondsSinceLastPersist >= PersistIntervalSeconds)
         {
             _secondsSinceLastPersist = 0;
             _ = PersistElapsedTimeAsync(taskId);
-            _ = _focusScoreService.PersistSegmentsAsync();
         }
     }
 
-    private void OnDistractionEventCreated(object? sender, DistractionEvent e)
-    {
-        if (!HasActiveTask())
-            return;
-
-        var currentTaskId = InProgressTasks[0].TaskId;
-        if (!string.Equals(e.TaskId, currentTaskId, StringComparison.Ordinal))
-            return;
-
-        LiveDistractionCount++;
-        _ = _dailyAnalyticsService.RegisterDistractionEventAsync(e);
-    }
 
     private void OnUserBecameIdle(object? sender, EventArgs e)
     {
@@ -619,7 +557,7 @@ public partial class FocusPageViewModel : ObservableObject
             _perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L)
         );
 
-        _focusScoreService.PauseCurrentSegment(_idleDetection.IdleThreshold);
+        _sessionTracker.HandleIdle(true);
         _timeTracking.Stop();
         _windowMonitor.Stop();
     }
@@ -629,6 +567,7 @@ public partial class FocusPageViewModel : ObservableObject
         if (InProgressTasks.Count == 0)
             return;
 
+        _sessionTracker.HandleIdle(false);
         _timeTracking.Start();
         _windowMonitor.Start();
     }
@@ -653,8 +592,6 @@ public partial class FocusPageViewModel : ObservableObject
                 _perWindowTotalSeconds.GetValueOrDefault(previousKey, 0) + _windowElapsedSeconds;
             _perWindowTotalSeconds[previousKey] = previousTotal;
         }
-
-        _focusScoreService.PauseCurrentSegment();
 
         CurrentProcessName = e.ProcessName;
         CurrentWindowTitle = e.WindowTitle;
@@ -735,9 +672,6 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         OnPropertyChanged(nameof(ShowCheckingMessage));
 
-        var contextHash = HashHelper.ComputeWindowContextHash(e.ProcessName, e.WindowTitle);
-        _focusScoreService.StartPendingSegment(taskId, contextHash, e.WindowTitle, e.ProcessName);
-
         if (_integrationService is { IsExtensionConnected: true })
             _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
 
@@ -774,23 +708,26 @@ public partial class FocusPageViewModel : ObservableObject
         AiRequestError = string.Empty;
         try
         {
-            var response = await _llmService.ClassifyAlignmentAsync(
-                taskDescription,
-                taskContext,
+            var result = await _classificationService.ClassifyAsync(
                 processName,
-                windowTitle
+                windowTitle,
+                taskDescription,
+                taskContext
             );
-            if (response.ErrorMessage != null)
-                AiRequestError = response.ErrorMessage;
-            if (response.Result != null)
+            if (result.IsFailure)
             {
-                FocusScore = response.Result.Score;
-                FocusReason = response.Result.Reason;
+                AiRequestError = result.Error;
+            }
+            else
+            {
+                FocusScore = result.Value.Score;
+                FocusReason = result.Value.Reason;
                 MarkOverrideButtonText =
                     FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
-                _focusScoreService.UpdatePendingSegmentScore(response.Result.Score);
+                _sessionTracker.RecordClassification(processName, result.Value);
                 AiRequestError = string.Empty;
                 HasCurrentFocusResult = true;
+                CurrentFocusScorePercent = _sessionTracker.GetFocusScore();
                 RaiseFocusOverlayStateChanged();
             }
         }
@@ -829,8 +766,8 @@ public partial class FocusPageViewModel : ObservableObject
             _perWindowTotalSeconds.Clear();
             WindowTotalElapsedTime = FormatElapsed(0);
             _secondsSinceLastPersist = 0;
-            await _focusScoreService.LoadSegmentsForTaskAsync(task.TaskId);
-            CurrentFocusScorePercent = _focusScoreService.CalculateFocusScorePercent(task.TaskId);
+            _sessionTracker.Start(task.Description);
+            CurrentFocusScorePercent = 0;
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             LiveDistractionCount = 0;
             StartMonitoring();
@@ -858,7 +795,7 @@ public partial class FocusPageViewModel : ObservableObject
 
         if (_isTaskPaused)
         {
-            _focusScoreService.PauseCurrentSegment();
+            _sessionTracker.HandleIdle(true);
             _timeTracking.Stop();
             _windowMonitor.Stop();
         }
@@ -898,7 +835,7 @@ public partial class FocusPageViewModel : ObservableObject
                 : modelId;
         }
         OnPropertyChanged(nameof(AiProviderAndModelDisplay));
-        IsAiConfigured = await _llmService.IsConfiguredAsync();
+        IsAiConfigured = _apiClient.IsConfigured;
         if (IsAiConfigured)
             AiRequestError = string.Empty;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
@@ -906,143 +843,9 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
     }
 
-    /// <summary>
-    /// Starts the 24-hour free trial if not already started.
-    /// </summary>
-    public async Task StartTrialAsync()
-    {
-        await _trialService.StartTrialAsync();
-        await RefreshTrialStateAsync();
-        await RefreshAiSettingsAsync();
-    }
 
-    /// <summary>
-    /// Refreshes the trial state properties from the trial service.
-    /// </summary>
-    public async Task RefreshTrialStateAsync()
-    {
-        // Hide trial UI if user has configured their own API key or has an active subscription
-        var mode = await _settingsService.GetApiKeyModeAsync();
-        if (mode == ApiKeyMode.Own)
-        {
-            var ownKey = await _settingsService.GetApiKeyAsync();
-            if (!string.IsNullOrWhiteSpace(ownKey))
-            {
-                IsTrialActive = false;
-                IsTrialExpired = false;
-                TrialEndTime = null;
-                TrialTimeRemainingFormatted = string.Empty;
-                OnPropertyChanged(nameof(ShowTrialBanner));
-                return;
-            }
-        }
+    private Task RefreshTodaySummaryAsync() => Task.CompletedTask;
 
-        // Check actual trial status
-        IsTrialActive = await _trialService.IsTrialActiveAsync();
-        IsTrialExpired = await _trialService.IsTrialExpiredAsync();
-        TrialEndTime = await _trialService.GetTrialEndTimeAsync();
-        await UpdateTrialTimeRemainingAsync();
-        OnPropertyChanged(nameof(ShowTrialBanner));
-    }
-
-    private async Task RefreshTodaySummaryAsync()
-    {
-        var summary = await _dailyAnalyticsService
-            .GetTodaySummaryAsync(DateTime.Now)
-            .ConfigureAwait(false);
-
-        if (summary is null)
-        {
-            HasTodayAnalytics = false;
-            TodayFocusScoreBucket = 0;
-            TodayFocusedTimeText = "00:00:00";
-            TodayDistractedTimeText = "00:00:00";
-            TodayDistractionCount = 0;
-            TodayAverageDistractionCostText = "—";
-            TodayMostPopularDistractionAppText = "—";
-            TodayLongestFocusedSessionText = "—";
-            TodayDateLabel = string.Empty;
-            TodayFocusedPercent = 0;
-            TodayUnclearPercent = 0;
-            TodayDistractedPercent = 0;
-            TodayFocusedPercentText = "0% focused";
-            OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
-            return;
-        }
-
-        HasTodayAnalytics = true;
-        TodayFocusScoreBucket = summary.FocusScoreBucket;
-        TodayFocusedTimeText = FormatTimeSpan(summary.FocusedTime);
-        TodayDistractedTimeText = FormatTimeSpan(summary.DistractedTime);
-        TodayDistractionCount = summary.DistractionCount;
-        TodayAverageDistractionCostText = summary.AverageDistractionDuration.HasValue
-            ? FormatTimeSpan(summary.AverageDistractionDuration.Value)
-            : "—";
-        TodayMostPopularDistractionAppText = !string.IsNullOrEmpty(
-            summary.MostPopularDistractionApp
-        )
-            ? summary.MostPopularDistractionApp
-            : "—";
-        TodayLongestFocusedSessionText = summary.LongestFocusedSession.HasValue
-            ? FormatTimeSpan(summary.LongestFocusedSession.Value)
-            : "—";
-        TodayDateLabel = summary
-            .AnalyticsDateLocal.ToDateTime(TimeOnly.MinValue)
-            .ToString("ddd, MMM d, yyyy");
-
-        var totalSeconds = summary.FocusedTime.TotalSeconds + summary.DistractedTime.TotalSeconds;
-        if (totalSeconds <= 0)
-        {
-            TodayFocusedPercent = 0;
-            TodayUnclearPercent = 0;
-            TodayDistractedPercent = 0;
-            TodayFocusedPercentText = "0% focused";
-        }
-        else
-        {
-            var focusedShare = summary.FocusedTime.TotalSeconds / totalSeconds;
-            TodayFocusedPercent = focusedShare;
-            TodayUnclearPercent = 0;
-            TodayDistractedPercent = summary.DistractedTime.TotalSeconds / totalSeconds;
-            var focusedPercentRounded = (int)
-                Math.Round(focusedShare * 100, MidpointRounding.AwayFromZero);
-            TodayFocusedPercentText = $"{focusedPercentRounded}% focused";
-        }
-
-        OnPropertyChanged(nameof(ShowTodayFocusScoreChip));
-    }
-
-    /// <summary>
-    /// Updates the trial countdown display. Called every second by the view's timer.
-    /// </summary>
-    public async Task UpdateTrialTimeRemainingAsync()
-    {
-        var remaining = await _trialService.GetTrialTimeRemainingAsync();
-        if (remaining <= TimeSpan.Zero)
-        {
-            if (IsTrialActive && !IsTrialExpired)
-            {
-                // Trial just expired - raise event for view to show popup
-                IsTrialActive = false;
-                IsTrialExpired = true;
-                OnPropertyChanged(nameof(ShowTrialBanner));
-                TrialExpired?.Invoke(this, EventArgs.Empty);
-                await RefreshAiSettingsAsync();
-            }
-            TrialTimeRemainingFormatted = "Expired";
-            return;
-        }
-
-        var hours = (int)remaining.TotalHours;
-        var minutes = remaining.Minutes;
-        var seconds = remaining.Seconds;
-        TrialTimeRemainingFormatted = $"{hours:D2}:{minutes:D2}:{seconds:D2}";
-    }
-
-    /// <summary>
-    /// Gets whether the trial has already been started.
-    /// </summary>
-    public Task<bool> HasTrialStartedAsync() => _trialService.HasTrialStartedAsync();
 
     [RelayCommand]
     private void ToggleAnalytics() => IsAnalyticsExpanded = !IsAnalyticsExpanded;
@@ -1079,6 +882,7 @@ public partial class FocusPageViewModel : ObservableObject
         {
             ActiveTask = InProgressTasks[0];
             await NotifyTaskStartedAsync(ActiveTask);
+            _ = StartBackendSessionAsync(ActiveTask);
         }
     }
 
@@ -1099,10 +903,24 @@ public partial class FocusPageViewModel : ObservableObject
         if (taskToEnd == null)
             return;
 
-        await FinalizeFocusScoreAndPersistAsync(taskToEnd.TaskId);
-        await _taskSummaryService.ComputeAndPersistSummaryAsync(taskToEnd.TaskId);
+        var summary = _sessionTracker.GetSessionSummary();
+        await _repo.UpdateFocusScoreAsync(taskToEnd.TaskId, summary.FocusScorePercent);
         await _repo.SetCompletedAsync(taskToEnd.TaskId);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+        if (_backendSessionId.HasValue)
+        {
+            var payload = new EndSessionPayload(
+                summary.FocusScorePercent,
+                summary.FocusedSeconds,
+                summary.DistractedSeconds,
+                summary.DistractionCount,
+                summary.ContextSwitchCount,
+                summary.TopDistractingApps,
+                summary.TopAlignedApps,
+                null);
+            _ = _apiClient.EndSessionAsync(_backendSessionId.Value, payload);
+            _backendSessionId = null;
+        }
+        _sessionTracker.Reset();
 
         InProgressTasks.Clear();
         ActiveTask = null;
@@ -1130,7 +948,7 @@ public partial class FocusPageViewModel : ObservableObject
         _isTaskPaused = true;
         OnPropertyChanged(nameof(IsTaskPaused));
 
-        _focusScoreService.PauseCurrentSegment();
+        _sessionTracker.HandleIdle(true);
         _timeTracking.Stop();
         _windowMonitor.Stop();
 
@@ -1146,6 +964,7 @@ public partial class FocusPageViewModel : ObservableObject
         _isTaskPaused = false;
         OnPropertyChanged(nameof(IsTaskPaused));
 
+        _sessionTracker.HandleIdle(false);
         _timeTracking.Start();
         _windowMonitor.Start();
 
@@ -1192,27 +1011,16 @@ public partial class FocusPageViewModel : ObservableObject
             CreatedAt = DateTime.UtcNow,
         };
 
-        var windowContext = new WindowContext
-        {
-            ContextHash = contextHash,
-            ProcessName = CurrentProcessName,
-            WindowTitle = HashHelper.NormalizeWindowTitle(CurrentWindowTitle),
-        };
-
-        await _alignmentCacheRepository.SaveAsync(windowContext, entry);
-
-        await _focusScoreService.UpdateHistoricalSegmentsAsync(taskId, contextHash, newScore);
-        await _dailyAnalyticsService.ReloadTodayFromDbAsync();
+        await _alignmentCacheRepository.SaveAsync(entry);
 
         FocusScore = newScore;
         FocusReason = newReason;
         MarkOverrideButtonText = newScore >= 6 ? "Mark as distracting" : "Mark as focused";
-        _focusScoreService.UpdatePendingSegmentScore(newScore);
+        _sessionTracker.RecordClassification(CurrentProcessName, new AlignmentResult { Score = newScore, Reason = newReason });
 
         OnPropertyChanged(nameof(FocusScoreCategory));
         OnPropertyChanged(nameof(FocusStatusIcon));
         RaiseFocusOverlayStateChanged();
-        await RefreshTodaySummaryAsync();
     }
 
     /// Returns true if the user has not yet seen the How it works guide (first run).
@@ -1243,12 +1051,16 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     }
 
-    private async Task FinalizeFocusScoreAndPersistAsync(string taskId)
+
+    private async Task StartBackendSessionAsync(UserTask task)
     {
-        _focusScoreService.PauseCurrentSegment();
-        await _focusScoreService.PersistSegmentsAsync();
-        var scorePercent = _focusScoreService.CalculateFocusScorePercent(taskId);
-        await _repo.UpdateFocusScoreAsync(taskId, scorePercent);
+        if (!_apiClient.IsConfigured)
+            return;
+        var deviceId = _deviceService?.GetDeviceId();
+        var payload = new StartSessionPayload(task.Description, task.Context, deviceId);
+        var response = await _apiClient.StartSessionAsync(payload);
+        if (response is not null)
+            _backendSessionId = response.Id;
     }
 
     private bool HasActiveTask() => InProgressTasks.Count > 0;
@@ -1269,6 +1081,7 @@ public partial class FocusPageViewModel : ObservableObject
         _windowMonitor.Stop();
         _timeTracking.Stop();
         _idleDetection.Stop();
+        _sessionTracker.HandleIdle(false);
         _isTaskPaused = false;
         OnPropertyChanged(nameof(IsTaskPaused));
         _taskElapsedSeconds = 0;
@@ -1300,12 +1113,15 @@ public partial class FocusPageViewModel : ObservableObject
     private void RaiseFocusOverlayStateChanged()
     {
         var hasActive = HasActiveTask();
+        var isLoading = hasActive && !HasCurrentFocusResult;
+        var hasError = HasAiRequestError;
         var status = FocusScore switch
         {
             >= 6 => FocusStatus.Focused,
             >= 4 => FocusStatus.Neutral,
             _ => FocusStatus.Distracted,
         };
+        var tooltip = BuildOverlayTooltip(hasActive, isLoading, hasError, status);
         FocusOverlayStateChanged?.Invoke(
             this,
             new FocusOverlayStateChangedEventArgs
@@ -1314,6 +1130,9 @@ public partial class FocusPageViewModel : ObservableObject
                 FocusScorePercent = hasActive ? CurrentFocusScorePercent : 0,
                 Status = status,
                 IsTaskPaused = _isTaskPaused,
+                IsLoading = isLoading,
+                HasError = hasError,
+                TooltipText = tooltip,
             }
         );
 
@@ -1340,6 +1159,31 @@ public partial class FocusPageViewModel : ObservableObject
                 }
             );
         }
+    }
+
+    /// <summary>Builds a concise tooltip string for the overlay tray area.</summary>
+    private string BuildOverlayTooltip(bool hasActive, bool isLoading, bool hasError, FocusStatus status)
+    {
+        if (!hasActive)
+            return "Foqus — No active task";
+
+        if (_isTaskPaused)
+            return "Foqus — Paused";
+
+        if (hasError)
+            return $"Foqus — Error: {_aiRequestError}";
+
+        if (isLoading)
+            return "Foqus — Classifying…";
+
+        var label = status switch
+        {
+            FocusStatus.Focused => "Focused",
+            FocusStatus.Distracted => "Distracted",
+            _ => "Neutral",
+        };
+
+        return $"Foqus — {label} ({CurrentFocusScorePercent}%)";
     }
 
     private static bool IsBrowserProcess(string processName) =>
