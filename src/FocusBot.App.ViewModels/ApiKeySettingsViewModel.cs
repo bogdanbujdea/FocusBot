@@ -15,6 +15,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settingsService;
     private readonly IFocusBotApiClient _apiClient;
+    private readonly IAuthService _authService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
 
@@ -78,10 +79,12 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     public ApiKeySettingsViewModel(
         ISettingsService settingsService,
         IFocusBotApiClient apiClient,
+        IAuthService authService,
         ILogger<ApiKeySettingsViewModel> logger)
     {
         _settingsService = settingsService;
         _apiClient = apiClient;
+        _authService = authService;
         _logger = logger;
 
         _ = LoadSettingsAsync();
@@ -185,6 +188,13 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             return;
         }
 
+        if (!_authService.IsAuthenticated)
+        {
+            StatusMessage = "Sign in with a Foqus account to save your API key.";
+            IsStatusError = true;
+            return;
+        }
+
         IsSaving = true;
         IsStatusError = false;
         StatusMessage = "Checking API key...";
@@ -199,7 +209,7 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
             if (validation is null || !validation.Valid)
             {
-                StatusMessage = validation?.Error ?? "Key validation failed. Check your credentials.";
+                StatusMessage = ToValidationErrorMessage(validation?.Error);
                 IsStatusError = true;
                 return;
             }
@@ -288,4 +298,12 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private bool HasValidApiKey() => !string.IsNullOrWhiteSpace(ApiKey);
 
     private bool CanShowMaskedKey(string? key) => IsApiKeyConfigured && key != null && key.Length >= 4;
+
+    private static string ToValidationErrorMessage(string? errorCode) => errorCode switch
+    {
+        "invalid_key" => "Invalid API key. Check your credentials.",
+        "rate_limited" => "Rate limit reached. Wait a moment and try again.",
+        "provider_unavailable" => "AI provider is unavailable. Try again later.",
+        _ => "Key validation failed. Check your credentials."
+    };
 }
