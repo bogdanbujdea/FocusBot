@@ -1,9 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace FocusBot.WebAPI.Features.Waitlist;
 
-public sealed class WaitlistService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+public sealed class WaitlistService(
+    IHttpClientFactory httpClientFactory,
+    IConfiguration configuration,
+    ILogger<WaitlistService> logger)
 {
     public const string HttpClientName = "MailerLite";
 
@@ -33,18 +38,48 @@ public sealed class WaitlistService(IHttpClientFactory httpClientFactory, IConfi
             return;
         }
 
+        var payload = await response.Content.ReadAsStringAsync(ct);
+        var traceId = httpContext.TraceIdentifier;
+        var emailHash = ComputeSha256(normalizedEmail);
+        var truncatedPayload = TruncateForLogs(payload, 1024);
+
+        logger.LogWarning(
+            "MailerLite subscribe failed with status {StatusCode}. TraceId={TraceId}, GroupId={GroupId}, EmailHash={EmailHash}, Response={ResponsePayload}",
+            (int)response.StatusCode,
+            traceId,
+            groupId,
+            emailHash,
+            truncatedPayload);
+
         if (response.StatusCode is HttpStatusCode.UnprocessableEntity)
         {
-            throw new InvalidOperationException("MailerLite rejected the subscriber payload.");
+            throw new InvalidOperationException(
+                $"MailerLite rejected the subscriber payload. TraceId={traceId}, Response={truncatedPayload}");
         }
 
-        var payload = await response.Content.ReadAsStringAsync(ct);
-        throw new InvalidOperationException($"MailerLite signup failed with {(int)response.StatusCode}: {payload}");
+        throw new InvalidOperationException(
+            $"MailerLite signup failed with {(int)response.StatusCode}. TraceId={traceId}, Response={truncatedPayload}");
     }
 
     private sealed record MailerLiteUpsertSubscriberRequest(
         string email,
         string[] groups,
         string? ip_address);
+
+    private static string ComputeSha256(string value)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(bytes);
+    }
+
+    private static string TruncateForLogs(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value[..maxLength] + "...";
+    }
 }
 
