@@ -42,6 +42,11 @@ public interface IAuthService
     bool IsAuthenticated { get; }
 
     /// <summary>
+    /// Gets the email address of the currently authenticated user, or null if not signed in.
+    /// </summary>
+    Task<string?> GetUserEmailAsync();
+
+    /// <summary>
     /// Raised when the authentication state changes (sign-in, sign-out, or token refresh).
     /// </summary>
     event Action? AuthStateChanged;

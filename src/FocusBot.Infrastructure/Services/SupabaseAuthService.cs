@@ -208,6 +208,43 @@ public class SupabaseAuthService : IAuthService
     }
 
     /// <inheritdoc />
+    public Task<string?> GetUserEmailAsync()
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+            return Task.FromResult<string?>(null);
+
+        try
+        {
+            // JWT format: header.payload.signature (all base64url encoded)
+            var parts = _accessToken.Split('.');
+            if (parts.Length != 3)
+                return Task.FromResult<string?>(null);
+
+            var payload = parts[1];
+            // Base64url → Base64: replace URL-safe chars and pad
+            payload = payload.Replace('-', '+').Replace('_', '/');
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("email", out var emailProp))
+            {
+                return Task.FromResult(emailProp.GetString());
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to extract email from access token");
+        }
+
+        return Task.FromResult<string?>(null);
+    }
+
+    /// <inheritdoc />
     public async Task SignOutAsync()
     {
         try

@@ -394,7 +394,8 @@
                 <Button Content="Sign in"
                         Style="{StaticResource FbAccentButtonStyle}"
                         automation:AutomationProperties.Name="Sign in with magic link"
-                        Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+                        Command="{x:Bind ViewModel.OpenSettingsCommand}"
+                        Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 <Button Content="?"
                         Style="{StaticResource FbOutlineButtonStyle}"
                         automation:AutomationProperties.Name="How it works"

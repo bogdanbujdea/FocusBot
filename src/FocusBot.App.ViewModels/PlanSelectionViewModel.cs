@@ -33,6 +33,7 @@ public partial class PlanSelectionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowFullAnalyticsCta))]
     [NotifyPropertyChangedFor(nameof(ShowUpgradeCta))]
     [NotifyPropertyChangedFor(nameof(ShowSignInPrompt))]
+    [NotifyPropertyChangedFor(nameof(CanSelectPlan))]
     private bool _isSignedIn;
 
     [ObservableProperty]
@@ -63,6 +64,9 @@ public partial class PlanSelectionViewModel : ObservableObject
     /// <summary>Show the sign-in prompt — user is on free plan and not signed in.</summary>
     public bool ShowSignInPrompt => !IsSignedIn && IsFreePlan;
 
+    /// <summary>True if user can select plans (signed in).</summary>
+    public bool CanSelectPlan => IsSignedIn;
+
     /// <summary>Short display name for the current plan.</summary>
     public string PlanDisplayName => CurrentPlan switch
     {
@@ -80,6 +84,19 @@ public partial class PlanSelectionViewModel : ObservableObject
         ClientPlanType.CloudManaged => "Platform API key · Full analytics · Cross-device sync",
         _ => string.Empty,
     };
+
+    /// <summary>Opens the pricing/checkout page for the specified plan.</summary>
+    [RelayCommand]
+    private void SelectPlan(string planId)
+    {
+        var url = planId switch
+        {
+            "cloud-byok" => "https://app.foqus.me/checkout/cloud-byok",
+            "cloud-managed" => "https://app.foqus.me/checkout/cloud-managed",
+            _ => "https://foqus.me/pricing"
+        };
+        OpenUrl(url);
+    }
 
     public PlanSelectionViewModel(
         IPlanService planService,

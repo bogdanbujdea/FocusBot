@@ -113,6 +113,10 @@ namespace FocusBot.App
             _ = _integrationService.StartAsync();
 
             var auth = _services!.GetRequiredService<IAuthService>();
+
+            // Restore session from stored tokens on every launch (not just protocol activations).
+            _ = auth.TryRestoreSessionAsync();
+
             auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
             auth.ReAuthRequired += OnReAuthRequired;
             _ = OnAuthStateChangedAsync();
