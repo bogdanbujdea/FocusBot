@@ -7,7 +7,7 @@ namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 public class IntegrationCompanionModeShould
 {
     [Fact]
-    public async Task ShowRemoteTaskInDisplayInProgress_When_TaskStartedReceived_From_Extension()
+    public async Task SetRemoteTaskAndMonitoring_When_TaskStartedReceived_From_Extension()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
@@ -23,9 +23,10 @@ public class IntegrationCompanionModeShould
 
         integrationMock.Raise(m => m.TaskStartedReceived += null, integrationMock.Object, payload);
 
-        vm.DisplayInProgressTasks.Should().HaveCount(1);
-        vm.DisplayInProgressTasks[0].TaskId.Should().Be("ext-session-1");
-        vm.DisplayInProgressTasks[0].Description.Should().Be("Watch a movie");
+        vm.RemoteTaskFromExtension.Should().NotBeNull();
+        vm.RemoteTaskFromExtension!.TaskId.Should().Be("ext-session-1");
+        vm.RemoteTaskFromExtension.TaskText.Should().Be("Watch a movie");
+        vm.IsMonitoring.Should().BeTrue();
     }
 
     [Fact]

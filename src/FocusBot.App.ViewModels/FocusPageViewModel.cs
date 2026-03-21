@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,6 +23,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly ILocalSessionTracker _sessionTracker;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly IFocusBotApiClient _apiClient;
+    private readonly IAuthService? _authService;
     private readonly IDeviceService? _deviceService;
     private Guid? _backendSessionId;
     public AccountSettingsViewModel AccountSection { get; }
@@ -70,7 +70,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public event EventHandler<FocusOverlayStateChangedEventArgs>? FocusOverlayStateChanged;
 
-
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
     private const int PersistIntervalSeconds = 5;
@@ -78,9 +77,7 @@ public partial class FocusPageViewModel : ObservableObject
     private DateTime? _sessionStartUtc;
     private bool _extensionHasActiveTask;
 
-    public ObservableCollection<UserTask> InProgressTasks { get; } = new();
-
-    // New single-task properties
+    // Single local in-progress task
     [ObservableProperty]
     private UserTask? _activeTask;
 
@@ -342,11 +339,6 @@ public partial class FocusPageViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    /// <summary>
-    /// In-progress tasks to display: local InProgressTasks, or one synthetic task when extension has the task.
-    /// </summary>
-    public ObservableCollection<UserTask> DisplayInProgressTasks { get; } = new();
-
     public FocusPageViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -361,7 +353,8 @@ public partial class FocusPageViewModel : ObservableObject
         AccountSettingsViewModel accountSection,
         IIntegrationService? integrationService = null,
         IUIThreadDispatcher? uiDispatcher = null,
-        IDeviceService? deviceService = null
+        IDeviceService? deviceService = null,
+        IAuthService? authService = null
     )
     {
         _repo = repo;
@@ -378,10 +371,16 @@ public partial class FocusPageViewModel : ObservableObject
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
         _deviceService = deviceService;
+        _authService = authService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _timeTracking.Tick += OnTimeTrackingTick;
         _idleDetection.UserBecameIdle += OnUserBecameIdle;
         _idleDetection.UserBecameActive += OnUserBecameActive;
+
+        if (_authService != null)
+        {
+            _authService.AuthStateChanged += OnAuthStateChanged;
+        }
 
         if (_integrationService != null)
         {
@@ -392,6 +391,17 @@ public partial class FocusPageViewModel : ObservableObject
         }
 
         _ = LoadBoardAsync();
+    }
+
+    private void OnAuthStateChanged()
+    {
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(async () => await RefreshAiSettingsAsync());
+            return;
+        }
+
+        _ = RefreshAiSettingsAsync();
     }
 
     private static string GetFocusBotProcessName()
@@ -416,7 +426,7 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
         {
             if (RemoteTaskFromExtension != null && _remoteTaskStartedAtUtc.HasValue)
             {
@@ -436,7 +446,7 @@ public partial class FocusPageViewModel : ObservableObject
             _perWindowTotalSeconds[windowKey] = total;
             WindowTotalElapsedTime = FormatElapsed(total);
         }
-        var taskId = InProgressTasks[0].TaskId;
+        var taskId = ActiveTask.TaskId;
         CurrentFocusScorePercent = _sessionTracker.GetFocusScore();
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();
@@ -448,10 +458,9 @@ public partial class FocusPageViewModel : ObservableObject
         }
     }
 
-
     private void OnUserBecameIdle(object? sender, EventArgs e)
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         var backdateSeconds = (int)_idleDetection.IdleThreshold.TotalSeconds;
@@ -477,7 +486,7 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void OnUserBecameActive(object? sender, EventArgs e)
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         _sessionTracker.HandleIdle(false);
@@ -517,12 +526,7 @@ public partial class FocusPageViewModel : ObservableObject
         WindowTotalElapsedTime = FormatElapsed(newTotal);
 
         (string taskId, string description, string? context)? effectiveTask =
-            InProgressTasks.Count > 0
-                ? (
-                    InProgressTasks[0].TaskId,
-                    InProgressTasks[0].Description,
-                    InProgressTasks[0].Context
-                )
+            ActiveTask != null ? (ActiveTask.TaskId, ActiveTask.Description, ActiveTask.Context)
             : RemoteTaskFromExtension != null
                 ? (
                     RemoteTaskFromExtension.TaskId,
@@ -659,19 +663,17 @@ public partial class FocusPageViewModel : ObservableObject
 
     private async Task LoadBoardAsync()
     {
-        InProgressTasks.Clear();
         ActiveTask = null;
 
         var inProgress = await _repo.GetInProgressTaskAsync();
         if (inProgress != null)
         {
-            InProgressTasks.Add(inProgress);
-            ActiveTask = InProgressTasks[0];
+            ActiveTask = inProgress;
         }
 
         if (HasActiveTask())
         {
-            var task = InProgressTasks[0];
+            var task = ActiveTask!;
             _taskElapsedSeconds = task.TotalElapsedSeconds;
             TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
             _windowElapsedSeconds = 0;
@@ -687,10 +689,7 @@ public partial class FocusPageViewModel : ObservableObject
         }
         else
             StopMonitoringAndResetFocusState();
-        IsMonitoring = InProgressTasks.Count > 0;
-        OnPropertyChanged(nameof(FocusStatusIcon));
-        OnPropertyChanged(nameof(ShowCheckingMessage));
-        RefreshDisplayInProgressTasks();
+        UpdateMonitoringState();
         await RefreshAiSettingsAsync();
 
         // Sync backend session state so EndTask can close it properly
@@ -702,7 +701,7 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public void ToggleTaskPause()
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         _isTaskPaused = !_isTaskPaused;
@@ -757,7 +756,6 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
     }
 
-
     [RelayCommand(CanExecute = nameof(CanStartTask))]
     private async Task StartTaskAsync()
     {
@@ -786,9 +784,8 @@ public partial class FocusPageViewModel : ObservableObject
         await LoadBoardAsync();
 
         // Set ActiveTask
-        if (InProgressTasks.Count > 0)
+        if (ActiveTask != null)
         {
-            ActiveTask = InProgressTasks[0];
             await NotifyTaskStartedAsync(ActiveTask);
             _ = StartBackendSessionAsync(ActiveTask);
         }
@@ -804,10 +801,7 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand]
     private async Task EndTaskAsync()
     {
-        if (ActiveTask == null && InProgressTasks.Count == 0)
-            return;
-
-        var taskToEnd = ActiveTask ?? InProgressTasks.FirstOrDefault();
+        var taskToEnd = ActiveTask;
         if (taskToEnd == null)
             return;
 
@@ -824,20 +818,17 @@ public partial class FocusPageViewModel : ObservableObject
                 summary.ContextSwitchCount,
                 summary.TopDistractingApps,
                 summary.TopAlignedApps,
-                null);
+                null
+            );
             _ = _apiClient.EndSessionAsync(_backendSessionId.Value, payload);
             _backendSessionId = null;
         }
         _sessionTracker.Reset();
 
-        InProgressTasks.Clear();
         ActiveTask = null;
 
         StopMonitoringAndResetFocusState();
-        IsMonitoring = false;
-        OnPropertyChanged(nameof(FocusStatusIcon));
-        OnPropertyChanged(nameof(ShowCheckingMessage));
-        RefreshDisplayInProgressTasks();
+        UpdateMonitoringState();
 
         if (_integrationService?.IsExtensionConnected == true)
         {
@@ -848,7 +839,7 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand]
     private void PauseTask()
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         _isTaskPaused = true;
@@ -864,7 +855,7 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand]
     private void ResumeTask()
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         _isTaskPaused = false;
@@ -892,16 +883,16 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task MarkFocusOverrideAsync()
     {
-        if (InProgressTasks.Count == 0)
+        if (ActiveTask == null)
             return;
 
         int newScore = FocusScore >= 6 ? 2 : 9;
         string newReason =
             FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
 
-        var taskId = InProgressTasks[0].TaskId;
-        var taskDescription = InProgressTasks[0].Description;
-        var taskContext = InProgressTasks[0].Context;
+        var taskId = ActiveTask.TaskId;
+        var taskDescription = ActiveTask.Description;
+        var taskContext = ActiveTask.Context;
         var contextHash = HashHelper.ComputeWindowContextHash(
             CurrentProcessName,
             CurrentWindowTitle
@@ -922,7 +913,10 @@ public partial class FocusPageViewModel : ObservableObject
         FocusScore = newScore;
         FocusReason = newReason;
         MarkOverrideButtonText = newScore >= 6 ? "Mark as distracting" : "Mark as focused";
-        _sessionTracker.RecordClassification(CurrentProcessName, new AlignmentResult { Score = newScore, Reason = newReason });
+        _sessionTracker.RecordClassification(
+            CurrentProcessName,
+            new AlignmentResult { Score = newScore, Reason = newReason }
+        );
 
         OnPropertyChanged(nameof(FocusScoreCategory));
         OnPropertyChanged(nameof(FocusStatusIcon));
@@ -957,7 +951,6 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     }
 
-
     private async Task StartBackendSessionAsync(UserTask task)
     {
         if (!_apiClient.IsConfigured)
@@ -986,7 +979,8 @@ public partial class FocusPageViewModel : ObservableObject
             ContextSwitchCount: 0,
             TopDistractingApps: null,
             TopAlignedApps: null,
-            DeviceId: deviceId);
+            DeviceId: deviceId
+        );
         await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
 
         // Retry starting the new session
@@ -1009,7 +1003,7 @@ public partial class FocusPageViewModel : ObservableObject
             _backendSessionId = activeSession.Id;
     }
 
-    private bool HasActiveTask() => InProgressTasks.Count > 0;
+    private bool HasActiveTask() => ActiveTask != null;
 
     private void StartMonitoring()
     {
@@ -1086,6 +1080,7 @@ public partial class FocusPageViewModel : ObservableObject
             _integrationService is { IsExtensionConnected: true }
             && hasActive
             && !_extensionHasActiveTask
+            && ActiveTask != null
         )
         {
             var classification =
@@ -1095,7 +1090,7 @@ public partial class FocusPageViewModel : ObservableObject
             _ = _integrationService.SendFocusStatusAsync(
                 new FocusStatusPayload
                 {
-                    TaskId = InProgressTasks[0].TaskId,
+                    TaskId = ActiveTask.TaskId,
                     Classification = classification,
                     Reason = FocusReason,
                     Score = FocusScore,
@@ -1108,7 +1103,12 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     /// <summary>Builds a concise tooltip string for the overlay tray area.</summary>
-    private string BuildOverlayTooltip(bool hasActive, bool isLoading, bool hasError, FocusStatus status)
+    private string BuildOverlayTooltip(
+        bool hasActive,
+        bool isLoading,
+        bool hasError,
+        FocusStatus status
+    )
     {
         if (!hasActive)
             return "Foqus — No active task";
@@ -1157,7 +1157,7 @@ public partial class FocusPageViewModel : ObservableObject
                 return;
             }
 
-            var task = InProgressTasks.Count > 0 ? InProgressTasks[0] : null;
+            var task = ActiveTask;
             if (task != null)
             {
                 _ = _integrationService.SendTaskStartedAsync(
@@ -1205,7 +1205,7 @@ public partial class FocusPageViewModel : ObservableObject
             var initialElapsed = (long)
                 (DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
             TaskElapsedTime = FormatElapsed(initialElapsed);
-            RefreshDisplayInProgressTasks();
+            UpdateMonitoringState();
         }
 
         if (_uiDispatcher != null)
@@ -1230,7 +1230,7 @@ public partial class FocusPageViewModel : ObservableObject
             _ = _uiDispatcher.RunOnUIThreadAsync(() =>
             {
                 ClearRemoteTask();
-                if (InProgressTasks.Count == 0)
+                if (ActiveTask == null)
                 {
                     _windowMonitor.Stop();
                     _timeTracking.Stop();
@@ -1241,7 +1241,7 @@ public partial class FocusPageViewModel : ObservableObject
         else
         {
             ClearRemoteTask();
-            if (InProgressTasks.Count == 0)
+            if (ActiveTask == null)
             {
                 _windowMonitor.Stop();
                 _timeTracking.Stop();
@@ -1289,30 +1289,12 @@ public partial class FocusPageViewModel : ObservableObject
         IntegrationBlockedReason = null;
         RemoteTaskFromExtension = null;
         RemoteTaskFocusStatus = null;
-        RefreshDisplayInProgressTasks();
+        UpdateMonitoringState();
     }
 
-    private void RefreshDisplayInProgressTasks()
+    private void UpdateMonitoringState()
     {
-        DisplayInProgressTasks.Clear();
-        if (InProgressTasks.Count > 0)
-        {
-            foreach (var t in InProgressTasks)
-                DisplayInProgressTasks.Add(t);
-        }
-        else if (RemoteTaskFromExtension != null)
-        {
-            DisplayInProgressTasks.Add(
-                new UserTask
-                {
-                    TaskId = RemoteTaskFromExtension.TaskId,
-                    Description = RemoteTaskFromExtension.TaskText,
-                    Context = RemoteTaskFromExtension.TaskHints,
-                    IsCompleted = false,
-                }
-            );
-        }
-        IsMonitoring = DisplayInProgressTasks.Count > 0;
+        IsMonitoring = ActiveTask != null || RemoteTaskFromExtension != null;
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(ShowCheckingMessage));
     }

@@ -20,6 +20,7 @@ public sealed partial class FocusPage : Page
         if (DataContext is not FocusPageViewModel vm)
             return;
         vm.RefreshExtensionConnectionState();
+        _ = vm.RefreshAiSettingsAsync();
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         _ = InitializeFirstRunAsync(vm);
     }
