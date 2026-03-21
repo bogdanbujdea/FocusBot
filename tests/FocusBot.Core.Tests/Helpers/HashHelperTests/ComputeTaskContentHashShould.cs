@@ -2,7 +2,7 @@ using FocusBot.Core.Helpers;
 
 namespace FocusBot.Core.Tests.Helpers.HashHelperTests;
 
-public class ComputeTaskContentHashShould
+public class ComputeSessionContentHashShould
 {
     [Fact]
     public void ReturnSameHash_WhenDescriptionAndContextAreSame()
@@ -12,8 +12,8 @@ public class ComputeTaskContentHashShould
         var context = "Outlook is work";
 
         // Act
-        var hash1 = HashHelper.ComputeTaskContentHash(description, context);
-        var hash2 = HashHelper.ComputeTaskContentHash(description, context);
+        var hash1 = HashHelper.ComputeSessionContentHash(description, context);
+        var hash2 = HashHelper.ComputeSessionContentHash(description, context);
 
         // Assert
         hash1.Should().Be(hash2);
@@ -24,8 +24,8 @@ public class ComputeTaskContentHashShould
     {
         // Arrange
         var description = "Read work emails";
-        var hash1 = HashHelper.ComputeTaskContentHash(description, "Outlook is work");
-        var hash2 = HashHelper.ComputeTaskContentHash(description, "Gmail is work");
+        var hash1 = HashHelper.ComputeSessionContentHash(description, "Outlook is work");
+        var hash2 = HashHelper.ComputeSessionContentHash(description, "Gmail is work");
 
         // Assert
         hash1.Should().NotBe(hash2);
@@ -36,8 +36,8 @@ public class ComputeTaskContentHashShould
     {
         // Arrange
         var context = "Same context";
-        var hash1 = HashHelper.ComputeTaskContentHash("Task A", context);
-        var hash2 = HashHelper.ComputeTaskContentHash("Task B", context);
+        var hash1 = HashHelper.ComputeSessionContentHash("Session A", context);
+        var hash2 = HashHelper.ComputeSessionContentHash("Session B", context);
 
         // Assert
         hash1.Should().NotBe(hash2);
@@ -50,8 +50,8 @@ public class ComputeTaskContentHashShould
         var description = "Some task";
 
         // Act
-        var hashWithNull = HashHelper.ComputeTaskContentHash(description, null);
-        var hashWithEmpty = HashHelper.ComputeTaskContentHash(description, string.Empty);
+        var hashWithNull = HashHelper.ComputeSessionContentHash(description, null);
+        var hashWithEmpty = HashHelper.ComputeSessionContentHash(description, string.Empty);
 
         // Assert
         hashWithNull.Should().Be(hashWithEmpty);
@@ -65,7 +65,7 @@ public class ComputeTaskContentHashShould
         var context = "Outlook is my work account";
 
         // Act
-        var hash = HashHelper.ComputeTaskContentHash(description, context);
+        var hash = HashHelper.ComputeSessionContentHash(description, context);
 
         // Assert
         hash.Should().HaveLength(64);

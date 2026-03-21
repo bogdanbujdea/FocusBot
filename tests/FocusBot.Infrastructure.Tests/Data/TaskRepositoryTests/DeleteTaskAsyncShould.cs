@@ -6,11 +6,11 @@ public class DeleteTaskAsyncShould : TaskRepositoryTestBase
     public async Task RemoveTaskFromStore()
     {
         // Arrange
-        var task = await Repository.AddTaskAsync("To delete");
+        var task = await Repository.AddSessionAsync("To delete");
 
         // Act
-        await Repository.DeleteTaskAsync(task.TaskId);
-        var found = await Repository.GetByIdAsync(task.TaskId);
+        await Repository.DeleteSessionAsync(task.SessionId);
+        var found = await Repository.GetByIdAsync(task.SessionId);
 
         // Assert
         found.Should().BeNull();
@@ -23,7 +23,7 @@ public class DeleteTaskAsyncShould : TaskRepositoryTestBase
         var taskId = Guid.NewGuid().ToString();
 
         // Act
-        var act = async () => await Repository.DeleteTaskAsync(taskId);
+        var act = async () => await Repository.DeleteSessionAsync(taskId);
 
         // Assert
         await act.Should().NotThrowAsync();

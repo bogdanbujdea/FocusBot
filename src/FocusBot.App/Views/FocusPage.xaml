@@ -20,7 +20,7 @@
             <RowDefinition Height="*" MinHeight="250"/>
         </Grid.RowDefinitions>
 
-        <!-- Current foreground window and Focus Status Bar (visible when a task is in progress) -->
+        <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
         <Grid Grid.Row="0" x:Name="CurrentWindowBar"
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
@@ -44,7 +44,7 @@
                 <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
             </TextBlock>
 
-            <!-- Focus Status Bar (visible whenever a task is in progress, local or remote) -->
+            <!-- Focus Status Bar (visible whenever a session is in progress, local or remote) -->
             <Border Grid.Row="1"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
@@ -61,7 +61,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Status icon (always visible when status bar is shown, local or remote task) -->
+                    <!-- Status icon (always visible when status bar is shown, local or remote session) -->
                     <Image Grid.Column="0"
                            Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
                            Width="40" Height="40"
@@ -175,9 +175,9 @@
         </Grid>
 
 
-        <!-- Main Content: Start Form or Active Task Card -->
+        <!-- Main Content: Start Form or Active Session Card -->
         <Grid Grid.Row="2">
-            <!-- Start Task Form (visible when no active task) -->
+            <!-- Start Session Form (visible when no active session) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
@@ -188,7 +188,7 @@
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top"
                     Margin="60,24,60,24"
-                    automation:AutomationProperties.Name="Start task form">
+                    automation:AutomationProperties.Name="Start session form">
                 <StackPanel Spacing="24">
                     <TextBlock Text="Start a Focus Session"
                                FontSize="20"
@@ -196,33 +196,33 @@
                                Foreground="{StaticResource FbTextPrimaryBrush}"
                                HorizontalAlignment="Center"/>
                     
-                    <TextBox x:Name="StartTaskTitleBox"
-                             Text="{x:Bind ViewModel.StartTaskTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox x:Name="StartSessionTitleBox"
+                             Text="{x:Bind ViewModel.StartSessionTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="What are you working on?"
                              MaxLength="200"
                              CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                             automation:AutomationProperties.Name="Task title"/>
+                             automation:AutomationProperties.Name="Session title"/>
                     
-                    <TextBox Text="{x:Bind ViewModel.StartTaskContext, Mode=TwoWay}"
+                    <TextBox Text="{x:Bind ViewModel.StartSessionContext, Mode=TwoWay}"
                              PlaceholderText="Context hints for AI (optional)"
                              MaxLength="200"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              Height="80"
                              CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                             automation:AutomationProperties.Name="Task context"/>
+                             automation:AutomationProperties.Name="Session context"/>
                     
                     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-                        <Button Content="Start Task"
+                        <Button Content="Start Session"
                                 Style="{StaticResource FbAccentButtonStyle}"
-                                Command="{x:Bind ViewModel.StartTaskCommand}"
-                                automation:AutomationProperties.Name="Start task"/>
+                                Command="{x:Bind ViewModel.StartSessionCommand}"
+                                automation:AutomationProperties.Name="Start session"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Active Task Card (visible when task is in progress) -->
-            <Border Visibility="{x:Bind ViewModel.IsActiveTaskVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+            <!-- Active Session Card (visible when session is in progress) -->
+            <Border Visibility="{x:Bind ViewModel.IsActiveSessionVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
@@ -232,21 +232,21 @@
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top"
                     Margin="60,24,60,24"
-                    automation:AutomationProperties.Name="Active task card">
+                    automation:AutomationProperties.Name="Active session card">
                 <StackPanel Spacing="32">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="{x:Bind ViewModel.ActiveTask.Description, Mode=OneWay}"
+                        <TextBlock Text="{x:Bind ViewModel.ActiveSession.Description, Mode=OneWay}"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FbTextPrimaryBrush}"
                                    TextWrapping="Wrap"
-                                   automation:AutomationProperties.Name="Task title"/>
+                                   automation:AutomationProperties.Name="Session title"/>
                         
-                        <TextBlock Text="{x:Bind ViewModel.ActiveTask.Context, Mode=OneWay}"
+                        <TextBlock Text="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay}"
                                    Style="{StaticResource FbSecondaryTextStyle}"
                                    TextWrapping="Wrap"
-                                   Visibility="{x:Bind ViewModel.ActiveTask.Context, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
-                                   automation:AutomationProperties.Name="Task context"/>
+                                   Visibility="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
+                                   automation:AutomationProperties.Name="Session context"/>
                     </StackPanel>
 
                     <Grid Margin="0,8,0,8">
@@ -262,7 +262,7 @@
                                        Style="{StaticResource FbSecondaryTextStyle}"
                                        FontSize="12"
                                        HorizontalAlignment="Center"/>
-                            <TextBlock Text="{x:Bind ViewModel.TaskElapsedTime, Mode=OneWay}"
+                            <TextBlock Text="{x:Bind ViewModel.SessionElapsedTime, Mode=OneWay}"
                                        FontSize="20"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource FbTextPrimaryBrush}"
@@ -300,20 +300,20 @@
                         <Button Content="Pause"
                                 Style="{StaticResource FbOutlineButtonStyle}"
                                 MinWidth="100"
-                                Command="{x:Bind ViewModel.PauseTaskCommand}"
-                                Visibility="{x:Bind ViewModel.IsTaskPaused, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                automation:AutomationProperties.Name="Pause task"/>
+                                Command="{x:Bind ViewModel.PauseSessionCommand}"
+                                Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                automation:AutomationProperties.Name="Pause session"/>
                         <Button Content="Resume"
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 MinWidth="100"
-                                Command="{x:Bind ViewModel.ResumeTaskCommand}"
-                                Visibility="{x:Bind ViewModel.IsTaskPaused, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                automation:AutomationProperties.Name="Resume task"/>
-                        <Button Content="End Task"
+                                Command="{x:Bind ViewModel.ResumeSessionCommand}"
+                                Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                automation:AutomationProperties.Name="Resume session"/>
+                        <Button Content="End Session"
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 MinWidth="100"
-                                Command="{x:Bind ViewModel.EndTaskCommand}"
-                                automation:AutomationProperties.Name="End task"/>
+                                Command="{x:Bind ViewModel.EndSessionCommand}"
+                                automation:AutomationProperties.Name="End session"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

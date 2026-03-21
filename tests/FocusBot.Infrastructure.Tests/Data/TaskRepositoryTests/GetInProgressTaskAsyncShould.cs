@@ -6,11 +6,11 @@ public class GetInProgressTaskAsyncShould : TaskRepositoryTestBase
     public async Task ReturnNull_WhenNoActiveTask()
     {
         // Arrange
-        var task = await Repository.AddTaskAsync("Only task");
-        await Repository.SetCompletedAsync(task.TaskId);
+        var task = await Repository.AddSessionAsync("Only task");
+        await Repository.SetCompletedAsync(task.SessionId);
 
         // Act
-        var result = await Repository.GetInProgressTaskAsync();
+        var result = await Repository.GetInProgressSessionAsync();
 
         // Assert
         result.Should().BeNull();
@@ -20,15 +20,15 @@ public class GetInProgressTaskAsyncShould : TaskRepositoryTestBase
     public async Task ReturnTheActiveTask()
     {
         // Arrange
-        var task = await Repository.AddTaskAsync("Active");
-        await Repository.SetActiveAsync(task.TaskId);
+        var task = await Repository.AddSessionAsync("Active");
+        await Repository.SetActiveAsync(task.SessionId);
 
         // Act
-        var inProgress = await Repository.GetInProgressTaskAsync();
+        var inProgress = await Repository.GetInProgressSessionAsync();
 
         // Assert
         inProgress.Should().NotBeNull();
-        inProgress!.TaskId.Should().Be(task.TaskId);
+        inProgress!.SessionId.Should().Be(task.SessionId);
         inProgress.Description.Should().Be("Active");
     }
 }

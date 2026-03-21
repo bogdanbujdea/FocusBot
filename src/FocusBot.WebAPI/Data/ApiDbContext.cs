@@ -32,10 +32,9 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.Property(s => s.Id).ValueGeneratedNever();
             entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
             entity.HasOne<Device>().WithMany().HasForeignKey(s => s.DeviceId).IsRequired(false);
-            entity.HasIndex(s => s.UserId)
-                .HasFilter("\"EndedAtUtc\" IS NULL")
-                .IsUnique();
-            entity.Property(s => s.TaskText).HasMaxLength(500);
+            entity.HasIndex(s => s.UserId).HasFilter("\"EndedAtUtc\" IS NULL").IsUnique();
+            entity.Property(s => s.Title).HasMaxLength(200);
+            entity.Property(s => s.Context).HasMaxLength(500);
             entity.Property(s => s.Source).HasMaxLength(20);
         });
 
@@ -44,7 +43,12 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Id).ValueGeneratedNever();
             entity.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
-            entity.HasIndex(c => new { c.UserId, c.ContextHash, c.TaskContentHash });
+            entity.HasIndex(c => new
+            {
+                c.UserId,
+                c.ContextHash,
+                c.TaskContentHash,
+            });
             entity.Property(c => c.ContextHash).HasMaxLength(64);
             entity.Property(c => c.TaskContentHash).HasMaxLength(64);
         });

@@ -6,7 +6,7 @@ namespace FocusBot.App.ViewModels.Tests.HistoryViewModelTests;
 
 public class HistoryViewModelShould
 {
-    private static UserTask CreateDoneTask(
+    private static UserSession CreateDoneTask(
         string id,
         string description,
         DateTime createdAtUtc,
@@ -16,9 +16,9 @@ public class HistoryViewModelShould
         int distractionCount = 2
     )
     {
-        return new UserTask
+        return new UserSession
         {
-            TaskId = id,
+            SessionId = id,
             Description = description,
             IsCompleted = true,
             CreatedAt = createdAtUtc,
@@ -34,19 +34,19 @@ public class HistoryViewModelShould
     public async Task LoadCompletedTasks_WhenInitialized()
     {
         var now = DateTime.UtcNow;
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask("1", "Task one", now),
             CreateDoneTask("2", "Task two", now.AddHours(-1)),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
         await vm.InitializeAsync();
 
-        repoMock.Verify(r => r.GetDoneTasksAsync(), Times.Once);
+        repoMock.Verify(r => r.GetDoneSessionsAsync(), Times.Once);
         vm.TotalTasks.Should().Be(2);
         vm.HasData.Should().BeTrue();
         vm.DailyStats.Should().NotBeEmpty();
@@ -61,13 +61,13 @@ public class HistoryViewModelShould
         var todayUtc = TimeZoneInfo.ConvertTimeToUtc(todayLocal.AddHours(10), tz);
         var yesterdayUtc = TimeZoneInfo.ConvertTimeToUtc(yesterdayLocal.AddHours(14), tz);
 
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask("1", "Today task", todayUtc),
             CreateDoneTask("2", "Yesterday task", yesterdayUtc),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -90,13 +90,13 @@ public class HistoryViewModelShould
         var todayUtc = TimeZoneInfo.ConvertTimeToUtc(todayLocal.AddHours(12), tz);
         var oldUtc = TimeZoneInfo.ConvertTimeToUtc(oldLocal.AddHours(12), tz);
 
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask("1", "Today", todayUtc),
             CreateDoneTask("2", "Old", oldUtc),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -115,7 +115,7 @@ public class HistoryViewModelShould
         var todayLocal = DateTime.Now.Date;
         var threeDaysAgo = todayLocal.AddDays(-3);
         var tenDaysAgo = todayLocal.AddDays(-10);
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask(
                 "1",
@@ -128,8 +128,8 @@ public class HistoryViewModelShould
                 TimeZoneInfo.ConvertTimeToUtc(tenDaysAgo.AddHours(12), tz)
             ),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -146,7 +146,7 @@ public class HistoryViewModelShould
         var todayLocal = DateTime.Now.Date;
         var twentyDaysAgo = todayLocal.AddDays(-20);
         var fortyDaysAgo = todayLocal.AddDays(-40);
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask(
                 "1",
@@ -159,8 +159,8 @@ public class HistoryViewModelShould
                 TimeZoneInfo.ConvertTimeToUtc(fortyDaysAgo.AddHours(12), tz)
             ),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -174,7 +174,7 @@ public class HistoryViewModelShould
     public async Task CalculateAggregates_Correctly()
     {
         var now = DateTime.UtcNow;
-        var tasks = new List<UserTask>
+        var tasks = new List<UserSession>
         {
             CreateDoneTask(
                 "1",
@@ -195,8 +195,8 @@ public class HistoryViewModelShould
                 distractionCount: 0
             ),
         };
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(tasks);
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(tasks);
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -212,8 +212,8 @@ public class HistoryViewModelShould
     [Fact]
     public void NavigateBack_WhenBackCommandExecuted()
     {
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(new List<UserTask>());
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(new List<UserSession>());
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 
@@ -225,8 +225,8 @@ public class HistoryViewModelShould
     [Fact]
     public async Task ShowEmptyState_WhenNoTasksInRange()
     {
-        var repoMock = new Mock<ITaskRepository>();
-        repoMock.Setup(r => r.GetDoneTasksAsync()).ReturnsAsync(new List<UserTask>());
+        var repoMock = new Mock<ISessionRepository>();
+        repoMock.Setup(r => r.GetDoneSessionsAsync()).ReturnsAsync(new List<UserSession>());
         var navMock = new Mock<INavigationService>();
         var vm = new HistoryViewModel(repoMock.Object, navMock.Object);
 

@@ -15,7 +15,7 @@ public interface IClassificationService
     Task<Result<AlignmentResult>> ClassifyAsync(
         string processName,
         string windowTitle,
-        string taskText,
-        string? taskHints,
+        string sessionText,
+        string? sessionContext,
         CancellationToken ct = default);
 }

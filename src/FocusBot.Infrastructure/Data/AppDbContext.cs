@@ -5,16 +5,16 @@ namespace FocusBot.Infrastructure.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<UserTask> UserTasks => Set<UserTask>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<AlignmentCacheEntry> AlignmentCacheEntries => Set<AlignmentCacheEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.Entity<UserTask>(entity =>
+        modelBuilder.Entity<UserSession>(entity =>
         {
-            entity.HasKey(e => e.TaskId);
-            entity.Property(e => e.TaskId).HasMaxLength(64);
+            entity.HasKey(e => e.SessionId);
+            entity.Property(e => e.SessionId).HasMaxLength(64);
             entity.Property(e => e.Description).HasMaxLength(1024).IsRequired();
             entity.Property(e => e.Context).HasMaxLength(1024);
             entity.Property(e => e.IsCompleted).IsRequired();

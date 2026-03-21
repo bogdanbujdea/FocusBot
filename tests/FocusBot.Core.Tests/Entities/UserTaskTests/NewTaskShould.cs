@@ -8,10 +8,10 @@ public class NewTaskShould
     public void HaveNonEmptyTaskId()
     {
         // Arrange
-        var task = new UserTask();
+        var task = new UserSession();
 
         // Act
-        var taskId = task.TaskId;
+        var taskId = task.SessionId;
 
         // Assert
         taskId.Should().NotBeNullOrEmpty();
@@ -21,10 +21,10 @@ public class NewTaskShould
     public void HaveParseableGuidTaskId()
     {
         // Arrange
-        var task = new UserTask();
+        var task = new UserSession();
 
         // Act
-        var parseable = Guid.TryParse(task.TaskId, out _);
+        var parseable = Guid.TryParse(task.SessionId, out _);
 
         // Assert
         parseable.Should().BeTrue();
@@ -34,7 +34,7 @@ public class NewTaskShould
     public void DefaultIsCompletedToFalse()
     {
         // Arrange
-        var task = new UserTask();
+        var task = new UserSession();
 
         // Act
         var isCompleted = task.IsCompleted;
@@ -47,7 +47,7 @@ public class NewTaskShould
     public void HaveUtcCreatedAtSet()
     {
         // Arrange
-        var task = new UserTask();
+        var task = new UserSession();
 
         // Act
         var createdAt = task.CreatedAt;

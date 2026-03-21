@@ -10,8 +10,8 @@ public class InitializeShould
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("In progress task");
-        await ctx.Repo.SetActiveAsync(task.TaskId);
+        var task = await ctx.Repo.AddSessionAsync("In progress task");
+        await ctx.Repo.SetActiveAsync(task.SessionId);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();

@@ -34,11 +34,11 @@ public class DailyStatGroup
     public double AlignedPercent { get; init; }
     /// <summary>Percentage of tracked time that was distracting (0-100).</summary>
     public double DistractedPercent { get; init; }
-    public ObservableCollection<UserTask> Tasks { get; } = new();
+    public ObservableCollection<UserSession> Tasks { get; } = new();
 }
 
 public partial class HistoryViewModel(
-    ITaskRepository repo,
+    ISessionRepository repo,
     INavigationService navigationService
 ) : ObservableObject
 {
@@ -88,7 +88,7 @@ public partial class HistoryViewModel(
     public bool ShowBestFocusDay => !string.IsNullOrEmpty(BestFocusDayDisplay);
     public bool ShowDailyChart => SelectedRange != DateRange.Today && DailyStats.Count > 1;
 
-    private List<UserTask> _allDoneTasks = new();
+    private List<UserSession> _allDoneTasks = new();
     private static readonly TimeZoneInfo LocalTz = TimeZoneInfo.Local;
 
     partial void OnSelectedRangeChanged(DateRange value)
@@ -102,7 +102,7 @@ public partial class HistoryViewModel(
         OnPropertyChanged(nameof(ShowEmptyState));
         try
         {
-            var tasks = await repo.GetDoneTasksAsync();
+            var tasks = await repo.GetDoneSessionsAsync();
             _allDoneTasks = tasks.ToList();
             ApplyFilter();
         }
@@ -152,7 +152,7 @@ public partial class HistoryViewModel(
         NotifySummaryProperties();
     }
 
-    private static List<UserTask> FilterByDateRange(List<UserTask> tasks, DateRange range)
+    private static List<UserSession> FilterByDateRange(List<UserSession> tasks, DateRange range)
     {
         var now = DateTime.Now;
         var today = DateOnly.FromDateTime(now);
@@ -177,7 +177,7 @@ public partial class HistoryViewModel(
         };
     }
 
-    private void GroupByDay(List<UserTask> filtered)
+    private void GroupByDay(List<UserSession> filtered)
     {
         DailyStats.Clear();
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -222,7 +222,7 @@ public partial class HistoryViewModel(
         }
     }
 
-    private void UpdateSummaryAggregates(List<UserTask> filtered)
+    private void UpdateSummaryAggregates(List<UserSession> filtered)
     {
         TotalTasks = filtered.Count;
         TotalFocusedSeconds = filtered.Sum(t => t.FocusedSeconds);

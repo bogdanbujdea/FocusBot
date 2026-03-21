@@ -10,8 +10,8 @@ public class WindowElapsedTimeShould
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("Tracked task");
-        await ctx.Repo.SetActiveAsync(task.TaskId);
+        var task = await ctx.Repo.AddSessionAsync("Tracked task");
+        await ctx.Repo.SetActiveAsync(task.SessionId);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
@@ -50,8 +50,8 @@ public class WindowElapsedTimeShould
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("Tracked task");
-        await ctx.Repo.SetActiveAsync(task.TaskId);
+        var task = await ctx.Repo.AddSessionAsync("Tracked task");
+        await ctx.Repo.SetActiveAsync(task.SessionId);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();

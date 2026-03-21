@@ -6,7 +6,7 @@ namespace FocusBot.Infrastructure.Tests.Data;
 public abstract class TaskRepositoryTestBase : IDisposable
 {
     protected AppDbContext Context { get; }
-    protected TaskRepository Repository { get; }
+    protected SessionRepository Repository { get; }
 
     protected TaskRepositoryTestBase()
     {
@@ -14,7 +14,7 @@ public abstract class TaskRepositoryTestBase : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         Context = new AppDbContext(options);
-        Repository = new TaskRepository(Context);
+        Repository = new SessionRepository(Context);
         Context.Database.EnsureCreated();
     }
 

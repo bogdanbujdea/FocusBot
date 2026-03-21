@@ -6,14 +6,14 @@ public class GetByIdAsyncShould : TaskRepositoryTestBase
     public async Task ReturnTask_WhenIdExists()
     {
         // Arrange
-        var created = await Repository.AddTaskAsync("Find me");
+        var created = await Repository.AddSessionAsync("Find me");
 
         // Act
-        var found = await Repository.GetByIdAsync(created.TaskId);
+        var found = await Repository.GetByIdAsync(created.SessionId);
 
         // Assert
         found.Should().NotBeNull();
-        found!.TaskId.Should().Be(created.TaskId);
+        found!.SessionId.Should().Be(created.SessionId);
         found.Description.Should().Be("Find me");
     }
 

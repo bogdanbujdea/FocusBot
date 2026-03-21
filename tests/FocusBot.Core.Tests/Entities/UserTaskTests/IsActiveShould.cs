@@ -8,7 +8,7 @@ public class IsActiveShould
     public void ReturnTrue_WhenNotCompleted()
     {
         // Arrange
-        var task = new UserTask { IsCompleted = false };
+        var task = new UserSession { IsCompleted = false };
 
         // Act
         var isActive = task.IsActive;
@@ -21,7 +21,7 @@ public class IsActiveShould
     public void ReturnFalse_WhenCompleted()
     {
         // Arrange
-        var task = new UserTask { IsCompleted = true };
+        var task = new UserSession { IsCompleted = true };
 
         // Act
         var isActive = task.IsActive;

@@ -11,9 +11,9 @@ public sealed class FocusPageTestContext : IAsyncDisposable
 {
     private readonly AppDbContext _context;
 
-    public ITaskRepository Repo { get; }
+    public ISessionRepository Repo { get; }
 
-    private FocusPageTestContext(AppDbContext context, ITaskRepository repo)
+    private FocusPageTestContext(AppDbContext context, ISessionRepository repo)
     {
         _context = context;
         Repo = repo;
@@ -26,7 +26,7 @@ public sealed class FocusPageTestContext : IAsyncDisposable
             .Options;
         var context = new AppDbContext(options);
         await context.Database.EnsureCreatedAsync();
-        var repo = new TaskRepository(context);
+        var repo = new SessionRepository(context);
         return new FocusPageTestContext(context, repo);
     }
 

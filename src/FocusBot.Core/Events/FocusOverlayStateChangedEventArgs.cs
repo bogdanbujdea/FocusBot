@@ -21,16 +21,16 @@ public enum FocusStatus
 public class FocusOverlayStateChangedEventArgs : EventArgs
 {
     /// <summary>Whether there is currently an active (in-progress) task.</summary>
-    public required bool HasActiveTask { get; init; }
+    public required bool HasActiveSession { get; init; }
 
-    /// <summary>The current focus score percentage (0-100). Only meaningful when HasActiveTask is true.</summary>
+    /// <summary>The current focus score percentage (0-100). Only meaningful when HasActiveSession is true.</summary>
     public required int FocusScorePercent { get; init; }
 
-    /// <summary>The current focus status (Distracted/Neutral/Focused). Only meaningful when HasActiveTask is true.</summary>
+    /// <summary>The current focus status (Distracted/Neutral/Focused). Only meaningful when HasActiveSession is true.</summary>
     public required FocusStatus Status { get; init; }
 
     /// <summary>Whether the task is currently paused.</summary>
-    public bool IsTaskPaused { get; init; }
+    public bool IsSessionPaused { get; init; }
 
     /// <summary>
     /// True when a task is active but no classification result has been received yet

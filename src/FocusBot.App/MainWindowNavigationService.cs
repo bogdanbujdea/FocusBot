@@ -56,7 +56,7 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
             _boardContent = _window.Content as UIElement;
 
         using var scope = serviceProvider.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
+        var repo = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
         var viewModel = new TaskDetailViewModel(repo, this);
         var page = new TaskDetailPage { DataContext = viewModel };
         _window.Content = page;

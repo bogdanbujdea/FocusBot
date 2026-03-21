@@ -10,8 +10,8 @@ public class TaskElapsedTimeShould
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("Tracked task");
-        await ctx.Repo.SetActiveAsync(task.TaskId);
+        var task = await ctx.Repo.AddSessionAsync("Tracked task");
+        await ctx.Repo.SetActiveAsync(task.SessionId);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
@@ -34,13 +34,13 @@ public class TaskElapsedTimeShould
         monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
-        vm.TaskElapsedTime.Should().Be("00:00:01");
+        vm.SessionElapsedTime.Should().Be("00:00:01");
 
         // Act
         monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
-        vm.TaskElapsedTime.Should().Be("00:00:02");
+        vm.SessionElapsedTime.Should().Be("00:00:02");
     }
 
     [Fact]
@@ -48,9 +48,9 @@ public class TaskElapsedTimeShould
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddTaskAsync("Resumed task");
-        await ctx.Repo.SetActiveAsync(task.TaskId);
-        await ctx.Repo.UpdateElapsedTimeAsync(task.TaskId, 3661);
+        var task = await ctx.Repo.AddSessionAsync("Resumed task");
+        await ctx.Repo.SetActiveAsync(task.SessionId);
+        await ctx.Repo.UpdateElapsedTimeAsync(task.SessionId, 3661);
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
@@ -70,7 +70,7 @@ public class TaskElapsedTimeShould
         await Task.Delay(150);
 
         // Assert
-        vm.TaskElapsedTime.Should().Be("01:01:01");
+        vm.SessionElapsedTime.Should().Be("01:01:01");
     }
 
     [Fact]
@@ -97,6 +97,6 @@ public class TaskElapsedTimeShould
         await Task.Delay(150);
 
         // Assert
-        vm.TaskElapsedTime.Should().Be("00:00:00");
+        vm.SessionElapsedTime.Should().Be("00:00:00");
     }
 }

@@ -22,8 +22,8 @@ public class AlignmentClassificationService(
     public async Task<Result<AlignmentResult>> ClassifyAsync(
         string processName,
         string windowTitle,
-        string taskText,
-        string? taskHints,
+        string sessionText,
+        string? sessionContext,
         CancellationToken ct = default
     )
     {
@@ -31,7 +31,7 @@ public class AlignmentClassificationService(
             return Result.Failure<AlignmentResult>("Not authenticated. Sign in to classify.");
 
         var contextHash = HashHelper.ComputeWindowContextHash(processName, windowTitle);
-        var taskContentHash = HashHelper.ComputeTaskContentHash(taskText, taskHints);
+        var taskContentHash = HashHelper.ComputeSessionContentHash(sessionText, sessionContext);
 
         var cached = await TryGetCachedAsync(contextHash, taskContentHash);
         if (cached is not null)
@@ -40,8 +40,8 @@ public class AlignmentClassificationService(
         return await ClassifyViaApiAsync(
             processName,
             windowTitle,
-            taskText,
-            taskHints,
+            sessionText,
+            sessionContext,
             contextHash,
             taskContentHash,
             ct

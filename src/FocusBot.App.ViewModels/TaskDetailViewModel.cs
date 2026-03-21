@@ -6,7 +6,7 @@ using FocusBot.Core.Interfaces;
 
 namespace FocusBot.App.ViewModels;
 
-public partial class TaskDetailViewModel(ITaskRepository repo, INavigationService navigationService)
+public partial class TaskDetailViewModel(ISessionRepository repo, INavigationService navigationService)
     : ObservableObject
 {
     public string Description

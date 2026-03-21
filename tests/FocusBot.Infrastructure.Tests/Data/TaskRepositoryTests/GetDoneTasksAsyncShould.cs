@@ -6,16 +6,16 @@ public class GetDoneTasksAsyncShould : TaskRepositoryTestBase
     public async Task ReturnOnlyCompletedTasks()
     {
         // Arrange
-        var t1 = await Repository.AddTaskAsync("Done 1");
-        await Repository.SetActiveAsync(t1.TaskId);
-        await Repository.SetCompletedAsync(t1.TaskId);
-        var t2 = await Repository.AddTaskAsync("Done 2");
-        await Repository.SetActiveAsync(t2.TaskId);
-        await Repository.SetCompletedAsync(t2.TaskId);
-        await Repository.AddTaskAsync("Still active");
+        var t1 = await Repository.AddSessionAsync("Done 1");
+        await Repository.SetActiveAsync(t1.SessionId);
+        await Repository.SetCompletedAsync(t1.SessionId);
+        var t2 = await Repository.AddSessionAsync("Done 2");
+        await Repository.SetActiveAsync(t2.SessionId);
+        await Repository.SetCompletedAsync(t2.SessionId);
+        await Repository.AddSessionAsync("Still active");
 
         // Act
-        var done = await Repository.GetDoneTasksAsync();
+        var done = await Repository.GetDoneSessionsAsync();
         var userTasks = done.ToList();
 
         // Assert
@@ -30,7 +30,7 @@ public class GetDoneTasksAsyncShould : TaskRepositoryTestBase
         // (no tasks in store)
 
         // Act
-        var done = await Repository.GetDoneTasksAsync();
+        var done = await Repository.GetDoneSessionsAsync();
 
         // Assert
         done.Should().BeEmpty();

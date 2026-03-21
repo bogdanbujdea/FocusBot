@@ -6,11 +6,11 @@ public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
     public async Task SetActiveAsync_MakesTaskActive()
     {
         // Arrange
-        var task = await Repository.AddTaskAsync("Work on this");
+        var task = await Repository.AddSessionAsync("Work on this");
 
         // Act
-        await Repository.SetActiveAsync(task.TaskId);
-        var fromDb = await Context.UserTasks.FindAsync(task.TaskId);
+        await Repository.SetActiveAsync(task.SessionId);
+        var fromDb = await Context.UserSessions.FindAsync(task.SessionId);
 
         // Assert
         fromDb.Should().NotBeNull();
@@ -22,14 +22,14 @@ public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
     public async Task SetActiveAsync_MovesPreviousActiveTaskToCompleted()
     {
         // Arrange
-        var first = await Repository.AddTaskAsync("First");
-        await Repository.SetActiveAsync(first.TaskId);
-        var second = await Repository.AddTaskAsync("Second");
+        var first = await Repository.AddSessionAsync("First");
+        await Repository.SetActiveAsync(first.SessionId);
+        var second = await Repository.AddSessionAsync("Second");
 
         // Act
-        await Repository.SetActiveAsync(second.TaskId);
-        var firstUpdated = await Context.UserTasks.FindAsync(first.TaskId);
-        var secondUpdated = await Context.UserTasks.FindAsync(second.TaskId);
+        await Repository.SetActiveAsync(second.SessionId);
+        var firstUpdated = await Context.UserSessions.FindAsync(first.SessionId);
+        var secondUpdated = await Context.UserSessions.FindAsync(second.SessionId);
 
         // Assert
         firstUpdated.Should().NotBeNull();
@@ -42,12 +42,12 @@ public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
     public async Task SetCompletedAsync_MarksTaskCompleted()
     {
         // Arrange
-        var task = await Repository.AddTaskAsync("Finish this");
-        await Repository.SetActiveAsync(task.TaskId);
+        var task = await Repository.AddSessionAsync("Finish this");
+        await Repository.SetActiveAsync(task.SessionId);
 
         // Act
-        await Repository.SetCompletedAsync(task.TaskId);
-        var fromDb = await Context.UserTasks.FindAsync(task.TaskId);
+        await Repository.SetCompletedAsync(task.SessionId);
+        var fromDb = await Context.UserSessions.FindAsync(task.SessionId);
 
         // Assert
         fromDb.Should().NotBeNull();
@@ -64,7 +64,7 @@ public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
         await Repository.SetCompletedAsync(taskId);
 
         // Assert
-        Context.UserTasks.Should().BeEmpty();
+        Context.UserSessions.Should().BeEmpty();
     }
 
     [Fact]
@@ -77,6 +77,6 @@ public class SetActiveAsyncAndSetCompletedAsyncShould : TaskRepositoryTestBase
         await Repository.SetActiveAsync(taskId);
 
         // Assert
-        Context.UserTasks.Should().BeEmpty();
+        Context.UserSessions.Should().BeEmpty();
     }
 }

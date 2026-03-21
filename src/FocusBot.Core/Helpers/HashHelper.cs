@@ -18,10 +18,9 @@ public static class HashHelper
 
     public static string NormalizeWindowTitle(string title)
     {
-        if (string.IsNullOrEmpty(title)) return string.Empty;
-        return title.Length <= MaxWindowTitleLength
-            ? title
-            : title[..MaxWindowTitleLength];
+        if (string.IsNullOrEmpty(title))
+            return string.Empty;
+        return title.Length <= MaxWindowTitleLength ? title : title[..MaxWindowTitleLength];
     }
 
     public static string ComputeWindowContextHash(string processName, string windowTitle)
@@ -30,7 +29,7 @@ public static class HashHelper
         return ComputeHash($"{processName}|{normalized}");
     }
 
-    public static string ComputeTaskContentHash(string description, string? context)
+    public static string ComputeSessionContentHash(string description, string? context)
     {
         return ComputeHash($"{description}|{context ?? string.Empty}");
     }

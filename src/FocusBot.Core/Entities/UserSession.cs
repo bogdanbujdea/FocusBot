@@ -3,11 +3,11 @@ namespace FocusBot.Core.Entities;
 /// <summary>
 /// Represents a user-defined task (single-task flow: active or completed).
 /// </summary>
-public class UserTask
+public class UserSession
 {
-    public UserTask() { }
+    public UserSession() { }
 
-    public string TaskId { get; set; } = Guid.NewGuid().ToString();
+    public string SessionId { get; set; } = Guid.NewGuid().ToString();
     public string Description { get; set; } = string.Empty;
     public string? Context { get; set; }
     public bool IsCompleted { get; set; }
