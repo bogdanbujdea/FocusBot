@@ -158,16 +158,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build And Deploy Web App
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './src/foqus-web-app/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./src/foqus-web-app
+        run: npm ci
+
+      - name: Build web app
+        working-directory: ./src/foqus-web-app
+        run: npm run build
+
+      - name: Deploy to Azure Static Web App
         id: deploywebapp
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ needs.terraform_infra.outputs.web_app_api_key }}
           action: "upload"
-          app_location: "./src/foqus-web-app"
+          app_location: "./src/foqus-web-app/dist"
           api_location: ""
-          output_location: "dist"
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VITE_API_BASE_URL: https://api.foqus.me
+          skip_app_build: true
