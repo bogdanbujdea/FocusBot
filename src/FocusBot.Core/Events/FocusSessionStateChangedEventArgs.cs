@@ -11,6 +11,15 @@ public class FocusSessionStateChangedEventArgs : EventArgs
     /// <summary>Current focus score percentage (0-100).</summary>
     public required int FocusScorePercent { get; init; }
 
+    /// <summary>Seconds accumulated while aligned (focused) this session.</summary>
+    public long FocusedSeconds { get; init; }
+
+    /// <summary>Seconds accumulated while misaligned (distracted) this session.</summary>
+    public long DistractedSeconds { get; init; }
+
+    /// <summary>Count of aligned-to-distracted transitions this session.</summary>
+    public int DistractionCount { get; init; }
+
     /// <summary>Whether a classification is currently in progress.</summary>
     public required bool IsClassifying { get; init; }
 

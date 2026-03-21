@@ -582,6 +582,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     {
         return processName == "Foqus"
             || processName == "explorer"
+            || processName == "Taskmgr"
             || processName == "StartMenuExperienceHost"
             || processName == "ApplicationFrameHost"
             || processName == "ShellExperienceHost";
@@ -599,6 +600,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         bool hasResult;
         bool isPaused;
         string? error;
+        long focusedSeconds;
+        long distractedSeconds;
+        int distractionCount;
 
         lock (_lock)
         {
@@ -612,6 +616,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             hasResult = _hasCurrentFocusResult;
             isPaused = _isSessionPaused;
             error = _aiRequestError;
+            focusedSeconds = _sessionTracker.GetFocusedSeconds();
+            distractedSeconds = _sessionTracker.GetDistractedSeconds();
+            distractionCount = _sessionTracker.GetDistractionCount();
         }
 
         StateChanged?.Invoke(
@@ -620,6 +627,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             {
                 SessionElapsedSeconds = elapsed,
                 FocusScorePercent = focusScorePercent,
+                FocusedSeconds = focusedSeconds,
+                DistractedSeconds = distractedSeconds,
+                DistractionCount = distractionCount,
                 IsClassifying = isClassifying,
                 FocusScore = focusScore,
                 FocusReason = focusReason,

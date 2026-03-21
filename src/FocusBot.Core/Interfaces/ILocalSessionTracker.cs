@@ -33,6 +33,15 @@ public interface ILocalSessionTracker
     /// <summary>Returns the current focus score (0–100) based on accumulated time.</summary>
     int GetFocusScore();
 
+    /// <summary>Seconds accumulated while aligned (focused) this session.</summary>
+    long GetFocusedSeconds();
+
+    /// <summary>Seconds accumulated while misaligned (distracted) this session.</summary>
+    long GetDistractedSeconds();
+
+    /// <summary>Count of aligned-to-distracted transitions this session.</summary>
+    int GetDistractionCount();
+
     /// <summary>Computes and returns the complete session summary for backend submission.</summary>
     SessionSummary GetSessionSummary();
 

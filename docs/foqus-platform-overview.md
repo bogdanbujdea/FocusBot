@@ -84,6 +84,7 @@ Key capabilities (high level):
 - Single-task flow: start a task, receive live status as you switch windows, end the task to save a session summary.
 - Real-time status: a focus status bar shows the current app/window and classification output.
 - Focus Score: a time-weighted alignment percentage (0–100) updated continuously and finalized with the session.
+- Focus page (active session): shows focused time, **total** elapsed time (center), distracted time, distraction count, and (when signed in) a green/red focus score bar with labels below the bar.
 - Caching: classification results are cached per window context to reduce repeated model calls.
 - Idle detection: pauses tracking when the user is idle to avoid counting “off-task” time during inactivity.
 - Daily analytics: distraction events are aggregated into daily summaries.

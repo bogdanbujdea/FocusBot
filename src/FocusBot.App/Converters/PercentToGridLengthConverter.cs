@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 
@@ -7,12 +8,13 @@ public sealed class PercentToGridLengthConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is double d && d > 0)
+        return value switch
         {
-            return new GridLength(d, GridUnitType.Star);
-        }
-
-        return new GridLength(0, GridUnitType.Star);
+            int i => new GridLength(Math.Max(0, i), GridUnitType.Star),
+            long l => new GridLength(Math.Max(0, l), GridUnitType.Star),
+            double d when d > 0 => new GridLength(d, GridUnitType.Star),
+            _ => new GridLength(0, GridUnitType.Star),
+        };
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

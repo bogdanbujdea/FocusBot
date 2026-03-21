@@ -90,6 +90,30 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
         }
     }
 
+    public long GetFocusedSeconds()
+    {
+        lock (_lock)
+        {
+            return _focusedSeconds;
+        }
+    }
+
+    public long GetDistractedSeconds()
+    {
+        lock (_lock)
+        {
+            return _distractedSeconds;
+        }
+    }
+
+    public int GetDistractionCount()
+    {
+        lock (_lock)
+        {
+            return _distractionCount;
+        }
+    }
+
     public SessionSummary GetSessionSummary()
     {
         lock (_lock)

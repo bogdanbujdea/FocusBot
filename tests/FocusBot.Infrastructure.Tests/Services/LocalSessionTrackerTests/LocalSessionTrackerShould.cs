@@ -248,4 +248,41 @@ public class LocalSessionTrackerShould
         summary.FocusedSeconds.Should().Be(5);
         summary.DistractedSeconds.Should().Be(0);
     }
+
+    [Fact]
+    public void GetFocusedSeconds_MatchesSessionSummary()
+    {
+        var tracker = new LocalSessionTracker();
+        tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
+        tracker.RecordTick();
+        tracker.RecordTick();
+
+        tracker.GetFocusedSeconds().Should().Be(2);
+        tracker.GetSessionSummary().FocusedSeconds.Should().Be(2);
+    }
+
+    [Fact]
+    public void GetDistractedSeconds_MatchesSessionSummary()
+    {
+        var tracker = new LocalSessionTracker();
+        tracker.Start("task");
+        tracker.RecordClassification("youtube", Distracted());
+        tracker.RecordTick();
+
+        tracker.GetDistractedSeconds().Should().Be(1);
+        tracker.GetSessionSummary().DistractedSeconds.Should().Be(1);
+    }
+
+    [Fact]
+    public void GetDistractionCount_MatchesSessionSummary()
+    {
+        var tracker = new LocalSessionTracker();
+        tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
+        tracker.RecordClassification("youtube", Distracted());
+
+        tracker.GetDistractionCount().Should().Be(1);
+        tracker.GetSessionSummary().DistractionCount.Should().Be(1);
+    }
 }

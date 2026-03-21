@@ -61,13 +61,38 @@ public partial class FocusPageViewModel : ObservableObject
 
     public bool IsFocusResultVisible => ActiveSession != null;
 
-    public int CurrentFocusScorePercent
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DistractedBarStarWeight))]
+    [NotifyPropertyChangedFor(nameof(FocusedPercentLabel))]
+    [NotifyPropertyChangedFor(nameof(DistractedPercentLabel))]
+    private int _currentFocusScorePercent;
+
+    public bool IsFocusScorePercentVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
+
+    /// <summary>Star weight for the distracted segment of the focus bar (100 minus focus score).</summary>
+    public int DistractedBarStarWeight => Math.Max(0, 100 - CurrentFocusScorePercent);
+
+    public string FocusedPercentLabel => $"{CurrentFocusScorePercent}% Focused";
+
+    public string DistractedPercentLabel => $"{DistractedBarStarWeight}% Distracted";
+
+    public string FocusedTime
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "00:00:00";
+
+    public string DistractedTime
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "00:00:00";
+
+    public int DistractionCount
     {
         get;
         private set => SetProperty(ref field, value);
     }
-
-    public bool IsFocusScorePercentVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
 
     public string SessionElapsedTime
     {
@@ -152,6 +177,9 @@ public partial class FocusPageViewModel : ObservableObject
             _sessionElapsedSeconds = e.SessionElapsedSeconds;
             SessionElapsedTime = TimeFormatHelper.FormatElapsed(e.SessionElapsedSeconds);
             CurrentFocusScorePercent = e.FocusScorePercent;
+            FocusedTime = TimeFormatHelper.FormatElapsed(e.FocusedSeconds);
+            DistractedTime = TimeFormatHelper.FormatElapsed(e.DistractedSeconds);
+            DistractionCount = e.DistractionCount;
             AiRequestError = e.AiRequestError;
 
             OnPropertyChanged(nameof(IsSessionPaused));
@@ -194,6 +222,9 @@ public partial class FocusPageViewModel : ObservableObject
             _sessionElapsedSeconds = session.TotalElapsedSeconds;
             SessionElapsedTime = TimeFormatHelper.FormatElapsed(_sessionElapsedSeconds);
             CurrentFocusScorePercent = 0;
+            FocusedTime = "00:00:00";
+            DistractedTime = "00:00:00";
+            DistractionCount = 0;
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             _sessionOrchestrator.StartSession(session, session.TotalElapsedSeconds);
         }
@@ -301,6 +332,10 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void ResetFocusState()
     {
+        CurrentFocusScorePercent = 0;
+        FocusedTime = "00:00:00";
+        DistractedTime = "00:00:00";
+        DistractionCount = 0;
         Status.Reset();
         OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
         OnPropertyChanged(nameof(ShowExtensionPromo));

@@ -168,50 +168,109 @@
                                    automation:AutomationProperties.Name="Session context"/>
                     </StackPanel>
 
-                    <Grid Margin="0,8,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="16" Margin="0,8,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Elapsed Time -->
-                        <StackPanel Grid.Column="0" Spacing="10" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE917;" FontSize="28" Foreground="{StaticResource FbNeutralAccentBrush}"/>
-                            <TextBlock Text="Time"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="12"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Text="{x:Bind ViewModel.SessionElapsedTime, Mode=OneWay}"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       HorizontalAlignment="Center"
-                                       automation:AutomationProperties.Name="Elapsed time"/>
-                        </StackPanel>
+                            <!-- Focused time -->
+                            <StackPanel Grid.Column="0" Spacing="10" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE930;" FontSize="28" Foreground="{StaticResource FbAlignedAccentBrush}"/>
+                                <TextBlock Text="Focused"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ViewModel.FocusedTime, Mode=OneWay}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           automation:AutomationProperties.Name="Focused time"/>
+                            </StackPanel>
 
-                        <!-- Focus Score -->
-                        <StackPanel Grid.Column="1" Spacing="10" HorizontalAlignment="Center"
+                            <!-- Total session elapsed (center) -->
+                            <StackPanel Grid.Column="1" Spacing="10" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE917;" FontSize="28" Foreground="{StaticResource FbNeutralAccentBrush}"/>
+                                <TextBlock Text="Total"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ViewModel.SessionElapsedTime, Mode=OneWay}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           automation:AutomationProperties.Name="Total elapsed time"/>
+                            </StackPanel>
+
+                            <!-- Distracted time -->
+                            <StackPanel Grid.Column="2" Spacing="10" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE7BA;" FontSize="28" Foreground="{StaticResource FbMisalignedAccentBrush}"/>
+                                <TextBlock Text="Distracted"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ViewModel.DistractedTime, Mode=OneWay}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           automation:AutomationProperties.Name="Distracted time"/>
+                            </StackPanel>
+
+                            <!-- Distraction count -->
+                            <StackPanel Grid.Column="3" Spacing="10" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE8F1;" FontSize="28" Foreground="{StaticResource FbNeutralAccentBrush}"/>
+                                <TextBlock Text="Distractions"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ViewModel.DistractionCount, Mode=OneWay}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           automation:AutomationProperties.Name="Distraction count"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Focus score bar (authenticated monitoring only); labels sit below the bar -->
+                        <StackPanel Spacing="8"
                                     Visibility="{x:Bind ViewModel.IsFocusScorePercentVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <FontIcon Glyph="&#xE81E;" FontSize="28" Foreground="{StaticResource FbAlignedAccentBrush}"/>
-                            <TextBlock Text="Focus"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="12"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       HorizontalAlignment="Center"
-                                       automation:AutomationProperties.Name="Focus score">
-                                <TextBlock.Text>
-                                    <Binding Path="CurrentFocusScorePercent" Mode="OneWay">
-                                        <Binding.Converter>
-                                            <converters:FocusScorePercentFormatConverter/>
-                                        </Binding.Converter>
-                                    </Binding>
-                                </TextBlock.Text>
-                            </TextBlock>
+                            <Grid Height="12" HorizontalAlignment="Stretch" MaxWidth="640">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{x:Bind ViewModel.CurrentFocusScorePercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                    <ColumnDefinition Width="{x:Bind ViewModel.DistractedBarStarWeight, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Background="{StaticResource FbAlignedAccentBrush}"
+                                        CornerRadius="6,0,0,6"
+                                        automation:AutomationProperties.Name="Focused segment"/>
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource FbMisalignedAccentBrush}"
+                                        CornerRadius="0,6,6,0"
+                                        automation:AutomationProperties.Name="Distracted segment"/>
+                            </Grid>
+                            <Grid MaxWidth="640" HorizontalAlignment="Stretch">
+                                <TextBlock Text="{x:Bind ViewModel.FocusedPercentLabel, Mode=OneWay}"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Left"
+                                           VerticalAlignment="Top"
+                                           automation:AutomationProperties.Name="Focused percent label"/>
+                                <TextBlock Text="{x:Bind ViewModel.DistractedPercentLabel, Mode=OneWay}"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Top"
+                                           automation:AutomationProperties.Name="Distracted percent label"/>
+                            </Grid>
                         </StackPanel>
-                    </Grid>
+                    </StackPanel>
 
                     <Border Style="{StaticResource FbDividerStyle}"/>
 
