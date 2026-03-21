@@ -318,38 +318,5 @@
                 </StackPanel>
             </Border>
         </Grid>
-
-        <!-- AI provider/model and error indicator (farthest top-right, only when AI is configured) -->
-        <StackPanel Grid.Row="0"
-                    Grid.RowSpan="3"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="0,0,0,0"
-                    Orientation="Horizontal"
-                    Spacing="6"
-                    Visibility="{x:Bind ViewModel.IsAiConfigured, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="AI provider and model">
-            <TextBlock Text="{x:Bind ViewModel.AiProviderAndModelDisplay, Mode=OneWay}"
-                       FontSize="11"
-                       Foreground="{StaticResource FbTextSecondaryBrush}"
-                       MaxLines="1"
-                       TextTrimming="CharacterEllipsis"
-                       VerticalAlignment="Center"/>
-            <Ellipse Width="8" Height="8"
-                    Fill="{StaticResource FbAlignedAccentBrush}"
-                    Visibility="{x:Bind ViewModel.IsAiStatusOk, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    VerticalAlignment="Center"
-                    automation:AutomationProperties.Name="AI status OK"/>
-            <FontIcon Glyph="&#xE7BA;"
-                      FontSize="14"
-                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                      Visibility="{x:Bind ViewModel.HasAiRequestError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                      VerticalAlignment="Center"
-                      automation:AutomationProperties.Name="AI request error">
-                <ToolTipService.ToolTip>
-                    <ToolTip Content="{x:Bind ViewModel.AiRequestError, Mode=OneWay}"/>
-                </ToolTipService.ToolTip>
-            </FontIcon>
-        </StackPanel>
     </Grid>
 </Page>

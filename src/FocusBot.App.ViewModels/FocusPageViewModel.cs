@@ -161,40 +161,12 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     } = "00:00:00";
 
-    public string AiProviderDisplay
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public string AiModelDisplay
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    private string _aiRequestError = string.Empty;
-    public string AiRequestError
+    private string? _aiRequestError;
+    public string? AiRequestError
     {
         get => _aiRequestError;
-        set
-        {
-            if (SetProperty(ref _aiRequestError, value))
-            {
-                OnPropertyChanged(nameof(HasAiRequestError));
-                OnPropertyChanged(nameof(IsAiStatusOk));
-            }
-        }
+        set { if (SetProperty(ref _aiRequestError, value)) { } }
     }
-
-    public bool HasAiRequestError => !string.IsNullOrEmpty(_aiRequestError);
-
-    public bool IsAiStatusOk => !HasAiRequestError;
-
-    public string AiProviderAndModelDisplay =>
-        string.IsNullOrEmpty(AiModelDisplay)
-            ? AiProviderDisplay
-            : $"{AiProviderDisplay} · {AiModelDisplay}";
 
     public bool IsAiConfigured
     {
@@ -813,7 +785,7 @@ public partial class FocusPageViewModel : ObservableObject
     {
         var hasActive = HasActiveSession();
         var isLoading = hasActive && !HasCurrentFocusResult;
-        var hasError = HasAiRequestError;
+        var hasError = AiRequestError != null;
         var status = FocusScore switch
         {
             >= 6 => FocusStatus.Focused,
