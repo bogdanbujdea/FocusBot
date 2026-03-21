@@ -9,7 +9,7 @@ public class LocalSessionTrackerShould
     private static AlignmentResult Distracted(int score = 2) => new() { Score = score, Reason = "Off-task" };
 
     [Fact]
-    public void IncrementFocusedSeconds_WhenRecordingAlignedClassification()
+    public void IncrementFocusedSeconds_WhenTickAfterAlignedClassification()
     {
         // Arrange
         var tracker = new LocalSessionTracker();
@@ -17,6 +17,7 @@ public class LocalSessionTrackerShould
 
         // Act
         tracker.RecordClassification("chrome", Aligned());
+        tracker.RecordTick();
 
         // Assert
         var summary = tracker.GetSessionSummary();
@@ -25,7 +26,7 @@ public class LocalSessionTrackerShould
     }
 
     [Fact]
-    public void IncrementDistractedSeconds_WhenRecordingDistractedClassification()
+    public void IncrementDistractedSeconds_WhenTickAfterDistractedClassification()
     {
         // Arrange
         var tracker = new LocalSessionTracker();
@@ -33,6 +34,7 @@ public class LocalSessionTrackerShould
 
         // Act
         tracker.RecordClassification("youtube", Distracted());
+        tracker.RecordTick();
 
         // Assert
         var summary = tracker.GetSessionSummary();
@@ -46,10 +48,11 @@ public class LocalSessionTrackerShould
         // Arrange
         var tracker = new LocalSessionTracker();
         tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
         tracker.HandleIdle(true);
 
         // Act
-        tracker.RecordClassification("vscode", Aligned());
+        tracker.RecordTick();
 
         // Assert
         var summary = tracker.GetSessionSummary();
@@ -63,12 +66,13 @@ public class LocalSessionTrackerShould
         // Arrange
         var tracker = new LocalSessionTracker();
         tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
         tracker.HandleIdle(true);
-        tracker.RecordClassification("vscode", Aligned()); // skipped
+        tracker.RecordTick(); // skipped
 
         // Act
         tracker.HandleIdle(false);
-        tracker.RecordClassification("vscode", Aligned());
+        tracker.RecordTick();
 
         // Assert
         tracker.GetSessionSummary().FocusedSeconds.Should().Be(1);
@@ -80,10 +84,11 @@ public class LocalSessionTrackerShould
         // Arrange
         var tracker = new LocalSessionTracker();
         tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
 
         // Act
         for (var i = 0; i < 10; i++)
-            tracker.RecordClassification("vscode", Aligned());
+            tracker.RecordTick();
 
         // Assert
         tracker.GetFocusScore().Should().Be(100);
@@ -95,10 +100,11 @@ public class LocalSessionTrackerShould
         // Arrange
         var tracker = new LocalSessionTracker();
         tracker.Start("task");
+        tracker.RecordClassification("youtube", Distracted());
 
         // Act
         for (var i = 0; i < 10; i++)
-            tracker.RecordClassification("youtube", Distracted());
+            tracker.RecordTick();
 
         // Assert
         tracker.GetFocusScore().Should().Be(0);
@@ -112,10 +118,12 @@ public class LocalSessionTrackerShould
         tracker.Start("task");
 
         // Act
+        tracker.RecordClassification("vscode", Aligned());
         for (var i = 0; i < 5; i++)
-            tracker.RecordClassification("vscode", Aligned());
+            tracker.RecordTick();
+        tracker.RecordClassification("youtube", Distracted());
         for (var i = 0; i < 5; i++)
-            tracker.RecordClassification("youtube", Distracted());
+            tracker.RecordTick();
 
         // Assert
         tracker.GetFocusScore().Should().Be(50);
@@ -173,7 +181,9 @@ public class LocalSessionTrackerShould
         var tracker = new LocalSessionTracker();
         tracker.Start("task");
         tracker.RecordClassification("youtube", Distracted());
+        tracker.RecordTick();
         tracker.RecordClassification("chrome", Aligned());
+        tracker.RecordTick();
 
         // Act
         tracker.Reset();
@@ -195,10 +205,47 @@ public class LocalSessionTrackerShould
 
         // Act
         tracker.RecordClassification("vscode", Aligned());
-        tracker.RecordClassification("vscode", Aligned());
+        tracker.RecordTick();
+        tracker.RecordTick();
 
         // Assert
         var summary = tracker.GetSessionSummary();
         summary.TopAlignedApps.Should().Contain("vscode");
+    }
+
+    [Fact]
+    public void NotCountTime_WhenNoClassificationRecorded()
+    {
+        // Arrange
+        var tracker = new LocalSessionTracker();
+        tracker.Start("task");
+
+        // Act
+        tracker.RecordTick();
+        tracker.RecordTick();
+        tracker.RecordTick();
+
+        // Assert
+        var summary = tracker.GetSessionSummary();
+        summary.FocusedSeconds.Should().Be(0);
+        summary.DistractedSeconds.Should().Be(0);
+    }
+
+    [Fact]
+    public void AccumulateTimePerTick_UsingLastClassificationState()
+    {
+        // Arrange
+        var tracker = new LocalSessionTracker();
+        tracker.Start("task");
+        tracker.RecordClassification("vscode", Aligned());
+
+        // Act — simulate 5 seconds passing on the same window without new classification
+        for (var i = 0; i < 5; i++)
+            tracker.RecordTick();
+
+        // Assert
+        var summary = tracker.GetSessionSummary();
+        summary.FocusedSeconds.Should().Be(5);
+        summary.DistractedSeconds.Should().Be(0);
     }
 }

@@ -362,6 +362,7 @@ public partial class FocusPageViewModel : ObservableObject
             WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(total);
         }
         var taskId = ActiveTask.TaskId;
+        _sessionTracker.RecordTick();
         CurrentFocusScorePercent = _sessionTracker.GetFocusScore();
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();

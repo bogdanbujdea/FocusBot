@@ -13,10 +13,17 @@ public interface ILocalSessionTracker
     void Start(string taskText);
 
     /// <summary>
-    /// Records one classification tick for the given process.
-    /// Called every second by the focus monitoring loop.
+    /// Records a new classification result for the given process.
+    /// Stores the alignment state and handles transition detection (distraction/context-switch counts).
+    /// Does NOT increment time counters — that is done by <see cref="RecordTick"/>.
     /// </summary>
     void RecordClassification(string processName, AlignmentResult result);
+
+    /// <summary>
+    /// Accumulates one second of focused or distracted time based on the last known alignment state.
+    /// Called once per second by the monitoring timer. No-ops if no classification has been recorded yet or if idle.
+    /// </summary>
+    void RecordTick();
 
     /// <summary>
     /// Notifies the tracker that the user is idle (tracking paused) or active again.

@@ -20,6 +20,9 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
     private bool _isIdle;
     private bool _isPreviouslyAligned;
     private string _previousProcessName = string.Empty;
+    private bool _hasClassification;
+    private bool _lastIsAligned;
+    private string _lastProcessName = string.Empty;
 
     private long _focusedSeconds;
     private long _distractedSeconds;
@@ -47,12 +50,27 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
 
             var isAligned = result.Score >= AlignedThreshold;
 
-            AccountTime(processName, isAligned);
             DetectDistractionTransition(isAligned);
             DetectContextSwitch(processName);
 
             _isPreviouslyAligned = isAligned;
             _previousProcessName = processName;
+
+            // Store last known state so RecordTick can attribute time each second
+            _hasClassification = true;
+            _lastIsAligned = isAligned;
+            _lastProcessName = processName;
+        }
+    }
+
+    public void RecordTick()
+    {
+        lock (_lock)
+        {
+            if (_isIdle || !_hasClassification)
+                return;
+
+            AccountTime(_lastProcessName, _lastIsAligned);
         }
     }
 
@@ -96,6 +114,9 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
             _isIdle = false;
             _isPreviouslyAligned = false;
             _previousProcessName = string.Empty;
+            _hasClassification = false;
+            _lastIsAligned = false;
+            _lastProcessName = string.Empty;
             _focusedSeconds = 0;
             _distractedSeconds = 0;
             _distractionCount = 0;
