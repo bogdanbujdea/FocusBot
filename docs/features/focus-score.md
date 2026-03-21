@@ -64,16 +64,18 @@ This means:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  App (UI)                                               │
-│  - KanbanBoardPage.xaml (displays focus score)          │
+│  - FocusPage.xaml (active session card, focus score)    │
+│  - FocusStatusControl.xaml (status bar)                 │
 │  - Converters for formatting                            │
 └─────────────────────────────────────────────────────────┘
                            │
 ┌─────────────────────────────────────────────────────────┐
 │  App.ViewModels                                         │
-│  - KanbanBoardViewModel                                 │
-│    - Handles window change events                       │
-│    - Triggers AI classification                         │
-│    - Updates UI properties                              │
+│  - FocusPageViewModel                                   │
+│    - Session lifecycle, focus score display              │
+│  - FocusStatusViewModel                                 │
+│    - Subscribes to orchestrator state changes            │
+│    - Updates classification display properties           │
 └─────────────────────────────────────────────────────────┘
                            │
 ┌─────────────────────────────────────────────────────────┐

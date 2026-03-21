@@ -318,8 +318,8 @@ The solution follows Clean Architecture with four layers:
 ```
 FocusBot.Core          - Entities, interfaces, domain logic (no Windows dependencies)
 FocusBot.Infrastructure - Win32 services, EF Core, AI integration, Store APIs, Distraction detection, Analytics
-FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies), Single-task state, Daily analytics
-FocusBot.App            - WinUI 3 views, XAML, app entry point
+FocusBot.App.ViewModels - MVVM ViewModels (no Windows dependencies), Single-session state, FocusStatusViewModel
+FocusBot.App            - WinUI 3 views, XAML (incl. FocusStatusControl UserControl), app entry point
 ```
 
 Dependencies flow inward: App depends on ViewModels, which depend on Core. Infrastructure implements Core interfaces and is wired up via dependency injection in the App layer.

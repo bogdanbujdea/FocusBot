@@ -2,7 +2,7 @@
 
 ## Overview
 
-The main screen displays a **single-task focus interface**. When no task is active, a **Start Task Form** is shown. When a task is in progress, an **Active Task Card** is displayed with real-time focus monitoring. A **Focus Status Bar** appears above the main content showing the current foreground window and real-time focus classification. The layout uses a fixed-height status area to avoid UI jumping when switching apps.
+The main screen displays a **single-session focus interface**. When no session is active, a **Start Session Form** is shown. When a session is in progress, an **Active Session Card** is displayed with real-time focus monitoring. A **Focus Status Control** (`FocusStatusControl`) appears above the main content showing the current foreground window and real-time focus classification. The status control is a standalone `UserControl` with its own `FocusStatusViewModel`. The layout uses a fixed-height status area to avoid UI jumping when switching apps.
 
 ## Layout Structure
 
@@ -12,7 +12,7 @@ The main screen displays a **single-task focus interface**. When no task is acti
 │  Process: msedge | Window: Booking.com...  [full text in tooltip]│
 │  Visit: 00:02:15 · Total: 00:05:42                               │
 ├─────────────────────────────────────────────────────────────────┤
-│  Focus Status Bar (fixed min height ~72px)                       │
+│  Focus Status Control (fixed min height ~72px)                   │
 │  [Icon] FOCUSED / UNCLEAR / DISTRACTED                           │
 │        Reason from AI (one line, ellipsis; full text in tooltip) │
 │  OR: [ProgressRing] Evaluating focus...                          │
@@ -20,121 +20,123 @@ The main screen displays a **single-task focus interface**. When no task is acti
 │  Settings · Help                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  Start Task Form (when no active task)                           │
+│  Start Session Form (when no active session)                     │
 │  OR                                                               │
-│  Active Task Card (when task in progress)                        │
+│  Active Session Card (when session in progress)                  │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Start Task Form
+## Start Session Form
 
-Shown when no task is active (`ShowStartForm = true`).
+Shown when no session is active (`ShowStartForm = true`).
 
 ### Components
 
 - **Title:** "Start a Focus Session"
-- **Task Title Input:** Required field, max 200 characters
+- **Session Title Input:** Required field, max 200 characters
   - Placeholder: "What are you working on?"
 - **Context Input:** Optional field, max 200 characters, multiline
   - Placeholder: "Context hints for AI (optional)"
-- **Start Task Button:** Primary action, enabled when title is not empty
-- **View History Link:** Secondary action, navigates to history page
+- **Start Session Button:** Primary action, enabled when title is not empty
 
-### ViewModel Properties
+### ViewModel Properties (`FocusPageViewModel`)
 
-- `ShowStartForm` (bool) – true when `ActiveTask == null && !_extensionHasActiveTask`
-- `StartTaskTitle` (string) – bound to title input
-- `StartTaskContext` (string) – bound to context input
-- `StartTaskCommand` (IRelayCommand) – executes when Start Task is clicked
+- `ShowStartForm` (bool) – true when `ActiveSession == null`
+- `StartSessionTitle` (string) – bound to title input
+- `StartSessionContext` (string) – bound to context input
+- `StartSessionCommand` (IRelayCommand) – executes when Start Session is clicked
 
-## Active Task Card
+## Active Session Card
 
-Shown when a task is in progress (`IsActiveTaskVisible = true`).
+Shown when a session is in progress (`IsActiveSessionVisible = true`).
 
 ### Components
 
-- **Status Badge:** "In Progress" with icon
-- **Task Title:** Large, bold text (20px)
-- **Task Context:** Secondary text, shown if provided
+- **Session Title:** Large, bold text (22px)
+- **Session Context:** Secondary text, shown if provided
 - **Metrics Grid:**
   - **Elapsed Time:** Icon + label + formatted time (HH:MM:SS)
-  - **Focus Score:** Icon + label + percentage (if available)
-  - **Distractions:** Icon + label + count
+  - **Focus Score:** Icon + label + percentage (visible when user is signed in)
 - **Action Buttons:**
-  - **Pause/Resume:** Toggle button based on `IsTaskPaused`
-  - **End Task:** Primary action, completes the task
+  - **Pause/Resume:** Toggle button based on `IsSessionPaused`
+  - **End Session:** Primary action, completes the session
 
-### ViewModel Properties
+### ViewModel Properties (`FocusPageViewModel`)
 
-- `IsActiveTaskVisible` (bool) – true when `ActiveTask != null || _extensionHasActiveTask`
-- `ActiveTask` (UserTask?) – the current task being worked on
-- `TaskElapsedTime` (string) – formatted elapsed time (HH:MM:SS)
-- `CurrentFocusScorePercent` (int?) – focus score percentage
-- `IsFocusScorePercentVisible` (bool) – whether focus score is available
-- `LiveDistractionCount` (int) – number of distractions during this session
-- `IsTaskPaused` (bool) – whether task is currently paused
-- `PauseTaskCommand` (IRelayCommand) – pauses the task
-- `ResumeTaskCommand` (IRelayCommand) – resumes the task
-- `EndTaskCommand` (IRelayCommand) – completes the task
+- `IsActiveSessionVisible` (bool) – true when `ActiveSession != null`
+- `ActiveSession` (UserSession?) – the current session being tracked
+- `SessionElapsedTime` (string) – formatted elapsed time (HH:MM:SS)
+- `CurrentFocusScorePercent` (int) – focus score percentage
+- `IsFocusScorePercentVisible` (bool) – `Status.IsMonitoring && AccountSection.IsAuthenticated`
+- `IsSessionPaused` (bool) – whether session is currently paused
+- `PauseSessionCommand` (IRelayCommand) – pauses the session
+- `ResumeSessionCommand` (IRelayCommand) – resumes the session
+- `EndSessionCommand` (IRelayCommand) – completes the session
 
-## Focus Status Bar
+## Focus Status Control
 
-Visible only when a task is **In Progress** and monitoring is active.
+A standalone `UserControl` (`FocusStatusControl` in `Views/Controls/`) with its own `FocusStatusViewModel`. Visible only when a session is **In Progress** and monitoring is active.
 
 ### States
 
 | State | When | Visual |
 |-------|------|--------|
-| **Evaluating** | Window just changed; waiting for OpenAI | ProgressRing + "Evaluating focus..." |
+| **Evaluating** | Window just changed; waiting for AI | ProgressRing + "Evaluating focus..." |
 | **Focused** | Score 6–10 | Fire icon, large green "FOCUSED" text, reason below |
 | **Unclear** | Score 4–5 | Question icon, large purple "UNCLEAR" text, reason below |
 | **Distracted** | Score 1–3 | Warning icon, large orange "DISTRACTED" text, reason below |
 
 ### Design
 
-- **Fixed min height** (72px) so the bar does not collapse while classifying; prevents layout jump.
+- **Fixed min height** (72px) so the control does not collapse while classifying; prevents layout jump.
 - **Large status text** (20px, bold) with color by state (green / purple / orange).
 - **Custom icons** per state: `icon-focused.svg`, `icon-unclear.svg`, `icon-distracted.svg` in `Assets/`.
 - **Reason text** from AI shown in smaller secondary style, max 2 lines with ellipsis.
 
-### ViewModel Properties
+### ViewModel Properties (`FocusStatusViewModel`)
 
-- `IsMonitoring` – entire bar (window info + focus bar) visible when true.
-- `IsFocusScoreVisible` – focus bar visible when classifying or when we have a result.
+The `FocusStatusViewModel` subscribes directly to `IFocusSessionOrchestrator.StateChanged` and owns all classification display state:
+
+- `IsMonitoring` – entire control visible when true. Set by parent `FocusPageViewModel`.
+- `CurrentProcessName`, `CurrentWindowTitle` – foreground window info.
 - `IsClassifying` – shows ProgressRing and "Evaluating focus...".
-- `IsFocusResultVisible` – shows icon + category + reason (inverse of classifying).
+- `HasCurrentFocusResult` – whether a classification result has been received.
+- `ShowCheckingMessage` – `IsMonitoring && !HasCurrentFocusResult`.
 - `FocusScoreCategory` – "Focused" | "Unclear" | "Distracted".
 - `FocusStatusIcon` – ms-appx URI to the SVG for current state.
+- `FocusAccentBrushKey` – theme resource key for the current state accent color.
 - `FocusScore`, `FocusReason` – raw score and AI reason.
+- `ShowMarkOverrideButton`, `MarkOverrideButtonText` – manual override controls.
+- `MarkFocusOverrideCommand` – toggles current classification between focused/distracting.
+- `Reset()` – called by parent when a session ends to clear all display state.
 
-## Task Flow
+## Session Flow
 
-1. **Start:** User enters task title (and optional context) → clicks "Start Task"
-   - `StartTaskCommand` creates task as InProgress
-   - Loads board, which starts monitoring
-   - `ActiveTask` is set, `ShowStartForm` becomes false
-   - Active Task Card is displayed
+1. **Start:** User enters session title (and optional context) → clicks "Start Session"
+   - `StartSessionCommand` creates session as InProgress
+   - `ActiveSession` is set, `ShowStartForm` becomes false
+   - Active Session Card is displayed, `FocusStatusControl` becomes visible
    
 2. **During Work:** User switches windows, focus is monitored
-   - Focus status bar updates with real-time classification
+   - `FocusStatusControl` updates with real-time classification via `FocusStatusViewModel`
    - Elapsed time increments every second
-   - Distraction count increases on misaligned windows
    
-3. **Pause/Resume:** User can pause and resume task
-   - `PauseTaskCommand` stops monitoring and time tracking
-   - `ResumeTaskCommand` resumes monitoring and time tracking
+3. **Pause/Resume:** User can pause and resume the session
+   - `PauseSessionCommand` stops monitoring and time tracking
+   - `ResumeSessionCommand` resumes monitoring and time tracking
    
-4. **End:** User clicks "End Task"
-   - `EndTaskCommand` finalizes focus score, marks task as Done
-   - `ActiveTask` is cleared, `ShowStartForm` becomes true
-   - Start Task Form is displayed
+4. **End:** User clicks "End Session"
+   - `EndSessionCommand` finalizes focus score, ends orchestrator session
+   - `ActiveSession` is cleared, `ShowStartForm` becomes true
+   - `FocusStatusViewModel.Reset()` clears classification state
+   - Start Session Form is displayed
 
 ## Styles and Resources
 
-- **FbAccentButtonStyle** – Primary button style for Start Task and End Task
+- **FbAccentButtonStyle** – Primary button style for Start Session and End Session
 - **FbOutlineButtonStyle** – Secondary button style for Pause/Resume
-- **FbCardBackgroundBrush** – Background for Start Form and Active Task Card
+- **FbCardBackgroundBrush** – Background for Start Form and Active Session Card
 - **FbCardBorderBrush** – Border for cards
 - **FbStatusBadgeInProgressStyle** – Style for "In Progress" badge
 - **FbFocusStatusBarStyle** – Border for the focus bar (card background, border, padding, MinHeight 72)
@@ -147,4 +149,4 @@ Visible only when a task is **In Progress** and monitoring is active.
 ## Related
 
 - [Focus Score](focus-score.md) – How alignment scores and focus % are computed and persisted.
-- [App-Extension Integration](../app-extension-integration.md) – How tasks are synced between app and browser extension.
+- [App-Extension Integration](../app-extension-integration.md) – How sessions are synced between app and browser extension.
