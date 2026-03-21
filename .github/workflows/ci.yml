@@ -31,6 +31,7 @@ jobs:
     environment: production
     outputs:
       swa_api_key: ${{ steps.swa_token.outputs.swa_api_key }}
+      web_app_api_key: ${{ steps.swa_token.outputs.web_app_api_key }}
       acr_login_server: ${{ steps.swa_token.outputs.acr_login_server }}
       acr_name: ${{ steps.swa_token.outputs.acr_name }}
     steps:
@@ -76,11 +77,12 @@ jobs:
         id: swa_token
         run: |
           echo "swa_api_key=$(terraform output -raw static_web_app_api_key)" >> $GITHUB_OUTPUT
+          echo "web_app_api_key=$(terraform output -raw web_app_api_key)" >> $GITHUB_OUTPUT
           echo "acr_login_server=$(terraform output -raw acr_login_server)" >> $GITHUB_OUTPUT
           echo "acr_name=$(terraform output -raw acr_name)" >> $GITHUB_OUTPUT
 
   deploy-backend:
-    needs: [terraform_infra, deploy-frontend]
+    needs: [terraform_infra, deploy-frontend, deploy-web-app]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -147,3 +149,25 @@ jobs:
           app_location: "./src/foqus-website"
           api_location: ""
           output_location: "dist"
+
+  deploy-web-app:
+    needs: terraform_infra
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build And Deploy Web App
+        id: deploywebapp
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ needs.terraform_infra.outputs.web_app_api_key }}
+          action: "upload"
+          app_location: "./src/foqus-web-app"
+          api_location: ""
+          output_location: "dist"
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: https://api.foqus.me
