@@ -10,29 +10,32 @@ public class ClassificationServiceShould
 {
     private const string ProcessName = "devenv";
     private const string WindowTitle = "FocusBot — Tests";
-    private const string TaskText = "Write unit tests";
+    private const string SessionTitle = "Write unit tests";
 
     private static IClassificationService BuildService(
         Mock<IAlignmentCacheRepository> cache,
         Mock<IFocusBotApiClient> apiClient,
-        Mock<ISettingsService> settings)
+        Mock<ISettingsService> settings
+    )
     {
         return new AlignmentClassificationService(
             cache.Object,
             apiClient.Object,
             settings.Object,
-            NullLogger<AlignmentClassificationService>.Instance);
+            NullLogger<AlignmentClassificationService>.Instance
+        );
     }
 
     [Fact]
-    public async Task ReturnCachedResult_WhenContextAndTaskHashMatch()
+    public async Task ReturnCachedResult_WhenContextAndSessionHashMatch()
     {
         // Arrange
         var cachedEntry = new AlignmentCacheEntry { Score = 9, Reason = "Cached reason" };
 
         var cache = new Mock<IAlignmentCacheRepository>();
-        cache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
-             .ReturnsAsync(cachedEntry);
+        cache
+            .Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(cachedEntry);
 
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
@@ -41,12 +44,15 @@ public class ClassificationServiceShould
         var sut = BuildService(cache, apiClient, settings);
 
         // Act
-        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, TaskText, null);
+        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Score.Should().Be(9);
-        apiClient.Verify(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), It.IsAny<string>()), Times.Never);
+        apiClient.Verify(
+            a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), It.IsAny<string>()),
+            Times.Never
+        );
     }
 
     [Fact]
@@ -54,13 +60,15 @@ public class ClassificationServiceShould
     {
         // Arrange
         var cache = new Mock<IAlignmentCacheRepository>();
-        cache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
-             .ReturnsAsync((AlignmentCacheEntry?)null);
+        cache
+            .Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((AlignmentCacheEntry?)null);
 
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), It.IsAny<string?>()))
-                 .ReturnsAsync(new ApiClassifyResponse(8, "Clearly on task", Cached: false));
+        apiClient
+            .Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), It.IsAny<string?>()))
+            .ReturnsAsync(new ApiClassifyResponse(8, "Clearly on session", Cached: false));
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetApiKeyModeAsync()).ReturnsAsync(ApiKeyMode.Managed);
@@ -70,7 +78,7 @@ public class ClassificationServiceShould
         var sut = BuildService(cache, apiClient, settings);
 
         // Act
-        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, TaskText, null);
+        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -91,7 +99,7 @@ public class ClassificationServiceShould
         var sut = BuildService(cache, apiClient, settings);
 
         // Act
-        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, TaskText, null);
+        var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
 
         // Assert
         result.IsFailure.Should().BeTrue();
@@ -105,13 +113,15 @@ public class ClassificationServiceShould
         const string byokKey = "sk-test-byok-key";
 
         var cache = new Mock<IAlignmentCacheRepository>();
-        cache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
-             .ReturnsAsync((AlignmentCacheEntry?)null);
+        cache
+            .Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((AlignmentCacheEntry?)null);
 
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), byokKey))
-                 .ReturnsAsync(new ApiClassifyResponse(7, "On task", Cached: false));
+        apiClient
+            .Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), byokKey))
+            .ReturnsAsync(new ApiClassifyResponse(7, "On session", Cached: false));
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetApiKeyModeAsync()).ReturnsAsync(ApiKeyMode.Own);
@@ -122,7 +132,7 @@ public class ClassificationServiceShould
         var sut = BuildService(cache, apiClient, settings);
 
         // Act
-        await sut.ClassifyAsync(ProcessName, WindowTitle, TaskText, null);
+        await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
 
         // Assert
         apiClient.Verify(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), byokKey), Times.Once);
@@ -133,13 +143,15 @@ public class ClassificationServiceShould
     {
         // Arrange
         var cache = new Mock<IAlignmentCacheRepository>();
-        cache.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
-             .ReturnsAsync((AlignmentCacheEntry?)null);
+        cache
+            .Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((AlignmentCacheEntry?)null);
 
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), null))
-                 .ReturnsAsync(new ApiClassifyResponse(7, "On task", Cached: false));
+        apiClient
+            .Setup(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), null))
+            .ReturnsAsync(new ApiClassifyResponse(7, "On session", Cached: false));
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetApiKeyModeAsync()).ReturnsAsync(ApiKeyMode.Managed);
@@ -149,7 +161,7 @@ public class ClassificationServiceShould
         var sut = BuildService(cache, apiClient, settings);
 
         // Act
-        await sut.ClassifyAsync(ProcessName, WindowTitle, TaskText, null);
+        await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
 
         // Assert
         apiClient.Verify(a => a.ClassifyAsync(It.IsAny<ClassifyPayload>(), null), Times.Once);

@@ -10,7 +10,7 @@ namespace FocusBot.Core.Interfaces;
 public interface ILocalSessionTracker
 {
     /// <summary>Starts a new tracking session, resetting all counters.</summary>
-    void Start(string taskText);
+    void Start(string sessionTitle);
 
     /// <summary>
     /// Records a new classification result for the given process.

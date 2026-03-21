@@ -94,7 +94,7 @@ namespace FocusBot.WebAPI.Migrations
                     b.Property<DateTime>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("TaskHints")
+                    b.Property<string>("SessionContext")
                         .HasColumnType("text");
 
                     b.Property<string>("TaskText")

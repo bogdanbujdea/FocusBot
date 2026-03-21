@@ -29,6 +29,6 @@ public class GetInProgressTaskAsyncShould : TaskRepositoryTestBase
         // Assert
         inProgress.Should().NotBeNull();
         inProgress!.SessionId.Should().Be(task.SessionId);
-        inProgress.Description.Should().Be("Active");
+        inProgress.SessionTitle.Should().Be("Active");
     }
 }

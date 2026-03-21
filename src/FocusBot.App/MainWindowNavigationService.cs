@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using FocusBot.App.ViewModels;
 using FocusBot.App.Views;
-using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 
@@ -45,22 +44,6 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
             _boardContent = _window.Content as UIElement;
         var settingsViewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
         _window.Content = new SettingsPage { DataContext = settingsViewModel };
-    }
-
-    /// <inheritdoc />
-    public void NavigateToTaskDetail(string taskId)
-    {
-        if (_window == null)
-            return;
-        if (_boardContent == null)
-            _boardContent = _window.Content as UIElement;
-
-        using var scope = serviceProvider.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
-        var viewModel = new TaskDetailViewModel(repo, this);
-        var page = new TaskDetailPage { DataContext = viewModel };
-        _window.Content = page;
-        _ = viewModel.InitializeAsync(taskId);
     }
 
     /// <inheritdoc />

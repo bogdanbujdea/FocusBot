@@ -19,8 +19,8 @@ Starts a new focus session for the authenticated user. Returns 409 if an active 
 **Request body:**
 ```json
 {
-  "taskText": "Write unit tests for SessionService",
-  "taskHints": "Focus on edge cases"
+  "sessionTitle": "Write unit tests for SessionService",
+  "sessionContext": "Focus on edge cases"
 }
 ```
 
@@ -28,8 +28,8 @@ Starts a new focus session for the authenticated user. Returns 409 if an active 
 ```json
 {
   "id": "uuid",
-  "taskText": "Write unit tests for SessionService",
-  "taskHints": "Focus on edge cases",
+  "sessionTitle": "Write unit tests for SessionService",
+  "sessionContext": "Focus on edge cases",
   "deviceId": null,
   "startedAtUtc": "2025-01-15T10:00:00Z",
   "endedAtUtc": null,

@@ -4,8 +4,8 @@ namespace FocusBot.WebAPI.Features.Classification;
 /// Request body for the POST /classify endpoint.
 /// </summary>
 public sealed record ClassifyRequest(
-    string TaskText,
-    string? TaskHints,
+    string SessionTitle,
+    string? SessionContext,
     string? ProcessName,
     string? WindowTitle,
     string? Url,

@@ -3,6 +3,7 @@ using System;
 using FocusBot.WebAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FocusBot.WebAPI.Migrations
 {
     [DbContext(typeof(ApiDbContext))]
-    partial class ApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321192352_RemovedColumns")]
+    partial class RemovedColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -136,11 +139,6 @@ namespace FocusBot.WebAPI.Migrations
                     b.Property<DateTime?>("PausedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("SessionTitle")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -148,6 +146,11 @@ namespace FocusBot.WebAPI.Migrations
 
                     b.Property<DateTime>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<long>("TotalPausedSeconds")
                         .HasColumnType("bigint");

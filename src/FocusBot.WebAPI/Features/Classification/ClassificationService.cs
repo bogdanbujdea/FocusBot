@@ -58,7 +58,7 @@ public class ClassificationService(
         CancellationToken ct = default)
     {
         var contextHash = ComputeContextHash(request.ProcessName, request.WindowTitle, request.Url, request.PageTitle);
-        var taskContentHash = ComputeTaskContentHash(request.TaskText, request.TaskHints);
+        var taskContentHash = ComputeTaskContentHash(request.SessionTitle, request.SessionContext);
 
         var cached = await TryGetCachedResultAsync(userId, contextHash, taskContentHash, ct);
         if (cached is not null)
@@ -86,9 +86,9 @@ public class ClassificationService(
         return ComputeHash($"{processName}|{windowTitle}|{url}|{pageTitle}");
     }
 
-    public static string ComputeTaskContentHash(string taskText, string? taskHints)
+    public static string ComputeTaskContentHash(string sessionTitle, string? sessionContext)
     {
-        return ComputeHash($"{taskText}|{taskHints ?? string.Empty}");
+        return ComputeHash($"{sessionTitle}|{sessionContext ?? string.Empty}");
     }
 
     private async Task<ClassifyResponse?> TryGetCachedResultAsync(
@@ -208,10 +208,10 @@ public class ClassificationService(
     private static string BuildUserMessage(ClassifyRequest request)
     {
         var sb = new StringBuilder();
-        sb.Append("Task: ").AppendLine(request.TaskText);
+        sb.Append("Task: ").AppendLine(request.SessionTitle);
 
-        if (!string.IsNullOrWhiteSpace(request.TaskHints))
-            sb.Append("\nContext provided by the user: ").AppendLine(request.TaskHints);
+        if (!string.IsNullOrWhiteSpace(request.SessionContext))
+            sb.Append("\nContext provided by the user: ").AppendLine(request.SessionContext);
 
         sb.AppendLine();
 

@@ -33,7 +33,7 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
     private readonly Dictionary<string, long> _alignedPerProcess = new();
     private readonly Dictionary<string, long> _distractedPerProcess = new();
 
-    public void Start(string taskText)
+    public void Start(string sessionTitle)
     {
         lock (_lock)
         {

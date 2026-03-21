@@ -72,8 +72,8 @@ public class AlignmentClassificationService(
     private async Task<Result<AlignmentResult>> ClassifyViaApiAsync(
         string processName,
         string windowTitle,
-        string taskText,
-        string? taskHints,
+        string sessionTitle,
+        string? sessionContext,
         string contextHash,
         string taskContentHash,
         CancellationToken ct
@@ -84,8 +84,8 @@ public class AlignmentClassificationService(
         var modelId = await settings.GetModelAsync();
 
         var payload = new ClassifyPayload(
-            taskText,
-            taskHints,
+            sessionTitle,
+            sessionContext,
             processName,
             windowTitle,
             providerId,

@@ -8,7 +8,7 @@ public class UserSession
     public UserSession() { }
 
     public string SessionId { get; set; } = Guid.NewGuid().ToString();
-    public string Description { get; set; } = string.Empty;
+    public string SessionTitle { get; set; } = string.Empty;
     public string? Context { get; set; }
     public bool IsCompleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

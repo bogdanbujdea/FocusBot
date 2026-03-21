@@ -15,7 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.HasKey(e => e.SessionId);
             entity.Property(e => e.SessionId).HasMaxLength(64);
-            entity.Property(e => e.Description).HasMaxLength(1024).IsRequired();
+            entity.Property(e => e.SessionTitle).HasMaxLength(1024).IsRequired();
             entity.Property(e => e.Context).HasMaxLength(1024);
             entity.Property(e => e.IsCompleted).IsRequired();
             entity.Property(e => e.TopDistractingApps).HasMaxLength(2048);

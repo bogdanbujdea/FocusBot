@@ -31,12 +31,6 @@ public class Session
     public int? DistractionCount { get; set; }
     public int? ContextSwitchCount { get; set; }
 
-    /// <summary>JSON-serialised list of top distracting apps with time spent (computed client-side).</summary>
-    public string? TopDistractingApps { get; set; }
-
-    /// <summary>JSON-serialised list of top aligned apps with time spent (computed client-side).</summary>
-    public string? TopAlignedApps { get; set; }
-
     public string Source { get; set; } = "api";
 
     public User User { get; set; } = null!;

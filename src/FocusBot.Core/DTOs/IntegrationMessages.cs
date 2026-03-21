@@ -26,11 +26,11 @@ public class HandshakePayload
     [JsonPropertyName("taskId")]
     public string? TaskId { get; set; }
 
-    [JsonPropertyName("taskText")]
-    public string? TaskText { get; set; }
+    [JsonPropertyName("sessionTitle")]
+    public string? SessionTitle { get; set; }
 
-    [JsonPropertyName("taskHints")]
-    public string? TaskHints { get; set; }
+    [JsonPropertyName("sessionContext")]
+    public string? SessionContext { get; set; }
 
     [JsonPropertyName("startedAt")]
     public string? StartedAt { get; set; }
@@ -41,11 +41,11 @@ public class TaskStartedPayload
     [JsonPropertyName("taskId")]
     public string TaskId { get; set; } = string.Empty;
 
-    [JsonPropertyName("taskText")]
-    public string TaskText { get; set; } = string.Empty;
+    [JsonPropertyName("sessionTitle")]
+    public string SessionTitle { get; set; } = string.Empty;
 
-    [JsonPropertyName("taskHints")]
-    public string? TaskHints { get; set; }
+    [JsonPropertyName("sessionContext")]
+    public string? SessionContext { get; set; }
 
     [JsonPropertyName("startedAt")]
     public string? StartedAt { get; set; }

@@ -13,7 +13,7 @@ public class AddTaskAsyncShould : TaskRepositoryTestBase
 
         // Assert
         task.Should().NotBeNull();
-        task!.Description.Should().Be("Ship the feature");
+        task!.SessionTitle.Should().Be("Ship the feature");
         task.IsCompleted.Should().BeFalse();
         Guid.TryParse(task.SessionId, out _).Should().BeTrue();
     }

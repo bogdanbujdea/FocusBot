@@ -55,7 +55,7 @@ namespace FocusBot.WebAPI.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     TaskText = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    TaskHints = table.Column<string>(type: "text", nullable: true),
+                    SessionContext = table.Column<string>(type: "text", nullable: true),
                     StartedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     FocusScorePercent = table.Column<int>(type: "integer", nullable: true),

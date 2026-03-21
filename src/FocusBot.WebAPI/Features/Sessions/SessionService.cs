@@ -27,7 +27,7 @@ public class SessionService(ApiDbContext db)
         {
             UserId = userId,
             Title = request.TaskText,
-            Context = request.TaskHints,
+            Context = request.SessionContext,
             DeviceId = request.DeviceId,
             StartedAtUtc = DateTime.UtcNow,
             Source = "api",
@@ -71,8 +71,6 @@ public class SessionService(ApiDbContext db)
         session.DistractedSeconds = request.DistractedSeconds;
         session.DistractionCount = request.DistractionCount;
         session.ContextSwitchCount = request.ContextSwitchCount;
-        session.TopDistractingApps = request.TopDistractingApps;
-        session.TopAlignedApps = request.TopAlignedApps;
 
         if (request.DeviceId.HasValue)
         {
@@ -200,8 +198,6 @@ public class SessionService(ApiDbContext db)
             s.DistractedSeconds,
             s.DistractionCount,
             s.ContextSwitchCount,
-            s.TopDistractingApps,
-            s.TopAlignedApps,
             s.Source
         );
 }

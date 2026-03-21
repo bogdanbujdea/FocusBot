@@ -14,7 +14,7 @@ public class GetByIdAsyncShould : TaskRepositoryTestBase
         // Assert
         found.Should().NotBeNull();
         found!.SessionId.Should().Be(created.SessionId);
-        found.Description.Should().Be("Find me");
+        found.SessionTitle.Should().Be("Find me");
     }
 
     [Fact]

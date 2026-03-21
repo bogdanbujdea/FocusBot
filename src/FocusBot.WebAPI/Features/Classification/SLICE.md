@@ -20,8 +20,8 @@ Classifies whether the user's current window/tab aligns with their active task. 
 **Request body:**
 ```json
 {
-  "taskText": "Writing quarterly report",
-  "taskHints": "Google Docs, spreadsheets",
+  "sessionTitle": "Writing quarterly report",
+  "sessionContext": "Google Docs, spreadsheets",
   "processName": "msedge",
   "windowTitle": "Q3 Report - Google Docs",
   "url": "https://docs.google.com/...",
@@ -33,8 +33,8 @@ Classifies whether the user's current window/tab aligns with their active task. 
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `taskText` | Yes | What the user is trying to accomplish |
-| `taskHints` | No | Additional context about relevant apps/websites |
+| `sessionTitle` | Yes | What the user is trying to accomplish |
+| `sessionContext` | No | Additional context about relevant apps/websites |
 | `processName` | No | Windows executable name (e.g. "msedge") |
 | `windowTitle` | No | Title bar text of the active window |
 | `url` | No | Current browser URL (from extension) |
@@ -59,7 +59,7 @@ Classifies whether the user's current window/tab aligns with their active task. 
 Results are cached by `(userId, contextHash, taskContentHash)` for 24 hours. The `cached` field in the response indicates whether the result was served from cache.
 
 - `contextHash` = SHA-256 of `processName|windowTitle|url|pageTitle`
-- `taskContentHash` = SHA-256 of `taskText|taskHints`
+- `taskContentHash` = SHA-256 of `sessionTitle|sessionContext`
 
 ## API Key Resolution
 

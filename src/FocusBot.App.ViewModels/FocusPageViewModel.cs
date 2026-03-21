@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core;
 using FocusBot.Core.Configuration;
-using FocusBot.Core.DTOs;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Helpers;
@@ -444,16 +443,11 @@ public partial class FocusPageViewModel : ObservableObject
             FocusScore = 0;
             FocusReason = string.Empty;
             IsClassifying = false;
-            OnPropertyChanged(nameof(IsFocusScoreVisible));
-            OnPropertyChanged(nameof(IsFocusResultVisible));
-            OnPropertyChanged(nameof(FocusScoreCategory));
-            OnPropertyChanged(nameof(FocusStatusIcon));
-            OnPropertyChanged(nameof(FocusAccentBrushKey));
-            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+            UpdateSessionClassificationUI();
             return;
         }
 
-        var sessionDescription = ActiveSession.Description;
+        var sessionDescription = ActiveSession.SessionTitle;
         var sessionContext = ActiveSession.Context;
         var isViewingFocusBot = string.Equals(
             e.ProcessName,
@@ -467,13 +461,7 @@ public partial class FocusPageViewModel : ObservableObject
             FocusReason = "Viewing Foqus";
             IsClassifying = false;
             HasCurrentFocusResult = true;
-            OnPropertyChanged(nameof(IsFocusScoreVisible));
-            OnPropertyChanged(nameof(IsFocusResultVisible));
-            OnPropertyChanged(nameof(FocusScoreCategory));
-            OnPropertyChanged(nameof(FocusStatusIcon));
-            OnPropertyChanged(nameof(FocusAccentBrushKey));
-            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            OnPropertyChanged(nameof(ShowCheckingMessage));
+            UpdateSessionClassificationUI();
             return;
         }
 
@@ -481,13 +469,7 @@ public partial class FocusPageViewModel : ObservableObject
         FocusReason = string.Empty;
         IsClassifying = false;
         HasCurrentFocusResult = false;
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
-        OnPropertyChanged(nameof(IsFocusResultVisible));
-        OnPropertyChanged(nameof(FocusScoreCategory));
-        OnPropertyChanged(nameof(FocusStatusIcon));
-        OnPropertyChanged(nameof(FocusAccentBrushKey));
-        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-        OnPropertyChanged(nameof(ShowCheckingMessage));
+        UpdateSessionClassificationUI();
 
         if (_integrationService is { IsExtensionConnected: true })
             _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
@@ -512,6 +494,17 @@ public partial class FocusPageViewModel : ObservableObject
                 e.WindowTitle
             );
         }
+    }
+
+    private void UpdateSessionClassificationUI()
+    {
+        OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusResultVisible));
+        OnPropertyChanged(nameof(FocusScoreCategory));
+        OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(FocusAccentBrushKey));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        OnPropertyChanged(nameof(ShowCheckingMessage));
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -581,7 +574,7 @@ public partial class FocusPageViewModel : ObservableObject
             _perWindowTotalSeconds.Clear();
             WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(0);
             _secondsSinceLastPersist = 0;
-            _sessionTracker.Start(session.Description);
+            _sessionTracker.Start(session.SessionTitle);
             CurrentFocusScorePercent = 0;
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             StartMonitoring();
@@ -767,7 +760,7 @@ public partial class FocusPageViewModel : ObservableObject
             FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
 
         var sessionId = ActiveSession.SessionId;
-        var sessionDescription = ActiveSession.Description;
+        var sessionDescription = ActiveSession.SessionTitle;
         var sessionContext = ActiveSession.Context;
         var contextHash = HashHelper.ComputeWindowContextHash(
             CurrentProcessName,
@@ -802,6 +795,7 @@ public partial class FocusPageViewModel : ObservableObject
         RaiseFocusOverlayStateChanged();
     }
 
+    /// <summary>
     /// Returns true if the user has not yet seen the How it works guide (first run).
     /// </summary>
     public async Task<bool> GetHasSeenHowItWorksGuideAsync()
@@ -818,20 +812,12 @@ public partial class FocusPageViewModel : ObservableObject
     public Task SetHasSeenHowItWorksGuideAsync() =>
         _settingsService.SetSettingAsync(SettingsKeys.HasSeenHowItWorksGuide, true);
 
-    [RelayCommand]
-    private void ViewSessionDetail(string? sessionId)
-    {
-        if (string.IsNullOrEmpty(sessionId))
-            return;
-        _navigationService.NavigateToTaskDetail(sessionId);
-    }
-
     private async Task StartBackendSessionAsync(UserSession session)
     {
         if (!_apiClient.IsConfigured)
             return;
         var deviceId = _deviceService?.GetDeviceId();
-        var payload = new StartSessionPayload(session.Description, session.Context, deviceId);
+        var payload = new StartSessionPayload(session.SessionTitle, session.Context, deviceId);
         var response = await _apiClient.StartSessionAsync(payload);
         if (response is not null)
         {

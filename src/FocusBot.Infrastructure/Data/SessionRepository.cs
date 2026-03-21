@@ -14,7 +14,7 @@ public class SessionRepository(AppDbContext context) : ISessionRepository
         var session = new UserSession
         {
             SessionId = Guid.NewGuid().ToString(),
-            Description = description,
+            SessionTitle = description,
             Context = string.IsNullOrWhiteSpace(sessionContext) ? null : sessionContext.Trim(),
             IsCompleted = false,
         };
@@ -31,7 +31,7 @@ public class SessionRepository(AppDbContext context) : ISessionRepository
         var session = await context.UserSessions.FindAsync(sessionId);
         if (session != null)
         {
-            session.Description = newDescription;
+            session.SessionTitle = newDescription;
             await context.SaveChangesAsync();
         }
     }
@@ -45,7 +45,7 @@ public class SessionRepository(AppDbContext context) : ISessionRepository
         var session = await context.UserSessions.FindAsync(sessionId);
         if (session != null)
         {
-            session.Description = description;
+            session.SessionTitle = description;
             session.Context = string.IsNullOrWhiteSpace(sessionContext)
                 ? null
                 : sessionContext.Trim();

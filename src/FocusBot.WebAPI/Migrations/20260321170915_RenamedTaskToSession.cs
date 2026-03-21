@@ -11,7 +11,7 @@ namespace FocusBot.WebAPI.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "TaskHints",
+                name: "SessionContext",
                 table: "Sessions");
 
             migrationBuilder.DropColumn(
@@ -46,7 +46,7 @@ namespace FocusBot.WebAPI.Migrations
                 table: "Sessions");
 
             migrationBuilder.AddColumn<string>(
-                name: "TaskHints",
+                name: "SessionContext",
                 table: "Sessions",
                 type: "text",
                 nullable: true);

@@ -258,13 +258,13 @@ public class WebSocketIntegrationService : IIntegrationService
 
         _logger.LogInformation("Handshake from {Source}, hasActiveTask={HasActive}", payload.Source, payload.HasActiveTask);
 
-        if (payload.HasActiveTask && !string.IsNullOrEmpty(payload.TaskText))
+        if (payload.HasActiveTask && !string.IsNullOrEmpty(payload.SessionTitle))
         {
             TaskStartedReceived?.Invoke(this, new TaskStartedPayload
             {
                 TaskId = payload.TaskId ?? string.Empty,
-                TaskText = payload.TaskText,
-                TaskHints = payload.TaskHints,
+                SessionTitle = payload.SessionTitle,
+                SessionContext = payload.SessionContext,
                 StartedAt = payload.StartedAt
             });
         }
@@ -350,25 +350,25 @@ public class WebSocketIntegrationService : IIntegrationService
         }
     }
 
-    public async Task SendHandshakeAsync(bool hasActiveTask, string? taskId, string? taskText, string? taskHints)
+    public async Task SendHandshakeAsync(bool hasActiveTask, string? taskId, string? sessionTitle, string? sessionContext)
     {
         await SendMessageAsync(IntegrationMessageTypes.Handshake, new HandshakePayload
         {
             Source = "app",
             HasActiveTask = hasActiveTask,
             TaskId = taskId,
-            TaskText = taskText,
-            TaskHints = taskHints
+            SessionTitle = sessionTitle,
+            SessionContext = sessionContext
         }).ConfigureAwait(false);
     }
 
-    public async Task SendTaskStartedAsync(string taskId, string taskText, string? taskHints)
+    public async Task SendTaskStartedAsync(string taskId, string sessionTitle, string? sessionContext)
     {
         await SendMessageAsync(IntegrationMessageTypes.TaskStarted, new TaskStartedPayload
         {
             TaskId = taskId,
-            TaskText = taskText,
-            TaskHints = taskHints
+            SessionTitle = sessionTitle,
+            SessionContext = sessionContext
         }).ConfigureAwait(false);
     }
 
