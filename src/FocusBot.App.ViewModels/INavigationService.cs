@@ -21,11 +21,6 @@ public interface INavigationService
     void NavigateToTaskDetail(string taskId);
 
     /// <summary>
-    /// Navigates to the History view.
-    /// </summary>
-    void NavigateToHistory();
-
-    /// <summary>
     /// Brings the main window to the foreground.
     /// </summary>
     void ActivateMainWindow();
