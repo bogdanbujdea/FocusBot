@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
-        <Grid Grid.Row="0" x:Name="CurrentWindowBar"
+        <Grid Grid.Row="0" x:Name="CurrentWindowStatusBar"
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
               RowSpacing="4"

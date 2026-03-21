@@ -27,7 +27,7 @@ public class WebSocketIntegrationService : IIntegrationService
     public BrowserContextPayload? LastBrowserContext => _lastBrowserContext;
 
     public event EventHandler<bool>? ExtensionConnectionChanged;
-    public event EventHandler<TaskStartedPayload>? TaskStartedReceived;
+    public event EventHandler<SessionStartedPayload>? TaskStartedReceived;
     public event EventHandler? TaskEndedReceived;
     public event EventHandler<FocusStatusPayload>? FocusStatusReceived;
     public event EventHandler<DesktopForegroundPayload>? DesktopForegroundReceived;
@@ -216,11 +216,11 @@ public class WebSocketIntegrationService : IIntegrationService
                     HandleHandshake(envelope);
                     break;
 
-                case IntegrationMessageTypes.TaskStarted:
+                case IntegrationMessageTypes.SessionStarted:
                     HandleTaskStarted(envelope);
                     break;
 
-                case IntegrationMessageTypes.TaskEnded:
+                case IntegrationMessageTypes.SessionEnded:
                     HandleTaskEnded(envelope);
                     break;
 
@@ -256,13 +256,13 @@ public class WebSocketIntegrationService : IIntegrationService
         if (payload == null)
             return;
 
-        _logger.LogInformation("Handshake from {Source}, hasActiveTask={HasActive}", payload.Source, payload.HasActiveTask);
+        _logger.LogInformation("Handshake from {Source}, hasActiveTask={HasActive}", payload.Source, payload.HasActiveSession);
 
-        if (payload.HasActiveTask && !string.IsNullOrEmpty(payload.SessionTitle))
+        if (payload.HasActiveSession && !string.IsNullOrEmpty(payload.SessionTitle))
         {
-            TaskStartedReceived?.Invoke(this, new TaskStartedPayload
+            TaskStartedReceived?.Invoke(this, new SessionStartedPayload
             {
-                TaskId = payload.TaskId ?? string.Empty,
+                SessionId = payload.SessionId ?? string.Empty,
                 SessionTitle = payload.SessionTitle,
                 SessionContext = payload.SessionContext,
                 StartedAt = payload.StartedAt
@@ -275,7 +275,7 @@ public class WebSocketIntegrationService : IIntegrationService
         if (envelope.Payload == null)
             return;
 
-        var payload = JsonSerializer.Deserialize<TaskStartedPayload>(envelope.Payload.Value.GetRawText());
+        var payload = JsonSerializer.Deserialize<SessionStartedPayload>(envelope.Payload.Value.GetRawText());
         if (payload == null)
             return;
 
@@ -350,33 +350,33 @@ public class WebSocketIntegrationService : IIntegrationService
         }
     }
 
-    public async Task SendHandshakeAsync(bool hasActiveTask, string? taskId, string? sessionTitle, string? sessionContext)
+    public async Task SendHandshakeAsync(bool hasActiveTask, string? sessionId, string? sessionTitle, string? sessionContext)
     {
         await SendMessageAsync(IntegrationMessageTypes.Handshake, new HandshakePayload
         {
             Source = "app",
-            HasActiveTask = hasActiveTask,
-            TaskId = taskId,
+            HasActiveSession = hasActiveTask,
+            SessionId = sessionId,
             SessionTitle = sessionTitle,
             SessionContext = sessionContext
         }).ConfigureAwait(false);
     }
 
-    public async Task SendTaskStartedAsync(string taskId, string sessionTitle, string? sessionContext)
+    public async Task SendTaskStartedAsync(string sessionId, string sessionTitle, string? sessionContext)
     {
-        await SendMessageAsync(IntegrationMessageTypes.TaskStarted, new TaskStartedPayload
+        await SendMessageAsync(IntegrationMessageTypes.SessionStarted, new SessionStartedPayload
         {
-            TaskId = taskId,
+            SessionId = sessionId,
             SessionTitle = sessionTitle,
             SessionContext = sessionContext
         }).ConfigureAwait(false);
     }
 
-    public async Task SendTaskEndedAsync(string taskId)
+    public async Task SendTaskEndedAsync(string sessionId)
     {
-        await SendMessageAsync(IntegrationMessageTypes.TaskEnded, new TaskEndedPayload
+        await SendMessageAsync(IntegrationMessageTypes.SessionEnded, new SessionEndedPayload
         {
-            TaskId = taskId
+            SessionId = sessionId
         }).ConfigureAwait(false);
     }
 

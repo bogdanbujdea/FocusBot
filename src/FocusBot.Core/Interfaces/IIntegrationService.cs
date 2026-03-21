@@ -12,16 +12,21 @@ public interface IIntegrationService : IDisposable
     Task StartAsync();
     Task StopAsync();
 
-    Task SendHandshakeAsync(bool hasActiveTask, string? taskId, string? sessionTitle, string? sessionContext);
-    Task SendTaskStartedAsync(string taskId, string sessionTitle, string? sessionContext);
-    Task SendTaskEndedAsync(string taskId);
+    Task SendHandshakeAsync(
+        bool hasActiveTask,
+        string? sessionId,
+        string? sessionTitle,
+        string? sessionContext
+    );
+    Task SendTaskStartedAsync(string sessionId, string sessionTitle, string? sessionContext);
+    Task SendTaskEndedAsync(string sessionId);
     Task SendFocusStatusAsync(FocusStatusPayload payload);
     Task SendDesktopForegroundAsync(string processName, string windowTitle);
 
     BrowserContextPayload? LastBrowserContext { get; }
 
     event EventHandler<bool>? ExtensionConnectionChanged;
-    event EventHandler<TaskStartedPayload>? TaskStartedReceived;
+    event EventHandler<SessionStartedPayload>? TaskStartedReceived;
     event EventHandler? TaskEndedReceived;
     event EventHandler<FocusStatusPayload>? FocusStatusReceived;
     event EventHandler<DesktopForegroundPayload>? DesktopForegroundReceived;

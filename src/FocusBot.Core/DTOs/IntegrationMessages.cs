@@ -20,11 +20,11 @@ public class HandshakePayload
     [JsonPropertyName("source")]
     public string Source { get; set; } = string.Empty;
 
-    [JsonPropertyName("hasActiveTask")]
-    public bool HasActiveTask { get; set; }
+    [JsonPropertyName("hasActiveSession")]
+    public bool HasActiveSession { get; set; }
 
-    [JsonPropertyName("taskId")]
-    public string? TaskId { get; set; }
+    [JsonPropertyName("sessionId")]
+    public string? SessionId { get; set; }
 
     [JsonPropertyName("sessionTitle")]
     public string? SessionTitle { get; set; }
@@ -36,10 +36,10 @@ public class HandshakePayload
     public string? StartedAt { get; set; }
 }
 
-public class TaskStartedPayload
+public class SessionStartedPayload
 {
-    [JsonPropertyName("taskId")]
-    public string TaskId { get; set; } = string.Empty;
+    [JsonPropertyName("sessionId")]
+    public string SessionId { get; set; } = string.Empty;
 
     [JsonPropertyName("sessionTitle")]
     public string SessionTitle { get; set; } = string.Empty;
@@ -51,16 +51,16 @@ public class TaskStartedPayload
     public string? StartedAt { get; set; }
 }
 
-public class TaskEndedPayload
+public class SessionEndedPayload
 {
-    [JsonPropertyName("taskId")]
-    public string TaskId { get; set; } = string.Empty;
+    [JsonPropertyName("sessionId")]
+    public string SessionId { get; set; } = string.Empty;
 }
 
 public class FocusStatusPayload
 {
-    [JsonPropertyName("taskId")]
-    public string TaskId { get; set; } = string.Empty;
+    [JsonPropertyName("sessionId")]
+    public string SessionId { get; set; } = string.Empty;
 
     [JsonPropertyName("classification")]
     public string Classification { get; set; } = string.Empty;
@@ -117,22 +117,12 @@ public class BrowserContextPayload
     public string Title { get; set; } = string.Empty;
 }
 
-public class AuthTokenPayload
-{
-    [JsonPropertyName("accessToken")]
-    public string AccessToken { get; set; } = string.Empty;
-
-    [JsonPropertyName("refreshToken")]
-    public string RefreshToken { get; set; } = string.Empty;
-}
-
 public static class IntegrationMessageTypes
 {
     public const string Handshake = "HANDSHAKE";
-    public const string TaskStarted = "TASK_STARTED";
-    public const string TaskEnded = "TASK_ENDED";
+    public const string SessionStarted = "SESSION_STARTED";
+    public const string SessionEnded = "SESSION_ENDED";
     public const string FocusStatus = "FOCUS_STATUS";
     public const string DesktopForeground = "DESKTOP_FOREGROUND";
     public const string BrowserContext = "BROWSER_CONTEXT";
-    public const string AuthToken = "AUTH_TOKEN";
 }
