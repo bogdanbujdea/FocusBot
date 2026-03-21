@@ -28,3 +28,19 @@ output "static_web_app_url" {
   description = "Default HTTPS URL of the Static Web App"
   value       = "https://${azurerm_static_web_app.website.default_host_name}"
 }
+
+output "web_app_api_key" {
+  description = "Deployment token for the web app Static Web App (app.foqus.me)"
+  value       = azurerm_static_web_app.web_app.api_key
+  sensitive   = true
+}
+
+output "web_app_default_hostname" {
+  description = "Default hostname of the web app Static Web App"
+  value       = azurerm_static_web_app.web_app.default_host_name
+}
+
+output "web_app_url" {
+  description = "Public URL of the web app dashboard (app.foqus.me)"
+  value       = "https://app.${var.domain_name}"
+}
