@@ -40,7 +40,7 @@ public sealed partial class FocusPage : Page
             var result = await ShowHowItWorksDialogAsync();
             await vm.SetHasSeenHowItWorksGuideAsync();
 
-            if (result == ContentDialogResult.Secondary || !vm.IsAiConfigured)
+            if (result == ContentDialogResult.Secondary || !vm.AccountSection.IsAuthenticated)
                 vm.OpenSettingsCommand.Execute(null);
         }
     }

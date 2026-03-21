@@ -79,6 +79,7 @@ namespace FocusBot.App
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
             services.AddSingleton<IFocusSessionOrchestrator, FocusSessionOrchestrator>();
+            services.AddTransient<FocusStatusViewModel>();
             services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();

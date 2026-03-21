@@ -20,12 +20,14 @@ public class TaskElapsedTimeShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            accountVm);
+            accountVm,
+            statusBar);
 
         // Act - first tick
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateStateArgs(sessionElapsedSeconds: 1));
@@ -54,12 +56,14 @@ public class TaskElapsedTimeShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            accountVm);
+            accountVm,
+            statusBar);
 
         // Act - simulate orchestrator state with 1h 1m 1s
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateStateArgs(sessionElapsedSeconds: 3661));
@@ -79,12 +83,14 @@ public class TaskElapsedTimeShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            accountVm);
+            accountVm,
+            statusBar);
         await Task.Delay(150);
 
         // Assert - no state change, so elapsed time should be 00:00:00

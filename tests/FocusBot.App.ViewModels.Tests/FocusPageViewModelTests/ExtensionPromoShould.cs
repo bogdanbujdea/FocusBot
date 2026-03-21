@@ -130,12 +130,14 @@ public class ExtensionPromoShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
             accountVm,
+            statusBar,
             integrationService: null,
             uiDispatcher: null);
         return (vm, orchestratorMock);
@@ -151,12 +153,14 @@ public class ExtensionPromoShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
             accountVm,
+            statusBar,
             integrationService,
             uiDispatcher: null);
         return (vm, orchestratorMock);

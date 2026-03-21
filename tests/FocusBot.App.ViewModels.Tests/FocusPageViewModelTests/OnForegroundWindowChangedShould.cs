@@ -17,12 +17,14 @@ public class OnForegroundWindowChangedShould
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            accountVm);
+            accountVm,
+            statusBar);
 
         var stateArgs = new FocusSessionStateChangedEventArgs
         {
@@ -41,7 +43,7 @@ public class OnForegroundWindowChangedShould
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
 
         // Assert
-        vm.CurrentProcessName.Should().Be("devenv");
-        vm.CurrentWindowTitle.Should().Be("MyFile.cs");
+        vm.Status.CurrentProcessName.Should().Be("devenv");
+        vm.Status.CurrentWindowTitle.Should().Be("MyFile.cs");
     }
 }

@@ -16,6 +16,12 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFocusSessionOrchestrator _sessionOrchestrator;
     public AccountSettingsViewModel AccountSection { get; }
+
+    /// <summary>
+    /// Child ViewModel for the current foreground window status bar.
+    /// </summary>
+    public FocusStatusViewModel Status { get; }
+
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
 
@@ -46,80 +52,14 @@ public partial class FocusPageViewModel : ObservableObject
     public bool ShowStartForm => ActiveSession == null;
     public bool IsActiveSessionVisible => ActiveSession != null;
 
-    public string CurrentProcessName
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public string CurrentWindowTitle
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public bool IsMonitoring
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
-
-    public int FocusScore
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
-
-    public string FocusReason
-    {
-        get;
-        set => SetProperty(ref field, value);
-    } = string.Empty;
-
-    public bool IsClassifying
-    {
-        get;
-        set
-        {
-            if (SetProperty(ref field, value))
-            {
-                OnPropertyChanged(nameof(IsFocusResultVisible));
-                OnPropertyChanged(nameof(ShowCheckingMessage));
-            }
-        }
-    }
-
     /// <summary>
     /// Gets whether the current session is paused (time tracking and monitoring stopped).
     /// </summary>
     public bool IsSessionPaused => _sessionOrchestrator.IsSessionPaused;
 
-    public bool IsFocusScoreVisible => IsMonitoring && IsAiConfigured;
+    public bool IsFocusScoreVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
 
     public bool IsFocusResultVisible => ActiveSession != null;
-
-    public string FocusScoreCategory =>
-        FocusScore >= 6 ? "Focused"
-        : FocusScore >= 4 ? "Unclear"
-        : "Distracted";
-
-    public string FocusStatusIcon =>
-        (IsMonitoring && !HasCurrentFocusResult)
-            ? "ms-appx:///Assets/icon-unclear.svg"
-            : FocusScore switch
-            {
-                >= 6 => "ms-appx:///Assets/icon-focused.svg",
-                >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-                _ => "ms-appx:///Assets/icon-distracted.svg",
-            };
-
-    public string FocusAccentBrushKey =>
-        FocusScore switch
-        {
-            >= 6 => "FbAlignedAccentBrush",
-            >= 4 => "FbNeutralAccentBrush",
-            _ => "FbMisalignedAccentBrush",
-        };
 
     public int CurrentFocusScorePercent
     {
@@ -127,7 +67,7 @@ public partial class FocusPageViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    public bool IsFocusScorePercentVisible => IsMonitoring && IsAiConfigured;
+    public bool IsFocusScorePercentVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
 
     public string SessionElapsedTime
     {
@@ -142,37 +82,7 @@ public partial class FocusPageViewModel : ObservableObject
         set { if (SetProperty(ref _aiRequestError, value)) { } }
     }
 
-    public bool IsAiConfigured
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
 
-    public bool HasCurrentFocusResult
-    {
-        get;
-        private set
-        {
-            if (SetProperty(ref field, value))
-                OnPropertyChanged(nameof(ShowCheckingMessage));
-        }
-    }
-
-    public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
-
-    public bool ShowMarkOverrideButton => HasCurrentFocusResult && !IsClassifying && !IsNeutralApp;
-
-    /// <summary>
-    /// True when the current foreground app is considered neutral (not subject to focus classification).
-    /// </summary>
-    private bool IsNeutralApp =>
-        FocusReason.Contains("neutral", StringComparison.OrdinalIgnoreCase);
-
-    public string MarkOverrideButtonText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "Mark as distracting";
 
     public bool IsExtensionConnected
     {
@@ -188,7 +98,7 @@ public partial class FocusPageViewModel : ObservableObject
     /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
     /// </summary>
     public bool IsForegroundBrowserEdgeOrChrome =>
-        BrowserProcessNames.IsExtensionSupported(CurrentProcessName);
+        BrowserProcessNames.IsExtensionSupported(Status.CurrentProcessName);
 
     /// <summary>
     /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
@@ -211,6 +121,7 @@ public partial class FocusPageViewModel : ObservableObject
         ISettingsService settingsService,
         IFocusSessionOrchestrator sessionOrchestrator,
         AccountSettingsViewModel accountSection,
+        FocusStatusViewModel status,
         IIntegrationService? integrationService = null,
         IUIThreadDispatcher? uiDispatcher = null
     )
@@ -220,6 +131,7 @@ public partial class FocusPageViewModel : ObservableObject
         _settingsService = settingsService;
         _sessionOrchestrator = sessionOrchestrator;
         AccountSection = accountSection;
+        Status = status;
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
 
@@ -240,26 +152,14 @@ public partial class FocusPageViewModel : ObservableObject
             _sessionElapsedSeconds = e.SessionElapsedSeconds;
             SessionElapsedTime = TimeFormatHelper.FormatElapsed(e.SessionElapsedSeconds);
             CurrentFocusScorePercent = e.FocusScorePercent;
-            IsClassifying = e.IsClassifying;
-            FocusScore = e.FocusScore;
-            FocusReason = e.FocusReason;
-            HasCurrentFocusResult = e.HasCurrentFocusResult;
             AiRequestError = e.AiRequestError;
-            CurrentProcessName = e.CurrentProcessName;
-            CurrentWindowTitle = e.CurrentWindowTitle;
-            MarkOverrideButtonText = e.FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
 
             OnPropertyChanged(nameof(IsSessionPaused));
             OnPropertyChanged(nameof(IsFocusScoreVisible));
             OnPropertyChanged(nameof(IsFocusResultVisible));
-            OnPropertyChanged(nameof(FocusScoreCategory));
-            OnPropertyChanged(nameof(FocusStatusIcon));
-            OnPropertyChanged(nameof(FocusAccentBrushKey));
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            OnPropertyChanged(nameof(ShowCheckingMessage));
             OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
             OnPropertyChanged(nameof(ShowExtensionPromo));
-            OnPropertyChanged(nameof(ShowMarkOverrideButton));
 
             RaiseFocusOverlayStateChanged();
         }
@@ -380,19 +280,6 @@ public partial class FocusPageViewModel : ObservableObject
     [RelayCommand]
     private void OpenHowItWorks() => ShowHowItWorksRequested?.Invoke(this, EventArgs.Empty);
 
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MarkFocusOverrideAsync()
-    {
-        if (ActiveSession == null)
-            return;
-
-        int newScore = FocusScore >= 6 ? 2 : 9;
-        string newReason =
-            FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
-
-        await _sessionOrchestrator.RecordManualOverrideAsync(newScore, newReason);
-    }
-
     /// <summary>
     /// Returns true if the user has not yet seen the How it works guide (first run).
     /// </summary>
@@ -414,24 +301,19 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void ResetFocusState()
     {
-        CurrentProcessName = string.Empty;
-        CurrentWindowTitle = string.Empty;
+        Status.Reset();
         OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
         OnPropertyChanged(nameof(ShowExtensionPromo));
-        FocusScore = 0;
-        FocusReason = string.Empty;
-        HasCurrentFocusResult = false;
         OnPropertyChanged(nameof(IsFocusScoreVisible));
-        OnPropertyChanged(nameof(FocusStatusIcon));
         RaiseFocusOverlayStateChanged();
     }
 
     private void RaiseFocusOverlayStateChanged()
     {
         var hasActive = HasActiveSession();
-        var isLoading = hasActive && !HasCurrentFocusResult;
+        var isLoading = hasActive && !Status.HasCurrentFocusResult;
         var hasError = AiRequestError != null;
-        var status = FocusScore switch
+        var status = Status.FocusScore switch
         {
             >= 6 => FocusStatus.Focused,
             >= 4 => FocusStatus.Neutral,
@@ -506,12 +388,14 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void UpdateMonitoringState()
     {
-        IsMonitoring = ActiveSession != null;
+        Status.IsMonitoring = ActiveSession != null;
         OnPropertyChanged(nameof(ShowStartForm));
         OnPropertyChanged(nameof(IsActiveSessionVisible));
-        OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(IsFocusResultVisible));
-        OnPropertyChanged(nameof(ShowCheckingMessage));
+        OnPropertyChanged(nameof(IsFocusScoreVisible));
+        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(ShowExtensionPromo));
     }
 
     /// <summary>

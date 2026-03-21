@@ -9,6 +9,7 @@
     xmlns:entities="using:FocusBot.Core.Entities"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     xmlns:converters="using:FocusBot.App.Converters"
+    xmlns:controls="using:FocusBot.App.Views.Controls"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     mc:Ignorable="d"
     Background="{StaticResource FbPageBackgroundBrush}">
@@ -21,91 +22,11 @@
         </Grid.RowDefinitions>
 
         <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
-        <Grid Grid.Row="0" x:Name="CurrentWindowStatusBar"
-              Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-              automation:AutomationProperties.Name="Current foreground window"
-              RowSpacing="4"
-              Margin="0,4,0,8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- Window info (compact single line) -->
-            <TextBlock Grid.Row="0"
-                       Style="{StaticResource FbWindowInfoTextStyle}"
-                       MaxLines="1"
-                       Margin="0,0,0,2">
-                <Run Text="App: " FontWeight="Bold"/>
-                <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
-                <Run Text=" | Window Title: " FontWeight="Bold"/>
-                <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
-            </TextBlock>
-
-            <!-- Focus Status Bar (visible whenever a session is in progress, local or remote) -->
-            <Border Grid.Row="1"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="14,10"
-                    Background="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToBackgroundBrushConverter}}"
-                    Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Focus status">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Status icon (always visible when status bar is shown, local or remote session) -->
-                    <Image Grid.Column="0"
-                           Source="{x:Bind ViewModel.FocusStatusIcon, Mode=OneWay}"
-                           Width="40" Height="40"
-                           Margin="0,0,10,0"
-                           VerticalAlignment="Center"
-                           Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-
-                    <!-- Spinner only when classifying -->
-                    <ProgressRing Grid.Column="1"
-                                  IsActive="{x:Bind ViewModel.IsClassifying, Mode=OneWay}"
-                                  Visibility="{x:Bind ViewModel.IsClassifying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                  Width="24" Height="24"
-                                  Margin="0,0,10,0"
-                                  VerticalAlignment="Center"/>
-
-                    <!-- Status text and reason -->
-                    <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
-                        <StackPanel Visibility="{x:Bind ViewModel.HasCurrentFocusResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="{x:Bind ViewModel.FocusScoreCategory, Mode=OneWay}"
-                                       Style="{StaticResource FbFocusStatusTextStyle}"
-                                       FontSize="20"
-                                       Foreground="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToContrastTextColorConverter}}"/>
-                            <TextBlock Text="{x:Bind ViewModel.FocusReason, Mode=OneWay}"
-                                       Style="{StaticResource FbFocusStatusReasonStyle}"
-                                       Foreground="{x:Bind ViewModel.FocusScore, Mode=OneWay, Converter={StaticResource FocusScoreToContrastTextColorConverter}}"
-                                       TextWrapping="Wrap"
-                                       MaxLines="1"/>
-                        </StackPanel>
-                        <TextBlock Text="Checking..."
-                                   Style="{StaticResource FbFocusStatusTextStyle}"
-                                   FontSize="11"
-                                   Foreground="{StaticResource FbFocusStatusUnclearTextBrush}"
-                                   Visibility="{x:Bind ViewModel.ShowCheckingMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    </StackPanel>
-
-                    <!-- Mark Override Button -->
-                    <Button Grid.Column="3"
-                            Content="{x:Bind ViewModel.MarkOverrideButtonText, Mode=OneWay}"
-                            Command="{x:Bind ViewModel.MarkFocusOverrideCommand}"
-                            Visibility="{x:Bind ViewModel.ShowMarkOverrideButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Style="{StaticResource FbOutlineButtonStyle}"
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"/>
-                </Grid>
-            </Border>
-        </Grid>
+        <controls:FocusStatusControl
+            Grid.Row="0"
+            DataContext="{x:Bind ViewModel.Status}"
+            Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+            Margin="0,4,0,8"/>
 
         <!-- Header with Settings -->
         <Grid Grid.Row="1">

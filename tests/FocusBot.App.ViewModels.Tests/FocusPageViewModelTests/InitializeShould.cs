@@ -21,12 +21,14 @@ public class InitializeShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
 
         // Act
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
             ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            accountVm);
+            accountVm,
+            statusBar);
 
         // Wait for async initialization
         await Task.Delay(150);
