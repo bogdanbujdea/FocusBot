@@ -47,6 +47,8 @@ public partial class FocusPageViewModel : ObservableObject
 
     // Single local in-progress task
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStartForm))]
+    [NotifyPropertyChangedFor(nameof(IsActiveTaskVisible))]
     private UserTask? _activeTask;
 
     [ObservableProperty]
@@ -108,7 +110,7 @@ public partial class FocusPageViewModel : ObservableObject
 
     public bool IsFocusScoreVisible => IsMonitoring && IsAiConfigured;
 
-    public bool IsFocusResultVisible => true;
+    public bool IsFocusResultVisible => ActiveTask != null;
 
     public string FocusScoreCategory =>
         FocusScore >= 6 ? "Focused"
@@ -140,7 +142,7 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     public bool IsFocusScorePercentVisible =>
-        IsMonitoring && CurrentFocusScorePercent > 0 && IsAiConfigured;
+        IsMonitoring && IsAiConfigured;
 
     public string TaskElapsedTime
     {
@@ -999,7 +1001,10 @@ public partial class FocusPageViewModel : ObservableObject
     private void UpdateMonitoringState()
     {
         IsMonitoring = ActiveTask != null;
+        OnPropertyChanged(nameof(ShowStartForm));
+        OnPropertyChanged(nameof(IsActiveTaskVisible));
         OnPropertyChanged(nameof(FocusStatusIcon));
+        OnPropertyChanged(nameof(IsFocusResultVisible));
         OnPropertyChanged(nameof(ShowCheckingMessage));
     }
 

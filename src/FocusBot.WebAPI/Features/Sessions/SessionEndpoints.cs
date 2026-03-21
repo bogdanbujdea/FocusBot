@@ -21,6 +21,14 @@ public static class SessionEndpoints
             .WithName("EndSession")
             .WithSummary("End an active focus session with summary data");
 
+        group.MapPost("/{id}/pause", PauseSession)
+            .WithName("PauseSession")
+            .WithSummary("Pause an active focus session");
+
+        group.MapPost("/{id}/resume", ResumeSession)
+            .WithName("ResumeSession")
+            .WithSummary("Resume a paused focus session");
+
         group.MapGet("/active", GetActiveSession)
             .WithName("GetActiveSession")
             .WithSummary("Get the current active focus session");
@@ -56,6 +64,34 @@ public static class SessionEndpoints
         return result.StatusCode switch
         {
             403 => Results.Json(new { error = result.Error }, statusCode: StatusCodes.Status403Forbidden),
+            404 => Results.NotFound(new { error = result.Error }),
+            409 => Results.Conflict(new { error = result.Error }),
+            _ => Results.Ok(result.Session)
+        };
+    }
+
+    private static async Task<IResult> PauseSession(
+        Guid id, SessionService service, HttpContext ctx, CancellationToken ct)
+    {
+        var userId = GetUserId(ctx);
+        var result = await service.PauseSessionAsync(userId, id, ct);
+
+        return result.StatusCode switch
+        {
+            404 => Results.NotFound(new { error = result.Error }),
+            409 => Results.Conflict(new { error = result.Error }),
+            _ => Results.Ok(result.Session)
+        };
+    }
+
+    private static async Task<IResult> ResumeSession(
+        Guid id, SessionService service, HttpContext ctx, CancellationToken ct)
+    {
+        var userId = GetUserId(ctx);
+        var result = await service.ResumeSessionAsync(userId, id, ct);
+
+        return result.StatusCode switch
+        {
             404 => Results.NotFound(new { error = result.Error }),
             409 => Results.Conflict(new { error = result.Error }),
             _ => Results.Ok(result.Session)

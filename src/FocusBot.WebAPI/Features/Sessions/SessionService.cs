@@ -46,6 +46,14 @@ public class SessionService(ApiDbContext db)
         if (session.EndedAtUtc is not null)
             return SessionResult.Conflict("Session is already ended.");
 
+        // If session is paused, accumulate final pause duration before ending
+        if (session.PausedAtUtc is not null)
+        {
+            var pauseDuration = (long)(DateTime.UtcNow - session.PausedAtUtc.Value).TotalSeconds;
+            session.TotalPausedSeconds += pauseDuration;
+            session.PausedAtUtc = null;
+        }
+
         session.EndedAtUtc = DateTime.UtcNow;
         session.FocusScorePercent = request.FocusScorePercent;
         session.FocusedSeconds = request.FocusedSeconds;
@@ -102,8 +110,51 @@ public class SessionService(ApiDbContext db)
             .Select(s => ToResponse(s))
             .FirstOrDefaultAsync(ct);
 
+    public async Task<SessionResult> PauseSessionAsync(
+        Guid userId, Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await db.Sessions
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, ct);
+
+        if (session is null)
+            return SessionResult.NotFound();
+
+        if (session.EndedAtUtc is not null)
+            return SessionResult.Conflict("Session is already ended.");
+
+        if (session.PausedAtUtc is not null)
+            return SessionResult.Conflict("Session is already paused.");
+
+        session.PausedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return SessionResult.Success(ToResponse(session));
+    }
+
+    public async Task<SessionResult> ResumeSessionAsync(
+        Guid userId, Guid sessionId, CancellationToken ct = default)
+    {
+        var session = await db.Sessions
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId, ct);
+
+        if (session is null)
+            return SessionResult.NotFound();
+
+        if (session.PausedAtUtc is null)
+            return SessionResult.Conflict("Session is not paused.");
+
+        var pauseDuration = (long)(DateTime.UtcNow - session.PausedAtUtc.Value).TotalSeconds;
+        session.TotalPausedSeconds += pauseDuration;
+        session.PausedAtUtc = null;
+
+        await db.SaveChangesAsync(ct);
+
+        return SessionResult.Success(ToResponse(session));
+    }
+
     private static SessionResponse ToResponse(Session s) =>
         new(s.Id, s.TaskText, s.TaskHints, s.DeviceId, s.StartedAtUtc, s.EndedAtUtc,
+            s.PausedAtUtc, s.TotalPausedSeconds, s.IsPaused,
             s.FocusScorePercent, s.FocusedSeconds, s.DistractedSeconds,
             s.DistractionCount, s.ContextSwitchCount,
             s.TopDistractingApps, s.TopAlignedApps, s.Source);

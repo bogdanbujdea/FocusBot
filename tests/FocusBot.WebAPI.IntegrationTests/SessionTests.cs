@@ -246,7 +246,144 @@ public class SessionTests(CustomWebApplicationFactory factory)
         endedSession!.DeviceId.Should().Be(device.Id);
     }
 
+    [Fact]
+    public async Task PauseAndResumeSession_UpdatesStateCorrectly()
+    {
+        var userId = Guid.NewGuid();
+        var client = CreateAuthenticatedClient(userId);
+
+        await client.GetAsync("/auth/me");
+
+        // Start a session
+        var startResponse = await client.PostAsJsonAsync("/sessions",
+            new StartSessionRequest("Pauseable task", null, DeviceId: null));
+        startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        session.Should().NotBeNull();
+        session!.IsPaused.Should().BeFalse();
+        session.PausedAtUtc.Should().BeNull();
+        session.TotalPausedSeconds.Should().Be(0);
+
+        // Pause the session
+        var pauseResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/pause", new { });
+        pauseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var pausedSession = await pauseResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        pausedSession.Should().NotBeNull();
+        pausedSession!.IsPaused.Should().BeTrue();
+        pausedSession.PausedAtUtc.Should().NotBeNull();
+        pausedSession.EndedAtUtc.Should().BeNull();
+
+        // Verify active endpoint returns paused session
+        var activeResponse = await client.GetAsync("/sessions/active");
+        activeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var activeSession = await activeResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        activeSession.Should().NotBeNull();
+        activeSession!.IsPaused.Should().BeTrue();
+
+        // Wait a bit to accumulate pause time
+        await Task.Delay(1100);
+
+        // Resume the session
+        var resumeResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/resume", new { });
+        resumeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var resumedSession = await resumeResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        resumedSession.Should().NotBeNull();
+        resumedSession!.IsPaused.Should().BeFalse();
+        resumedSession.PausedAtUtc.Should().BeNull();
+        resumedSession.TotalPausedSeconds.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task PauseEndpoints_Return404_WhenSessionNotFound()
+    {
+        var userId = Guid.NewGuid();
+        var client = CreateAuthenticatedClient(userId);
+
+        await client.GetAsync("/auth/me");
+
+        var nonExistentId = Guid.NewGuid();
+
+        var pauseResponse = await client.PostAsJsonAsync($"/sessions/{nonExistentId}/pause", new { });
+        pauseResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var resumeResponse = await client.PostAsJsonAsync($"/sessions/{nonExistentId}/resume", new { });
+        resumeResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PauseEndpoints_Return409_WithInvalidStateTransitions()
+    {
+        var userId = Guid.NewGuid();
+        var client = CreateAuthenticatedClient(userId);
+
+        await client.GetAsync("/auth/me");
+
+        // Start a session
+        var startResponse = await client.PostAsJsonAsync("/sessions",
+            new StartSessionRequest("State transition test", null, DeviceId: null));
+        startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        session.Should().NotBeNull();
+
+        // Try to resume a running session (should fail)
+        var resumeRunningResponse = await client.PostAsJsonAsync($"/sessions/{session!.Id}/resume", new { });
+        var resumeRunningBody = await resumeRunningResponse.Content.ReadAsStringAsync();
+        resumeRunningResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        resumeRunningBody.Should().Contain("not paused");
+
+        // Pause the session
+        var pauseResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/pause", new { });
+        pauseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Try to pause a paused session (should fail)
+        var pausePausedResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/pause", new { });
+        var pausePausedBody = await pausePausedResponse.Content.ReadAsStringAsync();
+        pausePausedResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        pausePausedBody.Should().Contain("already paused");
+    }
+
+    [Fact]
+    public async Task EndPausedSession_AccumulatesPauseDuration()
+    {
+        var userId = Guid.NewGuid();
+        var client = CreateAuthenticatedClient(userId);
+
+        await client.GetAsync("/auth/me");
+
+        // Start a session
+        var startResponse = await client.PostAsJsonAsync("/sessions",
+            new StartSessionRequest("Pause then end", null, DeviceId: null));
+        startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        session.Should().NotBeNull();
+
+        // Pause the session
+        var pauseResponse = await client.PostAsJsonAsync($"/sessions/{session!.Id}/pause", new { });
+        pauseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Wait to accumulate pause time
+        await Task.Delay(1100);
+
+        // End the paused session
+        var endResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/end", CreateEndRequest());
+        endResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var endedSession = await endResponse.Content.ReadFromJsonAsync<SessionResponse>();
+        endedSession.Should().NotBeNull();
+        endedSession!.EndedAtUtc.Should().NotBeNull();
+        endedSession.PausedAtUtc.Should().BeNull();
+        endedSession.TotalPausedSeconds.Should().BeGreaterThan(0);
+        endedSession.IsPaused.Should().BeFalse(); // Ended sessions are not paused
+    }
+
     private static EndSessionRequest CreateEndRequest(Guid? DeviceId = null) =>
+
         new(
             FocusScorePercent: 90,
             FocusedSeconds: 1800,

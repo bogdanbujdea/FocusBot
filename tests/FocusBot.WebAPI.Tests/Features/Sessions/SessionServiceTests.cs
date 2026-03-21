@@ -118,4 +118,170 @@ public class SessionServiceTests
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(2);
     }
+
+    [Fact]
+    public async Task PauseSessionAsync_UpdatesPausedAtUtc()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var result = await service.PauseSessionAsync(userId, sessionId);
+
+        result.StatusCode.Should().Be(200);
+        result.Session.Should().NotBeNull();
+        result.Session!.PausedAtUtc.Should().NotBeNull();
+        result.Session.IsPaused.Should().BeTrue();
+        result.Session.TotalPausedSeconds.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PauseSessionAsync_Returns409_WhenAlreadyPaused()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work",
+            PausedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var result = await service.PauseSessionAsync(userId, sessionId);
+
+        result.StatusCode.Should().Be(409);
+        result.Error.Should().Contain("already paused");
+    }
+
+    [Fact]
+    public async Task ResumeSessionAsync_AccumulatesPauseDuration()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var pausedAt = DateTime.UtcNow.AddSeconds(-10);
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work",
+            PausedAtUtc = pausedAt,
+            TotalPausedSeconds = 0
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var result = await service.ResumeSessionAsync(userId, sessionId);
+
+        result.StatusCode.Should().Be(200);
+        result.Session.Should().NotBeNull();
+        result.Session!.PausedAtUtc.Should().BeNull();
+        result.Session.IsPaused.Should().BeFalse();
+        result.Session.TotalPausedSeconds.Should().BeGreaterThanOrEqualTo(10);
+    }
+
+    [Fact]
+    public async Task ResumeSessionAsync_Returns409_WhenNotPaused()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var result = await service.ResumeSessionAsync(userId, sessionId);
+
+        result.StatusCode.Should().Be(409);
+        result.Error.Should().Contain("not paused");
+    }
+
+    [Fact]
+    public async Task EndSessionAsync_AccumulatesPauseDuration_WhenPaused()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var pausedAt = DateTime.UtcNow.AddSeconds(-20);
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work",
+            PausedAtUtc = pausedAt,
+            TotalPausedSeconds = 10
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var endRequest = new EndSessionRequest(
+            FocusScorePercent: 80,
+            FocusedSeconds: 1800,
+            DistractedSeconds: 200,
+            DistractionCount: 3,
+            ContextSwitchCount: 60,
+            TopDistractingApps: null,
+            TopAlignedApps: null,
+            DeviceId: null);
+
+        var result = await service.EndSessionAsync(userId, sessionId, endRequest);
+
+        result.StatusCode.Should().Be(200);
+        result.Session.Should().NotBeNull();
+        result.Session!.EndedAtUtc.Should().NotBeNull();
+        result.Session.PausedAtUtc.Should().BeNull();
+        result.Session.TotalPausedSeconds.Should().BeGreaterThanOrEqualTo(30); // 10 existing + ~20 from final pause
+    }
+
+    [Fact]
+    public async Task MultiplePauseResumeCycles_AccumulateCorrectly()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        db.Sessions.Add(new Session
+        {
+            Id = sessionId,
+            UserId = userId,
+            TaskText = "Deep work"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+
+        // First pause cycle
+        await service.PauseSessionAsync(userId, sessionId);
+        await Task.Delay(1100); // Simulate 1.1 second pause
+        var result1 = await service.ResumeSessionAsync(userId, sessionId);
+        var pausedAfterFirstCycle = result1.Session!.TotalPausedSeconds;
+        pausedAfterFirstCycle.Should().BeGreaterThan(0);
+
+        // Second pause cycle
+        await service.PauseSessionAsync(userId, sessionId);
+        await Task.Delay(1100); // Simulate another 1.1 second pause
+        var result2 = await service.ResumeSessionAsync(userId, sessionId);
+        var pausedAfterSecondCycle = result2.Session!.TotalPausedSeconds;
+
+        // Total should accumulate from both cycles
+        pausedAfterSecondCycle.Should().BeGreaterThan(pausedAfterFirstCycle);
+        result2.Session.PausedAtUtc.Should().BeNull();
+        result2.Session.IsPaused.Should().BeFalse();
+    }
 }

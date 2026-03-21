@@ -15,6 +15,16 @@ public class Session
     public string? TaskHints { get; set; }
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? EndedAtUtc { get; set; }
+
+    /// <summary>When the session was most recently paused. Null if session is not currently paused.</summary>
+    public DateTime? PausedAtUtc { get; set; }
+
+    /// <summary>Total accumulated pause duration in seconds across all pause/resume cycles.</summary>
+    public long TotalPausedSeconds { get; set; }
+
+    /// <summary>True if the session is currently paused (active but not running).</summary>
+    public bool IsPaused => PausedAtUtc.HasValue && !EndedAtUtc.HasValue;
+
     public int? FocusScorePercent { get; set; }
     public long? FocusedSeconds { get; set; }
     public long? DistractedSeconds { get; set; }
