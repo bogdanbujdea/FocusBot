@@ -44,17 +44,10 @@ public partial class FocusPageViewModel : ObservableObject
     private int _secondsSinceLastPersist;
     private bool _isTaskPaused;
     private DateTime? _sessionStartUtc;
-    private bool _extensionHasActiveTask;
 
     // Single local in-progress task
     [ObservableProperty]
     private UserTask? _activeTask;
-
-    partial void OnActiveTaskChanged(UserTask? value)
-    {
-        OnPropertyChanged(nameof(ShowStartForm));
-        OnPropertyChanged(nameof(IsActiveTaskVisible));
-    }
 
     [ObservableProperty]
     private string _startTaskTitle = string.Empty;
@@ -62,8 +55,8 @@ public partial class FocusPageViewModel : ObservableObject
     [ObservableProperty]
     private string _startTaskContext = string.Empty;
 
-    public bool ShowStartForm => ActiveTask == null && !_extensionHasActiveTask;
-    public bool IsActiveTaskVisible => ActiveTask != null || _extensionHasActiveTask;
+    public bool ShowStartForm => ActiveTask == null;
+    public bool IsActiveTaskVisible => ActiveTask != null;
 
     public string CurrentProcessName
     {
@@ -278,26 +271,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
 
-    private DateTime? _remoteTaskStartedAtUtc;
-
-    /// <summary>
-    /// When the extension has an active task, we show it in the board. Null when no remote task.
-    /// </summary>
-    public TaskStartedPayload? RemoteTaskFromExtension
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
-    /// <summary>
-    /// Latest focus status for the remote task (when extension is leading).
-    /// </summary>
-    public FocusStatusPayload? RemoteTaskFocusStatus
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
-
     public FocusPageViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
@@ -340,9 +313,6 @@ public partial class FocusPageViewModel : ObservableObject
         if (_integrationService != null)
         {
             _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
-            _integrationService.TaskStartedReceived += OnIntegrationTaskStarted;
-            _integrationService.TaskEndedReceived += OnIntegrationTaskEnded;
-            _integrationService.FocusStatusReceived += OnIntegrationFocusStatusReceived;
         }
 
         _ = LoadBoardAsync();
@@ -376,14 +346,8 @@ public partial class FocusPageViewModel : ObservableObject
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
         if (ActiveTask == null)
-        {
-            if (RemoteTaskFromExtension != null && _remoteTaskStartedAtUtc.HasValue)
-            {
-                var elapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc.Value).TotalSeconds;
-                TaskElapsedTime = TimeFormatHelper.FormatElapsed(elapsed);
-            }
             return;
-        }
+
         _taskElapsedSeconds++;
         TaskElapsedTime = TimeFormatHelper.FormatElapsed(_taskElapsedSeconds);
         _windowElapsedSeconds++;
@@ -472,17 +436,7 @@ public partial class FocusPageViewModel : ObservableObject
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
         WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(newTotal);
 
-        (string taskId, string description, string? context)? effectiveTask =
-            ActiveTask != null ? (ActiveTask.TaskId, ActiveTask.Description, ActiveTask.Context)
-            : RemoteTaskFromExtension != null
-                ? (
-                    RemoteTaskFromExtension.TaskId,
-                    RemoteTaskFromExtension.TaskText,
-                    RemoteTaskFromExtension.TaskHints
-                )
-            : null;
-
-        if (effectiveTask == null)
+        if (ActiveTask == null)
         {
             if (_integrationService is { IsExtensionConnected: true })
             {
@@ -501,7 +455,8 @@ public partial class FocusPageViewModel : ObservableObject
             return;
         }
 
-        var (taskId, taskDescription, taskContext) = effectiveTask.Value;
+        var taskDescription = ActiveTask.Description;
+        var taskContext = ActiveTask.Context;
         var isViewingFocusBot = string.Equals(
             e.ProcessName,
             FocusBotProcessName,
@@ -706,14 +661,6 @@ public partial class FocusPageViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(StartTaskTitle))
             return;
 
-        if (_extensionHasActiveTask && _integrationService?.IsExtensionConnected == true)
-        {
-            IntegrationBlockedReason =
-                "A task is already in progress in the browser extension. End it there first.";
-            return;
-        }
-        IntegrationBlockedReason = null;
-
         var context = string.IsNullOrWhiteSpace(StartTaskContext) ? null : StartTaskContext.Trim();
 
         // Create task directly as InProgress
@@ -727,10 +674,8 @@ public partial class FocusPageViewModel : ObservableObject
         // Reload board which will start monitoring
         await LoadBoardAsync();
 
-        // Set ActiveTask
         if (ActiveTask != null)
         {
-            await NotifyTaskStartedAsync(ActiveTask);
             _ = StartBackendSessionAsync(ActiveTask);
         }
     }
@@ -773,11 +718,6 @@ public partial class FocusPageViewModel : ObservableObject
 
         StopMonitoringAndResetFocusState();
         UpdateMonitoringState();
-
-        if (_integrationService?.IsExtensionConnected == true)
-        {
-            await _integrationService.SendTaskEndedAsync(taskToEnd.TaskId);
-        }
     }
 
     [RelayCommand]
@@ -879,12 +819,6 @@ public partial class FocusPageViewModel : ObservableObject
         if (string.IsNullOrEmpty(taskId))
             return;
         _navigationService.NavigateToTaskDetail(taskId);
-    }
-
-    public string? IntegrationBlockedReason
-    {
-        get;
-        set => SetProperty(ref field, value);
     }
 
     private async Task StartBackendSessionAsync(UserTask task)
@@ -1006,31 +940,6 @@ public partial class FocusPageViewModel : ObservableObject
                 TooltipText = tooltip,
             }
         );
-
-        if (
-            _integrationService is { IsExtensionConnected: true }
-            && hasActive
-            && !_extensionHasActiveTask
-            && ActiveTask != null
-        )
-        {
-            var classification =
-                FocusScore >= 6 ? "Focused"
-                : FocusScore >= 4 ? "Unclear"
-                : "Distracted";
-            _ = _integrationService.SendFocusStatusAsync(
-                new FocusStatusPayload
-                {
-                    TaskId = ActiveTask.TaskId,
-                    Classification = classification,
-                    Reason = FocusReason,
-                    Score = FocusScore,
-                    FocusScorePercent = CurrentFocusScorePercent,
-                    ContextType = IsBrowserProcess(CurrentProcessName) ? "browser" : "desktop",
-                    ContextTitle = CurrentWindowTitle,
-                }
-            );
-        }
     }
 
     /// <summary>Builds a concise tooltip string for the overlay tray area.</summary>
@@ -1068,161 +977,28 @@ public partial class FocusPageViewModel : ObservableObject
 
     private void OnExtensionConnectionChanged(object? sender, bool connected)
     {
-        void UpdateAndMaybeSendState()
+        void UpdateConnectionState()
         {
             IsExtensionConnected = connected;
-
-            if (!connected)
-            {
-                _extensionHasActiveTask = false;
-                IntegrationBlockedReason = null;
-                return;
-            }
-
-            if (_integrationService == null)
-                return;
-
-            if (!HasActiveTask())
-            {
-                _ = _integrationService.SendHandshakeAsync(false, null, null, null);
-                return;
-            }
-
-            var task = ActiveTask;
-            if (task != null)
-            {
-                _ = _integrationService.SendTaskStartedAsync(
-                    task.TaskId,
-                    task.Description,
-                    task.Context
-                );
-            }
         }
 
         if (_uiDispatcher != null)
         {
             _ = _uiDispatcher.RunOnUIThreadAsync(() =>
             {
-                UpdateAndMaybeSendState();
+                UpdateConnectionState();
                 return Task.CompletedTask;
             });
         }
         else
         {
-            UpdateAndMaybeSendState();
+            UpdateConnectionState();
         }
-    }
-
-    private void OnIntegrationTaskStarted(object? sender, TaskStartedPayload payload)
-    {
-        _extensionHasActiveTask = true;
-        _remoteTaskStartedAtUtc =
-            !string.IsNullOrEmpty(payload.StartedAt)
-            && DateTime.TryParse(
-                payload.StartedAt,
-                null,
-                System.Globalization.DateTimeStyles.RoundtripKind,
-                out var parsed
-            )
-                ? parsed.ToUniversalTime()
-                : DateTime.UtcNow;
-
-        void apply()
-        {
-            _windowMonitor.Start();
-            RemoteTaskFromExtension = payload;
-            RemoteTaskFocusStatus = null;
-            var initialElapsed = (long)
-                (DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
-            TaskElapsedTime = TimeFormatHelper.FormatElapsed(initialElapsed);
-            UpdateMonitoringState();
-        }
-
-        if (_uiDispatcher != null)
-        {
-            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
-            {
-                apply();
-                return Task.CompletedTask;
-            });
-        }
-        else
-        {
-            apply();
-        }
-    }
-
-    private void OnIntegrationTaskEnded(object? sender, EventArgs e)
-    {
-        _extensionHasActiveTask = false;
-        if (_uiDispatcher != null)
-        {
-            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
-            {
-                ClearRemoteTask();
-                if (ActiveTask == null)
-                {
-                    _windowMonitor.Stop();
-                }
-                return Task.CompletedTask;
-            });
-        }
-        else
-        {
-            ClearRemoteTask();
-            if (ActiveTask == null)
-            {
-                _windowMonitor.Stop();
-            }
-        }
-    }
-
-    private void OnIntegrationFocusStatusReceived(object? sender, FocusStatusPayload payload)
-    {
-        if (RemoteTaskFromExtension == null || payload.TaskId != RemoteTaskFromExtension.TaskId)
-            return;
-        void Apply()
-        {
-            RemoteTaskFocusStatus = payload;
-            FocusScore = payload.Score;
-            FocusReason = payload.Reason;
-            CurrentProcessName = payload.ContextType;
-            CurrentWindowTitle = payload.ContextTitle;
-            OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
-            OnPropertyChanged(nameof(ShowExtensionPromo));
-            CurrentFocusScorePercent = payload.FocusScorePercent;
-            HasCurrentFocusResult = true;
-            IsClassifying = false;
-            OnPropertyChanged(nameof(IsFocusScoreVisible));
-            OnPropertyChanged(nameof(FocusScoreCategory));
-            OnPropertyChanged(nameof(FocusStatusIcon));
-            OnPropertyChanged(nameof(FocusAccentBrushKey));
-            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            RaiseFocusOverlayStateChanged();
-        }
-        if (_uiDispatcher != null)
-            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
-            {
-                Apply();
-                return Task.CompletedTask;
-            });
-        else
-            Apply();
-    }
-
-    private void ClearRemoteTask()
-    {
-        _extensionHasActiveTask = false;
-        _remoteTaskStartedAtUtc = null;
-        IntegrationBlockedReason = null;
-        RemoteTaskFromExtension = null;
-        RemoteTaskFocusStatus = null;
-        UpdateMonitoringState();
     }
 
     private void UpdateMonitoringState()
     {
-        IsMonitoring = ActiveTask != null || RemoteTaskFromExtension != null;
+        IsMonitoring = ActiveTask != null;
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(ShowCheckingMessage));
     }
@@ -1236,22 +1012,6 @@ public partial class FocusPageViewModel : ObservableObject
         var connected = _integrationService?.IsExtensionConnected ?? false;
         if (IsExtensionConnected != connected)
             IsExtensionConnected = connected;
-    }
-
-    /// <summary>
-    /// Notifies the extension that a task has started (Full Mode). Called after a task moves to InProgress.
-    /// </summary>
-    public async Task NotifyTaskStartedAsync(UserTask task)
-    {
-        _extensionHasActiveTask = false;
-        if (_integrationService is { IsExtensionConnected: true })
-        {
-            await _integrationService.SendTaskStartedAsync(
-                task.TaskId,
-                task.Description,
-                task.Context
-            );
-        }
     }
 
     /// <summary>
