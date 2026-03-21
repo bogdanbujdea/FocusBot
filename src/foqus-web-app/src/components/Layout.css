@@ -95,6 +95,24 @@
   color: var(--color-text-primary);
 }
 
+.sidebar-legal-links {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+}
+
+.sidebar-legal-links a {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.sidebar-legal-links a:hover {
+  color: var(--color-text-secondary);
+}
+
 .main-content {
   flex: 1;
   padding: var(--spacing-xl);

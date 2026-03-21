@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import "./Layout.css";
 
@@ -40,6 +40,11 @@ export function Layout() {
           <button onClick={signOut} className="sign-out-button">
             Sign out
           </button>
+          <nav className="sidebar-legal-links" aria-label="Legal">
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/refund">Refunds</Link>
+          </nav>
         </div>
       </aside>
       <main className="main-content">

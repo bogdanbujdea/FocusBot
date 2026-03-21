@@ -736,6 +736,28 @@ button:disabled {
   font-weight: 800;
 }
 
+.footer-legal-links {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-legal-links a {
+  color: var(--fb-muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-legal-links a:hover {
+  color: var(--fb-text);
+}
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 980px) {
   .landing-hero-inner {
     grid-template-columns: 1fr;

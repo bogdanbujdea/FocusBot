@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../auth/supabase";
 import "./LoginPage.css";
 
@@ -66,6 +67,12 @@ export function LoginPage() {
         <p className="login-footer">
           We'll send you a magic link to sign in. No password needed.
         </p>
+
+        <nav className="login-legal-links" aria-label="Legal">
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/refund">Refunds</Link>
+        </nav>
       </div>
     </div>
   );

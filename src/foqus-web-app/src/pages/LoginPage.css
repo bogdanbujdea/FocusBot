@@ -119,3 +119,23 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+.login-legal-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.login-legal-links a {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.login-legal-links a:hover {
+  color: var(--color-text-secondary);
+}

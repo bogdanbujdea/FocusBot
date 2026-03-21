@@ -1,0 +1,116 @@
+.legal-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.legal-page-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 18, 32, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.legal-page-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.legal-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fb-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s ease;
+}
+
+.legal-back-link:hover {
+  color: var(--fb-text);
+}
+
+.legal-page-content {
+  flex: 1;
+  padding: 48px 16px 64px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.legal-page-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.legal-last-updated {
+  color: var(--fb-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 40px;
+}
+
+.legal-page-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 36px;
+  margin-bottom: 12px;
+}
+
+.legal-page-content h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+.legal-page-content p {
+  color: var(--fb-text-muted);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+.legal-page-content ul,
+.legal-page-content ol {
+  color: var(--fb-text-muted);
+  padding-left: 24px;
+  margin-bottom: 14px;
+  line-height: 1.7;
+}
+
+.legal-page-content li {
+  margin-bottom: 6px;
+}
+
+.legal-page-content a {
+  color: var(--fb-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-page-content a:hover {
+  color: #4770ff;
+}
+
+.legal-page-content strong {
+  color: var(--fb-text);
+  font-weight: 600;
+}
+
+.legal-contact-card {
+  margin-top: 32px;
+  padding: 20px;
+  background: var(--fb-surface-1);
+  border: 1px solid var(--fb-surface-border);
+  border-radius: var(--fb-radius-md);
+}
+
+.legal-contact-card p {
+  margin-bottom: 6px;
+}
+
+.legal-contact-card p:last-child {
+  margin-bottom: 0;
+}

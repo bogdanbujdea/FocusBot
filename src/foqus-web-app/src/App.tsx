@@ -8,6 +8,9 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { BillingPage } from "./pages/BillingPage";
+import { TermsPage } from "./pages/TermsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { RefundPage } from "./pages/RefundPage";
 import { Layout } from "./components/Layout";
 import "./App.css";
 
@@ -32,8 +35,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/refund" element={<RefundPage />} />
       <Route
         path="/"
         element={
