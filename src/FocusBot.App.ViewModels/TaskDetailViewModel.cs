@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.App.ViewModels;
@@ -55,42 +56,13 @@ public partial class TaskDetailViewModel(ITaskRepository repo, INavigationServic
         Description = task.Description;
         Context = task.Context ?? string.Empty;
         Status = task.IsCompleted ? "Completed" : "Active";
-        TotalTime = FormatElapsed(task.TotalElapsedSeconds);
+        TotalTime = TimeFormatHelper.FormatElapsed(task.TotalElapsedSeconds);
         FocusScore = task.FocusScorePercent.HasValue ? $"{task.FocusScorePercent}%" : string.Empty;
 
         OnPropertyChanged(nameof(HasContext));
         OnPropertyChanged(nameof(HasFocusScore));
 
-        await LoadWindowActivityAsync(taskId);
-    }
-
-    private async Task LoadWindowActivityAsync(string taskId)
-    {
-        WindowActivity.Clear();
-        var segments = await repo.GetFocusSegmentsForTaskAsync(taskId);
-        var sortedSegments = segments.OrderByDescending(s => s.DurationSeconds).ToList();
-
-        foreach (var segment in sortedSegments)
-        {
-            WindowActivity.Add(
-                new WindowActivityItem
-                {
-                    ProcessName = segment.ProcessName ?? "Unknown",
-                    WindowTitle = segment.WindowTitle ?? "Unknown",
-                    Duration = FormatElapsed(segment.DurationSeconds),
-                    DurationSeconds = segment.DurationSeconds,
-                    AlignmentScore = segment.AlignmentScore,
-                }
-            );
-        }
-    }
-
-    private static string FormatElapsed(long totalSeconds)
-    {
-        var hours = (int)(totalSeconds / 3600);
-        var minutes = (int)((totalSeconds % 3600) / 60);
-        var seconds = (int)(totalSeconds % 60);
-        return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
+        await Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -102,6 +74,5 @@ public class WindowActivityItem
     public string ProcessName { get; set; } = string.Empty;
     public string WindowTitle { get; set; } = string.Empty;
     public string Duration { get; set; } = string.Empty;
-    public int DurationSeconds { get; set; }
     public int AlignmentScore { get; set; }
 }

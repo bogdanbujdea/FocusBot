@@ -1,8 +1,10 @@
 # Epic 2 — Windows App Local/Basic Mode
 
+> **Implementation note (supersedes original plan):** See `updated-plan-for-epic-2.md` for the actual implementation. Key deviation: **no SignalR** — desktop communicates with the extension via local WebSocket only; cross-device real-time sync is deferred to Epic 6.
+
 ## Objective
 
-Extend the existing Windows app with plan awareness, device registration, cloud session submission, and SignalR-based server-mediated sync. The Windows app remains the primary native experience for desktop capture and live alignment.
+Extend the existing Windows app with plan awareness, device registration, and cloud session submission. The Windows app remains the primary native experience for desktop capture and live alignment. All classification routes through the backend (`POST /classify`). Cross-machine sync (SignalR) is deferred to Epic 6.
 
 **Depends on:** Epic 1 (Shared Contracts & Entitlement Model)
 
@@ -40,7 +42,7 @@ Extend the existing Windows app with plan awareness, device registration, cloud 
 | Plan selection UI | `[NEW]` | High |
 | Device registration + heartbeat | `[NEW]` | High |
 | Cloud session submission | `[NEW]` | High |
-| SignalR client for server-mediated sync | `[NEW]` | High |
+| ~~SignalR client for server-mediated sync~~ | ~~`[NEW]`~~ | **Deferred to Epic 6** |
 | Plan-aware classification routing | `[CHANGED]` | High |
 | Auth flow — plan/entitlement fetch | `[CHANGED]` | High |
 | Session.DeviceId attribution | `[CHANGED]` | Medium |
@@ -73,7 +75,7 @@ Add a "Choose Plan" screen accessible from:
 - After login, fetch plan from `/subscriptions/status` (or `/auth/me` if plan is included).
 - If user selects a paid plan, open Paddle Checkout in the default browser.
 - After successful payment, backend processes Paddle webhook and updates subscription.
-- App polls or receives plan update via SignalR `PlanChanged` message.
+- App polls `/subscriptions/status` every 5 minutes for plan updates. (SignalR `PlanChanged` deferred to Epic 6.)
 
 **UI elements:**
 - Plan comparison cards with feature highlights
@@ -127,30 +129,13 @@ When signed in with a cloud plan (Cloud BYOK or Cloud Managed):
 - Submit on next successful connection.
 - Do not block the user from starting/ending sessions locally.
 
-### 4. SignalR Client for Server-Mediated Sync `[NEW]`
+### 4. ~~SignalR Client for Server-Mediated Sync~~ `[DEFERRED — Epic 6]`
 
-When signed in with a cloud plan:
+**Decision:** No SignalR in Epic 2. Desktop communicates with the browser extension via the existing local WebSocket server only. Cross-machine real-time sync (task start/end broadcast, `PlanChanged` push, device presence) is deferred to Epic 6.
 
-**Connection:**
-- Connect to `/hubs/focus` with the Supabase JWT as bearer token.
-- Reconnect with exponential backoff on disconnection.
-- Disconnect on logout or plan downgrade to free.
+**Reason:** Keeps the MVP desktop thin. Local WebSocket covers 100% of the same-machine use case. Cross-machine sync adds implementation complexity that is better addressed once the web app dashboard and multi-device data model are stable.
 
-**Inbound messages (server → client):**
-- `TaskStarted`: Another device started a task → prompt user or auto-sync.
-- `TaskEnded`: Another device ended a task → update local state.
-- `FocusStatus`: Classification result from another device → display in status bar if relevant.
-- `DeviceOnline` / `DeviceOffline`: Update integration awareness.
-- `PlanChanged`: Subscription status changed → refresh plan locally.
-
-**Outbound messages (client → server):**
-- `SubmitFocusStatus`: Send classification result to server for broadcasting.
-- `StartTask` / `EndTask`: Notify other devices of task lifecycle changes.
-
-**Coexistence with local WebSocket:**
-- The local WebSocket server (`ws://localhost:9876/focusbot`) **remains active** for same-machine extension communication.
-- SignalR is used **in addition** for cross-machine sync.
-- Deduplicate events: if a task start/end arrives via both local WS and SignalR, process only once (use session ID + timestamp as dedup key).
+**What ships in Epic 2 instead:** Plan changes are detected by polling `GET /subscriptions/status` every 5 minutes while the app is running.
 
 ### 5. Plan-Aware Classification Routing `[CHANGED]`
 
@@ -175,14 +160,14 @@ After successful login:
 2. Cache plan type locally (survives app restarts).
 3. Gate features based on plan:
    - Free: no device registration, no cloud sync, no full analytics link active.
-   - Cloud: enable device registration, cloud session submission, SignalR, full analytics CTA.
+   - Cloud: enable device registration, cloud session submission, full analytics CTA.
 4. Handle plan changes:
-   - Poll `/subscriptions/status` periodically (every 5 minutes), or
-   - Rely on SignalR `PlanChanged` message when connected.
+   - Poll `/subscriptions/status` every 5 minutes while the app is running.
+   - No SignalR push in this epic (deferred to Epic 6).
 
 **Token refresh alignment:**
-- Ensure `RefreshTokenAsync()` is called when token has < 5 minutes remaining (per Epic 1 §10).
-- Handle refresh failure: retry 3 times, then prompt re-login.
+- `RefreshTokenAsync()` is called proactively when token has < 5 minutes remaining.
+- On refresh failure: retry 3 times with exponential backoff, then fire `ReAuthRequired` event and navigate to Settings.
 
 ### 7. Session.DeviceId Attribution `[CHANGED]`
 
@@ -249,7 +234,7 @@ No migration to a different local storage engine is needed.
 - Use primary constructors for DI.
 - Async methods must accept `CancellationToken`.
 - `TreatWarningsAsErrors` is on — no nullable warnings.
-- SignalR client: use `Microsoft.AspNetCore.SignalR.Client` NuGet package.
+- **No SignalR in this epic.** Cross-device sync deferred to Epic 6.
 
 ---
 
@@ -263,7 +248,7 @@ No migration to a different local storage engine is needed.
 - [ ] Cloud Managed users' classifications route through the backend
 - [ ] Cloud BYOK users classify locally and submit results to the cloud
 - [ ] The app registers as a device and sends heartbeats when signed in
-- [ ] The app connects to SignalR for cross-device sync when on a cloud plan
+- [ ] ~~The app connects to SignalR for cross-device sync when on a cloud plan~~ (deferred to Epic 6)
 - [ ] The local WebSocket still works for same-machine extension communication
 - [ ] "Open full analytics" navigates to the web app
 - [ ] The app appears in the integrations page with online/offline status

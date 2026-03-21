@@ -7,9 +7,11 @@ using FocusBot.Core.Interfaces;
 namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
-/// Monitors the foreground window via polling. Raises ForegroundWindowChanged on the
-/// SynchronizationContext captured when Start() is called so UI can bind without marshalling.
-/// If no SyncContext (e.g. Start called from non-UI thread), events are raised on the timer thread.
+/// Consolidated monitoring service that polls every second for:
+/// - Foreground window changes
+/// - Elapsed time tracking (Tick event)
+/// - User idle state (via GetLastInputInfo)
+/// Events are raised on the SynchronizationContext captured when Start() is called.
 /// </summary>
 public sealed class WindowMonitorService : IWindowMonitorService
 {
@@ -19,8 +21,17 @@ public sealed class WindowMonitorService : IWindowMonitorService
 
     private string _lastProcessName = string.Empty;
     private string _lastWindowTitle = string.Empty;
+    private bool _isUserIdle;
+    private int _ticksSinceLastIdleCheck;
+    private const int IdleCheckIntervalTicks = 10; // Check idle state every 10 seconds
 
     public event EventHandler<ForegroundWindowChangedEventArgs>? ForegroundWindowChanged;
+    public event EventHandler? Tick;
+    public event EventHandler? UserBecameIdle;
+    public event EventHandler? UserBecameActive;
+
+    public TimeSpan IdleThreshold { get; set; } = TimeSpan.FromMinutes(5);
+    public bool IsUserIdle => _isUserIdle;
 
     public void Start()
     {
@@ -28,7 +39,9 @@ public sealed class WindowMonitorService : IWindowMonitorService
         _syncContext = SynchronizationContext.Current;
         _lastProcessName = string.Empty;
         _lastWindowTitle = string.Empty;
-        _timer = new Timer(Tick, null, 0, PollIntervalMs);
+        _isUserIdle = false;
+        _ticksSinceLastIdleCheck = 0;
+        _timer = new Timer(OnTimerTick, null, 0, PollIntervalMs);
     }
 
     public void Stop()
@@ -39,10 +52,28 @@ public sealed class WindowMonitorService : IWindowMonitorService
             _timer = null;
         }
 
+        _isUserIdle = false;
         RaiseForegroundWindowChanged(string.Empty, string.Empty);
     }
 
-    private void Tick(object? _)
+    private void OnTimerTick(object? _)
+    {
+        // 1. Check foreground window
+        CheckForegroundWindow();
+
+        // 2. Raise Tick event for elapsed time tracking
+        RaiseTickEvent();
+
+        // 3. Check idle state every N ticks (every 10 seconds)
+        _ticksSinceLastIdleCheck++;
+        if (_ticksSinceLastIdleCheck >= IdleCheckIntervalTicks)
+        {
+            _ticksSinceLastIdleCheck = 0;
+            CheckIdleState();
+        }
+    }
+
+    private void CheckForegroundWindow()
     {
         var info = GetForegroundWindowInfo();
         if (!HasWindowChanged(info))
@@ -50,6 +81,46 @@ public sealed class WindowMonitorService : IWindowMonitorService
         _lastProcessName = info.ProcessName;
         _lastWindowTitle = info.WindowTitle;
         RaiseForegroundWindowChanged(info.ProcessName, info.WindowTitle);
+    }
+
+    private void RaiseTickEvent()
+    {
+        var handler = Tick;
+        if (handler == null)
+            return;
+
+        if (_syncContext != null)
+            _syncContext.Post(_ => handler(this, EventArgs.Empty), null);
+        else
+            handler(this, EventArgs.Empty);
+    }
+
+    private void CheckIdleState()
+    {
+        var idleTime = GetIdleTime();
+        var wasIdle = _isUserIdle;
+        var isNowIdle = idleTime >= IdleThreshold;
+
+        if (wasIdle == isNowIdle)
+            return;
+
+        _isUserIdle = isNowIdle;
+
+        if (isNowIdle)
+            RaiseEvent(UserBecameIdle);
+        else
+            RaiseEvent(UserBecameActive);
+    }
+
+    private void RaiseEvent(EventHandler? handler)
+    {
+        if (handler == null)
+            return;
+
+        if (_syncContext != null)
+            _syncContext.Post(_ => handler(this, EventArgs.Empty), null);
+        else
+            handler(this, EventArgs.Empty);
     }
 
     private bool HasWindowChanged(ForegroundWindowInfo info) =>
@@ -105,6 +176,26 @@ public sealed class WindowMonitorService : IWindowMonitorService
         }
     }
 
+    private static TimeSpan GetIdleTime()
+    {
+        var lastInputInfo = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+        if (!GetLastInputInfo(ref lastInputInfo))
+            return TimeSpan.Zero;
+
+        var lastInputTick = lastInputInfo.dwTime;
+        var currentTick = Environment.TickCount;
+
+        var elapsedMs = unchecked((uint)(currentTick - (int)lastInputTick));
+        return TimeSpan.FromMilliseconds(elapsedMs);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct LASTINPUTINFO
+    {
+        public uint cbSize;
+        public uint dwTime;
+    }
+
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
@@ -113,4 +204,7 @@ public sealed class WindowMonitorService : IWindowMonitorService
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 }

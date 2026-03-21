@@ -105,3 +105,9 @@ variable "mailerlite_waitlist_group_id" {
   sensitive   = true
   default     = ""
 }
+
+variable "web_app_name" {
+  description = "Name of the Azure Static Web App for the dashboard (app.foqus.me)"
+  type        = string
+  default     = "foqus-web-app"
+}

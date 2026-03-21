@@ -13,45 +13,31 @@ public class TaskElapsedTimeShould
         var task = await ctx.Repo.AddTaskAsync("Tracked task");
         await ctx.Repo.SetActiveAsync(task.TaskId);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var focusScoreMock = new Mock<IFocusScoreService>();
-        var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
-        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
-            llmMock.Object,
+            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            focusScoreMock.Object,
-            trialMock.Object,
-            distractionMock.Object,
-            dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object,
-            taskSummaryMock.Object,
+            Mock.Of<ILocalSessionTracker>(),
+            Mock.Of<IAlignmentCacheRepository>(),
+            Mock.Of<IFocusBotApiClient>(),
             accountVm);
         await Task.Delay(150);
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.TaskElapsedTime.Should().Be("00:00:01");
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.TaskElapsedTime.Should().Be("00:00:02");
@@ -66,34 +52,20 @@ public class TaskElapsedTimeShould
         await ctx.Repo.SetActiveAsync(task.TaskId);
         await ctx.Repo.UpdateElapsedTimeAsync(task.TaskId, 3661);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var focusScoreMock = new Mock<IFocusScoreService>();
-        var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
-        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
-            llmMock.Object,
+            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            focusScoreMock.Object,
-            trialMock.Object,
-            distractionMock.Object,
-            dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object,
-            taskSummaryMock.Object,
+            Mock.Of<ILocalSessionTracker>(),
+            Mock.Of<IAlignmentCacheRepository>(),
+            Mock.Of<IFocusBotApiClient>(),
             accountVm);
         await Task.Delay(150);
 
@@ -107,34 +79,20 @@ public class TaskElapsedTimeShould
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
-        var llmMock = new Mock<ILlmService>();
         var settingsMock = new Mock<ISettingsService>();
-        var focusScoreMock = new Mock<IFocusScoreService>();
-        var trialMock = new Mock<ITrialService>();
-        var distractionMock = new Mock<IDistractionDetectorService>();
-        var dailyAnalyticsMock = new Mock<IDailyAnalyticsService>();
-        var alignmentCacheMock = new Mock<IAlignmentCacheRepository>();
-        var taskSummaryMock = new Mock<ITaskSummaryService>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
-            llmMock.Object,
+            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            focusScoreMock.Object,
-            trialMock.Object,
-            distractionMock.Object,
-            dailyAnalyticsMock.Object,
-            alignmentCacheMock.Object,
-            taskSummaryMock.Object,
+            Mock.Of<ILocalSessionTracker>(),
+            Mock.Of<IAlignmentCacheRepository>(),
+            Mock.Of<IFocusBotApiClient>(),
             accountVm);
         await Task.Delay(150);
 

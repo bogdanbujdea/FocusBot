@@ -1,8 +1,5 @@
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -22,7 +19,8 @@ public class Program
             Application.Start(p =>
             {
                 var context = new DispatcherQueueSynchronizationContext(
-                    DispatcherQueue.GetForCurrentThread());
+                    DispatcherQueue.GetForCurrentThread()
+                );
                 SynchronizationContext.SetSynchronizationContext(context);
                 _ = new App();
             });
@@ -53,16 +51,23 @@ public class Program
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr CreateEvent(
-        IntPtr lpEventAttributes, bool bManualReset,
-        bool bInitialState, string lpName);
+        IntPtr lpEventAttributes,
+        bool bManualReset,
+        bool bInitialState,
+        string lpName
+    );
 
     [DllImport("kernel32.dll")]
     private static extern bool SetEvent(IntPtr hEvent);
 
     [DllImport("ole32.dll")]
     private static extern uint CoWaitForMultipleObjects(
-        uint dwFlags, uint dwMilliseconds, ulong nHandles,
-        IntPtr[] pHandles, out uint dwIndex);
+        uint dwFlags,
+        uint dwMilliseconds,
+        ulong nHandles,
+        IntPtr[] pHandles,
+        out uint dwIndex
+    );
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -81,8 +86,12 @@ public class Program
         const uint CWMO_DEFAULT = 0;
         const uint INFINITE = 0xFFFFFFFF;
         _ = CoWaitForMultipleObjects(
-           CWMO_DEFAULT, INFINITE, 1,
-           new[] { _redirectEventHandle }, out uint _);
+            CWMO_DEFAULT,
+            INFINITE,
+            1,
+            new[] { _redirectEventHandle },
+            out uint _
+        );
 
         Process process = Process.GetProcessById((int)keyInstance.ProcessId);
         SetForegroundWindow(process.MainWindowHandle);
@@ -96,4 +105,3 @@ public class Program
         }
     }
 }
-

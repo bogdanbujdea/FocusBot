@@ -17,6 +17,9 @@ public partial class AccountSettingsViewModel : ObservableObject
     private bool _isAuthenticated;
 
     [ObservableProperty]
+    private string _userEmail = string.Empty;
+
+    [ObservableProperty]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -32,11 +35,25 @@ public partial class AccountSettingsViewModel : ObservableObject
 
         IsAuthenticated = _authService.IsAuthenticated;
         _authService.AuthStateChanged += OnAuthStateChanged;
+        _ = LoadUserEmailAsync();
     }
 
-    private void OnAuthStateChanged()
+    private async void OnAuthStateChanged()
     {
         IsAuthenticated = _authService.IsAuthenticated;
+        await LoadUserEmailAsync();
+    }
+
+    private async Task LoadUserEmailAsync()
+    {
+        if (_authService.IsAuthenticated)
+        {
+            UserEmail = await _authService.GetUserEmailAsync() ?? string.Empty;
+        }
+        else
+        {
+            UserEmail = string.Empty;
+        }
     }
 
     [RelayCommand]

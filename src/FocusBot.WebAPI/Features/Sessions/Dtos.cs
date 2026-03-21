@@ -1,7 +1,7 @@
 namespace FocusBot.WebAPI.Features.Sessions;
 
 /// <summary>Request body for starting a new focus session.</summary>
-public sealed record StartSessionRequest(string TaskText, string? TaskHints);
+public sealed record StartSessionRequest(string TaskText, string? TaskHints, Guid? DeviceId);
 
 /// <summary>Request body for ending an active focus session with summary metrics.</summary>
 public sealed record EndSessionRequest(
@@ -9,22 +9,26 @@ public sealed record EndSessionRequest(
     long FocusedSeconds,
     long DistractedSeconds,
     int DistractionCount,
-    int ContextSwitchCostSeconds,
-    string? TopDistractingApps);
+    int ContextSwitchCount,
+    string? TopDistractingApps,
+    string? TopAlignedApps,
+    Guid? DeviceId);
 
 /// <summary>Response DTO for a single focus session.</summary>
 public sealed record SessionResponse(
     Guid Id,
     string TaskText,
     string? TaskHints,
+    Guid? DeviceId,
     DateTime StartedAtUtc,
     DateTime? EndedAtUtc,
     int? FocusScorePercent,
     long? FocusedSeconds,
     long? DistractedSeconds,
     int? DistractionCount,
-    int? ContextSwitchCostSeconds,
+    int? ContextSwitchCount,
     string? TopDistractingApps,
+    string? TopAlignedApps,
     string Source);
 
 /// <summary>Generic paginated response wrapper.</summary>

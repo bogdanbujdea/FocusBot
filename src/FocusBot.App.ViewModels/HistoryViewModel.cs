@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Entities;
+using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.App.ViewModels;
@@ -64,25 +65,25 @@ public partial class HistoryViewModel(
 
     public ObservableCollection<DailyStatGroup> DailyStats { get; } = new();
 
-    public string TotalFocusedTimeText => FormatTimeShort(TotalFocusedSeconds);
-    public string TotalDistractedTimeText => FormatTimeShort(TotalDistractedSeconds);
-    public string TotalTrackedTimeText => FormatTimeShort(TotalFocusedSeconds + TotalDistractedSeconds);
+    public string TotalFocusedTimeText => TimeFormatHelper.FormatTimeShort(TotalFocusedSeconds);
+    public string TotalDistractedTimeText => TimeFormatHelper.FormatTimeShort(TotalDistractedSeconds);
+    public string TotalTrackedTimeText => TimeFormatHelper.FormatTimeShort(TotalFocusedSeconds + TotalDistractedSeconds);
     public string FocusedPercentText => ComputeFocusedPercent(TotalFocusedSeconds, TotalDistractedSeconds);
     public bool HasData => TotalTasks > 0;
     public bool ShowEmptyState => !IsLoading && !HasData;
 
-    public int FocusPercentage => ComputeFocusPercentage(TotalFocusedSeconds, TotalDistractedSeconds);
+    public int FocusPercentage => FocusScoreHelper.ComputeFocusScorePercentage(TotalFocusedSeconds, TotalDistractedSeconds);
     public double GaugeStrokeDashOffset => 263.89 * (100 - Math.Clamp(FocusPercentage, 0, 100)) / 100.0;
     public string AvgDistractionDurationText => TotalDistractions > 0 && TotalDistractedSeconds >= 0
-        ? FormatTimeShort(TotalDistractedSeconds / TotalDistractions)
+        ? TimeFormatHelper.FormatTimeShort(TotalDistractedSeconds / TotalDistractions)
         : string.Empty;
 
     public string AvgDistractionDurationSublabel => TotalDistractions > 0 && TotalDistractedSeconds >= 0
-        ? $"Avg {FormatTimeShort(TotalDistractedSeconds / TotalDistractions)} each"
+        ? $"Avg {TimeFormatHelper.FormatTimeShort(TotalDistractedSeconds / TotalDistractions)} each"
         : "None recorded";
 
     public string TotalTrackedTimeSublabel => $"{TotalTrackedTimeText} tracked";
-    public string AvgSessionLengthText => TotalTasks > 0 ? FormatTimeShort((TotalFocusedSeconds + TotalDistractedSeconds) / TotalTasks) : string.Empty;
+    public string AvgSessionLengthText => TotalTasks > 0 ? TimeFormatHelper.FormatTimeShort((TotalFocusedSeconds + TotalDistractedSeconds) / TotalTasks) : string.Empty;
     public string BestFocusDayDisplay => GetBestFocusDayDisplay();
     public bool ShowBestFocusDay => !string.IsNullOrEmpty(BestFocusDayDisplay);
     public bool ShowDailyChart => SelectedRange != DateRange.Today && DailyStats.Count > 1;
@@ -211,7 +212,7 @@ public partial class HistoryViewModel(
                 AverageFocusScore = avgScore,
                 FocusedSeconds = focusedSum,
                 DistractedSeconds = distractedSum,
-                FocusedTimeText = FormatTimeShort(focusedSum),
+                FocusedTimeText = TimeFormatHelper.FormatTimeShort(focusedSum),
                 AlignedPercent = alignedPercent,
                 DistractedPercent = distractedPercent
             });
@@ -251,13 +252,6 @@ public partial class HistoryViewModel(
         OnPropertyChanged(nameof(ShowDailyChart));
     }
 
-    private static int ComputeFocusPercentage(long focused, long distracted)
-    {
-        var total = focused + distracted;
-        if (total == 0) return 0;
-        return (int)Math.Round(100.0 * focused / total);
-    }
-
     private string GetBestFocusDayDisplay()
     {
         if (SelectedRange == DateRange.Today || DailyStats.Count == 0)
@@ -272,17 +266,6 @@ public partial class HistoryViewModel(
     private static DateTime ToLocal(DateTime utc)
     {
         return TimeZoneInfo.ConvertTimeFromUtc(utc, LocalTz);
-    }
-
-    private static string FormatTimeShort(long totalSeconds)
-    {
-        if (totalSeconds < 60)
-            return $"{totalSeconds}s";
-        var hours = (int)(totalSeconds / 3600);
-        var minutes = (int)((totalSeconds % 3600) / 60);
-        if (hours > 0)
-            return $"{hours}h {minutes}m";
-        return $"{minutes}m";
     }
 
     private static string ComputeFocusedPercent(long focused, long distracted)

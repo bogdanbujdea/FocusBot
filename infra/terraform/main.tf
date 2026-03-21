@@ -335,3 +335,40 @@ resource "azurerm_postgresql_flexible_server_database" "focusbot" {
   charset   = "UTF8"
   collation = "en_US.utf8"
 }
+
+# ── Static Web App + Custom Domain (app.foqus.me) ───────────────────────────
+
+locals {
+  web_app_domain = "app.${var.domain_name}"
+}
+
+resource "azurerm_static_web_app" "web_app" {
+  name                = "${var.web_app_name}-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  sku_tier = var.static_web_app_sku
+  sku_size = var.static_web_app_sku
+}
+
+resource "cloudflare_dns_record" "web_app_cname" {
+  zone_id = var.cloudflare_zone_id
+  name    = "app"
+  content = azurerm_static_web_app.web_app.default_host_name
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}
+
+resource "time_sleep" "web_app_dns_propagation" {
+  create_duration = "30s"
+  depends_on      = [cloudflare_dns_record.web_app_cname]
+}
+
+resource "azurerm_static_web_app_custom_domain" "web_app" {
+  static_web_app_id = azurerm_static_web_app.web_app.id
+  domain_name       = local.web_app_domain
+  validation_type   = "cname-delegation"
+
+  depends_on = [time_sleep.web_app_dns_propagation]
+}

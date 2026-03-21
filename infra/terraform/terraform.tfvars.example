@@ -6,6 +6,7 @@ location            = "westeurope"
 environment         = "prod"
 
 static_web_app_name = "foqus-website"
+web_app_name        = "foqus-web-app"
 static_web_app_sku  = "Free"
 domain_name         = "foqus.me"
 

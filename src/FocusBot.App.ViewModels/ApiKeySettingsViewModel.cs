@@ -14,9 +14,8 @@ namespace FocusBot.App.ViewModels;
 public partial class ApiKeySettingsViewModel : ObservableObject
 {
     private readonly ISettingsService _settingsService;
-    private readonly ISubscriptionService _subscriptionService;
-    private readonly ILlmService _llmService;
-    private readonly ITrialService _trialService;
+    private readonly IFocusBotApiClient _apiClient;
+    private readonly IAuthService _authService;
     private readonly ILogger<ApiKeySettingsViewModel> _logger;
     private bool _isLoading;
 
@@ -25,9 +24,6 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isOwnKeyMode = true;
-
-    [ObservableProperty]
-    private bool _isSubscriptionMode = false;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
@@ -74,35 +70,6 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     [ObservableProperty]
     private ModelInfo? _selectedModel;
 
-    [ObservableProperty]
-    private bool _isSubscribed;
-
-    [ObservableProperty]
-    private SubscriptionInfo? _subscriptionInfo;
-
-    [ObservableProperty]
-    private bool _isLoadingSubscription;
-
-    [ObservableProperty]
-    private string? _subscriptionStatusText;
-
-    [ObservableProperty]
-    private bool _showSubscribeButton = true;
-
-    [ObservableProperty]
-    private bool _showManageButton;
-
-    [ObservableProperty]
-    private bool _isTrialActive;
-
-    [ObservableProperty]
-    private bool _isTrialExpired;
-
-    [ObservableProperty]
-    private string _trialStatusText = string.Empty;
-
-    public bool ShowTrialStatus => IsTrialActive || IsTrialExpired;
-
     public bool ShowMaskedDisplay => ShouldShowMaskedDisplay();
 
     public bool ShowInputArea => ShouldShowInputArea();
@@ -111,27 +78,19 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     public ApiKeySettingsViewModel(
         ISettingsService settingsService,
-        ISubscriptionService subscriptionService,
-        ILlmService llmService,
-        ITrialService trialService,
+        IFocusBotApiClient apiClient,
+        IAuthService authService,
         ILogger<ApiKeySettingsViewModel> logger)
     {
         _settingsService = settingsService;
-        _subscriptionService = subscriptionService;
-        _llmService = llmService;
-        _trialService = trialService;
+        _apiClient = apiClient;
+        _authService = authService;
         _logger = logger;
 
         _ = LoadSettingsAsync();
-        _ = LoadSubscriptionStatusAsync();
-        _ = LoadTrialStatusAsync();
     }
 
-    partial void OnApiKeyModeChanged(ApiKeyMode value)
-    {
-        IsOwnKeyMode = value == ApiKeyMode.Own;
-        IsSubscriptionMode = value == ApiKeyMode.Managed;
-    }
+    partial void OnApiKeyModeChanged(ApiKeyMode value) => IsOwnKeyMode = value == ApiKeyMode.Own;
 
     [RelayCommand]
     private async Task SelectOwnKeyModeAsync()
@@ -140,133 +99,6 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Own);
     }
 
-    [RelayCommand]
-    private async Task SelectSubscriptionModeAsync()
-    {
-        ApiKeyMode = ApiKeyMode.Managed;
-        await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Managed);
-    }
-
-    [RelayCommand]
-    private async Task LoadSubscriptionStatusAsync()
-    {
-        IsLoadingSubscription = true;
-        try
-        {
-            SubscriptionInfo = await _subscriptionService.GetSubscriptionInfoAsync();
-            IsSubscribed = SubscriptionInfo?.IsActive ?? false;
-
-            if (IsSubscribed && SubscriptionInfo != null)
-            {
-                var renewText = SubscriptionInfo.WillAutoRenew == true ? "Renews" : "Expires";
-                SubscriptionStatusText = $"{renewText} on {SubscriptionInfo.ExpirationDate:MMMM d, yyyy}";
-                ShowManageButton = true;
-                ShowSubscribeButton = false;
-            }
-            else
-            {
-                SubscriptionStatusText = null;
-                ShowManageButton = false;
-                ShowSubscribeButton = true;
-            }
-        }
-        finally
-        {
-            IsLoadingSubscription = false;
-        }
-    }
-
-    private async Task LoadTrialStatusAsync()
-    {
-        // Hide trial UI if user has configured their own API key
-        var mode = await _settingsService.GetApiKeyModeAsync();
-        if (mode == ApiKeyMode.Own)
-        {
-            var ownKey = await _settingsService.GetApiKeyAsync();
-            if (!string.IsNullOrWhiteSpace(ownKey))
-            {
-                IsTrialActive = false;
-                IsTrialExpired = false;
-                TrialStatusText = string.Empty;
-                OnPropertyChanged(nameof(ShowTrialStatus));
-                return;
-            }
-        }
-
-        // Also hide if user has active subscription
-        if (IsSubscribed)
-        {
-            IsTrialActive = false;
-            IsTrialExpired = false;
-            TrialStatusText = string.Empty;
-            OnPropertyChanged(nameof(ShowTrialStatus));
-            return;
-        }
-
-        IsTrialActive = await _trialService.IsTrialActiveAsync();
-        IsTrialExpired = await _trialService.IsTrialExpiredAsync();
-
-        if (IsTrialActive)
-        {
-            var endTime = await _trialService.GetTrialEndTimeAsync();
-            if (endTime.HasValue)
-            {
-                var localEndTime = endTime.Value.ToLocalTime();
-                TrialStatusText = $"Free trial ends {localEndTime:MMM d, h:mm tt}";
-            }
-        }
-        else if (IsTrialExpired)
-        {
-            TrialStatusText = "Free trial has expired. Subscribe or enter your own API key to continue.";
-        }
-        else
-        {
-            TrialStatusText = string.Empty;
-        }
-
-        OnPropertyChanged(nameof(ShowTrialStatus));
-    }
-
-    [RelayCommand]
-    private async Task SubscribeAsync()
-    {
-        IsLoadingSubscription = true;
-        IsStatusError = false;
-        StatusMessage = string.Empty;
-        try
-        {
-            var result = await _subscriptionService.PurchaseSubscriptionAsync();
-
-            switch (result)
-            {
-                case PurchaseResult.Success:
-                case PurchaseResult.AlreadyOwned:
-                    await LoadSubscriptionStatusAsync();
-                    await LoadTrialStatusAsync(); // Hide trial UI now that user is subscribed
-                    break;
-                case PurchaseResult.Cancelled:
-                    break;
-                case PurchaseResult.NetworkError:
-                    StatusMessage = "Network error. Please check your connection and try again.";
-                    IsStatusError = true;
-                    break;
-                case PurchaseResult.Error:
-                    StatusMessage = "Something went wrong. Please try again later.";
-                    IsStatusError = true;
-                    break;
-            }
-        }
-        finally
-        {
-            IsLoadingSubscription = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task ManageSubscriptionAsync()
-    {
-        await _subscriptionService.OpenManageSubscriptionAsync();
-    }
 
     private async Task LoadSettingsAsync()
     {
@@ -356,20 +188,28 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             return;
         }
 
+        if (!_authService.IsAuthenticated)
+        {
+            StatusMessage = "Sign in with a Foqus account to save your API key.";
+            IsStatusError = true;
+            return;
+        }
+
         IsSaving = true;
         IsStatusError = false;
         StatusMessage = "Checking API key...";
 
         try
         {
-            var validation = await _llmService.ValidateCredentialsAsync(
-                ApiKey.Trim(),
-                SelectedProvider.ProviderId,
-                SelectedModel.ModelId);
+            var validation = await _apiClient.ValidateKeyAsync(
+                new ValidateKeyPayload(
+                    SelectedProvider.ProviderId,
+                    SelectedModel.ModelId,
+                    ApiKey.Trim()));
 
-            if (validation.ErrorMessage != null)
+            if (validation is null || !validation.Valid)
             {
-                StatusMessage = validation.ErrorMessage;
+                StatusMessage = ToValidationErrorMessage(validation?.Error);
                 IsStatusError = true;
                 return;
             }
@@ -386,9 +226,6 @@ public partial class ApiKeySettingsViewModel : ObservableObject
             ApiKey = string.Empty;
             StatusMessage = "API key saved.";
             IsStatusError = false;
-
-            // Hide trial UI now that user has their own key
-            await LoadTrialStatusAsync();
 
             _logger.LogInformation("API key saved");
         }
@@ -461,4 +298,12 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private bool HasValidApiKey() => !string.IsNullOrWhiteSpace(ApiKey);
 
     private bool CanShowMaskedKey(string? key) => IsApiKeyConfigured && key != null && key.Length >= 4;
+
+    private static string ToValidationErrorMessage(string? errorCode) => errorCode switch
+    {
+        "invalid_key" => "Invalid API key. Check your credentials.",
+        "rate_limited" => "Rate limit reached. Wait a moment and try again.",
+        "provider_unavailable" => "AI provider is unavailable. Try again later.",
+        _ => "Key validation failed. Check your credentials."
+    };
 }

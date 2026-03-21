@@ -10,12 +10,12 @@ Foqus is a productivity platform that keeps you aligned to a single task by clas
 
 | Feature | Free (BYOK) | Cloud BYOK | Cloud Managed |
 |---|---|---|---|
-| Classification | Client → provider direct | Client → provider direct | Client → backend → provider |
-| API key | User-provided | User-provided | Platform-managed |
+| Classification | Client → backend → provider | Client → backend → provider | Client → backend → provider |
+| API key | User-provided (sent via X-Api-Key) | User-provided (sent via X-Api-Key) | Platform-managed |
 | Basic analytics | Local only | Local + cloud | Local + cloud |
 | Full analytics (web) | — | Yes | Yes |
 | Cross-device sync | — | Yes | Yes |
-| Account required | No | Yes | Yes |
+| Account required | Yes | Yes | Yes |
 | Price | $0 | Lower tier | Higher tier |
 
 ---

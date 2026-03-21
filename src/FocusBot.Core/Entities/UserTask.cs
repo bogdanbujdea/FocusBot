@@ -18,8 +18,9 @@ public class UserTask
     public long FocusedSeconds { get; set; }
     public long DistractedSeconds { get; set; }
     public int DistractionCount { get; set; }
-    public int ContextSwitchCostSeconds { get; set; }
+    public int ContextSwitchCount { get; set; }
     public string? TopDistractingApps { get; set; }
+    public string? TopAlignedApps { get; set; }
 
     public bool IsActive => !IsCompleted;
 }

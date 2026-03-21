@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml;
 namespace FocusBot.App;
 
 /// <summary>
-/// Navigates between the Kanban board and Settings by swapping the main window content.
+/// Navigates between the Focus page and Settings by swapping the main window content.
 /// </summary>
 public class MainWindowNavigationService(IServiceProvider serviceProvider) : INavigationService
 {
@@ -61,22 +61,6 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
         var page = new TaskDetailPage { DataContext = viewModel };
         _window.Content = page;
         _ = viewModel.InitializeAsync(taskId);
-    }
-
-    /// <inheritdoc />
-    public void NavigateToHistory()
-    {
-        if (_window == null)
-            return;
-        if (_boardContent == null)
-            _boardContent = _window.Content as UIElement;
-
-        using var scope = serviceProvider.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<ITaskRepository>();
-        var viewModel = new HistoryViewModel(repo, this);
-        var page = new HistoryPage { DataContext = viewModel };
-        _window.Content = page;
-        _ = viewModel.InitializeAsync();
     }
 
     /// <inheritdoc />

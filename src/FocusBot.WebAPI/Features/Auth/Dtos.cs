@@ -1,3 +1,6 @@
+using FocusBot.WebAPI.Data.Entities;
+
 namespace FocusBot.WebAPI.Features.Auth;
 
-public sealed record MeResponse(Guid UserId, string Email, string SubscriptionStatus);
+/// <summary>Response for GET /auth/me — returns the authenticated user's profile and current plan.</summary>
+public sealed record MeResponse(Guid UserId, string Email, string SubscriptionStatus, PlanType PlanType);

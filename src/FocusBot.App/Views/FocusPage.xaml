@@ -17,244 +17,11 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="250"/>
         </Grid.RowDefinitions>
 
-        <!-- Trial banner (visible during active trial) -->
-        <Border Grid.Row="0"
-                Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
-                BorderThickness="0,0,0,2"
-                Padding="12,10"
-                Margin="0,0,0,8"
-                Visibility="{x:Bind ViewModel.ShowTrialBanner, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                automation:AutomationProperties.Name="Free trial banner">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap">
-                        <Run Text="Free trial:"/>
-                        <Run Text="{x:Bind ViewModel.TrialTimeRemainingFormatted, Mode=OneWay}" FontWeight="SemiBold"/>
-                        <Run Text="remaining. Ends at"/>
-                        <Run Text="{x:Bind ViewModel.TrialEndTime, Mode=OneWay, Converter={StaticResource TrialEndTimeConverter}}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Content="Subscribe"
-                            Style="{StaticResource FbAccentButtonStyle}"
-                            automation:AutomationProperties.Name="Subscribe"
-                            Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
-                    <Button Content="Enter API Key"
-                            Style="{StaticResource FbOutlineButtonStyle}"
-                            automation:AutomationProperties.Name="Enter API Key"
-                            Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Today's Focus Analytics (collapsible dashboard card) -->
-        <Border Grid.Row="1"
-                Background="{StaticResource FbCardBackgroundBrush}"
-                BorderBrush="{StaticResource FbCardBorderBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="12,8"
-                Margin="0,0,0,4"
-                CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                automation:AutomationProperties.Name="Today's focus analytics">
-            <StackPanel Spacing="8" Orientation="Vertical">
-                <!-- Collapsible Header with View History -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0"
-                            Style="{StaticResource FbOutlineButtonStyle}"
-                            HorizontalAlignment="Left"
-                            Command="{x:Bind ViewModel.ToggleAnalyticsCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="{x:Bind ViewModel.IsAnalyticsExpanded, Mode=OneWay, Converter={StaticResource BoolToChevronConverter}}" FontSize="16"/>
-                            <TextBlock Text="Today's Focus Analytics" FontSize="14" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
-                    <HyperlinkButton Grid.Column="2"
-                                     Content="View History"
-                                     Command="{x:Bind ViewModel.ViewHistoryCommand}"
-                                     HorizontalAlignment="Right"
-                                     VerticalAlignment="Center"
-                                     automation:AutomationProperties.Name="View history"/>
-                </Grid>
-
-                <!-- Analytics Content (collapsible) -->
-                <StackPanel Spacing="12" Orientation="Vertical" Visibility="{x:Bind ViewModel.IsAnalyticsExpanded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <!-- Header: Title and Date -->
-                    <StackPanel Spacing="4" Orientation="Vertical" HorizontalAlignment="Center" Margin="0 0 0 12">
-                        <TextBlock Text="{x:Bind ViewModel.TodayDateLabel, Mode=OneWay}"
-                                   FontSize="14"
-                                   Style="{StaticResource FbSecondaryTextStyle}"
-                                   TextAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- Metrics and progress bar -->
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Empty state -->
-                        <TextBlock Grid.Row="0"
-                                   Grid.ColumnSpan="3"
-                                   Text="No analytics for today yet. Start a task to begin tracking."
-                                   Style="{StaticResource FbSecondaryTextStyle}"
-                                   TextAlignment="Center"
-                                   Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-
-                        <!-- Row 1: Distracted, Focused, Distractions -->
-                        
-                        <!-- Distracted metric -->
-                        <StackPanel Grid.Row="0"
-                                    Grid.Column="0"
-                                    Spacing="4"
-                                    Orientation="Vertical"
-                                    HorizontalAlignment="Center"
-                                    Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Vertical" Spacing="2" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE7BA;"
-                                          FontSize="18"
-                                          Foreground="{StaticResource FbMisalignedAccentBrush}"
-                                          HorizontalAlignment="Center"/>
-                                <TextBlock Text="Distracted"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                            FontSize="18"
-                                           TextAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="{x:Bind ViewModel.TodayDistractedTimeText, Mode=OneWay}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       TextAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Focused metric -->
-                        <StackPanel Grid.Row="0"
-                                    Grid.Column="1"
-                                    Spacing="4"
-                                    Orientation="Vertical"
-                                    HorizontalAlignment="Center"
-                                    Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Vertical" Spacing="2" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE81E;"
-                                          FontSize="18"
-                                          Foreground="{StaticResource FbAlignedAccentBrush}"
-                                          HorizontalAlignment="Center"/>
-                                <TextBlock Text="Focused"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="18"
-                                           TextAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="{x:Bind ViewModel.TodayFocusedTimeText, Mode=OneWay}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       TextAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Distractions metric -->
-                        <StackPanel Grid.Row="0"
-                                    Grid.Column="2"
-                                    Spacing="4"
-                                    Orientation="Vertical"
-                                    HorizontalAlignment="Center"
-                                    Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <StackPanel Orientation="Vertical" Spacing="2" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xEBE8;"
-                                          FontSize="18"
-                                          Foreground="{StaticResource FbNeutralAccentBrush}"
-                                          HorizontalAlignment="Center"/>
-                                <TextBlock Text="Distractions"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="18"
-                                           TextAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock FontSize="18"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       TextAlignment="Center"
-                                       Text="{x:Bind ViewModel.TodayDistractionCount, Mode=OneWay}"/>
-                        </StackPanel>
-
-                        <!-- Focused percentage label + segmented progress bar -->
-                        <StackPanel Grid.Row="1"
-                                    Grid.Column="0"
-                                    Grid.ColumnSpan="3"
-                                    Margin="0,26,0,0"
-                                    Orientation="Vertical"
-                                    Spacing="4"
-                                    Visibility="{x:Bind ViewModel.HasTodayAnalytics, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="{x:Bind ViewModel.TodayFocusedPercentText, Mode=OneWay}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{x:Bind ViewModel.TodayFocusedPercent, Mode=OneWay, Converter={StaticResource FocusedPercentToBrushConverter}}"/>
-                            <Grid Height="16"
-                                  CornerRadius="{StaticResource FbCornerRadiusSmall}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{x:Bind ViewModel.TodayFocusedPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
-                                    <ColumnDefinition Width="{x:Bind ViewModel.TodayUnclearPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
-                                    <ColumnDefinition Width="{x:Bind ViewModel.TodayDistractedPercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0"
-                                        Background="{StaticResource FbAlignedAccentBrush}"/>
-                                <Border Grid.Column="1"
-                                        Background="{StaticResource FbNeutralAccentBrush}"/>
-                                <Border Grid.Column="2"
-                                        Background="{StaticResource FbMisalignedAccentBrush}"/>
-                            </Grid>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <!-- AI not configured warning (visible when no key / not subscribed) -->
-        <Border Grid.Row="2"
-                Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
-                BorderThickness="0,0,0,2"
-                Padding="10,8"
-                Margin="0,0,0,4"
-                Visibility="{x:Bind ViewModel.IsAiConfigured, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                automation:AutomationProperties.Name="AI not configured warning">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
-                <TextBlock Text="AI is not configured. Focus scores will not be available."
-                           Foreground="{StaticResource FbTextPrimaryBrush}"
-                           VerticalAlignment="Center"
-                           TextWrapping="Wrap"
-                           FontSize="12"/>
-                <Button Content="Settings"
-                        Style="{StaticResource FbOutlineButtonStyle}"
-                        automation:AutomationProperties.Name="Open Settings"
-                        Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
-            </StackPanel>
-        </Border>
-
         <!-- Current foreground window and Focus Status Bar (visible when a task is in progress) -->
-        <Grid Grid.Row="3" x:Name="CurrentWindowBar"
+        <Grid Grid.Row="0" x:Name="CurrentWindowBar"
               Visibility="{x:Bind ViewModel.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
               automation:AutomationProperties.Name="Current foreground window"
               RowSpacing="4"
@@ -343,7 +110,7 @@
         </Grid>
 
         <!-- Header with Settings -->
-        <Grid Grid.Row="4">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -394,7 +161,8 @@
                 <Button Content="Sign in"
                         Style="{StaticResource FbAccentButtonStyle}"
                         automation:AutomationProperties.Name="Sign in with magic link"
-                        Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+                        Command="{x:Bind ViewModel.OpenSettingsCommand}"
+                        Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 <Button Content="?"
                         Style="{StaticResource FbOutlineButtonStyle}"
                         automation:AutomationProperties.Name="How it works"
@@ -408,7 +176,7 @@
 
 
         <!-- Main Content: Start Form or Active Task Card -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="2">
             <!-- Start Task Form (visible when no active task) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"
@@ -485,7 +253,6 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Elapsed Time -->
@@ -525,21 +292,6 @@
                                 </TextBlock.Text>
                             </TextBlock>
                         </StackPanel>
-
-                        <!-- Distractions -->
-                        <StackPanel Grid.Column="2" Spacing="10" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xEBE8;" FontSize="28" Foreground="{StaticResource FbMisalignedAccentBrush}"/>
-                            <TextBlock Text="Distractions"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="12"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Text="{x:Bind ViewModel.LiveDistractionCount, Mode=OneWay}"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       HorizontalAlignment="Center"
-                                       automation:AutomationProperties.Name="Distraction count"/>
-                        </StackPanel>
                     </Grid>
 
                     <Border Style="{StaticResource FbDividerStyle}"/>
@@ -569,7 +321,7 @@
 
         <!-- AI provider/model and error indicator (farthest top-right, only when AI is configured) -->
         <StackPanel Grid.Row="0"
-                    Grid.RowSpan="5"
+                    Grid.RowSpan="3"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
                     Margin="0,0,0,0"

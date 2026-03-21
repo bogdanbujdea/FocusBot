@@ -44,6 +44,18 @@ public static class ClassificationEndpoints
                 var result = await service.ClassifyAsync(userId, request, byokApiKey, ct);
                 return Results.Ok(result);
             }
+            catch (ClassificationProviderException ex)
+            {
+                return ex.Code switch
+                {
+                    ClassificationErrorCode.InvalidKey => Results.Problem(
+                        detail: ex.Message, statusCode: 401, title: "invalid_key"),
+                    ClassificationErrorCode.RateLimited => Results.Problem(
+                        detail: ex.Message, statusCode: 429, title: "rate_limited"),
+                    _ => Results.Problem(
+                        detail: ex.Message, statusCode: 502, title: "provider_unavailable"),
+                };
+            }
             catch (InvalidOperationException ex)
             {
                 return Results.UnprocessableEntity(new { error = ex.Message });
@@ -51,6 +63,20 @@ public static class ClassificationEndpoints
         })
         .WithName("Classify")
         .WithSummary("Classify focus alignment of the current window/tab against the user's task");
+
+        group.MapPost("/validate-key", async (
+            ValidateKeyRequest request,
+            ClassificationService service,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.ApiKey))
+                return Results.BadRequest("ApiKey is required.");
+
+            var result = await service.ValidateKeyAsync(request.ProviderId, request.ModelId, request.ApiKey, ct);
+            return Results.Ok(result);
+        })
+        .WithName("ValidateKey")
+        .WithSummary("Validate a BYOK API key by making a minimal test request to the LLM provider");
 
         return group;
     }

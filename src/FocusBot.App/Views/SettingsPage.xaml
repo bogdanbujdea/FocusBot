@@ -12,45 +12,254 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32" Spacing="24">
-            <!-- Trial Status Banner -->
-            <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                    BorderBrush="{ThemeResource SystemFillColorSuccessBrush}"
+
+            <!-- Foqus Account (First - establishes identity) -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="16"
-                    Visibility="{x:Bind ViewModel.ApiKeySection.IsTrialActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE121;" FontSize="16" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Free Trial Active" FontWeight="SemiBold" FontSize="14"/>
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Foqus Account"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+
+                    <!-- Signed out state: show email input + magic link button -->
+                    <StackPanel Spacing="12"
+                                Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <TextBlock Text="Sign in to access cloud features, full analytics, and cross-device sync."
+                                   Foreground="{StaticResource FbTextSecondaryBrush}"
+                                   FontSize="13"
+                                   TextWrapping="Wrap"/>
+                        <TextBox Text="{x:Bind ViewModel.AccountSection.Email, Mode=TwoWay}"
+                                 PlaceholderText="you@example.com"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 automation:AutomationProperties.Name="Foqus account email"/>
+                        <Button Content="Send magic link"
+                                Style="{StaticResource FbAccentButtonStyle}"
+                                Command="{x:Bind ViewModel.AccountSection.SendMagicLinkCommand}"
+                                IsEnabled="{x:Bind ViewModel.AccountSection.IsBusy, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
+                                automation:AutomationProperties.Name="Send magic link"/>
                     </StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.TrialStatusText, Mode=OneWay}"
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
+
+                    <!-- Signed in state: show email + sign out button -->
+                    <StackPanel Spacing="12"
+                                Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE77B;"
+                                      FontSize="16"
+                                      Foreground="{StaticResource FbAccentBrush}"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Text="{x:Bind ViewModel.AccountSection.UserEmail, Mode=OneWay}"
+                                       FontSize="14"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Content="Sign out"
+                                Style="{StaticResource FbOutlineButtonStyle}"
+                                Command="{x:Bind ViewModel.AccountSection.SignOutCommand}"
+                                automation:AutomationProperties.Name="Sign out"/>
+                    </StackPanel>
+
+                    <!-- Status message (shown in both states) -->
+                    <TextBlock Text="{x:Bind ViewModel.AccountSection.StatusMessage, Mode=OneWay}"
                                FontSize="13"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="Subscribe or enter your own API key before the trial ends to continue using AI features."
+                               TextWrapping="Wrap"
                                Foreground="{StaticResource FbTextSecondaryBrush}"
-                               FontSize="13"
-                               TextWrapping="Wrap"/>
+                               Visibility="{x:Bind ViewModel.AccountSection.StatusMessage, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
 
-            <!-- Trial Expired Banner -->
-            <Border Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                    BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
+            <!-- Plan Section (Second - choose your plan) -->
+            <Border Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="16"
-                    Visibility="{x:Bind ViewModel.ApiKeySection.IsTrialExpired, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Free Trial Expired" FontWeight="SemiBold" FontSize="14"/>
-                    </StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.ApiKeySection.TrialStatusText, Mode=OneWay}"
+                    Padding="16">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Choose Your Plan"
+                               Style="{StaticResource FbColumnHeaderStyle}"
+                               FontSize="14"/>
+
+                    <!-- Plan comparison cards -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Free BYOK Plan -->
+                        <Border Grid.Column="0"
+                                Background="{StaticResource FbColumnBackgroundBrush}"
+                                BorderBrush="{x:Bind ViewModel.PlanSection.IsFreePlan, Mode=OneWay, Converter={StaticResource BoolToAccentBorderConverter}}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Free"
+                                           FontWeight="Bold"
+                                           FontSize="16"/>
+                                <TextBlock Text="Your own API key"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                <StackPanel Spacing="4" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="AI classification" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="Local analytics" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                        <TextBlock Text="Cloud sync" FontSize="12" Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="$0/month"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Text="Current plan"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbAccentBrush}"
+                                           FontWeight="SemiBold"
+                                           Visibility="{x:Bind ViewModel.PlanSection.IsFreePlan, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cloud BYOK Plan -->
+                        <Border Grid.Column="1"
+                                Background="{StaticResource FbColumnBackgroundBrush}"
+                                BorderBrush="{x:Bind ViewModel.PlanSection.IsCloudBYOKPlan, Mode=OneWay, Converter={StaticResource BoolToAccentBorderConverter}}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Cloud BYOK"
+                                           FontWeight="Bold"
+                                           FontSize="16"/>
+                                <TextBlock Text="Your own API key"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                <StackPanel Spacing="4" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="AI classification" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="Full analytics" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="Cloud sync" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="$2.99/month"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Text="Current plan"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbAccentBrush}"
+                                           FontWeight="SemiBold"
+                                           Visibility="{x:Bind ViewModel.PlanSection.IsCloudBYOKPlan, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Content="Select"
+                                        Style="{StaticResource FbAccentButtonStyle}"
+                                        Command="{x:Bind ViewModel.PlanSection.SelectPlanCommand}"
+                                        CommandParameter="cloud-byok"
+                                        IsEnabled="{x:Bind ViewModel.PlanSection.CanSelectPlan, Mode=OneWay}"
+                                        Visibility="{x:Bind ViewModel.PlanSection.IsCloudBYOKPlan, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                        HorizontalAlignment="Stretch"
+                                        automation:AutomationProperties.Name="Select Cloud BYOK plan"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cloud Managed Plan -->
+                        <Border Grid.Column="2"
+                                Background="{StaticResource FbColumnBackgroundBrush}"
+                                BorderBrush="{x:Bind ViewModel.PlanSection.IsCloudManagedPlan, Mode=OneWay, Converter={StaticResource BoolToAccentBorderConverter}}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Cloud Managed"
+                                           FontWeight="Bold"
+                                           FontSize="16"/>
+                                <TextBlock Text="We provide the API key"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbTextSecondaryBrush}"/>
+                                <StackPanel Spacing="4" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="AI classification" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="Full analytics" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{StaticResource FbAccentBrush}"/>
+                                        <TextBlock Text="Cloud sync" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="$4.99/month"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Text="Current plan"
+                                           FontSize="12"
+                                           Foreground="{StaticResource FbAccentBrush}"
+                                           FontWeight="SemiBold"
+                                           Visibility="{x:Bind ViewModel.PlanSection.IsCloudManagedPlan, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Content="Select"
+                                        Style="{StaticResource FbAccentButtonStyle}"
+                                        Command="{x:Bind ViewModel.PlanSection.SelectPlanCommand}"
+                                        CommandParameter="cloud-managed"
+                                        IsEnabled="{x:Bind ViewModel.PlanSection.CanSelectPlan, Mode=OneWay}"
+                                        Visibility="{x:Bind ViewModel.PlanSection.IsCloudManagedPlan, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                        HorizontalAlignment="Stretch"
+                                        automation:AutomationProperties.Name="Select Cloud Managed plan"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Sign-in prompt (when not signed in) -->
+                    <TextBlock Text="Sign in above to select a paid plan."
                                Foreground="{StaticResource FbTextSecondaryBrush}"
                                FontSize="13"
-                               TextWrapping="Wrap"/>
+                               Visibility="{x:Bind ViewModel.PlanSection.CanSelectPlan, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                    <!-- Cloud user actions -->
+                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                Visibility="{x:Bind ViewModel.PlanSection.ShowFullAnalyticsCta, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Button Content="Open full analytics"
+                                Style="{StaticResource FbAccentButtonStyle}"
+                                Command="{x:Bind ViewModel.PlanSection.OpenFullAnalyticsCommand}"
+                                automation:AutomationProperties.Name="Open full analytics"/>
+                        <Button Content="Manage billing"
+                                Style="{StaticResource FbOutlineButtonStyle}"
+                                Command="{x:Bind ViewModel.PlanSection.OpenBillingPortalCommand}"
+                                automation:AutomationProperties.Name="Manage billing"/>
+                    </StackPanel>
+
+                    <!-- Refresh / loading indicator -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Refresh"
+                                Style="{StaticResource FbOutlineButtonStyle}"
+                                Command="{x:Bind ViewModel.PlanSection.RefreshPlanCommand}"
+                                IsEnabled="{x:Bind ViewModel.PlanSection.IsRefreshing, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
+                                automation:AutomationProperties.Name="Refresh plan"/>
+                        <ProgressRing IsActive="{x:Bind ViewModel.PlanSection.IsRefreshing, Mode=OneWay}"
+                                      Width="20" Height="20"
+                                      VerticalAlignment="Center"
+                                      Visibility="{x:Bind ViewModel.PlanSection.IsRefreshing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.PlanSection.StatusMessage, Mode=OneWay}"
+                               FontSize="12"
+                               Foreground="{StaticResource FbTextSecondaryBrush}"
+                               Visibility="{x:Bind ViewModel.PlanSection.HasStatusMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
 
@@ -182,133 +391,6 @@
                                        Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                         </StackPanel>
                     </StackPanel>
-
-                    <!-- Subscription Mode -->
-                    <RadioButton x:Name="SubscriptionRadio"
-                                 GroupName="ApiKeyMode"
-                                 IsChecked="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay}"
-                                 Command="{x:Bind ViewModel.ApiKeySection.SelectSubscriptionModeCommand}"
-                                 automation:AutomationProperties.Name="Subscribe to Foqus Premium">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Subscribe to Foqus Premium ($4.99/month)"
-                                       FontWeight="SemiBold"/>
-                            <TextBlock Text="No API key needed - we handle everything"
-                                       Foreground="{StaticResource FbTextSecondaryBrush}"
-                                       FontSize="12"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </RadioButton>
-
-                    <!-- Subscription Mode Content -->
-                    <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsSubscriptionMode, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                Margin="28,0,0,0"
-                                Spacing="12">
-                        <ProgressRing IsActive="{x:Bind ViewModel.ApiKeySection.IsLoadingSubscription, Mode=OneWay}"
-                                      Width="24" Height="24"
-                                      Visibility="{x:Bind ViewModel.ApiKeySection.IsLoadingSubscription, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-
-                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.ShowSubscribeButton, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                    Spacing="12">
-                            <TextBlock TextWrapping="Wrap"
-                                       Foreground="{StaticResource FbTextSecondaryBrush}">
-                                Unlock AI-powered focus tracking without managing API keys.
-                                $4.99/month, cancel anytime.
-                            </TextBlock>
-                            <Button Content="Subscribe Now"
-                                    Style="{StaticResource FbAccentButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.SubscribeCommand}"
-                                    automation:AutomationProperties.Name="Subscribe Now"/>
-                        </StackPanel>
-
-                        <StackPanel Visibility="{x:Bind ViewModel.ApiKeySection.IsSubscribed, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                    Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE73E;"
-                                          Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
-                                <TextBlock Text="Active subscription"
-                                           FontWeight="SemiBold"/>
-                            </StackPanel>
-                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.SubscriptionStatusText, Mode=OneWay}"
-                                       Foreground="{StaticResource FbTextSecondaryBrush}"/>
-                            <Button Content="Manage Subscription"
-                                    Style="{StaticResource FbOutlineButtonStyle}"
-                                    Command="{x:Bind ViewModel.ApiKeySection.ManageSubscriptionCommand}"
-                                    automation:AutomationProperties.Name="Manage Subscription"/>
-                            <TextBlock TextWrapping="Wrap"
-                                      Foreground="{StaticResource FbTextSecondaryBrush}">
-                                Your AI-powered focus tracking is active. No setup required - we handle everything!
-                            </TextBlock>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE7BA;"
-                                      FontSize="16"
-                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                      VerticalAlignment="Center"
-                                      Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                      automation:AutomationProperties.Name="Error"/>
-                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
-                                       FontSize="13"
-                                       FontWeight="SemiBold"
-                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                       TextWrapping="Wrap"
-                                       VerticalAlignment="Center"
-                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                            <TextBlock Text="{x:Bind ViewModel.ApiKeySection.StatusMessage, Mode=OneWay}"
-                                       FontSize="13"
-                                       Foreground="{StaticResource FbTextSecondaryBrush}"
-                                       TextWrapping="Wrap"
-                                       VerticalAlignment="Center"
-                                       Visibility="{x:Bind ViewModel.ApiKeySection.IsStatusError, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Foqus Account (Supabase magic link) -->
-            <Border Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Foqus Account"
-                               Style="{StaticResource FbColumnHeaderStyle}"
-                               FontSize="14"/>
-                    <TextBlock Text="Sign in with a Foqus account using a magic link sent to your email. This uses the same account as the browser extension."
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
-                               FontSize="13"
-                               TextWrapping="Wrap"/>
-                    <TextBox Text="{x:Bind ViewModel.AccountSection.Email, Mode=TwoWay}"
-                             PlaceholderText="you@example.com"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                             automation:AutomationProperties.Name="Foqus account email"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Send magic link"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                Command="{x:Bind ViewModel.AccountSection.SendMagicLinkCommand}"
-                                IsEnabled="{x:Bind ViewModel.AccountSection.IsBusy, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
-                                automation:AutomationProperties.Name="Send magic link"/>
-                        <Button Content="Sign out"
-                                Style="{StaticResource FbOutlineButtonStyle}"
-                                Command="{x:Bind ViewModel.AccountSection.SignOutCommand}"
-                                IsEnabled="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay}"
-                                automation:AutomationProperties.Name="Sign out"/>
-                    </StackPanel>
-                    <TextBlock Text="{x:Bind ViewModel.AccountSection.StatusMessage, Mode=OneWay}"
-                               FontSize="13"
-                               TextWrapping="Wrap"
-                               Foreground="{StaticResource FbTextSecondaryBrush}"/>
-                    <TextBlock Text="Currently signed in"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
-                               Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    <TextBlock Text="Not signed in"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource FbTextSecondaryBrush}"
-                               Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
 

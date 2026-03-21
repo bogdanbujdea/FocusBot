@@ -13,12 +13,8 @@ public class AlignmentCacheRepository(AppDbContext context) : IAlignmentCacheRep
             .FirstOrDefaultAsync(e => e.ContextHash == contextHash && e.TaskContentHash == taskContentHash);
     }
 
-    public async Task SaveAsync(WindowContext windowContext, AlignmentCacheEntry entry)
+    public async Task SaveAsync(AlignmentCacheEntry entry)
     {
-        var existingContext = await context.WindowContexts.FindAsync(windowContext.ContextHash);
-        if (existingContext == null)
-            context.WindowContexts.Add(windowContext);
-
         var existingEntry = await context.AlignmentCacheEntries
             .FirstOrDefaultAsync(e => e.ContextHash == entry.ContextHash && e.TaskContentHash == entry.TaskContentHash);
         if (existingEntry != null)

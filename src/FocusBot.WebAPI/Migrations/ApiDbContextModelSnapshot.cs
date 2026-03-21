@@ -60,13 +60,59 @@ namespace FocusBot.WebAPI.Migrations
                     b.ToTable("ClassificationCaches");
                 });
 
+            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Device", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DeviceType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Fingerprint")
+                        .IsUnique();
+
+                    b.ToTable("Devices");
+                });
+
             modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Session", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("ContextSwitchCostSeconds")
+                    b.Property<int?>("ContextSwitchCount")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid");
 
                     b.Property<long?>("DistractedSeconds")
                         .HasColumnType("bigint");
@@ -99,6 +145,9 @@ namespace FocusBot.WebAPI.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("TopAlignedApps")
+                        .HasColumnType("text");
+
                     b.Property<string>("TopDistractingApps")
                         .HasColumnType("text");
 
@@ -106,6 +155,8 @@ namespace FocusBot.WebAPI.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -131,6 +182,9 @@ namespace FocusBot.WebAPI.Migrations
                     b.Property<string>("PaddleSubscriptionId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<int>("PlanType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -186,8 +240,23 @@ namespace FocusBot.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Device", b =>
+                {
+                    b.HasOne("FocusBot.WebAPI.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Session", b =>
                 {
+                    b.HasOne("FocusBot.WebAPI.Data.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId");
+
                     b.HasOne("FocusBot.WebAPI.Data.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")

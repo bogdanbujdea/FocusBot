@@ -4,7 +4,6 @@ using FocusBot.App.Views;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
-using FocusBot.Infrastructure.Repositories;
 using FocusBot.Infrastructure.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +12,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using Windows.ApplicationModel.Activation;
-using Windows.Services.Store;
 using Windows.Storage;
 
 namespace FocusBot.App
@@ -22,9 +20,10 @@ namespace FocusBot.App
     {
         private Window? _window;
         private FocusOverlayWindow? _overlayWindow;
-        private IServiceProvider? _services;
+        private readonly IServiceProvider? _services;
         private FocusPageViewModel? _viewModel;
         private IIntegrationService? _integrationService;
+        private Timer? _heartbeatTimer;
 
         public App()
         {
@@ -54,29 +53,16 @@ namespace FocusBot.App
                 appDataRoot
             ));
             services.AddTransient<AccountSettingsViewModel>();
-            services.AddSingleton<IAuthService>(sp =>
-                new SupabaseAuthService(
-                    new HttpClient(),
-                    sp.GetRequiredService<ISettingsService>(),
-                    sp.GetRequiredService<ILogger<SupabaseAuthService>>()
-                )
-            );
+            services.AddSingleton<IAuthService>(sp => new SupabaseAuthService(
+                new HttpClient(),
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<ILogger<SupabaseAuthService>>()
+            ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
-            services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
-            services.AddSingleton<IIdleDetectionService, IdleDetectionService>();
-            services.AddSingleton<StoreContextHolder>();
             services.AddSingleton<AppUIThreadDispatcher>();
             services.AddSingleton<IUIThreadDispatcher>(sp =>
                 sp.GetRequiredService<AppUIThreadDispatcher>()
             );
-
-#if DEBUG
-            services.AddSingleton<ISubscriptionService, MockSubscriptionService>();
-#else
-            services.AddSingleton<ISubscriptionService, SubscriptionService>();
-#endif
-            services.AddSingleton<IManagedKeyProvider, EmbeddedManagedKeyProvider>();
-            services.AddSingleton<ITrialService, TrialService>();
             services.AddSingleton<IFocusBotApiClient>(sp =>
             {
                 var baseUrl = GetFocusBotApiBaseUrl();
@@ -86,21 +72,16 @@ namespace FocusBot.App
                     sp.GetRequiredService<ILogger<FocusBotApiClient>>()
                 );
             });
-            services.AddSingleton<LlmService>();
-            services.AddSingleton<ILlmService>(sp => new AlignmentClassificationCacheDecorator(
-                sp.GetRequiredService<LlmService>(),
-                sp.GetRequiredService<IServiceScopeFactory>()
-            ));
+            services.AddScoped<IClassificationService, AlignmentClassificationService>();
+            services.AddSingleton<ILocalSessionTracker, LocalSessionTracker>();
+            services.AddSingleton<IDeviceService, DesktopDeviceService>();
+            services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
-            services.AddSingleton<IFocusScoreService, FocusScoreService>();
-            services.AddSingleton<IDistractionEventRepository, DistractionEventRepository>();
-            services.AddSingleton<IDistractionDetectorService, DistractionDetectorService>();
-            services.AddSingleton<IDailyAnalyticsService, DailyAnalyticsService>();
-            services.AddSingleton<ITaskSummaryService, TaskSummaryService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
             services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
+            services.AddTransient<PlanSelectionViewModel>();
             services.AddTransient<SettingsViewModel>();
 
             _services = services.BuildServiceProvider();
@@ -122,15 +103,19 @@ namespace FocusBot.App
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
 
-            var contextHolder = _services!.GetRequiredService<StoreContextHolder>();
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
 
             _ = _integrationService.StartAsync();
-            var storeContext = StoreContext.GetDefault();
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
-            WinRT.Interop.InitializeWithWindow.Initialize(storeContext, hwnd);
-            contextHolder.Context = storeContext;
+
+            var auth = _services!.GetRequiredService<IAuthService>();
+
+            // Restore session from stored tokens on every launch (not just protocol activations).
+            _ = auth.TryRestoreSessionAsync();
+
+            auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
+            auth.ReAuthRequired += OnReAuthRequired;
+            _ = OnAuthStateChangedAsync();
 
             _window.Activate();
 
@@ -186,7 +171,10 @@ namespace FocusBot.App
 
             // Restore any existing session as early as possible.
             await auth.TryRestoreSessionAsync();
-            if (request.Kind != ExtendedActivationKind.Protocol || string.IsNullOrWhiteSpace(request.ProtocolUri))
+            if (
+                request.Kind != ExtendedActivationKind.Protocol
+                || string.IsNullOrWhiteSpace(request.ProtocolUri)
+            )
                 return;
 
             var handled = await auth.HandleCallbackAsync(request.ProtocolUri);
@@ -194,6 +182,110 @@ namespace FocusBot.App
             {
                 ShowExceptionMessage("Sign-in failed", new Exception("Auth callback failed."));
             }
+        }
+
+        /// <summary>
+        /// Called when auth state changes. Refreshes the plan and, if on a cloud plan,
+        /// registers the device and starts the 60-second heartbeat timer.
+        /// </summary>
+        /// <summary>
+        /// Called when the auth service determines the refresh token is exhausted and the user
+        /// must authenticate again. Stops background services and navigates to Settings.
+        /// </summary>
+        private void OnReAuthRequired()
+        {
+            StopHeartbeat();
+
+            if (_services is null)
+                return;
+
+            var navigationService = _services.GetRequiredService<INavigationService>();
+            var dispatcher = _services.GetRequiredService<AppUIThreadDispatcher>();
+
+            // Navigate on the UI thread so WinUI controls are not touched off-thread.
+            dispatcher.DispatcherQueue?.TryEnqueue(() =>
+            {
+                _window?.Activate();
+                navigationService.NavigateToSettings();
+            });
+        }
+
+        private async Task OnAuthStateChangedAsync()
+        {
+            if (_services is null)
+                return;
+
+            var auth = _services.GetRequiredService<IAuthService>();
+            if (!auth.IsAuthenticated)
+            {
+                StopHeartbeat();
+                return;
+            }
+
+            var planService = _services.GetRequiredService<IPlanService>();
+            await planService.RefreshAsync();
+            var plan = await planService.GetCurrentPlanAsync();
+
+            if (!planService.IsCloudPlan(plan))
+            {
+                StopHeartbeat();
+                return;
+            }
+
+            var deviceService = _services.GetRequiredService<IDeviceService>();
+            if (deviceService.GetDeviceId() is null)
+                await deviceService.RegisterAsync();
+
+            StartHeartbeat(deviceService);
+        }
+
+        private void StartHeartbeat(IDeviceService deviceService)
+        {
+            if (_heartbeatTimer is not null)
+                return;
+
+            var logger = _services!.GetRequiredService<ILogger<App>>();
+            var semaphore = new SemaphoreSlim(1, 1);
+
+            _heartbeatTimer = new Timer(
+                callback: _ =>
+                {
+                    // Skip this tick if the previous heartbeat is still in flight.
+                    if (!semaphore.Wait(0))
+                        return;
+
+                    _ = SendHeartbeatSafeAsync(deviceService, semaphore, logger);
+                },
+                state: null,
+                dueTime: TimeSpan.FromSeconds(60),
+                period: TimeSpan.FromSeconds(60)
+            );
+        }
+
+        private static async Task SendHeartbeatSafeAsync(
+            IDeviceService deviceService,
+            SemaphoreSlim semaphore,
+            ILogger<App> logger
+        )
+        {
+            try
+            {
+                await deviceService.SendHeartbeatAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while sending the device heartbeat.");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private void StopHeartbeat()
+        {
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
         }
 
         public readonly record struct ActivationRequest(
@@ -231,7 +323,10 @@ namespace FocusBot.App
                 e.HasActiveTask,
                 e.FocusScorePercent,
                 e.Status,
-                e.IsTaskPaused
+                e.IsTaskPaused,
+                e.IsLoading,
+                e.HasError,
+                e.TooltipText
             );
         }
 

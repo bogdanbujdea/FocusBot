@@ -14,16 +14,14 @@ public interface ITaskRepository
     Task UpdateElapsedTimeAsync(string taskId, long totalElapsedSeconds);
     Task<UserTask?> GetInProgressTaskAsync();
     Task<IEnumerable<UserTask>> GetDoneTasksAsync();
-    Task UpsertFocusSegmentsAsync(IEnumerable<FocusSegment> segments);
-    Task<IEnumerable<FocusSegment>> GetFocusSegmentsForTaskAsync(string taskId);
     Task UpdateFocusScoreAsync(string taskId, int scorePercent);
-    Task DeleteFocusSegmentsForTaskAsync(string taskId);
     Task UpdateTaskSummaryAsync(
         string taskId,
         long focusedSeconds,
         long distractedSeconds,
         int distractionCount,
-        int contextSwitchCostSeconds,
-        string? topDistractingApps
+        int contextSwitchCount,
+        string? topDistractingApps,
+        string? topAlignedApps
     );
 }
