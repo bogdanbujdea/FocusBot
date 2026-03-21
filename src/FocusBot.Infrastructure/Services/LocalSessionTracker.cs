@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FocusBot.Core.Entities;
+using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.Infrastructure.Services;
@@ -135,13 +136,8 @@ public sealed class LocalSessionTracker : ILocalSessionTracker
         }
     }
 
-    private static int ComputeFocusScore(long focusedSeconds, long distractedSeconds)
-    {
-        var total = focusedSeconds + distractedSeconds;
-        if (total == 0)
-            return 0;
-        return (int)Math.Round((double)focusedSeconds / total * 100);
-    }
+    private static int ComputeFocusScore(long focusedSeconds, long distractedSeconds) =>
+        FocusScoreHelper.ComputeFocusScorePercentage(focusedSeconds, distractedSeconds);
 
     private static string? SerializeTopApps(Dictionary<string, long> perProcess, int topN = 5)
     {

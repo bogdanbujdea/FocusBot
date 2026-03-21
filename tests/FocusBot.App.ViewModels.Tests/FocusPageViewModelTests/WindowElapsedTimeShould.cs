@@ -13,8 +13,6 @@ public class WindowElapsedTimeShould
         var task = await ctx.Repo.AddTaskAsync("Tracked task");
         await ctx.Repo.SetActiveAsync(task.TaskId);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -23,8 +21,6 @@ public class WindowElapsedTimeShould
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,
@@ -34,8 +30,8 @@ public class WindowElapsedTimeShould
             accountVm);
         await Task.Delay(150);
 
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
         vm.WindowElapsedTime.Should().Be("00:00:02");
 
         // Act
@@ -57,8 +53,6 @@ public class WindowElapsedTimeShould
         var task = await ctx.Repo.AddTaskAsync("Tracked task");
         await ctx.Repo.SetActiveAsync(task.TaskId);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -67,8 +61,6 @@ public class WindowElapsedTimeShould
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,
@@ -79,13 +71,13 @@ public class WindowElapsedTimeShould
         await Task.Delay(150);
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.WindowElapsedTime.Should().Be("00:00:01");
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.WindowElapsedTime.Should().Be("00:00:02");

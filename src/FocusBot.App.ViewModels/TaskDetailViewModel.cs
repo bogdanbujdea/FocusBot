@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.App.ViewModels;
@@ -55,21 +56,13 @@ public partial class TaskDetailViewModel(ITaskRepository repo, INavigationServic
         Description = task.Description;
         Context = task.Context ?? string.Empty;
         Status = task.IsCompleted ? "Completed" : "Active";
-        TotalTime = FormatElapsed(task.TotalElapsedSeconds);
+        TotalTime = TimeFormatHelper.FormatElapsed(task.TotalElapsedSeconds);
         FocusScore = task.FocusScorePercent.HasValue ? $"{task.FocusScorePercent}%" : string.Empty;
 
         OnPropertyChanged(nameof(HasContext));
         OnPropertyChanged(nameof(HasFocusScore));
 
         await Task.CompletedTask;
-    }
-
-    private static string FormatElapsed(long totalSeconds)
-    {
-        var hours = (int)(totalSeconds / 3600);
-        var minutes = (int)((totalSeconds % 3600) / 60);
-        var seconds = (int)(totalSeconds % 60);
-        return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
     }
 
     [RelayCommand]

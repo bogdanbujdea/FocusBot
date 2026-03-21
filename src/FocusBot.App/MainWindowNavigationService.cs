@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml;
 namespace FocusBot.App;
 
 /// <summary>
-/// Navigates between the Kanban board and Settings by swapping the main window content.
+/// Navigates between the Focus page and Settings by swapping the main window content.
 /// </summary>
 public class MainWindowNavigationService(IServiceProvider serviceProvider) : INavigationService
 {

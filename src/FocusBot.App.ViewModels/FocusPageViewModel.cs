@@ -15,8 +15,6 @@ public partial class FocusPageViewModel : ObservableObject
 {
     private readonly ITaskRepository _repo;
     private readonly IWindowMonitorService _windowMonitor;
-    private readonly ITimeTrackingService _timeTracking;
-    private readonly IIdleDetectionService _idleDetection;
     private readonly INavigationService _navigationService;
     private readonly IClassificationService _classificationService;
     private readonly ISettingsService _settingsService;
@@ -30,35 +28,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
 
-    private const string HasSeenHowItWorksGuideKey = "HasSeenHowItWorksGuide";
-
     private static readonly string FocusBotProcessName = GetFocusBotProcessName();
-
-    private static readonly HashSet<string> BrowserProcessNames = new(
-        StringComparer.OrdinalIgnoreCase
-    )
-    {
-        "chrome",
-        "msedge",
-        "firefox",
-        "brave",
-        "opera",
-        "vivaldi",
-        "Google Chrome",
-        "Microsoft Edge",
-        "Firefox",
-        "Brave Browser",
-    };
-
-    private static readonly HashSet<string> EdgeOrChromeProcessNames = new(
-        StringComparer.OrdinalIgnoreCase
-    )
-    {
-        "msedge",
-        "chrome",
-        "Microsoft Edge",
-        "Google Chrome",
-    };
 
     /// <summary>
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
@@ -72,7 +42,6 @@ public partial class FocusPageViewModel : ObservableObject
 
     private long _taskElapsedSeconds;
     private int _secondsSinceLastPersist;
-    private const int PersistIntervalSeconds = 5;
     private bool _isTaskPaused;
     private DateTime? _sessionStartUtc;
     private bool _extensionHasActiveTask;
@@ -243,11 +212,6 @@ public partial class FocusPageViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     }
 
-    // Stubs for XAML binding compatibility - will be replaced in Phase 4 Plan UI
-    public bool ShowTrialBanner => false;
-    public string TrialTimeRemainingFormatted => string.Empty;
-    public DateTime? TrialEndTime => null;
-
     public bool HasCurrentFocusResult
     {
         get;
@@ -281,11 +245,7 @@ public partial class FocusPageViewModel : ObservableObject
         }
     }
 
-    public int LiveDistractionCount
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    }
+
 
     public bool IsExtensionConnected
     {
@@ -301,8 +261,7 @@ public partial class FocusPageViewModel : ObservableObject
     /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
     /// </summary>
     public bool IsForegroundBrowserEdgeOrChrome =>
-        !string.IsNullOrEmpty(CurrentProcessName)
-        && EdgeOrChromeProcessNames.Contains(CurrentProcessName);
+        BrowserProcessNames.IsExtensionSupported(CurrentProcessName);
 
     /// <summary>
     /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
@@ -342,8 +301,6 @@ public partial class FocusPageViewModel : ObservableObject
     public FocusPageViewModel(
         ITaskRepository repo,
         IWindowMonitorService windowMonitor,
-        ITimeTrackingService timeTracking,
-        IIdleDetectionService idleDetection,
         INavigationService navigationService,
         IClassificationService classificationService,
         ISettingsService settingsService,
@@ -359,8 +316,6 @@ public partial class FocusPageViewModel : ObservableObject
     {
         _repo = repo;
         _windowMonitor = windowMonitor;
-        _timeTracking = timeTracking;
-        _idleDetection = idleDetection;
         _navigationService = navigationService;
         _classificationService = classificationService;
         _settingsService = settingsService;
@@ -373,9 +328,9 @@ public partial class FocusPageViewModel : ObservableObject
         _deviceService = deviceService;
         _authService = authService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
-        _timeTracking.Tick += OnTimeTrackingTick;
-        _idleDetection.UserBecameIdle += OnUserBecameIdle;
-        _idleDetection.UserBecameActive += OnUserBecameActive;
+        _windowMonitor.Tick += OnTimeTrackingTick;
+        _windowMonitor.UserBecameIdle += OnUserBecameIdle;
+        _windowMonitor.UserBecameActive += OnUserBecameActive;
 
         if (_authService != null)
         {
@@ -416,13 +371,7 @@ public partial class FocusPageViewModel : ObservableObject
         }
     }
 
-    private static string FormatElapsed(long totalSeconds)
-    {
-        var hours = (int)(totalSeconds / 3600);
-        var minutes = (int)((totalSeconds % 3600) / 60);
-        var seconds = (int)(totalSeconds % 60);
-        return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
-    }
+
 
     private void OnTimeTrackingTick(object? sender, EventArgs e)
     {
@@ -431,27 +380,27 @@ public partial class FocusPageViewModel : ObservableObject
             if (RemoteTaskFromExtension != null && _remoteTaskStartedAtUtc.HasValue)
             {
                 var elapsed = (long)(DateTime.UtcNow - _remoteTaskStartedAtUtc.Value).TotalSeconds;
-                TaskElapsedTime = FormatElapsed(elapsed);
+                TaskElapsedTime = TimeFormatHelper.FormatElapsed(elapsed);
             }
             return;
         }
         _taskElapsedSeconds++;
-        TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+        TaskElapsedTime = TimeFormatHelper.FormatElapsed(_taskElapsedSeconds);
         _windowElapsedSeconds++;
-        WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
+        WindowElapsedTime = TimeFormatHelper.FormatElapsed(_windowElapsedSeconds);
         var windowKey = GetCurrentWindowKey();
         if (!string.IsNullOrEmpty(windowKey))
         {
             var total = _perWindowTotalSeconds.GetValueOrDefault(windowKey, 0) + 1;
             _perWindowTotalSeconds[windowKey] = total;
-            WindowTotalElapsedTime = FormatElapsed(total);
+            WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(total);
         }
         var taskId = ActiveTask.TaskId;
         CurrentFocusScorePercent = _sessionTracker.GetFocusScore();
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         RaiseFocusOverlayStateChanged();
         _secondsSinceLastPersist++;
-        if (_secondsSinceLastPersist >= PersistIntervalSeconds)
+        if (_secondsSinceLastPersist >= FocusSessionConfig.PersistIntervalSeconds)
         {
             _secondsSinceLastPersist = 0;
             _ = PersistElapsedTimeAsync(taskId);
@@ -463,7 +412,7 @@ public partial class FocusPageViewModel : ObservableObject
         if (ActiveTask == null)
             return;
 
-        var backdateSeconds = (int)_idleDetection.IdleThreshold.TotalSeconds;
+        var backdateSeconds = (int)_windowMonitor.IdleThreshold.TotalSeconds;
         _taskElapsedSeconds = Math.Max(0L, _taskElapsedSeconds - backdateSeconds);
         _windowElapsedSeconds = Math.Max(0L, _windowElapsedSeconds - backdateSeconds);
         var key = GetCurrentWindowKey();
@@ -473,14 +422,13 @@ public partial class FocusPageViewModel : ObservableObject
             _perWindowTotalSeconds[key] = Math.Max(0L, current - backdateSeconds);
         }
 
-        TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
-        WindowElapsedTime = FormatElapsed(_windowElapsedSeconds);
-        WindowTotalElapsedTime = FormatElapsed(
+        TaskElapsedTime = TimeFormatHelper.FormatElapsed(_taskElapsedSeconds);
+        WindowElapsedTime = TimeFormatHelper.FormatElapsed(_windowElapsedSeconds);
+        WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(
             _perWindowTotalSeconds.GetValueOrDefault(key ?? string.Empty, 0L)
         );
 
         _sessionTracker.HandleIdle(true);
-        _timeTracking.Stop();
         _windowMonitor.Stop();
     }
 
@@ -490,7 +438,6 @@ public partial class FocusPageViewModel : ObservableObject
             return;
 
         _sessionTracker.HandleIdle(false);
-        _timeTracking.Start();
         _windowMonitor.Start();
     }
 
@@ -520,10 +467,10 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
         OnPropertyChanged(nameof(ShowExtensionPromo));
         _windowElapsedSeconds = 0;
-        WindowElapsedTime = FormatElapsed(0);
+        WindowElapsedTime = TimeFormatHelper.FormatElapsed(0);
         var newKey = GetCurrentWindowKey(e.ProcessName, e.WindowTitle);
         var newTotal = _perWindowTotalSeconds.GetValueOrDefault(newKey, 0);
-        WindowTotalElapsedTime = FormatElapsed(newTotal);
+        WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(newTotal);
 
         (string taskId, string description, string? context)? effectiveTask =
             ActiveTask != null ? (ActiveTask.TaskId, ActiveTask.Description, ActiveTask.Context)
@@ -675,16 +622,15 @@ public partial class FocusPageViewModel : ObservableObject
         {
             var task = ActiveTask!;
             _taskElapsedSeconds = task.TotalElapsedSeconds;
-            TaskElapsedTime = FormatElapsed(_taskElapsedSeconds);
+            TaskElapsedTime = TimeFormatHelper.FormatElapsed(_taskElapsedSeconds);
             _windowElapsedSeconds = 0;
-            WindowElapsedTime = FormatElapsed(0);
+            WindowElapsedTime = TimeFormatHelper.FormatElapsed(0);
             _perWindowTotalSeconds.Clear();
-            WindowTotalElapsedTime = FormatElapsed(0);
+            WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(0);
             _secondsSinceLastPersist = 0;
             _sessionTracker.Start(task.Description);
             CurrentFocusScorePercent = 0;
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            LiveDistractionCount = 0;
             StartMonitoring();
         }
         else
@@ -710,12 +656,10 @@ public partial class FocusPageViewModel : ObservableObject
         if (_isTaskPaused)
         {
             _sessionTracker.HandleIdle(true);
-            _timeTracking.Stop();
             _windowMonitor.Stop();
         }
         else
         {
-            _timeTracking.Start();
             _windowMonitor.Start();
         }
 
@@ -846,7 +790,6 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTaskPaused));
 
         _sessionTracker.HandleIdle(true);
-        _timeTracking.Stop();
         _windowMonitor.Stop();
 
         RaiseFocusOverlayStateChanged();
@@ -862,16 +805,9 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTaskPaused));
 
         _sessionTracker.HandleIdle(false);
-        _timeTracking.Start();
         _windowMonitor.Start();
 
         RaiseFocusOverlayStateChanged();
-    }
-
-    [RelayCommand]
-    private void ViewHistory()
-    {
-        _navigationService.NavigateToHistory();
     }
 
     [RelayCommand]
@@ -927,7 +863,7 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public async Task<bool> GetHasSeenHowItWorksGuideAsync()
     {
-        var value = await _settingsService.GetSettingAsync<bool>(HasSeenHowItWorksGuideKey);
+        var value = await _settingsService.GetSettingAsync<bool>(SettingsKeys.HasSeenHowItWorksGuide);
         return value == true;
     }
 
@@ -935,7 +871,7 @@ public partial class FocusPageViewModel : ObservableObject
     /// Marks the How it works guide as seen so it is not shown automatically again.
     /// </summary>
     public Task SetHasSeenHowItWorksGuideAsync() =>
-        _settingsService.SetSettingAsync(HasSeenHowItWorksGuideKey, true);
+        _settingsService.SetSettingAsync(SettingsKeys.HasSeenHowItWorksGuide, true);
 
     [RelayCommand]
     private void ViewTaskDetail(string? taskId)
@@ -1008,8 +944,6 @@ public partial class FocusPageViewModel : ObservableObject
     private void StartMonitoring()
     {
         _windowMonitor.Start();
-        _timeTracking.Start();
-        _idleDetection.Start();
         if (_sessionStartUtc is null)
         {
             _sessionStartUtc = DateTime.UtcNow;
@@ -1019,19 +953,16 @@ public partial class FocusPageViewModel : ObservableObject
     private void StopMonitoringAndResetFocusState()
     {
         _windowMonitor.Stop();
-        _timeTracking.Stop();
-        _idleDetection.Stop();
         _sessionTracker.HandleIdle(false);
         _isTaskPaused = false;
         OnPropertyChanged(nameof(IsTaskPaused));
         _taskElapsedSeconds = 0;
-        TaskElapsedTime = FormatElapsed(0);
+        TaskElapsedTime = TimeFormatHelper.FormatElapsed(0);
         _windowElapsedSeconds = 0;
-        WindowElapsedTime = FormatElapsed(0);
+        WindowElapsedTime = TimeFormatHelper.FormatElapsed(0);
         _perWindowTotalSeconds.Clear();
-        WindowTotalElapsedTime = FormatElapsed(0);
+        WindowTotalElapsedTime = TimeFormatHelper.FormatElapsed(0);
         _secondsSinceLastPersist = 0;
-        LiveDistractionCount = 0;
         _sessionStartUtc = null;
         ResetFocusState();
     }
@@ -1133,7 +1064,7 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     private static bool IsBrowserProcess(string processName) =>
-        BrowserProcessNames.Contains(processName);
+        BrowserProcessNames.IsBrowser(processName);
 
     private void OnExtensionConnectionChanged(object? sender, bool connected)
     {
@@ -1199,12 +1130,11 @@ public partial class FocusPageViewModel : ObservableObject
         void apply()
         {
             _windowMonitor.Start();
-            _timeTracking.Start();
             RemoteTaskFromExtension = payload;
             RemoteTaskFocusStatus = null;
             var initialElapsed = (long)
                 (DateTime.UtcNow - _remoteTaskStartedAtUtc!.Value).TotalSeconds;
-            TaskElapsedTime = FormatElapsed(initialElapsed);
+            TaskElapsedTime = TimeFormatHelper.FormatElapsed(initialElapsed);
             UpdateMonitoringState();
         }
 
@@ -1233,7 +1163,6 @@ public partial class FocusPageViewModel : ObservableObject
                 if (ActiveTask == null)
                 {
                     _windowMonitor.Stop();
-                    _timeTracking.Stop();
                 }
                 return Task.CompletedTask;
             });
@@ -1244,7 +1173,6 @@ public partial class FocusPageViewModel : ObservableObject
             if (ActiveTask == null)
             {
                 _windowMonitor.Stop();
-                _timeTracking.Stop();
             }
         }
     }

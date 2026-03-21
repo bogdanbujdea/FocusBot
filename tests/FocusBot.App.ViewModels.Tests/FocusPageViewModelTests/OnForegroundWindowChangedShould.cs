@@ -14,16 +14,12 @@ public class OnForegroundWindowChangedShould
         var monitorMock = new Mock<IWindowMonitorService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,

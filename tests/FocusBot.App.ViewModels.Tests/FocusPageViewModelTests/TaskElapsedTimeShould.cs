@@ -13,8 +13,6 @@ public class TaskElapsedTimeShould
         var task = await ctx.Repo.AddTaskAsync("Tracked task");
         await ctx.Repo.SetActiveAsync(task.TaskId);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -23,8 +21,6 @@ public class TaskElapsedTimeShould
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,
@@ -35,13 +31,13 @@ public class TaskElapsedTimeShould
         await Task.Delay(150);
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.TaskElapsedTime.Should().Be("00:00:01");
 
         // Act
-        timeTrackingMock.Raise(m => m.Tick += null, timeTrackingMock.Object, EventArgs.Empty);
+        monitorMock.Raise(m => m.Tick += null, monitorMock.Object, EventArgs.Empty);
 
         // Assert
         vm.TaskElapsedTime.Should().Be("00:00:02");
@@ -56,8 +52,6 @@ public class TaskElapsedTimeShould
         await ctx.Repo.SetActiveAsync(task.TaskId);
         await ctx.Repo.UpdateElapsedTimeAsync(task.TaskId, 3661);
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -66,8 +60,6 @@ public class TaskElapsedTimeShould
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,
@@ -87,8 +79,6 @@ public class TaskElapsedTimeShould
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var monitorMock = new Mock<IWindowMonitorService>();
-        var timeTrackingMock = new Mock<ITimeTrackingService>();
-        var idleDetectionMock = new Mock<IIdleDetectionService>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -97,8 +87,6 @@ public class TaskElapsedTimeShould
         var vm = new FocusPageViewModel(
             ctx.Repo,
             monitorMock.Object,
-            timeTrackingMock.Object,
-            idleDetectionMock.Object,
             navMock.Object,
             Mock.Of<IClassificationService>(),
             settingsMock.Object,

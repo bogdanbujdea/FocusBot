@@ -59,8 +59,6 @@ namespace FocusBot.App
                 sp.GetRequiredService<ILogger<SupabaseAuthService>>()
             ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
-            services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
-            services.AddSingleton<IIdleDetectionService, IdleDetectionService>();
             services.AddSingleton<AppUIThreadDispatcher>();
             services.AddSingleton<IUIThreadDispatcher>(sp =>
                 sp.GetRequiredService<AppUIThreadDispatcher>()
