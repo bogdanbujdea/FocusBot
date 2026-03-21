@@ -24,6 +24,13 @@ public class PlanService(
 
     public async Task<ClientPlanType> GetCurrentPlanAsync(CancellationToken ct = default)
     {
+        if (!apiClient.IsConfigured)
+        {
+            ClearMemoryCache();
+            logger.LogDebug("Not authenticated; returning FreeBYOK without consulting cache");
+            return ClientPlanType.FreeBYOK;
+        }
+
         if (IsMemoryCacheFresh())
             return _memoryCached!.Value;
 
@@ -112,6 +119,12 @@ public class PlanService(
     {
         _memoryCached = plan;
         _memoryFetchedAt = DateTime.UtcNow;
+    }
+
+    private void ClearMemoryCache()
+    {
+        _memoryCached = null;
+        _memoryFetchedAt = DateTime.MinValue;
     }
 
     private async Task PersistPlanAsync(ClientPlanType plan)

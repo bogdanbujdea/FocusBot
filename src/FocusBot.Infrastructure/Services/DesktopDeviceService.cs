@@ -1,6 +1,7 @@
 using CSharpFunctionalExtensions;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -48,13 +49,30 @@ public class DesktopDeviceService(
             return;
         }
 
-        var success = await apiClient.SendHeartbeatAsync(deviceId.Value);
-        if (!success)
+        var statusCode = await apiClient.SendHeartbeatAsync(deviceId.Value);
+
+        if (statusCode == HttpStatusCode.OK)
+            return;
+
+        if (statusCode == HttpStatusCode.NotFound)
         {
-            logger.LogWarning("Heartbeat failed for device {DeviceId}; will re-register on next attempt", deviceId);
+            logger.LogWarning("Device {DeviceId} not found on server; clearing registration and re-registering", deviceId);
             _cachedDeviceId = null;
             await settings.SetSettingAsync<string?>(DeviceIdKey, null);
+            await RegisterAsync(ct);
+            return;
         }
+
+        if (statusCode == HttpStatusCode.Unauthorized)
+        {
+            logger.LogWarning("Heartbeat for device {DeviceId} was unauthorized after token refresh attempt", deviceId);
+            return;
+        }
+
+        logger.LogWarning(
+            "Heartbeat failed for device {DeviceId} with status {StatusCode}",
+            deviceId,
+            statusCode?.ToString() ?? "network error");
     }
 
     public async Task DeregisterAsync(CancellationToken ct = default)

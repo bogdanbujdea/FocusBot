@@ -36,7 +36,17 @@ public sealed record ApiClassifyResponse(int Score, string Reason, bool Cached);
 public sealed record ApiSubscriptionStatus(string Status, int PlanType, DateTime? TrialEndsAt, DateTime? CurrentPeriodEndsAt);
 
 /// <summary>Response from POST /devices and PUT /devices/{id}/heartbeat.</summary>
-public sealed record ApiDeviceResponse(Guid Id, string DeviceType, string Name, string Fingerprint, DateTime LastSeenAtUtc);
+/// <remarks>DeviceType is an integer enum: 1 = Desktop, 2 = Extension (serialized as a number by the API).</remarks>
+public sealed record ApiDeviceResponse(
+    Guid Id,
+    int DeviceType,
+    string Name,
+    string Fingerprint,
+    string? AppVersion,
+    string? Platform,
+    DateTime LastSeenAtUtc,
+    DateTime CreatedAtUtc,
+    bool IsOnline);
 
 /// <summary>Response from POST /classify/validate-key.</summary>
 public sealed record ApiValidateKeyResponse(bool Valid, string? Error);

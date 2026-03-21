@@ -56,7 +56,15 @@ public class SessionService(ApiDbContext db)
         session.TopAlignedApps = request.TopAlignedApps;
 
         if (request.DeviceId.HasValue)
+        {
+            var deviceBelongsToUser = await db.Devices
+                .AnyAsync(d => d.Id == request.DeviceId.Value && d.UserId == userId, ct);
+
+            if (!deviceBelongsToUser)
+                return SessionResult.Forbidden("Device does not belong to the current user.");
+
             session.DeviceId = request.DeviceId;
+        }
 
         await db.SaveChangesAsync(ct);
         return SessionResult.Success(ToResponse(session));
@@ -118,4 +126,5 @@ public sealed class SessionResult
     public static SessionResult Success(SessionResponse session) => new(session, 200, null);
     public static SessionResult Conflict(string error) => new(null, 409, error);
     public static SessionResult NotFound() => new(null, 404, "Session not found.");
+    public static SessionResult Forbidden(string error) => new(null, 403, error);
 }

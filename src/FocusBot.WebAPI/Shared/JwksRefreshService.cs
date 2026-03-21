@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.IdentityModel.Tokens;
 
@@ -91,7 +90,8 @@ public sealed class JwksRefreshService : IHostedService, IDisposable
         string token,
         SecurityToken securityToken,
         string kid,
-        TokenValidationParameters validationParameters)
+        TokenValidationParameters validationParameters
+    )
     {
         return SigningKeys;
     }
@@ -120,13 +120,16 @@ public sealed class JwksRefreshService : IHostedService, IDisposable
         try
         {
             var response = await _httpClient.GetFromJsonAsync<JwksResponse>(
-                jwksUrl, cancellationToken);
+                jwksUrl,
+                cancellationToken
+            );
 
             if (response?.Keys is null || response.Keys.Count == 0)
             {
                 _logger.LogWarning(
                     "JWKS endpoint returned no keys from {Url}; retaining previous keys",
-                    jwksUrl);
+                    jwksUrl
+                );
                 return;
             }
 
@@ -144,7 +147,8 @@ public sealed class JwksRefreshService : IHostedService, IDisposable
             _logger.LogInformation(
                 "Refreshed {Count} JWT signing key(s) from {Url}",
                 keys.Count,
-                jwksUrl);
+                jwksUrl
+            );
         }
         catch (OperationCanceledException)
         {
@@ -155,7 +159,8 @@ public sealed class JwksRefreshService : IHostedService, IDisposable
             _logger.LogError(
                 ex,
                 "Failed to refresh JWKS from {Url}; retaining previous keys",
-                jwksUrl);
+                jwksUrl
+            );
         }
     }
 

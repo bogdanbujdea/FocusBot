@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
@@ -7,28 +8,29 @@ using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Features.Waitlist;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
-using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApiDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
 // ── Authentication (ES256 via Supabase JWKS) ────────────────────────────────
 var jwksService = new JwksRefreshService(
     builder.Configuration,
-    LoggerFactory.Create(b => b.AddConsole()).CreateLogger<JwksRefreshService>());
+    LoggerFactory.Create(b => b.AddConsole()).CreateLogger<JwksRefreshService>()
+);
 builder.Services.AddSingleton(jwksService);
 builder.Services.AddHostedService(sp => sp.GetRequiredService<JwksRefreshService>());
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder
+    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var supabaseUrl = builder.Configuration["Supabase:Url"] ?? string.Empty;
@@ -42,7 +44,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
-            IssuerSigningKeyResolver = jwksService.ResolveSigningKeys
+            IssuerSigningKeyResolver = jwksService.ResolveSigningKeys,
         };
     });
 
@@ -51,25 +53,27 @@ builder.Services.AddAuthorization();
 // ── CORS ────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
-    {
-        var allowedOrigins = builder.Configuration
-            .GetSection("Cors:AllowedOrigins")
-            .Get<string[]>() ?? Array.Empty<string>();
+    options.AddPolicy(
+        "Frontend",
+        policy =>
+        {
+            var allowedOrigins =
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? Array.Empty<string>();
 
-        if (allowedOrigins.Length > 0)
-        {
-            policy.WithOrigins(allowedOrigins)
-                  .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
-                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+            if (allowedOrigins.Length > 0)
+            {
+                policy
+                    .WithOrigins(allowedOrigins)
+                    .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
+                    .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+            }
+            else
+            {
+                policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+            }
         }
-        else
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
-    });
+    );
 });
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
@@ -77,47 +81,58 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddPolicy("Waitlist", httpContext =>
-    {
-        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+    options.AddPolicy(
+        "Waitlist",
+        httpContext =>
         {
-            PermitLimit = 5,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0,
-            AutoReplenishment = true
-        });
-    });
+            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                ip,
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }
+            );
+        }
+    );
 });
 
 // ── OpenAPI ─────────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi(options =>
 {
-    options.AddDocumentTransformer((document, _, _) =>
-    {
-        document.Info = new OpenApiInfo
+    options.AddDocumentTransformer(
+        (document, _, _) =>
         {
-            Title = "Foqus API",
-            Version = "v1",
-            Description = "Foqus backend API for focus sessions, classification, and subscriptions"
-        };
-        return Task.CompletedTask;
-    });
+            document.Info = new OpenApiInfo
+            {
+                Title = "Foqus API",
+                Version = "v1",
+                Description =
+                    "Foqus backend API for focus sessions, classification, and subscriptions",
+            };
+            return Task.CompletedTask;
+        }
+    );
 
-    options.AddDocumentTransformer((document, _, _) =>
-    {
-        var components = document.Components ?? new OpenApiComponents();
-        components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-        components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    options.AddDocumentTransformer(
+        (document, _, _) =>
         {
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            Description = "Supabase JWT access token"
-        };
-        document.Components = components;
-        return Task.CompletedTask;
-    });
+            var components = document.Components ?? new OpenApiComponents();
+            components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+            components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "Supabase JWT access token",
+            };
+            document.Components = components;
+            return Task.CompletedTask;
+        }
+    );
 });
 
 // ── Services ────────────────────────────────────────────────────────────────
@@ -131,19 +146,23 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 
-builder.Services.AddHttpClient(WaitlistService.HttpClientName, (sp, client) =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var apiKey = configuration["MailerLite:ApiKey"];
-
-    client.BaseAddress = new Uri("https://connect.mailerlite.com/api/");
-    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-
-    if (!string.IsNullOrWhiteSpace(apiKey))
+builder.Services.AddHttpClient(
+    WaitlistService.HttpClientName,
+    (sp, client) =>
     {
-        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var apiKey = configuration["MailerLite:ApiKey"];
+
+        client.BaseAddress = new Uri("https://connect.mailerlite.com/api/");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        }
     }
-});
+);
 
 var app = builder.Build();
 

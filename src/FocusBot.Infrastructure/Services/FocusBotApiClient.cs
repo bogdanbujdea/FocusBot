@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Net;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -219,28 +220,44 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
-    public async Task<bool> SendHeartbeatAsync(Guid deviceId)
+    public async Task<HttpStatusCode?> SendHeartbeatAsync(Guid deviceId)
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Put, $"/devices/{deviceId}/heartbeat");
-            if (request is null) return false;
+            var statusCode = await SendHeartbeatRequestAsync(deviceId);
 
-            request.Content = JsonContent.Create(new
+            if (statusCode == HttpStatusCode.Unauthorized)
             {
-                appVersion = GetAppVersion(),
-                platform = "Windows"
-            }, options: JsonOptions);
+                var refreshed = await _authService.RefreshTokenAsync();
+                if (refreshed)
+                    statusCode = await SendHeartbeatRequestAsync(deviceId);
+            }
 
-            var response = await _httpClient.SendAsync(request);
-            return response.IsSuccessStatusCode;
+            return statusCode;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "SendHeartbeat request failed");
-            return false;
+            return null;
         }
     }
+
+    private async Task<HttpStatusCode> SendHeartbeatRequestAsync(Guid deviceId)
+    {
+        using var request = await CreateAuthorizedRequestAsync(HttpMethod.Put, $"/devices/{deviceId}/heartbeat");
+        if (request is null)
+            return HttpStatusCode.Unauthorized;
+
+        request.Content = JsonContent.Create(new
+        {
+            appVersion = GetAppVersion(),
+            platform = "Windows"
+        }, options: JsonOptions);
+
+        var response = await _httpClient.SendAsync(request);
+        return response.StatusCode;
+    }
+
 
     public async Task<bool> DeregisterDeviceAsync(Guid deviceId)
     {

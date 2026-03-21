@@ -55,6 +55,7 @@ public static class SessionEndpoints
 
         return result.StatusCode switch
         {
+            403 => Results.Json(new { error = result.Error }, statusCode: StatusCodes.Status403Forbidden),
             404 => Results.NotFound(new { error = result.Error }),
             409 => Results.Conflict(new { error = result.Error }),
             _ => Results.Ok(result.Session)

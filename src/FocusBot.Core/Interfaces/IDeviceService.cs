@@ -15,7 +15,8 @@ public interface IDeviceService
 
     /// <summary>
     /// Sends a heartbeat to the backend to mark the device as online.
-    /// Handles 401 (token refresh) and 404 (re-registers).
+    /// On 401, the HTTP client retries once after refreshing the access token.
+    /// On 404, the device is re-registered automatically.
     /// </summary>
     Task SendHeartbeatAsync(CancellationToken ct = default);
 

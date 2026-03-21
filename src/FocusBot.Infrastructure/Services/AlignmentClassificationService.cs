@@ -16,14 +16,16 @@ public class AlignmentClassificationService(
     IAlignmentCacheRepository cache,
     IFocusBotApiClient apiClient,
     ISettingsService settings,
-    ILogger<AlignmentClassificationService> logger) : IClassificationService
+    ILogger<AlignmentClassificationService> logger
+) : IClassificationService
 {
     public async Task<Result<AlignmentResult>> ClassifyAsync(
         string processName,
         string windowTitle,
         string taskText,
         string? taskHints,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         if (!apiClient.IsConfigured)
             return Result.Failure<AlignmentResult>("Not authenticated. Sign in to classify.");
@@ -35,10 +37,21 @@ public class AlignmentClassificationService(
         if (cached is not null)
             return Result.Success(cached);
 
-        return await ClassifyViaApiAsync(processName, windowTitle, taskText, taskHints, contextHash, taskContentHash, ct);
+        return await ClassifyViaApiAsync(
+            processName,
+            windowTitle,
+            taskText,
+            taskHints,
+            contextHash,
+            taskContentHash,
+            ct
+        );
     }
 
-    private async Task<AlignmentResult?> TryGetCachedAsync(string contextHash, string taskContentHash)
+    private async Task<AlignmentResult?> TryGetCachedAsync(
+        string contextHash,
+        string taskContentHash
+    )
     {
         try
         {
@@ -63,17 +76,27 @@ public class AlignmentClassificationService(
         string? taskHints,
         string contextHash,
         string taskContentHash,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var byokKey = await GetByokApiKeyAsync();
         var providerId = await settings.GetProviderAsync();
         var modelId = await settings.GetModelAsync();
 
-        var payload = new ClassifyPayload(taskText, taskHints, processName, windowTitle, providerId, modelId);
+        var payload = new ClassifyPayload(
+            taskText,
+            taskHints,
+            processName,
+            windowTitle,
+            providerId,
+            modelId
+        );
         var response = await apiClient.ClassifyAsync(payload, byokKey);
 
         if (response is null)
-            return Result.Failure<AlignmentResult>("Classification request failed. Check your connection.");
+            return Result.Failure<AlignmentResult>(
+                "Classification request failed. Check your connection."
+            );
 
         var result = new AlignmentResult { Score = response.Score, Reason = response.Reason };
 
@@ -88,7 +111,7 @@ public class AlignmentClassificationService(
         try
         {
             var mode = await settings.GetApiKeyModeAsync();
-            if (mode == Core.Entities.ApiKeyMode.Own)
+            if (mode == ApiKeyMode.Own)
                 return await settings.GetApiKeyAsync();
             return null;
         }
@@ -99,7 +122,11 @@ public class AlignmentClassificationService(
         }
     }
 
-    private async Task CacheResultAsync(string contextHash, string taskContentHash, AlignmentResult result)
+    private async Task CacheResultAsync(
+        string contextHash,
+        string taskContentHash,
+        AlignmentResult result
+    )
     {
         try
         {

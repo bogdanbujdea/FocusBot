@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,11 +7,16 @@ namespace FocusBot.WebAPI.Features.Waitlist;
 public sealed class WaitlistService(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
-    ILogger<WaitlistService> logger)
+    ILogger<WaitlistService> logger
+)
 {
     public const string HttpClientName = "MailerLite";
 
-    public async Task UpsertWaitlistSubscriberAsync(string normalizedEmail, HttpContext httpContext, CancellationToken ct)
+    public async Task UpsertWaitlistSubscriberAsync(
+        string normalizedEmail,
+        HttpContext httpContext,
+        CancellationToken ct
+    )
     {
         var apiKey = configuration["MailerLite:ApiKey"];
         var groupId = configuration["MailerLite:WaitlistGroupId"];
@@ -20,18 +24,20 @@ public sealed class WaitlistService(
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(groupId))
         {
             throw new InvalidOperationException(
-                "MailerLite is not configured. Set MailerLite:ApiKey and MailerLite:WaitlistGroupId.");
+                "MailerLite is not configured. Set MailerLite:ApiKey and MailerLite:WaitlistGroupId."
+            );
         }
 
         var client = httpClientFactory.CreateClient(HttpClientName);
 
         var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString();
-        var body = new MailerLiteUpsertSubscriberRequest(
-            normalizedEmail,
-            [groupId],
-            ipAddress);
+        var body = new MailerLiteUpsertSubscriberRequest(normalizedEmail, [groupId], ipAddress);
 
-        using var response = await client.PostAsJsonAsync("subscribers", body, cancellationToken: ct);
+        using var response = await client.PostAsJsonAsync(
+            "subscribers",
+            body,
+            cancellationToken: ct
+        );
 
         if (response.IsSuccessStatusCode)
         {
@@ -49,22 +55,26 @@ public sealed class WaitlistService(
             traceId,
             groupId,
             emailHash,
-            truncatedPayload);
+            truncatedPayload
+        );
 
         if (response.StatusCode is HttpStatusCode.UnprocessableEntity)
         {
             throw new InvalidOperationException(
-                $"MailerLite rejected the subscriber payload. TraceId={traceId}, Response={truncatedPayload}");
+                $"MailerLite rejected the subscriber payload. TraceId={traceId}, Response={truncatedPayload}"
+            );
         }
 
         throw new InvalidOperationException(
-            $"MailerLite signup failed with {(int)response.StatusCode}. TraceId={traceId}, Response={truncatedPayload}");
+            $"MailerLite signup failed with {(int)response.StatusCode}. TraceId={traceId}, Response={truncatedPayload}"
+        );
     }
 
     private sealed record MailerLiteUpsertSubscriberRequest(
         string email,
         string[] groups,
-        string? ip_address);
+        string? ip_address
+    );
 
     private static string ComputeSha256(string value)
     {
@@ -82,4 +92,3 @@ public sealed class WaitlistService(
         return value[..maxLength] + "...";
     }
 }
-

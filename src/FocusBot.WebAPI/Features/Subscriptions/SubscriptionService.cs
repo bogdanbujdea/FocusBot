@@ -13,30 +13,36 @@ public class SubscriptionService(ApiDbContext db)
     /// <summary>
     /// Returns the current subscription status for a user.
     /// </summary>
-    public async Task<SubscriptionStatusResponse> GetStatusAsync(Guid userId, CancellationToken ct = default)
+    public async Task<SubscriptionStatusResponse> GetStatusAsync(
+        Guid userId,
+        CancellationToken ct = default
+    )
     {
-        var subscription = await db.Subscriptions
-            .AsNoTracking()
+        var subscription = await db
+            .Subscriptions.AsNoTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
-            return new SubscriptionStatusResponse("none", Data.Entities.PlanType.FreeBYOK, null, null);
+            return new SubscriptionStatusResponse("none", PlanType.FreeBYOK, null, null);
 
         return new SubscriptionStatusResponse(
             subscription.Status,
             subscription.PlanType,
             subscription.TrialEndsAtUtc,
-            subscription.CurrentPeriodEndsAtUtc);
+            subscription.CurrentPeriodEndsAtUtc
+        );
     }
 
     /// <summary>
     /// Activates a 24-hour trial for a user. Returns null if the user already has a subscription record
     /// (trial already used or subscription exists).
     /// </summary>
-    public async Task<ActivateTrialResponse?> ActivateTrialAsync(Guid userId, CancellationToken ct = default)
+    public async Task<ActivateTrialResponse?> ActivateTrialAsync(
+        Guid userId,
+        CancellationToken ct = default
+    )
     {
-        var existing = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (existing is not null)
             return null;
@@ -48,7 +54,7 @@ public class SubscriptionService(ApiDbContext db)
             Status = "trial",
             TrialEndsAtUtc = trialEnd,
             CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
+            UpdatedAtUtc = DateTime.UtcNow,
         };
 
         db.Subscriptions.Add(subscription);
@@ -60,10 +66,13 @@ public class SubscriptionService(ApiDbContext db)
     /// <summary>
     /// Checks whether the user has an active subscription or a trial that has not expired.
     /// </summary>
-    public async Task<bool> IsSubscribedOrTrialActiveAsync(Guid userId, CancellationToken ct = default)
+    public async Task<bool> IsSubscribedOrTrialActiveAsync(
+        Guid userId,
+        CancellationToken ct = default
+    )
     {
-        var subscription = await db.Subscriptions
-            .AsNoTracking()
+        var subscription = await db
+            .Subscriptions.AsNoTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
@@ -73,7 +82,7 @@ public class SubscriptionService(ApiDbContext db)
         {
             "active" => true,
             "trial" => subscription.TrialEndsAtUtc > DateTime.UtcNow,
-            _ => false
+            _ => false,
         };
     }
 
@@ -113,15 +122,16 @@ public class SubscriptionService(ApiDbContext db)
             ? custProp.GetString()
             : null;
 
-        var customData = data.TryGetProperty("custom_data", out var customProp) ? customProp : (JsonElement?)null;
+        var customData = data.TryGetProperty("custom_data", out var customProp)
+            ? customProp
+            : (JsonElement?)null;
         if (customData is null || !customData.Value.TryGetProperty("user_id", out var userIdProp))
             return;
 
         if (!Guid.TryParse(userIdProp.GetString(), out var userId))
             return;
 
-        var existing = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (existing is not null)
         {
@@ -132,15 +142,17 @@ public class SubscriptionService(ApiDbContext db)
         }
         else
         {
-            db.Subscriptions.Add(new Subscription
-            {
-                UserId = userId,
-                PaddleSubscriptionId = paddleSubId,
-                PaddleCustomerId = paddleCustomerId,
-                Status = "active",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
-            });
+            db.Subscriptions.Add(
+                new Subscription
+                {
+                    UserId = userId,
+                    PaddleSubscriptionId = paddleSubId,
+                    PaddleCustomerId = paddleCustomerId,
+                    Status = "active",
+                    CreatedAtUtc = DateTime.UtcNow,
+                    UpdatedAtUtc = DateTime.UtcNow,
+                }
+            );
         }
 
         await db.SaveChangesAsync(ct);
@@ -151,8 +163,10 @@ public class SubscriptionService(ApiDbContext db)
         var data = payload.GetProperty("data");
         var paddleSubId = data.GetProperty("id").GetString()!;
 
-        var subscription = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.PaddleSubscriptionId == paddleSubId, ct);
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == paddleSubId,
+            ct
+        );
 
         if (subscription is null)
             return;
@@ -166,7 +180,7 @@ public class SubscriptionService(ApiDbContext db)
                 "past_due" => "active",
                 "paused" => "expired",
                 "canceled" => "canceled",
-                _ => subscription.Status
+                _ => subscription.Status,
             };
         }
 
@@ -179,8 +193,10 @@ public class SubscriptionService(ApiDbContext db)
         var data = payload.GetProperty("data");
         var paddleSubId = data.GetProperty("id").GetString()!;
 
-        var subscription = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.PaddleSubscriptionId == paddleSubId, ct);
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == paddleSubId,
+            ct
+        );
 
         if (subscription is null)
             return;
@@ -201,14 +217,18 @@ public class SubscriptionService(ApiDbContext db)
         if (string.IsNullOrEmpty(paddleSubId))
             return;
 
-        var subscription = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.PaddleSubscriptionId == paddleSubId, ct);
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == paddleSubId,
+            ct
+        );
 
         if (subscription is null)
             return;
 
-        if (data.TryGetProperty("billing_period", out var billingPeriod) &&
-            billingPeriod.TryGetProperty("ends_at", out var endsAtProp))
+        if (
+            data.TryGetProperty("billing_period", out var billingPeriod)
+            && billingPeriod.TryGetProperty("ends_at", out var endsAtProp)
+        )
         {
             if (DateTime.TryParse(endsAtProp.GetString(), out var endsAt))
                 subscription.CurrentPeriodEndsAtUtc = endsAt.ToUniversalTime();

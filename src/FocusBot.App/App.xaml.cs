@@ -20,10 +20,10 @@ namespace FocusBot.App
     {
         private Window? _window;
         private FocusOverlayWindow? _overlayWindow;
-        private IServiceProvider? _services;
+        private readonly IServiceProvider? _services;
         private FocusPageViewModel? _viewModel;
         private IIntegrationService? _integrationService;
-        private System.Threading.Timer? _heartbeatTimer;
+        private Timer? _heartbeatTimer;
 
         public App()
         {
@@ -53,13 +53,11 @@ namespace FocusBot.App
                 appDataRoot
             ));
             services.AddTransient<AccountSettingsViewModel>();
-            services.AddSingleton<IAuthService>(sp =>
-                new SupabaseAuthService(
-                    new HttpClient(),
-                    sp.GetRequiredService<ISettingsService>(),
-                    sp.GetRequiredService<ILogger<SupabaseAuthService>>()
-                )
-            );
+            services.AddSingleton<IAuthService>(sp => new SupabaseAuthService(
+                new HttpClient(),
+                sp.GetRequiredService<ISettingsService>(),
+                sp.GetRequiredService<ILogger<SupabaseAuthService>>()
+            ));
             services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
             services.AddSingleton<ITimeTrackingService, TimeTrackingService>();
             services.AddSingleton<IIdleDetectionService, IdleDetectionService>();
@@ -175,7 +173,10 @@ namespace FocusBot.App
 
             // Restore any existing session as early as possible.
             await auth.TryRestoreSessionAsync();
-            if (request.Kind != ExtendedActivationKind.Protocol || string.IsNullOrWhiteSpace(request.ProtocolUri))
+            if (
+                request.Kind != ExtendedActivationKind.Protocol
+                || string.IsNullOrWhiteSpace(request.ProtocolUri)
+            )
                 return;
 
             var handled = await auth.HandleCallbackAsync(request.ProtocolUri);
@@ -245,12 +246,42 @@ namespace FocusBot.App
             if (_heartbeatTimer is not null)
                 return;
 
-            _heartbeatTimer = new System.Threading.Timer(
-                callback: _ => _ = deviceService.SendHeartbeatAsync(),
+            var logger = _services!.GetRequiredService<ILogger<App>>();
+            var semaphore = new SemaphoreSlim(1, 1);
+
+            _heartbeatTimer = new Timer(
+                callback: _ =>
+                {
+                    // Skip this tick if the previous heartbeat is still in flight.
+                    if (!semaphore.Wait(0))
+                        return;
+
+                    _ = SendHeartbeatSafeAsync(deviceService, semaphore, logger);
+                },
                 state: null,
                 dueTime: TimeSpan.FromSeconds(60),
                 period: TimeSpan.FromSeconds(60)
             );
+        }
+
+        private static async Task SendHeartbeatSafeAsync(
+            IDeviceService deviceService,
+            SemaphoreSlim semaphore,
+            ILogger<App> logger
+        )
+        {
+            try
+            {
+                await deviceService.SendHeartbeatAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while sending the device heartbeat.");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
         private void StopHeartbeat()

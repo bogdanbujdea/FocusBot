@@ -180,9 +180,8 @@ public sealed class FocusOverlayWindow : IDisposable
                 _ => ColorNeutral,
             };
 
-        // Update tray tooltip text
-        if (!string.IsNullOrEmpty(tooltipText))
-            SetWindowTextW(_hwnd, tooltipText);
+        // Update tray tooltip text (always set, even empty, to avoid stale text)
+        SetWindowTextW(_hwnd, tooltipText);
 
         // If status changed, start highlight effect
         if (statusChanged && !isLoading && !hasError)
