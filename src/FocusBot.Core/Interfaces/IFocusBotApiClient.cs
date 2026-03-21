@@ -34,4 +34,12 @@ public interface IFocusBotApiClient
     /// </summary>
     Task<HttpStatusCode?> SendHeartbeatAsync(Guid deviceId);
     Task<bool> DeregisterDeviceAsync(Guid deviceId);
+
+    // Account
+    /// <summary>
+    /// Calls GET /auth/me to ensure the authenticated user's account is provisioned in the
+    /// backend database. Safe to call on every sign-in; the backend is idempotent.
+    /// Returns true when the call succeeds.
+    /// </summary>
+    Task<bool> ProvisionUserAsync();
 }

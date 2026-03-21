@@ -33,7 +33,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
             entity.HasOne<Device>().WithMany().HasForeignKey(s => s.DeviceId).IsRequired(false);
             entity.HasIndex(s => s.UserId).HasFilter("\"EndedAtUtc\" IS NULL").IsUnique();
-            entity.Property(s => s.Title).HasMaxLength(200);
+            entity.Property(s => s.SessionTitle).HasMaxLength(200);
             entity.Property(s => s.Context).HasMaxLength(500);
             entity.Property(s => s.Source).HasMaxLength(20);
         });

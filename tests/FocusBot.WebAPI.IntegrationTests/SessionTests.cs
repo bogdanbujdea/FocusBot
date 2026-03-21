@@ -25,8 +25,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var sessionId = Guid.NewGuid();
         var endRequest = CreateEndRequest(DeviceId: null);
 
-        var postResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Test task", null, DeviceId: null));
+        var postResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Test task", null, DeviceId: null)
+        );
         var endResponse = await client.PostAsJsonAsync($"/sessions/{sessionId}/end", endRequest);
         var activeResponse = await client.GetAsync("/sessions/active");
         var listResponse = await client.GetAsync("/sessions?page=1&pageSize=10");
@@ -48,14 +50,16 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var meResponse = await client.GetAsync("/auth/me");
         meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Integration test task", "Some hints", DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Integration test task", "Some hints", DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var startedSession = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
         startedSession.Should().NotBeNull();
-        startedSession!.TaskText.Should().Be("Integration test task");
-        startedSession.TaskHints.Should().Be("Some hints");
+        startedSession!.SessionTitle.Should().Be("Integration test task");
+        startedSession.SessionContext.Should().Be("Some hints");
         startedSession.EndedAtUtc.Should().BeNull();
 
         var activeResponse = await client.GetAsync("/sessions/active");
@@ -65,14 +69,19 @@ public class SessionTests(CustomWebApplicationFactory factory)
         activeSession.Should().NotBeNull();
         activeSession!.Id.Should().Be(startedSession.Id);
 
-        var conflictResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Second task", null, DeviceId: null));
+        var conflictResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Second task", null, DeviceId: null)
+        );
         var conflictBody = await conflictResponse.Content.ReadAsStringAsync();
 
         conflictResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
         conflictBody.Should().Contain("An active session already exists.");
 
-        var endResponse = await client.PostAsJsonAsync($"/sessions/{startedSession.Id}/end", CreateEndRequest());
+        var endResponse = await client.PostAsJsonAsync(
+            $"/sessions/{startedSession.Id}/end",
+            CreateEndRequest()
+        );
         endResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var endedSession = await endResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -86,7 +95,9 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var historyResponse = await client.GetAsync("/sessions?page=1&pageSize=10");
         historyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var history = await historyResponse.Content.ReadFromJsonAsync<PaginatedResponse<SessionResponse>>();
+        var history = await historyResponse.Content.ReadFromJsonAsync<
+            PaginatedResponse<SessionResponse>
+        >();
         history.Should().NotBeNull();
         history!.TotalCount.Should().Be(1);
         history.Items.Should().ContainSingle(s => s.Id == startedSession.Id);
@@ -108,7 +119,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var meResponse = await client.GetAsync("/auth/me");
         meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var response = await client.PostAsJsonAsync($"/sessions/{Guid.NewGuid()}/end", CreateEndRequest());
+        var response = await client.PostAsJsonAsync(
+            $"/sessions/{Guid.NewGuid()}/end",
+            CreateEndRequest()
+        );
         var body = await response.Content.ReadAsStringAsync();
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -124,17 +138,25 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var meResponse = await client.GetAsync("/auth/me");
         meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Task", null, DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Task", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
         session.Should().NotBeNull();
 
-        var firstEndResponse = await client.PostAsJsonAsync($"/sessions/{session!.Id}/end", CreateEndRequest());
+        var firstEndResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session!.Id}/end",
+            CreateEndRequest()
+        );
         firstEndResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var secondEndResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/end", CreateEndRequest());
+        var secondEndResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session.Id}/end",
+            CreateEndRequest()
+        );
         var secondEndBody = await secondEndResponse.Content.ReadAsStringAsync();
 
         secondEndResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -152,8 +174,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await ownerClient.GetAsync("/auth/me");
         await otherClient.GetAsync("/auth/me");
 
-        var startResponse = await ownerClient.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Owner session", null, DeviceId: null));
+        var startResponse = await ownerClient.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Owner session", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -162,7 +186,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         var getByIdAsOther = await otherClient.GetAsync($"/sessions/{session!.Id}");
         getByIdAsOther.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-        var endAsOther = await otherClient.PostAsJsonAsync($"/sessions/{session.Id}/end", CreateEndRequest());
+        var endAsOther = await otherClient.PostAsJsonAsync(
+            $"/sessions/{session.Id}/end",
+            CreateEndRequest()
+        );
         var endAsOtherBody = await endAsOther.Content.ReadAsStringAsync();
         endAsOther.StatusCode.Should().Be(HttpStatusCode.NotFound);
         endAsOtherBody.Should().Contain("Session not found.");
@@ -179,19 +206,25 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await ownerClient.GetAsync("/auth/me");
         await otherClient.GetAsync("/auth/me");
 
-        var otherDeviceResponse = await otherClient.PostAsJsonAsync("/devices", new RegisterDeviceRequest(
-            DeviceType.Desktop,
-            Name: "Other user's device",
-            Fingerprint: "other-user-device-fp",
-            AppVersion: "1.0.0",
-            Platform: "windows"));
+        var otherDeviceResponse = await otherClient.PostAsJsonAsync(
+            "/devices",
+            new RegisterDeviceRequest(
+                DeviceType.Desktop,
+                Name: "Other user's device",
+                Fingerprint: "other-user-device-fp",
+                AppVersion: "1.0.0",
+                Platform: "windows"
+            )
+        );
         otherDeviceResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var otherDevice = await otherDeviceResponse.Content.ReadFromJsonAsync<DeviceResponse>();
         otherDevice.Should().NotBeNull();
 
-        var startResponse = await ownerClient.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Owner session", null, DeviceId: null));
+        var startResponse = await ownerClient.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Owner session", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -199,7 +232,8 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         var endResponse = await ownerClient.PostAsJsonAsync(
             $"/sessions/{session!.Id}/end",
-            CreateEndRequest(otherDevice!.Id));
+            CreateEndRequest(otherDevice!.Id)
+        );
         var endBody = await endResponse.Content.ReadAsStringAsync();
 
         endResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -217,19 +251,25 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         await client.GetAsync("/auth/me");
 
-        var registerResponse = await client.PostAsJsonAsync("/devices", new RegisterDeviceRequest(
-            DeviceType.Desktop,
-            Name: "Owner desktop",
-            Fingerprint: "owner-desktop-fp",
-            AppVersion: "1.0.0",
-            Platform: "windows"));
+        var registerResponse = await client.PostAsJsonAsync(
+            "/devices",
+            new RegisterDeviceRequest(
+                DeviceType.Desktop,
+                Name: "Owner desktop",
+                Fingerprint: "owner-desktop-fp",
+                AppVersion: "1.0.0",
+                Platform: "windows"
+            )
+        );
         registerResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var device = await registerResponse.Content.ReadFromJsonAsync<DeviceResponse>();
         device.Should().NotBeNull();
 
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Task with device", null, DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Task with device", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -237,7 +277,8 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         var endResponse = await client.PostAsJsonAsync(
             $"/sessions/{session!.Id}/end",
-            CreateEndRequest(device!.Id));
+            CreateEndRequest(device!.Id)
+        );
 
         endResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -255,8 +296,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         // Start a session
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Pauseable task", null, DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Pauseable task", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -287,7 +330,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await Task.Delay(1100);
 
         // Resume the session
-        var resumeResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/resume", new { });
+        var resumeResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session.Id}/resume",
+            new { }
+        );
         resumeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var resumedSession = await resumeResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -307,10 +353,16 @@ public class SessionTests(CustomWebApplicationFactory factory)
 
         var nonExistentId = Guid.NewGuid();
 
-        var pauseResponse = await client.PostAsJsonAsync($"/sessions/{nonExistentId}/pause", new { });
+        var pauseResponse = await client.PostAsJsonAsync(
+            $"/sessions/{nonExistentId}/pause",
+            new { }
+        );
         pauseResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-        var resumeResponse = await client.PostAsJsonAsync($"/sessions/{nonExistentId}/resume", new { });
+        var resumeResponse = await client.PostAsJsonAsync(
+            $"/sessions/{nonExistentId}/resume",
+            new { }
+        );
         resumeResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -323,15 +375,20 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         // Start a session
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("State transition test", null, DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("State transition test", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
         session.Should().NotBeNull();
 
         // Try to resume a running session (should fail)
-        var resumeRunningResponse = await client.PostAsJsonAsync($"/sessions/{session!.Id}/resume", new { });
+        var resumeRunningResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session!.Id}/resume",
+            new { }
+        );
         var resumeRunningBody = await resumeRunningResponse.Content.ReadAsStringAsync();
         resumeRunningResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
         resumeRunningBody.Should().Contain("not paused");
@@ -341,7 +398,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         pauseResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Try to pause a paused session (should fail)
-        var pausePausedResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/pause", new { });
+        var pausePausedResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session.Id}/pause",
+            new { }
+        );
         var pausePausedBody = await pausePausedResponse.Content.ReadAsStringAsync();
         pausePausedResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
         pausePausedBody.Should().Contain("already paused");
@@ -356,8 +416,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         // Start a session
-        var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Pause then end", null, DeviceId: null));
+        var startResponse = await client.PostAsJsonAsync(
+            "/sessions",
+            new StartSessionRequest("Pause then end", null, DeviceId: null)
+        );
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -371,7 +433,10 @@ public class SessionTests(CustomWebApplicationFactory factory)
         await Task.Delay(1100);
 
         // End the paused session
-        var endResponse = await client.PostAsJsonAsync($"/sessions/{session.Id}/end", CreateEndRequest());
+        var endResponse = await client.PostAsJsonAsync(
+            $"/sessions/{session.Id}/end",
+            CreateEndRequest()
+        );
         endResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var endedSession = await endResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -383,14 +448,12 @@ public class SessionTests(CustomWebApplicationFactory factory)
     }
 
     private static EndSessionRequest CreateEndRequest(Guid? DeviceId = null) =>
-
         new(
             FocusScorePercent: 90,
             FocusedSeconds: 1800,
             DistractedSeconds: 200,
             DistractionCount: 3,
             ContextSwitchCount: 60,
-            TopDistractingApps: null,
-            TopAlignedApps: null,
-            DeviceId: DeviceId);
+            DeviceId: DeviceId
+        );
 }

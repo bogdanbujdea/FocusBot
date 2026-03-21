@@ -15,7 +15,8 @@ namespace FocusBot.WebAPI.Tests.Features.Classification;
 /// </summary>
 internal class TestDbContext : ApiDbContext
 {
-    public TestDbContext(DbContextOptions<ApiDbContext> options) : base(options) { }
+    public TestDbContext(DbContextOptions<ApiDbContext> options)
+        : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,7 +41,8 @@ internal class TestableClassificationService : ClassificationService
         ApiDbContext db,
         IConfiguration configuration,
         ILogger<ClassificationService> logger,
-        ClassifyResponse stubbedResponse)
+        ClassifyResponse stubbedResponse
+    )
         : base(db, configuration, logger)
     {
         _stubbedResponse = stubbedResponse;
@@ -50,8 +52,12 @@ internal class TestableClassificationService : ClassificationService
     public string? LastApiKey { get; private set; }
 
     protected override Task<ClassifyResponse> CallLlmAsync(
-        string apiKey, string providerId, string modelId,
-        ClassifyRequest request, CancellationToken ct)
+        string apiKey,
+        string providerId,
+        string modelId,
+        ClassifyRequest request,
+        CancellationToken ct
+    )
     {
         LlmCallCount++;
         LastApiKey = apiKey;
@@ -65,7 +71,8 @@ public class ClassificationServiceTests
 
     private static (TestDbContext Db, TestableClassificationService Service) CreateService(
         ClassifyResponse? stubbedResponse = null,
-        Dictionary<string, string?>? configOverrides = null)
+        Dictionary<string, string?>? configOverrides = null
+    )
     {
         var options = new DbContextOptionsBuilder<ApiDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -87,8 +94,16 @@ public class ClassificationServiceTests
     }
 
     private static ClassifyRequest DefaultRequest() =>
-        new("Write quarterly report", "Google Docs", "msedge", "Q3 Report - Google Docs",
-            null, null, null, null);
+        new(
+            "Write quarterly report",
+            "Google Docs",
+            "msedge",
+            "Q3 Report - Google Docs",
+            null,
+            null,
+            null,
+            null
+        );
 
     // ── Cache hit ────────────────────────────────────────────────────────────
 
@@ -99,19 +114,28 @@ public class ClassificationServiceTests
         var (db, service) = CreateService();
         var request = DefaultRequest();
         var contextHash = ClassificationService.ComputeContextHash(
-            request.ProcessName, request.WindowTitle, request.Url, request.PageTitle);
+            request.ProcessName,
+            request.WindowTitle,
+            request.Url,
+            request.PageTitle
+        );
         var taskHash = ClassificationService.ComputeTaskContentHash(
-            request.TaskText, request.TaskHints);
+            request.SessionTitle,
+            request.SessionContext
+        );
 
-        db.Set<ClassificationCache>().Add(new ClassificationCache
-        {
-            UserId = TestUserId,
-            ContextHash = contextHash,
-            TaskContentHash = taskHash,
-            Score = 9,
-            Reason = "Cached reason",
-            ExpiresAtUtc = DateTime.UtcNow.AddHours(12)
-        });
+        db.Set<ClassificationCache>()
+            .Add(
+                new ClassificationCache
+                {
+                    UserId = TestUserId,
+                    ContextHash = contextHash,
+                    TaskContentHash = taskHash,
+                    Score = 9,
+                    Reason = "Cached reason",
+                    ExpiresAtUtc = DateTime.UtcNow.AddHours(12),
+                }
+            );
         await db.SaveChangesAsync();
 
         // Act
@@ -131,19 +155,28 @@ public class ClassificationServiceTests
         var (db, service) = CreateService();
         var request = DefaultRequest();
         var contextHash = ClassificationService.ComputeContextHash(
-            request.ProcessName, request.WindowTitle, request.Url, request.PageTitle);
+            request.ProcessName,
+            request.WindowTitle,
+            request.Url,
+            request.PageTitle
+        );
         var taskHash = ClassificationService.ComputeTaskContentHash(
-            request.TaskText, request.TaskHints);
+            request.SessionTitle,
+            request.SessionContext
+        );
 
-        db.Set<ClassificationCache>().Add(new ClassificationCache
-        {
-            UserId = TestUserId,
-            ContextHash = contextHash,
-            TaskContentHash = taskHash,
-            Score = 9,
-            Reason = "Expired",
-            ExpiresAtUtc = DateTime.UtcNow.AddHours(-1)
-        });
+        db.Set<ClassificationCache>()
+            .Add(
+                new ClassificationCache
+                {
+                    UserId = TestUserId,
+                    ContextHash = contextHash,
+                    TaskContentHash = taskHash,
+                    Score = 9,
+                    Reason = "Expired",
+                    ExpiresAtUtc = DateTime.UtcNow.AddHours(-1),
+                }
+            );
         await db.SaveChangesAsync();
 
         // Act
@@ -161,10 +194,15 @@ public class ClassificationServiceTests
     {
         // Arrange
         var (_, service) = CreateService(
-            stubbedResponse: new ClassifyResponse(7, "LLM result", false));
+            stubbedResponse: new ClassifyResponse(7, "LLM result", false)
+        );
 
         // Act
-        var result = await service.ClassifyAsync(TestUserId, DefaultRequest(), byokApiKey: "test-key");
+        var result = await service.ClassifyAsync(
+            TestUserId,
+            DefaultRequest(),
+            byokApiKey: "test-key"
+        );
 
         // Assert
         result.Cached.Should().BeFalse();
@@ -178,7 +216,8 @@ public class ClassificationServiceTests
     {
         // Arrange
         var (db, service) = CreateService(
-            stubbedResponse: new ClassifyResponse(7, "Fresh result", false));
+            stubbedResponse: new ClassifyResponse(7, "Fresh result", false)
+        );
 
         // Act
         await service.ClassifyAsync(TestUserId, DefaultRequest(), byokApiKey: "test-key");
@@ -208,7 +247,15 @@ public class ClassificationServiceTests
     {
         // Arrange
         var request = new ClassifyRequest(
-            "Task", null, "code", "VS Code", null, null, "Anthropic", "claude-3-5-sonnet");
+            "Task",
+            null,
+            "code",
+            "VS Code",
+            null,
+            null,
+            "Anthropic",
+            "claude-3-5-sonnet"
+        );
         var (_, service) = CreateService();
 
         // Act
@@ -225,7 +272,11 @@ public class ClassificationServiceTests
     {
         // Arrange
         var (_, service) = CreateService(
-            configOverrides: new Dictionary<string, string?> { ["ManagedOpenAiKey"] = "sk-managed-key" });
+            configOverrides: new Dictionary<string, string?>
+            {
+                ["ManagedOpenAiKey"] = "sk-managed-key",
+            }
+        );
 
         // Act
         await service.ClassifyAsync(TestUserId, DefaultRequest(), byokApiKey: null);
@@ -241,11 +292,11 @@ public class ClassificationServiceTests
         var (_, service) = CreateService();
 
         // Act
-        var act = async () => await service.ClassifyAsync(TestUserId, DefaultRequest(), byokApiKey: null);
+        var act = async () =>
+            await service.ClassifyAsync(TestUserId, DefaultRequest(), byokApiKey: null);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*API key*");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*API key*");
     }
 
     // ── Static helpers ───────────────────────────────────────────────────────
@@ -314,8 +365,7 @@ public class ClassificationServiceTests
         var act = () => ClassificationService.ParseLlmResponse(notJson);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*invalid JSON*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*invalid JSON*");
     }
 
     [Theory]

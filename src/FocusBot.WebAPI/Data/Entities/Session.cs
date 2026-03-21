@@ -11,7 +11,7 @@ public class Session
     /// <summary>The device that started this session. Null for sessions created before device registration was available.</summary>
     public Guid? DeviceId { get; set; }
 
-    public string Title { get; set; } = string.Empty;
+    public string SessionTitle { get; set; } = string.Empty;
     public string? Context { get; set; }
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? EndedAtUtc { get; set; }

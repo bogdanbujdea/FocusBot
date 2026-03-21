@@ -1,7 +1,7 @@
 namespace FocusBot.WebAPI.Features.Sessions;
 
 /// <summary>Request body for starting a new focus session.</summary>
-public sealed record StartSessionRequest(string TaskText, string? SessionContext, Guid? DeviceId);
+public sealed record StartSessionRequest(string SessionTitle, string? SessionContext, Guid? DeviceId);
 
 /// <summary>Request body for ending an active focus session with summary metrics.</summary>
 public sealed record EndSessionRequest(

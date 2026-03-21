@@ -222,6 +222,16 @@ namespace FocusBot.App
                 return;
             }
 
+            // Ensure the backend user row exists before any feature calls.
+            // /auth/me uses get-or-create, so this is safe on every sign-in and session restore.
+            var apiClient = _services.GetRequiredService<IFocusBotApiClient>();
+            var provisioned = await apiClient.ProvisionUserAsync();
+            if (!provisioned)
+            {
+                var logger = _services.GetRequiredService<ILogger<App>>();
+                logger.LogWarning("Backend user provisioning failed; cloud features may be unavailable");
+            }
+
             var planService = _services.GetRequiredService<IPlanService>();
             await planService.RefreshAsync();
             var plan = await planService.GetCurrentPlanAsync();

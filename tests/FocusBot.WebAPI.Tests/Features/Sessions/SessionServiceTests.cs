@@ -27,8 +27,8 @@ public class SessionServiceTests
 
         result.StatusCode.Should().Be(200);
         result.Session.Should().NotBeNull();
-        result.Session!.TaskText.Should().Be("Write tests");
-        result.Session.TaskHints.Should().Be("Unit tests only");
+        result.Session!.SessionTitle.Should().Be("Write tests");
+        result.Session.SessionContext.Should().Be("Unit tests only");
         result.Session.EndedAtUtc.Should().BeNull();
         (await db.Sessions.CountAsync()).Should().Be(1);
     }
@@ -38,15 +38,14 @@ public class SessionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            UserId = userId,
-            TaskText = "Existing session"
-        });
+        db.Sessions.Add(new Session { UserId = userId, SessionTitle = "Existing session" });
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
-        var result = await service.StartSessionAsync(userId, new StartSessionRequest("New session", null, DeviceId: null));
+        var result = await service.StartSessionAsync(
+            userId,
+            new StartSessionRequest("New session", null, DeviceId: null)
+        );
 
         result.StatusCode.Should().Be(409);
         result.Error.Should().Contain("active session");
@@ -59,12 +58,14 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work"
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -74,9 +75,8 @@ public class SessionServiceTests
             DistractedSeconds: 300,
             DistractionCount: 5,
             ContextSwitchCount: 120,
-            TopDistractingApps: "[\"Slack\"]",
-            TopAlignedApps: null,
-            DeviceId: null);
+            DeviceId: null
+        );
 
         var result = await service.EndSessionAsync(userId, sessionId, endRequest);
 
@@ -88,7 +88,6 @@ public class SessionServiceTests
         result.Session.DistractedSeconds.Should().Be(300);
         result.Session.DistractionCount.Should().Be(5);
         result.Session.ContextSwitchCount.Should().Be(120);
-        result.Session.TopDistractingApps.Should().Be("[\"Slack\"]");
     }
 
     [Fact]
@@ -100,13 +99,15 @@ public class SessionServiceTests
 
         for (var i = 0; i < 5; i++)
         {
-            db.Sessions.Add(new Session
-            {
-                UserId = userId,
-                TaskText = $"Task {i}",
-                StartedAtUtc = now.AddHours(-5 + i),
-                EndedAtUtc = now.AddHours(-4 + i)
-            });
+            db.Sessions.Add(
+                new Session
+                {
+                    UserId = userId,
+                    SessionTitle = $"Task {i}",
+                    StartedAtUtc = now.AddHours(-5 + i),
+                    EndedAtUtc = now.AddHours(-4 + i),
+                }
+            );
         }
         await db.SaveChangesAsync();
 
@@ -125,12 +126,14 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work"
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -149,13 +152,15 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work",
-            PausedAtUtc = DateTime.UtcNow
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+                PausedAtUtc = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -172,14 +177,16 @@ public class SessionServiceTests
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
         var pausedAt = DateTime.UtcNow.AddSeconds(-10);
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work",
-            PausedAtUtc = pausedAt,
-            TotalPausedSeconds = 0
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+                PausedAtUtc = pausedAt,
+                TotalPausedSeconds = 0,
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -198,12 +205,14 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work"
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -220,14 +229,16 @@ public class SessionServiceTests
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
         var pausedAt = DateTime.UtcNow.AddSeconds(-20);
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work",
-            PausedAtUtc = pausedAt,
-            TotalPausedSeconds = 10
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+                PausedAtUtc = pausedAt,
+                TotalPausedSeconds = 10,
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
@@ -237,9 +248,8 @@ public class SessionServiceTests
             DistractedSeconds: 200,
             DistractionCount: 3,
             ContextSwitchCount: 60,
-            TopDistractingApps: null,
-            TopAlignedApps: null,
-            DeviceId: null);
+            DeviceId: null
+        );
 
         var result = await service.EndSessionAsync(userId, sessionId, endRequest);
 
@@ -256,12 +266,14 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        db.Sessions.Add(new Session
-        {
-            Id = sessionId,
-            UserId = userId,
-            TaskText = "Deep work"
-        });
+        db.Sessions.Add(
+            new Session
+            {
+                Id = sessionId,
+                UserId = userId,
+                SessionTitle = "Deep work",
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);

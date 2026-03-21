@@ -276,6 +276,30 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
+    public async Task<bool> ProvisionUserAsync()
+    {
+        try
+        {
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Get, "/auth/me");
+            if (request is null) return false;
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("ProvisionUser failed: {StatusCode}", response.StatusCode);
+                return false;
+            }
+
+            _logger.LogInformation("Backend user provisioned successfully");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ProvisionUser request failed");
+            return false;
+        }
+    }
+
     private async Task<HttpRequestMessage?> CreateAuthorizedRequestAsync(HttpMethod method, string path)
     {
         var token = await _authService.GetAccessTokenAsync();

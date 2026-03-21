@@ -26,7 +26,7 @@ public class SessionService(ApiDbContext db)
         var session = new Session
         {
             UserId = userId,
-            Title = request.TaskText,
+            SessionTitle = request.SessionTitle,
             Context = request.SessionContext,
             DeviceId = request.DeviceId,
             StartedAtUtc = DateTime.UtcNow,
@@ -185,7 +185,7 @@ public class SessionService(ApiDbContext db)
     private static SessionResponse ToResponse(Session s) =>
         new(
             s.Id,
-            s.Title,
+            s.SessionTitle,
             s.Context,
             s.DeviceId,
             s.StartedAtUtc,
