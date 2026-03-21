@@ -25,6 +25,6 @@ public partial class SettingsViewModel(
     [RelayCommand]
     private void Back()
     {
-        navigationService.NavigateToBoard();
+        navigationService.NavigateToHomePage();
     }
 }

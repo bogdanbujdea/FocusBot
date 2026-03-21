@@ -26,13 +26,11 @@ public class MainWindowNavigationService(IServiceProvider serviceProvider) : INa
     }
 
     /// <inheritdoc />
-    public void NavigateToBoard()
+    public void NavigateToHomePage()
     {
         if (_window == null || _boardContent == null)
             return;
         _window.Content = _boardContent;
-        if (_boardContent is FocusPage page && page.DataContext is FocusPageViewModel vm)
-            _ = vm.RefreshAiSettingsAsync();
     }
 
     /// <inheritdoc />

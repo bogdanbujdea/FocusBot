@@ -20,14 +20,11 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly ILocalSessionTracker _sessionTracker;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly IFocusBotApiClient _apiClient;
-    private readonly IAuthService? _authService;
     private readonly IDeviceService? _deviceService;
     private Guid? _backendSessionId;
     public AccountSettingsViewModel AccountSection { get; }
     private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
-
-    private static readonly string FocusBotProcessName = GetFocusBotProcessName();
 
     /// <summary>
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
@@ -218,25 +215,13 @@ public partial class FocusPageViewModel : ObservableObject
     public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
     public bool ShowMarkOverrideButton =>
-        HasCurrentFocusResult && !IsClassifying && !IsFocusBotWindow;
+        HasCurrentFocusResult && !IsClassifying && !IsNeutralApp();
 
     public string MarkOverrideButtonText
     {
         get;
         private set => SetProperty(ref field, value);
     } = "Mark as distracting";
-
-    public bool IsFocusBotWindow
-    {
-        get
-        {
-            return string.Equals(
-                CurrentProcessName,
-                FocusBotProcessName,
-                StringComparison.OrdinalIgnoreCase
-            );
-        }
-    }
 
     public bool IsExtensionConnected
     {
@@ -281,8 +266,7 @@ public partial class FocusPageViewModel : ObservableObject
         AccountSettingsViewModel accountSection,
         IIntegrationService? integrationService = null,
         IUIThreadDispatcher? uiDispatcher = null,
-        IDeviceService? deviceService = null,
-        IAuthService? authService = null
+        IDeviceService? deviceService = null
     )
     {
         _repo = repo;
@@ -297,16 +281,10 @@ public partial class FocusPageViewModel : ObservableObject
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
         _deviceService = deviceService;
-        _authService = authService;
         _windowMonitor.ForegroundWindowChanged += OnForegroundWindowChanged;
         _windowMonitor.Tick += OnTimeTrackingTick;
         _windowMonitor.UserBecameIdle += OnUserBecameIdle;
         _windowMonitor.UserBecameActive += OnUserBecameActive;
-
-        if (_authService != null)
-        {
-            _authService.AuthStateChanged += OnAuthStateChanged;
-        }
 
         if (_integrationService != null)
         {
@@ -314,29 +292,6 @@ public partial class FocusPageViewModel : ObservableObject
         }
 
         _ = LoadBoardAsync();
-    }
-
-    private void OnAuthStateChanged()
-    {
-        if (_uiDispatcher != null)
-        {
-            _ = _uiDispatcher.RunOnUIThreadAsync(async () => await RefreshAiSettingsAsync());
-            return;
-        }
-
-        _ = RefreshAiSettingsAsync();
-    }
-
-    private static string GetFocusBotProcessName()
-    {
-        try
-        {
-            return Process.GetCurrentProcess().ProcessName ?? "FocusBot.App";
-        }
-        catch
-        {
-            return "FocusBot.App";
-        }
     }
 
     private void OnTimeTrackingTick(object? sender, EventArgs e)
@@ -449,16 +404,11 @@ public partial class FocusPageViewModel : ObservableObject
 
         var sessionDescription = ActiveSession.SessionTitle;
         var sessionContext = ActiveSession.Context;
-        var isViewingFocusBot = string.Equals(
-            e.ProcessName,
-            FocusBotProcessName,
-            StringComparison.OrdinalIgnoreCase
-        );
 
-        if (isViewingFocusBot)
+        if (IsNeutralApp())
         {
-            FocusScore = 4;
-            FocusReason = "Viewing Foqus";
+            FocusScore = 5;
+            FocusReason = "You are visiting a neutral app";
             IsClassifying = false;
             HasCurrentFocusResult = true;
             UpdateSessionClassificationUI();
@@ -494,6 +444,15 @@ public partial class FocusPageViewModel : ObservableObject
                 e.WindowTitle
             );
         }
+    }
+
+    private bool IsNeutralApp()
+    {
+        return CurrentProcessName == "Foqus"
+            || CurrentProcessName == "explorer"
+            || CurrentProcessName == "StartMenuExperienceHost"
+            || CurrentProcessName == "ApplicationFrameHost"
+            || CurrentProcessName == "ShellExperienceHost";
     }
 
     private void UpdateSessionClassificationUI()
@@ -582,70 +541,14 @@ public partial class FocusPageViewModel : ObservableObject
         else
             StopMonitoringAndResetFocusState();
         UpdateMonitoringState();
-        await RefreshAiSettingsAsync();
 
         // Sync backend session state so EndSession can close it properly
         await SyncBackendSessionAsync();
     }
 
     /// <summary>
-    /// Toggles the session pause state. When paused, time tracking, window monitoring, and classification are stopped.
-    /// </summary>
-    public void ToggleSessionPause()
-    {
-        if (ActiveSession == null)
-            return;
-
-        _isSessionPaused = !_isSessionPaused;
-        OnPropertyChanged(nameof(IsSessionPaused));
-
-        if (_isSessionPaused)
-        {
-            _sessionTracker.HandleIdle(true);
-            _windowMonitor.Stop();
-        }
-        else
-        {
-            _windowMonitor.Start();
-        }
-
-        RaiseFocusOverlayStateChanged();
-    }
-
-    /// <summary>
     /// Refreshes the displayed AI provider and model from settings. Call when returning to the board so the corner label is up to date.
     /// </summary>
-    public async Task RefreshAiSettingsAsync()
-    {
-        var providerId =
-            await _settingsService.GetProviderAsync()
-            ?? LlmProviderConfig.DefaultProvider.ProviderId;
-        var modelId = await _settingsService.GetModelAsync();
-        var provider =
-            LlmProviderConfig.Providers.FirstOrDefault(p => p.ProviderId == providerId)
-            ?? LlmProviderConfig.DefaultProvider;
-        AiProviderDisplay = provider.DisplayName;
-        if (string.IsNullOrEmpty(modelId))
-        {
-            AiModelDisplay =
-                LlmProviderConfig.Models.TryGetValue(providerId, out var models) && models.Count > 0
-                    ? models[0].DisplayName
-                    : string.Empty;
-        }
-        else
-        {
-            AiModelDisplay = LlmProviderConfig.Models.TryGetValue(providerId, out var models)
-                ? models.FirstOrDefault(m => m.ModelId == modelId)?.DisplayName ?? modelId
-                : modelId;
-        }
-        OnPropertyChanged(nameof(AiProviderAndModelDisplay));
-        IsAiConfigured = _apiClient.IsConfigured;
-        if (IsAiConfigured)
-            AiRequestError = string.Empty;
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
-        OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-    }
-
     [RelayCommand(CanExecute = nameof(CanStartSession))]
     private async Task StartSessionAsync()
     {

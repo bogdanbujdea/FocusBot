@@ -8,7 +8,7 @@ public interface INavigationService
     /// <summary>
     /// Navigates to the Focus page (main board view).
     /// </summary>
-    void NavigateToBoard();
+    void NavigateToHomePage();
 
     /// <summary>
     /// Navigates to the Settings view.

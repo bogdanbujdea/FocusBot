@@ -20,7 +20,6 @@ public sealed partial class FocusPage : Page
         if (DataContext is not FocusPageViewModel vm)
             return;
         vm.RefreshExtensionConnectionState();
-        _ = vm.RefreshAiSettingsAsync();
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         _ = InitializeFirstRunAsync(vm);
     }
@@ -46,7 +45,8 @@ public sealed partial class FocusPage : Page
         }
     }
 
-    private void OnShowHowItWorksRequested(object? sender, EventArgs e) => _ = ShowHowItWorksDialogAsync();
+    private void OnShowHowItWorksRequested(object? sender, EventArgs e) =>
+        _ = ShowHowItWorksDialogAsync();
 
     private async Task<ContentDialogResult> ShowHowItWorksDialogAsync()
     {
@@ -56,4 +56,3 @@ public sealed partial class FocusPage : Page
         return await dialog.ShowAsync();
     }
 }
-

@@ -185,10 +185,6 @@ namespace FocusBot.App
         }
 
         /// <summary>
-        /// Called when auth state changes. Refreshes the plan and, if on a cloud plan,
-        /// registers the device and starts the 60-second heartbeat timer.
-        /// </summary>
-        /// <summary>
         /// Called when the auth service determines the refresh token is exhausted and the user
         /// must authenticate again. Stops background services and navigates to Settings.
         /// </summary>
@@ -229,7 +225,9 @@ namespace FocusBot.App
             if (!provisioned)
             {
                 var logger = _services.GetRequiredService<ILogger<App>>();
-                logger.LogWarning("Backend user provisioning failed; cloud features may be unavailable");
+                logger.LogWarning(
+                    "Backend user provisioning failed; cloud features may be unavailable"
+                );
             }
 
             var planService = _services.GetRequiredService<IPlanService>();
