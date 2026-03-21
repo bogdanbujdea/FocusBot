@@ -200,36 +200,89 @@ const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<
       const payload = envelope.payload as DesktopForegroundPayload | undefined;
       if (!payload) break;
 
-      const session = await loadActiveSession();
-      if (!session || session.pausedAt) break;
+      const desktopDomain = payload.processName || "desktop-app";
+      const desktopTitle = payload.windowTitle || payload.processName;
+      const visitToken = createId();
 
-      const settings = await loadSettings();
-      try {
-        const result = await classifyDesktopApp(settings, session.taskText, payload.processName, payload.windowTitle, session.taskHints);
+      // Phase 1: Immediately finalize current visit and create a "classifying" desktop
+      // visit so metrics stop accumulating aligned time during the API call.
+      let taskText = "";
+      let taskHints: string | undefined;
 
-        updateDesktopContext({
-          processName: payload.processName,
-          windowTitle: payload.windowTitle,
-          classification: result.classification,
-          reason: result.reason ?? "",
-          timestamp: Date.now()
-        });
+      await runExclusive(async () => {
+        updateBrowserForeground(false);
+        const session = await loadActiveSession();
+        if (!session || session.pausedAt) return;
 
-        sendFocusStatus({
-          taskId: session.sessionId,
-          classification: result.classification,
-          reason: result.reason ?? "",
-          score: result.classification === "aligned" ? 8 : 2,
-          focusScorePercent: calculateLiveSummary(session).focusPercentage,
-          contextType: "desktop",
-          contextTitle: `${payload.processName} - ${payload.windowTitle}`
-        });
+        taskText = session.taskText;
+        taskHints = session.taskHints;
 
+        const transitionAt = nowIso();
+        if (session.currentVisit?.tabId !== undefined && session.currentVisit.tabId >= 0) {
+          await sendDistractionAlert(session.currentVisit.tabId, { show: false });
+        }
+        finalizeCurrentVisit(session, transitionAt);
+
+        session.currentVisit = {
+          visitToken,
+          tabId: -1,
+          url: `desktop://${desktopDomain}`,
+          domain: desktopDomain,
+          title: desktopTitle,
+          enteredAt: transitionAt,
+          visitState: "classifying",
+          classification: undefined,
+          confidence: undefined,
+          reason: ""
+        };
+        await saveActiveSession(session);
         await broadcastStateUpdate();
+      });
+
+      if (!taskText) break;
+
+      // Phase 2: Classify the desktop app and update the visit with the result.
+      try {
+        const settings = await loadSettings();
+        const result = await classifyDesktopApp(settings, taskText, payload.processName, payload.windowTitle, taskHints);
+
+        await runExclusive(async () => {
+          const session = await loadActiveSession();
+          if (!session || session.pausedAt) return;
+          if (session.currentVisit?.visitToken !== visitToken) return;
+
+          session.currentVisit = {
+            ...session.currentVisit,
+            visitState: "classified",
+            classification: result.classification,
+            confidence: result.confidence ?? 0.8,
+            reason: result.reason ?? ""
+          };
+          await saveActiveSession(session);
+
+          updateDesktopContext({
+            processName: payload.processName,
+            windowTitle: payload.windowTitle,
+            classification: result.classification,
+            reason: result.reason ?? "",
+            timestamp: Date.now()
+          });
+
+          sendFocusStatus({
+            taskId: session.sessionId,
+            classification: result.classification,
+            reason: result.reason ?? "",
+            score: result.classification === "aligned" ? 8 : 2,
+            focusScorePercent: calculateLiveSummary(session).focusPercentage,
+            contextType: "desktop",
+            contextTitle: `${payload.processName} - ${payload.windowTitle}`
+          });
+
+          await broadcastStateUpdate();
+        });
       } catch (err) {
         console.error("[Integration] Desktop classification failed:", err);
       }
-      updateBrowserForeground(false);
       break;
     }
 
@@ -585,12 +638,17 @@ const classifyAndApplyVisit = async (
 
 const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
   runExclusive(async () => {
-    updateBrowserForeground(true);
     const session = await loadActiveSession();
     if (!session || tab.id === undefined || !tab.url || !isTrackableUrl(tab.url)) {
       return;
     }
     if (session.pausedAt) {
+      return;
+    }
+
+    // Don't replace a desktop visit when the browser is not the focused window.
+    // Tab events (onUpdated, onActivated) can fire for background tabs.
+    if (session.currentVisit?.tabId === -1 && !getIntegrationState().browserInForeground) {
       return;
     }
 
@@ -980,8 +1038,12 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    updateBrowserForeground(false);
     return;
   }
+
+  updateBrowserForeground(true);
+  updateDesktopContext(undefined);
 
   const [tab] = await chrome.tabs.query({ active: true, windowId });
   if (tab) {

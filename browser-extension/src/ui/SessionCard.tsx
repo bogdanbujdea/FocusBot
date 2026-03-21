@@ -50,18 +50,7 @@ const formatMmSs = (seconds: number): string => {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 };
 
-const BASE_FRAGMENTATION_SEGMENTS = [
-  { kind: "aligned" as const, width: 22 },
-  { kind: "distracted" as const, width: 4 },
-  { kind: "aligned" as const, width: 18 },
-  { kind: "distracted" as const, width: 5 },
-  { kind: "aligned" as const, width: 20 },
-  { kind: "distracted" as const, width: 5 },
-  { kind: "aligned" as const, width: 26 }
-] as const;
 
-const BASE_FRAGMENTATION_ALIGNED_TOTAL = 86;
-const BASE_FRAGMENTATION_DISTRACTED_TOTAL = 14;
 
 const MiniFocusGauge = ({ percentage }: { percentage: number }): JSX.Element => {
   const size = 60;
@@ -137,7 +126,9 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
   const showDesktopContext = Boolean(desktopCtx) && integration?.browserInForeground === false;
 
   const currentState = showDesktopContext
-    ? (desktopCtx!.classification === "aligned" ? "Aligned" : "Distracting")
+    ? (desktopCtx!.classification === "aligned" ? "Aligned"
+      : desktopCtx!.classification === "distracting" ? "Distracting"
+      : "Neutral")
     : classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification, active?.currentVisit?.score);
   const isPaused = Boolean(active?.pausedAt);
   const statusClass =
@@ -189,32 +180,11 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
 
   const liveAlignedSeconds = liveSummary?.alignedSeconds ?? 0;
   const liveDistractingSeconds = liveSummary?.distractingSeconds ?? 0;
-  const liveNonNeutralSeconds = liveAlignedSeconds + liveDistractingSeconds;
-  const liveAlignedPct = liveSummary
-    ? liveNonNeutralSeconds > 0
-      ? (liveAlignedSeconds / liveNonNeutralSeconds) * 100
-      : 100
-    : 0;
-  const liveDistractedPct = liveSummary ? 100 - liveAlignedPct : 0;
+  const liveTotalTracked = liveSummary?.totalTrackedSeconds ?? 0;
+  const liveDistractedPct = liveTotalTracked > 0 ? (liveDistractingSeconds / liveTotalTracked) * 100 : 0;
+  const liveAlignedPct = liveTotalTracked > 0 ? 100 - liveDistractedPct : 100;
   const liveAlignedPctRounded = Math.round(liveAlignedPct);
   const liveDistractedPctRounded = Math.max(0, 100 - liveAlignedPctRounded);
-
-  const fragmentationSegments =
-    liveSummary
-      ? BASE_FRAGMENTATION_SEGMENTS.map((seg) => {
-          const alignedScale = liveAlignedPct / BASE_FRAGMENTATION_ALIGNED_TOTAL;
-          const distractedScale = liveDistractedPct / BASE_FRAGMENTATION_DISTRACTED_TOTAL;
-          const scaledWidth =
-            seg.kind === "aligned"
-              ? seg.width * alignedScale
-              : seg.width * distractedScale;
-
-          return {
-            kind: seg.kind,
-            widthPercent: scaledWidth
-          };
-        })
-      : [];
 
   const startSession = async (): Promise<void> => {
     setBusy(true);
@@ -372,16 +342,15 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
                   <span className="fragmentation-label">Fragmentation</span>
                 </div>
 
-                <div className="fragmentation-bar" role="img" aria-label="Time fragmentation bar">
-                  {fragmentationSegments.map((seg, idx) => (
-                    <span
-                      key={`${seg.kind}-${idx}`}
-                      className={`fragmentation-segment fragmentation-segment-${seg.kind}`}
-                      style={{ width: `${seg.widthPercent}%` }}
-                    >
-                      <span className="fragmentation-sr">{seg.kind === "aligned" ? "Aligned segment" : "Distracted segment"}</span>
-                    </span>
-                  ))}
+                <div className="fragmentation-bar" role="img" aria-label={`Focus progress: ${liveAlignedPctRounded}% aligned, ${liveDistractedPctRounded}% distracted`}>
+                  <span
+                    className="fragmentation-segment fragmentation-segment-aligned"
+                    style={{ width: `${liveAlignedPctRounded}%` }}
+                  />
+                  <span
+                    className="fragmentation-segment fragmentation-segment-distracted"
+                    style={{ width: `${liveDistractedPctRounded}%` }}
+                  />
                 </div>
 
                 <div className="fragmentation-legend" aria-label="Legend">
