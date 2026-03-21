@@ -10,8 +10,8 @@ public class ExtensionPromoShould
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Msedge()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
-        RaiseForegroundWindowChanged(monitorMock, "msedge", "Some tab");
+        var (vm, orchestratorMock) = CreateViewModelWithoutIntegration(ctx);
+        RaiseOrchestratorStateChanged(orchestratorMock, "msedge", "Some tab");
 
         vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
     }
@@ -20,8 +20,8 @@ public class ExtensionPromoShould
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Chrome()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
-        RaiseForegroundWindowChanged(monitorMock, "chrome", "Some tab");
+        var (vm, orchestratorMock) = CreateViewModelWithoutIntegration(ctx);
+        RaiseOrchestratorStateChanged(orchestratorMock, "chrome", "Some tab");
 
         vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
     }
@@ -30,8 +30,8 @@ public class ExtensionPromoShould
     public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Microsoft_Edge()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
-        RaiseForegroundWindowChanged(monitorMock, "Microsoft Edge", "Some tab");
+        var (vm, orchestratorMock) = CreateViewModelWithoutIntegration(ctx);
+        RaiseOrchestratorStateChanged(orchestratorMock, "Microsoft Edge", "Some tab");
 
         vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
     }
@@ -40,8 +40,8 @@ public class ExtensionPromoShould
     public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_Firefox()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
-        RaiseForegroundWindowChanged(monitorMock, "firefox", "Some tab");
+        var (vm, orchestratorMock) = CreateViewModelWithoutIntegration(ctx);
+        RaiseOrchestratorStateChanged(orchestratorMock, "firefox", "Some tab");
 
         vm.IsForegroundBrowserEdgeOrChrome.Should().BeFalse();
     }
@@ -50,8 +50,8 @@ public class ExtensionPromoShould
     public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_NonBrowser()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, monitorMock) = CreateViewModelWithoutIntegration(ctx);
-        RaiseForegroundWindowChanged(monitorMock, "devenv", "MyFile.cs");
+        var (vm, orchestratorMock) = CreateViewModelWithoutIntegration(ctx);
+        RaiseOrchestratorStateChanged(orchestratorMock, "devenv", "MyFile.cs");
 
         vm.IsForegroundBrowserEdgeOrChrome.Should().BeFalse();
     }
@@ -62,8 +62,8 @@ public class ExtensionPromoShould
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(false);
-        var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
-        RaiseForegroundWindowChanged(monitorMock, "msedge", "Tab");
+        var (vm, orchestratorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
+        RaiseOrchestratorStateChanged(orchestratorMock, "msedge", "Tab");
 
         vm.ShowExtensionPromo.Should().BeTrue();
     }
@@ -74,8 +74,8 @@ public class ExtensionPromoShould
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(true);
-        var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
-        RaiseForegroundWindowChanged(monitorMock, "msedge", "Tab");
+        var (vm, orchestratorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
+        RaiseOrchestratorStateChanged(orchestratorMock, "msedge", "Tab");
         integrationMock.Raise(m => m.ExtensionConnectionChanged += null, integrationMock.Object, true);
 
         vm.ShowExtensionPromo.Should().BeFalse();
@@ -87,8 +87,8 @@ public class ExtensionPromoShould
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var integrationMock = new Mock<IIntegrationService>();
         integrationMock.Setup(x => x.IsExtensionConnected).Returns(false);
-        var (vm, monitorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
-        RaiseForegroundWindowChanged(monitorMock, "firefox", "Tab");
+        var (vm, orchestratorMock) = CreateViewModelWithIntegration(ctx, integrationMock.Object);
+        RaiseOrchestratorStateChanged(orchestratorMock, "firefox", "Tab");
 
         vm.ShowExtensionPromo.Should().BeFalse();
     }
@@ -105,19 +105,26 @@ public class ExtensionPromoShould
         vm.ExtensionStoreChromeUri.IsAbsoluteUri.Should().BeTrue();
     }
 
-    private static void RaiseForegroundWindowChanged(Mock<IWindowMonitorService> monitorMock, string processName, string windowTitle)
+    private static void RaiseOrchestratorStateChanged(Mock<IFocusSessionOrchestrator> orchestratorMock, string processName, string windowTitle)
     {
-        var eventArgs = new ForegroundWindowChangedEventArgs
+        var stateArgs = new FocusSessionStateChangedEventArgs
         {
-            ProcessName = processName,
-            WindowTitle = windowTitle,
+            SessionElapsedSeconds = 0,
+            FocusScorePercent = 0,
+            IsClassifying = false,
+            FocusScore = 0,
+            FocusReason = string.Empty,
+            HasCurrentFocusResult = false,
+            IsSessionPaused = false,
+            CurrentProcessName = processName,
+            CurrentWindowTitle = windowTitle,
         };
-        monitorMock.Raise(m => m.ForegroundWindowChanged += null, monitorMock.Object, eventArgs);
+        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
     }
 
-    private static (FocusPageViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithoutIntegration(FocusPageTestContext ctx)
+    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModelWithoutIntegration(FocusPageTestContext ctx)
     {
-        var monitorMock = new Mock<IWindowMonitorService>();
+        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -125,24 +132,20 @@ public class ExtensionPromoShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
-            monitorMock.Object,
             navMock.Object,
-            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            Mock.Of<ILocalSessionTracker>(),
-            Mock.Of<IAlignmentCacheRepository>(),
-            Mock.Of<IFocusBotApiClient>(),
+            orchestratorMock.Object,
             accountVm,
             integrationService: null,
             uiDispatcher: null);
-        return (vm, monitorMock);
+        return (vm, orchestratorMock);
     }
 
-    private static (FocusPageViewModel vm, Mock<IWindowMonitorService> monitorMock) CreateViewModelWithIntegration(
+    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModelWithIntegration(
         FocusPageTestContext ctx,
         IIntegrationService integrationService)
     {
-        var monitorMock = new Mock<IWindowMonitorService>();
+        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -150,16 +153,12 @@ public class ExtensionPromoShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
-            monitorMock.Object,
             navMock.Object,
-            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            Mock.Of<ILocalSessionTracker>(),
-            Mock.Of<IAlignmentCacheRepository>(),
-            Mock.Of<IFocusBotApiClient>(),
+            orchestratorMock.Object,
             accountVm,
             integrationService,
             uiDispatcher: null);
-        return (vm, monitorMock);
+        return (vm, orchestratorMock);
     }
 }

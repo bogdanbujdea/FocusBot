@@ -40,8 +40,6 @@
                 <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
                 <Run Text=" | Window Title: " FontWeight="Bold"/>
                 <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
-                <Run Text=" | Time: " FontWeight="Bold"/>
-                <Run Text="{x:Bind ViewModel.WindowElapsedTime, Mode=OneWay}"/>
             </TextBlock>
 
             <!-- Focus Status Bar (visible whenever a session is in progress, local or remote) -->

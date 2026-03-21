@@ -78,6 +78,7 @@ namespace FocusBot.App
             services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
+            services.AddSingleton<IFocusSessionOrchestrator, FocusSessionOrchestrator>();
             services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
@@ -109,13 +110,12 @@ namespace FocusBot.App
             _ = _integrationService.StartAsync();
 
             var auth = _services!.GetRequiredService<IAuthService>();
-
-            // Restore session from stored tokens on every launch (not just protocol activations).
-            _ = auth.TryRestoreSessionAsync();
-
             auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
             auth.ReAuthRequired += OnReAuthRequired;
-            _ = OnAuthStateChangedAsync();
+
+            // Restore session and refresh token BEFORE any API calls.
+            // Must await to ensure token is valid when OnAuthStateChangedAsync runs.
+            _ = InitializeAuthAsync(auth);
 
             _window.Activate();
 
@@ -204,6 +204,28 @@ namespace FocusBot.App
                 _window?.Activate();
                 navigationService.NavigateToSettings();
             });
+        }
+
+        /// <summary>
+        /// Initializes auth state at startup. Awaits session restore (including token refresh)
+        /// before triggering auth-dependent initialization like device registration.
+        /// </summary>
+        private async Task InitializeAuthAsync(IAuthService auth)
+        {
+            try
+            {
+                await auth.TryRestoreSessionAsync();
+            }
+            catch (Exception ex)
+            {
+                var logger = _services?.GetRequiredService<ILogger<App>>();
+                logger?.LogError(ex, "Failed to restore auth session at startup");
+            }
+
+            // Trigger auth-dependent initialization.
+            // TryRestoreSessionAsync fires AuthStateChanged on success, but for no-session
+            // or failed-refresh cases we need to explicitly initialize.
+            await OnAuthStateChangedAsync();
         }
 
         private async Task OnAuthStateChangedAsync()

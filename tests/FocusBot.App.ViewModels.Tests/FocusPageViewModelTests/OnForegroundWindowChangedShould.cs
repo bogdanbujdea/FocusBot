@@ -7,11 +7,11 @@ namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 public class OnForegroundWindowChangedShould
 {
     [Fact]
-    public async Task SetProcessNameAndWindowTitle_When_Foreground_Changes()
+    public async Task SetProcessNameAndWindowTitle_WhenOrchestratorStateChanges()
     {
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var monitorMock = new Mock<IWindowMonitorService>();
+        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -19,22 +19,26 @@ public class OnForegroundWindowChangedShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var vm = new FocusPageViewModel(
             ctx.Repo,
-            monitorMock.Object,
             navMock.Object,
-            Mock.Of<IClassificationService>(),
             settingsMock.Object,
-            Mock.Of<ILocalSessionTracker>(),
-            Mock.Of<IAlignmentCacheRepository>(),
-            Mock.Of<IFocusBotApiClient>(),
+            orchestratorMock.Object,
             accountVm);
-        var eventArgs = new ForegroundWindowChangedEventArgs
+
+        var stateArgs = new FocusSessionStateChangedEventArgs
         {
-            ProcessName = "devenv",
-            WindowTitle = "MyFile.cs",
+            SessionElapsedSeconds = 0,
+            FocusScorePercent = 0,
+            IsClassifying = false,
+            FocusScore = 0,
+            FocusReason = string.Empty,
+            HasCurrentFocusResult = false,
+            IsSessionPaused = false,
+            CurrentProcessName = "devenv",
+            CurrentWindowTitle = "MyFile.cs",
         };
 
         // Act
-        monitorMock.Raise(m => m.ForegroundWindowChanged += null, monitorMock.Object, eventArgs);
+        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
 
         // Assert
         vm.CurrentProcessName.Should().Be("devenv");
