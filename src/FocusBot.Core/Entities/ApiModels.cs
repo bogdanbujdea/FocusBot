@@ -4,7 +4,7 @@ namespace FocusBot.Core.Entities;
 public sealed record StartSessionPayload(
     string SessionTitle,
     string? SessionContext,
-    Guid? DeviceId
+    Guid? ClientId
 );
 
 /// <summary>Payload sent to POST /sessions/{id}/end.</summary>
@@ -16,7 +16,7 @@ public sealed record EndSessionPayload(
     int ContextSwitchCount,
     string? TopDistractingApps,
     string? TopAlignedApps,
-    Guid? DeviceId
+    Guid? ClientId
 );
 
 /// <summary>Payload sent to POST /classify. Includes optional BYOK provider/model selection.</summary>
@@ -37,7 +37,7 @@ public sealed record ApiSessionResponse(
     Guid Id,
     string SessionTitle,
     string? SessionContext,
-    Guid? DeviceId,
+    Guid? ClientId,
     DateTime StartedAtUtc,
     DateTime? EndedAtUtc
 );
@@ -53,15 +53,26 @@ public sealed record ApiSubscriptionStatus(
     DateTime? CurrentPeriodEndsAt
 );
 
-/// <summary>Response from POST /devices and PUT /devices/{id}/heartbeat.</summary>
-/// <remarks>DeviceType is an integer enum: 1 = Desktop, 2 = Extension (serialized as a number by the API).</remarks>
-public sealed record ApiDeviceResponse(
+/// <summary>Payload sent to POST /clients.</summary>
+public sealed record RegisterClientRequest(
+    ClientType ClientType,
+    ClientHost Host,
+    string Name,
+    string Fingerprint,
+    string? AppVersion,
+    string? Platform);
+
+/// <summary>Response from POST /clients and PUT /clients/{id}/heartbeat.</summary>
+/// <remarks>ClientType and Host are integer enums serialized as numbers by the API.</remarks>
+public sealed record ApiClientResponse(
     Guid Id,
-    int DeviceType,
+    int ClientType,
+    int Host,
     string Name,
     string Fingerprint,
     string? AppVersion,
     string? Platform,
+    string? IpAddress,
     DateTime LastSeenAtUtc,
     DateTime CreatedAtUtc,
     bool IsOnline

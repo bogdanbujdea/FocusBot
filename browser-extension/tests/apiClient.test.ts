@@ -92,9 +92,9 @@ describe("classifyViaWebApi", () => {
 describe("startSession", () => {
   it("sends POST to /sessions with taskText and taskHints", async () => {
     const responseBody = {
-      sessionId: "s1",
-      taskText: "code review",
-      startedAt: "2026-03-16T00:00:00Z"
+      id: "s1",
+      sessionTitle: "code review",
+      startedAtUtc: "2026-03-16T00:00:00Z"
     };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
@@ -106,14 +106,14 @@ describe("startSession", () => {
     expect(init?.method).toBe("POST");
 
     const body = JSON.parse(init?.body as string);
-    expect(body.taskText).toBe("code review");
-    expect(body.taskHints).toBe("PR #42");
+    expect(body.sessionTitle).toBe("code review");
+    expect(body.sessionContext).toBe("PR #42");
   });
 });
 
 describe("endSession", () => {
   it("sends POST to /sessions/{id}/end", async () => {
-    const responseBody = { sessionId: "s1", endedAt: "2026-03-16T01:00:00Z" };
+    const responseBody = { id: "s1", endedAtUtc: "2026-03-16T01:00:00Z" };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
     const result = await endSession("s1", { focusPercentage: 85 });

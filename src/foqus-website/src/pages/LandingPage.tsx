@@ -1,42 +1,302 @@
 import { type FormEvent, useId, useMemo, useState } from "react";
 import appIcon from "../../../FocusBot.App/Assets/1080.png";
 
-type Feature = {
-  title: string;
-  description: string;
-};
-
 type Step = {
   title: string;
   description: string;
 };
 
-const FEATURES: Feature[] = [
+type FoqusHeadIcon = "writer" | "programmer" | "excel";
+type FoqusWhereBrand = "facebook" | "excel" | "youtube";
+
+type FoqusWorkExample = {
+  id: string;
+  persona: string;
+  headIcon: FoqusHeadIcon;
+  sameTaskAsPrevious?: boolean;
+  task: string;
+  /** When false, task string is shown as-is (e.g. inner quotes on a phrase). Otherwise wrapped in outer quotation marks. */
+  taskEncloseInQuotes?: boolean;
+  where: {
+    surface: "browser" | "desktop";
+    label: string;
+    detail?: string;
+    brand: FoqusWhereBrand;
+  };
+  verdict: "focused" | "distracted";
+  why: string;
+  /** Decorative hint for YouTube rows (funny clip vs tutorial). */
+  youtubeVariant?: "fun" | "learn";
+};
+
+const FOQUS_WORK_EXAMPLES: FoqusWorkExample[] = [
   {
-    title: "Task-aware alignment (AI)",
-    description:
-      "Foqus evaluates what you're doing against your task — so the same app can be aligned for one block and distracting for another."
+    id: "writer-facebook",
+    persona: "Writer",
+    headIcon: "writer",
+    task: "Find inspiration for the \u201cSocial Media in 2026\u201d book",
+    taskEncloseInQuotes: false,
+    where: { surface: "browser", label: "facebook.com", brand: "facebook" },
+    verdict: "focused",
+    why: "Social feeds match the book topic."
   },
   {
-    title: "Catch drift before it breaks the block",
-    description:
-      "Foqus gives you a clear signal when your current app or site stops matching the task you set, so you can return before small detours turn into fragmented work."
+    id: "writer-excel",
+    persona: "Writer",
+    headIcon: "excel",
+    sameTaskAsPrevious: true,
+    task: "Find inspiration for the \u201cSocial Media in 2026\u201d book",
+    taskEncloseInQuotes: false,
+    where: { surface: "desktop", label: "Excel", detail: "Monthly budget", brand: "excel" },
+    verdict: "distracted",
+    why: "Personal finance is not book research."
   },
   {
-    title: "Analytics that reveal your triggers",
-    description:
-      "See which sites and apps break your blocks most often, how fragmented your sessions become, and how long it takes to settle back into focused work."
+    id: "dev-youtube-fun",
+    persona: "Programmer",
+    headIcon: "programmer",
+    task: "Fix the major bug today",
+    where: { surface: "browser", label: "youtube.com", detail: "Funny video", brand: "youtube" },
+    verdict: "distracted",
+    why: "Entertainment, not the bug.",
+    youtubeVariant: "fun"
+  },
+  {
+    id: "dev-youtube-learn",
+    persona: "Programmer",
+    headIcon: "programmer",
+    sameTaskAsPrevious: true,
+    task: "Fix the major bug today",
+    where: { surface: "browser", label: "youtube.com", detail: "JavaScript tutorial", brand: "youtube" },
+    verdict: "focused",
+    why: "Learning that can unblock the fix.",
+    youtubeVariant: "learn"
+  }
+];
+
+const ANTI_POSITIONING: { headline: string; body: string }[] = [
+  {
+    headline: "It doesn't block anything.",
+    body: "Foqus gives you a signal when you drift. You decide what to do with it."
+  },
+  {
+    headline: "It doesn't assume YouTube is bad.",
+    body: "Every app and page is evaluated against your current task, not a hardcoded category list."
+  },
+  {
+    headline: "It doesn't guilt you.",
+    body: "Focus score is feedback, not punishment. Take a break when you need one."
   }
 ];
 
 const STEPS: Step[] = [
-  { title: "Set your task", description: "Name the outcome you want from this focus block." },
-  { title: "Stay aligned as you work", description: "Foqus quietly checks whether your activity still matches that intent across websites and Windows apps." },
-  { title: "Learn from each block", description: "See what pulled you off track so your next block stays sharper." }
+  {
+    title: "Name your task",
+    description: 'Examples: "Write the Q2 plan", "Review pull requests", "Take a break".'
+  },
+  {
+    title: "Work naturally",
+    description: "Foqus watches your browser tabs and Windows apps — one session, full picture."
+  },
+  {
+    title: "Get the signal",
+    description:
+      "Foqus shows Focused or Distracted when you drift (you do not set those labels yourself), plus a session summary when you are done."
+  }
 ];
 
+type WaitlistSignupFormProps = {
+  formId?: string;
+  emailFieldId: string;
+  className?: string;
+  submitButtonClassName?: string;
+  email: string;
+  onEmailChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  isSubmitting: boolean;
+  canSubmit: boolean;
+  submittedEmail: string | null;
+  submitError: string | null;
+};
+
+function WaitlistSignupForm({
+  formId,
+  emailFieldId,
+  className,
+  submitButtonClassName,
+  email,
+  onEmailChange,
+  onSubmit,
+  isSubmitting,
+  canSubmit,
+  submittedEmail,
+  submitError
+}: WaitlistSignupFormProps) {
+  return (
+    <form id={formId} className={className} onSubmit={onSubmit} aria-label="Join the Foqus waitlist">
+      <label className="label" htmlFor={emailFieldId}>
+        Email
+      </label>
+      <div className="waitlist-row">
+        <input
+          id={emailFieldId}
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          disabled={isSubmitting}
+        />
+        <input
+          className="waitlist-honeypot"
+          tabIndex={-1}
+          aria-hidden="true"
+          autoComplete="off"
+          name="company"
+          type="text"
+          defaultValue=""
+        />
+        <button type="submit" className={submitButtonClassName} disabled={!canSubmit || isSubmitting}>
+          {isSubmitting ? "Joining..." : "Get early access"}
+        </button>
+      </div>
+      <p className="trust-note muted">One email when it launches. No spam.</p>
+      {submittedEmail ? (
+        <p className="muted" role="status">
+          Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
+        </p>
+      ) : submitError ? (
+        <p className="muted" role="status">
+          {submitError}
+        </p>
+      ) : (
+        <p className="muted" role="status">
+          For people who want cleaner time blocks, fewer detours, and more meaningful work done.
+        </p>
+      )}
+    </form>
+  );
+}
+
+function IconExampleHead({ kind }: { kind: FoqusHeadIcon }) {
+  const cls = "foqus-head-icon-svg";
+  if (kind === "writer") {
+    return (
+      <span className="foqus-head-icon foqus-head-icon--writer" aria-hidden="true">
+        <svg className={cls} width={26} height={26} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2C10.5 5 7 6.5 7 11a5 5 0 0 0 10 0c0-4.5-3.5-6-5-9z"
+            fill="currentColor"
+            opacity={0.85}
+          />
+          <path d="M12 16v5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (kind === "excel") {
+    return (
+      <span className="foqus-head-icon foqus-head-icon--excel" aria-hidden="true">
+        <svg className={cls} width={26} height={26} viewBox="0 0 24 24" fill="none">
+          <rect x={3} y={3} width={18} height={18} rx={3} fill="#217346" />
+          <path d="M7 8h4v4H7V8zm6 0h4v4h-4V8zM7 14h4v4H7v-4zm6 0h4v4h-4v-4z" fill="#fff" opacity={0.95} />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className="foqus-head-icon foqus-head-icon--programmer" aria-hidden="true">
+      <svg className={cls} width={26} height={26} viewBox="0 0 24 24" fill="none">
+        <path
+          d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 6l-4 12"
+          stroke="currentColor"
+          strokeWidth={1.85}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function IconWhereBrand({ brand }: { brand: FoqusWhereBrand }) {
+  if (brand === "facebook") {
+    return (
+      <span className="foqus-brand-icon foqus-brand-icon--facebook" aria-hidden="true">
+        <svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+          <circle cx={12} cy={12} r={11} fill="#1877F2" />
+          <path
+            fill="#fff"
+            d="M15.5 8h-1.4c-1.7 0-2 .9-2 1.7V11h3.4l-.5 2.9H12V22H9v-8.1H7V11h2V9.3c0-2.4 1.2-4 3.8-4 1.1 0 2 .1 2.3.1V8z"
+          />
+        </svg>
+      </span>
+    );
+  }
+  if (brand === "excel") {
+    return (
+      <span className="foqus-brand-icon foqus-brand-icon--excel" aria-hidden="true">
+        <svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+          <rect x={2} y={2} width={20} height={20} rx={3} fill="#217346" />
+          <path d="M7 7h4v4H7V7zm6 0h4v4h-4V7zM7 13h4v4H7v-4zm6 0h4v4h-4v-4z" fill="#fff" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className="foqus-brand-icon foqus-brand-icon--youtube" aria-hidden="true">
+      <svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+        <rect x={2} y={5} width={20} height={14} rx={3} fill="#FF0000" />
+        <path d="M10 9.5v5l4.5-2.5L10 9.5z" fill="#fff" />
+      </svg>
+    </span>
+  );
+}
+
+function FoqusExampleVerdictBadge({ verdict }: { verdict: "focused" | "distracted" }) {
+  const label = verdict === "focused" ? "Focused" : "Distracted";
+  if (verdict === "focused") {
+    return (
+      <span className="foqus-card-verdict foqus-card-verdict--focused" aria-label={`Foqus: ${label}`}>
+        <svg className="foqus-card-verdict-glyph" width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="foqus-card-verdict foqus-card-verdict--distracted" aria-label={`Foqus: ${label}`}>
+      <svg className="foqus-card-verdict-glyph" width={14} height={14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2L2 20h20L12 2zm1 15h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+      </svg>
+      {label}
+    </span>
+  );
+}
+
+function FoqusExampleWhyIcon({ verdict }: { verdict: "focused" | "distracted" }) {
+  if (verdict === "focused") {
+    return (
+      <svg className="foqus-why-glyph" width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx={12} cy={12} r={10} stroke="currentColor" strokeWidth={2} />
+        <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="foqus-why-glyph" width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx={12} cy={12} r={10} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function LandingPage() {
-  const emailId = useId();
+  const emailIdHero = useId();
+  const emailIdFooter = useId();
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,61 +361,47 @@ export function LandingPage() {
         </nav>
       </header>
 
-      <main className="landing-main">
+      <main className="landing-main landing-main--wide">
         <section className="landing-hero" aria-labelledby="hero-title">
           <div className="landing-hero-inner">
             <div className="landing-hero-left">
               <div className="landing-hero-copy">
-                <h1 id="hero-title">Supercharge your brain and reach your goals with full focus.</h1>
+                <h1 id="hero-title">The first focus tool that understands what you are working on.</h1>
                 <p className="landing-lede">
-                  One task per block, with a clear signal when you drift so you can recover before the block fragments. Task-aware across Windows apps and
-                  websites — no manual whitelists.
+                  Foqus uses AI to evaluate whether your current app or website actually matches your task — across your desktop and browser, in one session.
+                  No whitelists, no assumptions, no nagging.
                 </p>
-                <div className="landing-hero-actions">
-                  <a className="btn btn-primary" href="#waitlist">
-                    Get early access
-                  </a>
-                  <a className="btn btn-secondary" href="#how-it-works">
-                    How it works
-                  </a>
+                <div className="landing-hero-waitlist">
+                  <WaitlistSignupForm
+                    formId="waitlist-hero"
+                    emailFieldId={emailIdHero}
+                    className="waitlist-form waitlist-form--hero"
+                    submitButtonClassName="btn btn-primary"
+                    email={email}
+                    onEmailChange={setEmail}
+                    onSubmit={onSubmit}
+                    isSubmitting={isSubmitting}
+                    canSubmit={canSubmit}
+                    submittedEmail={submittedEmail}
+                    submitError={submitError}
+                  />
                 </div>
-                <p className="landing-note">
-                  Passive by default. Task-aware. Built for deep work.
-                </p>
-              </div>
-
-              <div className="hero-built-for" aria-label="Built for focused blocks">
-                <h3 className="hero-built-for-title">Built for focused blocks</h3>
-                <div className="role-grid role-grid-compact" aria-label="Work types">
-                  <span className="role-pill">Coding</span>
-                  <span className="role-pill">Writing</span>
-                  <span className="role-pill">Planning</span>
-                  <span className="role-pill">Research</span>
-                  <span className="role-pill">Strategy</span>
-                  <span className="role-pill">Design</span>
-                </div>
-              </div>
-
-              <div className="landing-hero-why-foqus">
-                <h3 className="why-foqus-title">Why Foqus</h3>
-                <ul className="why-foqus-list">
-                  <li className="why-foqus-item">
-                    <span className="why-foqus-bullet" aria-hidden="true">●</span>
-                    <span className="why-foqus-text">Catch drift before the block is diluted</span>
-                  </li>
-                  <li className="why-foqus-item">
-                    <span className="why-foqus-bullet" aria-hidden="true">●</span>
-                    <span className="why-foqus-text">Task-aware across Windows apps + websites</span>
-                  </li>
-                </ul>
               </div>
             </div>
 
             <div className="landing-hero-preview" aria-label="Status preview">
               <div className="preview-card">
                 <div className="preview-card-header">
-                  <span className="preview-title">Current Focus Session</span>
-                  <span className="preview-pill preview-pill-aligned">Aligned</span>
+                  <div className="preview-card-header-text">
+                    <span className="preview-title">Current Focus Session</span>
+                    <span className="preview-card-subtitle">
+                      You choose the task for the block. Foqus sets Focused or Distracted from what you are actually on — not something you toggle.
+                    </span>
+                  </div>
+                  <div className="preview-classification-block">
+                    <span className="preview-classification-label">Foqus</span>
+                    <span className="preview-pill preview-pill-aligned">Focused</span>
+                  </div>
                 </div>
                 <div className="preview-context">
                   <span className="preview-context-label">Current website</span>
@@ -187,45 +433,28 @@ export function LandingPage() {
                     <span className="preview-metric-value">00:38</span>
                   </div>
                 </div>
-                <div className="fragmentation" aria-label="Fragmentation">
-                  <div className="fragmentation-header">
-                    <span className="fragmentation-label">Fragmentation</span>
+                <div className="focus-split" aria-label="Focus time split">
+                  <div className="focus-split-header">
+                    <span className="focus-split-label">Focus split</span>
                   </div>
                   <div
-                    className="fragmentation-bar"
-                    role="img"
-                    aria-label="Time fragmentation: 86 percent aligned, 14 percent distracted"
+                    className="focus-split-bar"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={86}
+                    aria-label="Session focus: 86 percent focused, 14 percent distracted"
                   >
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "22%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "4%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "18%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "5%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "20%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "5%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "26%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
+                    <div className="focus-split-progress-fill" style={{ width: "86%" }} />
                   </div>
-                  <div className="fragmentation-legend" aria-label="Legend">
-                    <div className="fragmentation-legend-item">
-                      <span className="fragmentation-dot fragmentation-dot-aligned" aria-hidden="true" />
-                      <span className="fragmentation-legend-text">Aligned 86%</span>
+                  <div className="focus-split-legend" aria-label="Focused and distracted percentages">
+                    <div className="focus-split-legend-item">
+                      <span className="focus-split-dot focus-split-dot-focused" aria-hidden="true" />
+                      <span className="focus-split-legend-text">Focused 86%</span>
                     </div>
-                    <div className="fragmentation-legend-item">
-                      <span className="fragmentation-dot fragmentation-dot-distracted" aria-hidden="true" />
-                      <span className="fragmentation-legend-text">Distracted 14%</span>
+                    <div className="focus-split-legend-item">
+                      <span className="focus-split-dot focus-split-dot-distracted" aria-hidden="true" />
+                      <span className="focus-split-legend-text">Distracted 14%</span>
                     </div>
                   </div>
                 </div>
@@ -240,62 +469,136 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section" aria-labelledby="not-timer-title">
-          <div className="landing-section-header">
-            <h2 id="not-timer-title">Not another pomodoro timer</h2>
-            <p className="muted">
-              Foqus doesn't just count time. It uses AI to understand your task and checks whether your current app or website still matches what you
-              intended to do — without you manually maintaining whitelists.
+        <section className="landing-section landing-section--examples" aria-labelledby="examples-title">
+          <div className="landing-section-header landing-section-header--xl examples-section-intro">
+            <h2 id="examples-title" className="examples-section-title">
+              Examples
+            </h2>
+            <p className="examples-section-subtitle muted">
+              See how Foqus classifies your focus depending on what you&rsquo;re working on.
             </p>
           </div>
-          <article className="card">
-            <h3 className="card-title">Example: intent-aware, not rule-based</h3>
-            <div className="compare">
-              <div className="compare-panel">
-                <div className="compare-header">
-                  <span className="compare-title">Traditional apps</span>
-                  <span className="compare-badge">Rule-based</span>
+
+          <ul className="foqus-examples" aria-label="Four persona examples">
+            {FOQUS_WORK_EXAMPLES.map((ex) => (
+              <li key={ex.id} className={`foqus-example foqus-example--${ex.verdict}`}>
+                <header className="foqus-example-head">
+                  <div className="foqus-example-head-left">
+                    <IconExampleHead kind={ex.headIcon} />
+                    <div className="foqus-example-head-text">
+                      <p className="foqus-persona-line">
+                        You&rsquo;re a <strong className="foqus-persona-role">{ex.persona}</strong>
+                      </p>
+                      {ex.sameTaskAsPrevious ? <span className="foqus-same-task-badge">Same task</span> : null}
+                    </div>
+                  </div>
+                  <FoqusExampleVerdictBadge verdict={ex.verdict} />
+                </header>
+                <div className="foqus-example-body">
+                  <p className="foqus-example-task">
+                    <span className="foqus-example-task-label">Your task</span>
+                    <span className="foqus-quote">
+                      {ex.taskEncloseInQuotes === false ? (
+                        ex.task
+                      ) : (
+                        <>
+                          &ldquo;{ex.task}&rdquo;
+                        </>
+                      )}
+                    </span>
+                  </p>
+                  <div className={`foqus-where-strip foqus-where-strip--${ex.where.brand}`}>
+                    <IconWhereBrand brand={ex.where.brand} />
+                    <div className="foqus-where-strip-text">
+                      <span className="foqus-where-label">{ex.where.label}</span>
+                      {ex.where.detail ? <span className="foqus-where-detail">{ex.where.detail}</span> : null}
+                    </div>
+                    {ex.youtubeVariant === "fun" ? (
+                      <div className="foqus-yt-thumb" aria-hidden="true">
+                        <span className="foqus-yt-thumb-play" />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-                <ul className="compare-list">
-                  <li>Needs per-task allow / block lists</li>
-                  <li>Makes generic assumptions about apps and categories</li>
-                  <li>Can nag or guilt you when you "break the rules"</li>
-                </ul>
+                <p className={`foqus-example-why foqus-example-why--${ex.verdict}`}>
+                  <FoqusExampleWhyIcon verdict={ex.verdict} />
+                  <span className="foqus-why-copy">{ex.why}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="coverage-callout" aria-labelledby="coverage-callout-title">
+          <h3 id="coverage-callout-title" className="visually-hidden">
+            One session across browser and desktop
+          </h3>
+          <div className="coverage-callout-inner" aria-hidden="true">
+            <div className="coverage-node coverage-node--browser">
+              <span className="coverage-node-label">Extension</span>
+              <span className="coverage-node-sub">Browser tabs</span>
+            </div>
+            <div className="coverage-join">
+              <span className="coverage-join-line" />
+              <span className="coverage-join-badge">One session</span>
+              <span className="coverage-join-line" />
+            </div>
+            <div className="coverage-node coverage-node--desktop">
+              <span className="coverage-node-label">Windows app</span>
+              <span className="coverage-node-sub">Foreground apps</span>
+            </div>
+          </div>
+          <p className="coverage-callout-copy">Browser tabs and desktop apps, tracked together in one focus session.</p>
+        </section>
+
+        <section className="landing-section landing-section--anti" aria-labelledby="anti-title">
+          <div className="landing-section-header landing-section-header--xl">
+            <h2 id="anti-title">Not another blocker</h2>
+            <p className="muted landing-section-lede">Foqus is built for people who are tired of being judged by their tools.</p>
+          </div>
+          <ul className="anti-list">
+            {ANTI_POSITIONING.map((item) => (
+              <li key={item.headline} className="anti-item">
+                <p className="anti-headline">{item.headline}</p>
+                <p className="anti-body muted">{item.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="landing-section landing-section--analytics" aria-labelledby="learn-title">
+          <div className="landing-section-header landing-section-header--xl">
+            <h2 id="learn-title">What you learn from each session</h2>
+            <p className="muted landing-section-lede">
+              Every block teaches you something. See which apps pull you off track, how fast you recover, and how your focus patterns change over time.
+            </p>
+          </div>
+          <div className="analytics-preview">
+            <div className="analytics-preview-grid">
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Focus score</span>
+                <span className="preview-metric-value preview-metric-value-aligned">86%</span>
               </div>
-              <div className="compare-panel compare-panel-foqus">
-                <div className="compare-header">
-                  <span className="compare-title">Foqus</span>
-                  <span className="compare-badge compare-badge-foqus">AI task-aware</span>
-                </div>
-                <ul className="compare-list">
-                  <li>No manual whitelisting per task</li>
-                  <li>Evaluates alignment based on your intent</li>
-                  <li>Supports deep work and intentional breaks</li>
-                </ul>
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Context switches</span>
+                <span className="preview-metric-value">3</span>
+              </div>
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Avg recovery</span>
+                <span className="preview-metric-value">00:38</span>
+              </div>
+              <div className="preview-metric analytics-metric analytics-metric--wide">
+                <span className="preview-metric-label">Top drift triggers</span>
+                <span className="preview-metric-value">Slack, email</span>
               </div>
             </div>
-          </article>
-        </section>
-
-        <section className="landing-section" aria-labelledby="features-title">
-          <div className="landing-section-header">
-            <h2 id="features-title">Built for real focused work</h2>
-            <p className="muted">Glassy UI, subtle borders, and information you can scan at a glance.</p>
-          </div>
-          <div className="card-grid">
-            {FEATURES.map((f) => (
-              <article key={f.title} className="card">
-                <h3 className="card-title">{f.title}</h3>
-                <p className="muted">{f.description}</p>
-              </article>
-            ))}
           </div>
         </section>
 
-        <section id="how-it-works" className="landing-section" aria-labelledby="how-title">
-          <div className="landing-section-header">
+        <section id="how-it-works" className="landing-section landing-section--steps" aria-labelledby="how-title">
+          <div className="landing-section-header landing-section-header--xl">
             <h2 id="how-title">How it works</h2>
-            <p className="muted">Three steps. No ceremony.</p>
+            <p className="muted landing-section-lede">Three steps. No ceremony.</p>
           </div>
           <ol className="step-grid">
             {STEPS.map((s, index) => (
@@ -304,7 +607,7 @@ export function LandingPage() {
                   {index + 1}
                 </div>
                 <div className="step-content">
-                  <h3 className="card-title">{s.title}</h3>
+                  <h3 className="step-title">{s.title}</h3>
                   <p className="muted">{s.description}</p>
                 </div>
               </li>
@@ -312,57 +615,25 @@ export function LandingPage() {
           </ol>
         </section>
 
-        <section id="waitlist" className="landing-section landing-cta" aria-labelledby="cta-title">
-          <div className="landing-section-header">
-            <h2 id="cta-title">Get early access to Foqus</h2>
-            <p className="muted">Join the waitlist for early access when Foqus launches.</p>
+        <section className="landing-section landing-cta landing-cta--footer" aria-labelledby="cta-title">
+          <div className="landing-section-header landing-section-header--center landing-section-header--xl">
+            <h2 id="cta-title">Be the first to try a focus tool that actually gets it.</h2>
+            <p className="muted landing-section-lede">Join the waitlist for early access when Foqus launches.</p>
           </div>
 
-          <div className="cta-card card">
-            <form className="waitlist-form" onSubmit={onSubmit}>
-              <label className="label" htmlFor={emailId}>
-                Email
-              </label>
-              <div className="waitlist-row">
-                <input
-                  id={emailId}
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <input
-                  className="waitlist-honeypot"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  autoComplete="off"
-                  name="company"
-                  type="text"
-                  defaultValue=""
-                />
-                <button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Joining..." : "Get early access"}
-                </button>
-              </div>
-              <p className="trust-note muted">One email when it launches. No spam.</p>
-              {submittedEmail ? (
-                <p className="muted" role="status">
-                  Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
-                </p>
-              ) : submitError ? (
-                <p className="muted" role="status">
-                  {submitError}
-                </p>
-              ) : (
-                <p className="muted" role="status">
-                  For people who want cleaner time blocks, fewer detours, and more meaningful work done.
-                </p>
-              )}
-            </form>
+          <div className="cta-card card cta-card--narrow">
+            <WaitlistSignupForm
+              formId="waitlist"
+              emailFieldId={emailIdFooter}
+              className="waitlist-form"
+              email={email}
+              onEmailChange={setEmail}
+              onSubmit={onSubmit}
+              isSubmitting={isSubmitting}
+              canSubmit={canSubmit}
+              submittedEmail={submittedEmail}
+              submitError={submitError}
+            />
           </div>
         </section>
       </main>

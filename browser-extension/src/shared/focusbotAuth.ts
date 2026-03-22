@@ -46,7 +46,10 @@ export const clearFocusbotAuthSession = async (): Promise<void> => {
     STORAGE_KEY_SUPABASE_ACCESS,
     STORAGE_KEY_SUPABASE_REFRESH,
     STORAGE_KEY_SUPABASE_EMAIL,
+    APP_KEYS.clientId,
+    APP_KEYS.clientFingerprint,
     APP_KEYS.deviceId,
+    APP_KEYS.deviceFingerprint,
     APP_KEYS.serverSessionId
   ]);
 };

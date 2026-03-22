@@ -26,14 +26,18 @@ public interface IFocusBotApiClient
     // Subscriptions
     Task<ApiSubscriptionStatus?> GetSubscriptionStatusAsync();
 
-    // Devices
-    Task<ApiDeviceResponse?> RegisterDeviceAsync(string name, string fingerprint);
+    // Clients
+    Task<ApiClientResponse?> RegisterClientAsync(
+        string name,
+        string fingerprint,
+        ClientType clientType = ClientType.Desktop,
+        ClientHost host = ClientHost.Windows);
     /// <summary>
     /// Sends a heartbeat PUT. Returns the HTTP status code, or null on a network/exception failure.
     /// Automatically retries once after a token refresh on 401.
     /// </summary>
-    Task<HttpStatusCode?> SendHeartbeatAsync(Guid deviceId);
-    Task<bool> DeregisterDeviceAsync(Guid deviceId);
+    Task<HttpStatusCode?> SendHeartbeatAsync(Guid clientId);
+    Task<bool> DeregisterClientAsync(Guid clientId);
 
     // Account
     /// <summary>

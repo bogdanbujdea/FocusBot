@@ -8,8 +8,8 @@ public class Session
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
 
-    /// <summary>The device that started this session. Null for sessions created before device registration was available.</summary>
-    public Guid? DeviceId { get; set; }
+    /// <summary>The client that started this session. Null for sessions created before client registration was available.</summary>
+    public Guid? ClientId { get; set; }
 
     public string SessionTitle { get; set; } = string.Empty;
     public string? Context { get; set; }

@@ -39,8 +39,9 @@ import {
   endCloudSession,
   getSubscriptionStatus,
   sendHeartbeat,
-  deregisterDevice,
-  registerDevice,
+  deregisterClient,
+  registerClient,
+  getClientHostFromUserAgent,
   fetchCurrentUser
 } from "../shared/apiClient";
 import {
@@ -94,14 +95,18 @@ const openSidePanelForAuthWindow = async (sender: chrome.runtime.MessageSender):
 };
 
 // ---------------------------------------------------------------------------
-// Device helpers
+// Client helpers
 // ---------------------------------------------------------------------------
 
 const HEARTBEAT_ALARM_NAME = "focusbot-heartbeat";
 
-const getStoredDeviceId = async (): Promise<string | null> => {
-  const result = await chrome.storage.local.get(APP_KEYS.deviceId);
-  return (result[APP_KEYS.deviceId] as string) ?? null;
+const getStoredClientId = async (): Promise<string | null> => {
+  const result = await chrome.storage.local.get([APP_KEYS.clientId, APP_KEYS.deviceId]);
+  let id = (result[APP_KEYS.clientId] as string) ?? (result[APP_KEYS.deviceId] as string) ?? null;
+  if (id && !result[APP_KEYS.clientId]) {
+    await chrome.storage.local.set({ [APP_KEYS.clientId]: id });
+  }
+  return id;
 };
 
 const getStoredServerSessionId = async (): Promise<string | null> => {
@@ -119,32 +124,43 @@ const getBrowserName = (): string => {
 };
 
 /**
- * Registers the extension as a device and stores the returned deviceId.
+ * Registers the extension as a client and stores the returned client id.
  * Uses a stable fingerprint (UUID that persists in storage).
  */
-const ensureDeviceRegistered = async (): Promise<void> => {
-  const existingDeviceId = await getStoredDeviceId();
-  if (existingDeviceId) return;
+const ensureClientRegistered = async (): Promise<void> => {
+  const existingClientId = await getStoredClientId();
+  if (existingClientId) return;
 
-  let fingerprint = (await chrome.storage.local.get(APP_KEYS.deviceFingerprint))[APP_KEYS.deviceFingerprint] as
+  const stored = await chrome.storage.local.get([
+    APP_KEYS.clientFingerprint,
+    APP_KEYS.deviceFingerprint
+  ]);
+  let fingerprint = (stored[APP_KEYS.clientFingerprint] ?? stored[APP_KEYS.deviceFingerprint]) as
     | string
     | undefined;
   if (!fingerprint) {
     fingerprint = crypto.randomUUID();
-    await chrome.storage.local.set({ [APP_KEYS.deviceFingerprint]: fingerprint });
   }
+  await chrome.storage.local.set({
+    [APP_KEYS.clientFingerprint]: fingerprint,
+    [APP_KEYS.deviceFingerprint]: fingerprint
+  });
 
   const manifest = chrome.runtime.getManifest();
-  const result = await registerDevice({
-    deviceType: "Extension",
+  const result = await registerClient({
+    clientType: "Extension",
+    host: getClientHostFromUserAgent(),
     name: getBrowserName(),
     fingerprint,
     appVersion: manifest.version,
     platform: navigator.userAgent
   });
 
-  if (result?.deviceId) {
-    await chrome.storage.local.set({ [APP_KEYS.deviceId]: result.deviceId });
+  if (result?.id) {
+    await chrome.storage.local.set({
+      [APP_KEYS.clientId]: result.id,
+      [APP_KEYS.deviceId]: result.id
+    });
     await chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
   }
 };
@@ -882,18 +898,18 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     void captureCurrentActiveTab();
 
     // Submit cloud session start for all signed-in users.
-    const deviceId = await getStoredDeviceId();
-    void startCloudSession(session.taskText, deviceId, session.taskHints)
+    const clientId = await getStoredClientId();
+    void startCloudSession(session.taskText, clientId, session.taskHints)
       .then(async (cloudSession) => {
-        if (cloudSession?.sessionId) {
-          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.sessionId });
+        if (cloudSession?.id) {
+          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.id });
         }
       })
       .catch(async () => {
         await enqueueOfflineItem({
           id: createId(),
           type: "session-start",
-          payload: { taskText: session.taskText, taskHints: session.taskHints, deviceId, localSessionId: session.sessionId },
+          payload: { taskText: session.taskText, taskHints: session.taskHints, clientId, localSessionId: session.sessionId },
           createdAt: nowIso(),
           retryCount: 0
         });
@@ -1023,15 +1039,15 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
 
     // Submit cloud session end for all signed-in users.
     const serverSessionId = await getStoredServerSessionId();
-    const deviceId = await getStoredDeviceId();
+    const clientId = await getStoredClientId();
     if (serverSessionId) {
       const summaryPayload = session.summary as unknown as Record<string, unknown>;
-      void endCloudSession(serverSessionId, summaryPayload, deviceId)
+      void endCloudSession(serverSessionId, summaryPayload, clientId)
         .catch(async () => {
           await enqueueOfflineItem({
             id: createId(),
             type: "session-end",
-            payload: { serverSessionId, summary: summaryPayload, deviceId },
+            payload: { serverSessionId, summary: summaryPayload, clientId },
             createdAt: nowIso(),
             retryCount: 0
           });
@@ -1098,9 +1114,9 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "GET_INTEGRATION_STATE":
       return { ok: true, data: getIntegrationState() };
     case "SIGN_OUT": {
-      const deviceIdToDeregister = await getStoredDeviceId();
-      if (deviceIdToDeregister) {
-        void deregisterDevice(deviceIdToDeregister).catch(() => {});
+      const clientIdToDeregister = await getStoredClientId();
+      if (clientIdToDeregister) {
+        void deregisterClient(clientIdToDeregister).catch(() => {});
       }
       await clearFocusbotAuthSession();
       await chrome.alarms.clear(HEARTBEAT_ALARM_NAME);
@@ -1148,7 +1164,7 @@ const finalizeFocusbotSignInAfterTokensStored = async (email: string | undefined
     await patchSettings({ plan: planMap[sub.planType] ?? "free-byok" });
   }
 
-  await ensureDeviceRegistered();
+  await ensureClientRegistered();
 
   await broadcastStateUpdate();
 };
@@ -1280,12 +1296,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await startBadgeInterval();
   }
   if (alarm.name === HEARTBEAT_ALARM_NAME) {
-    const deviceId = await getStoredDeviceId();
-    if (!deviceId) return;
-    const sent = await sendHeartbeat(deviceId);
+    const clientId = await getStoredClientId();
+    if (!clientId) return;
+    const sent = await sendHeartbeat(clientId);
     if (!sent) {
       // 404 means device was removed — re-register on next startup.
-      await chrome.storage.local.remove(APP_KEYS.deviceId);
+      await chrome.storage.local.remove([APP_KEYS.clientId, APP_KEYS.deviceId]);
     }
   }
 });
@@ -1296,7 +1312,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await captureCurrentActiveTab();
   const session = await loadFocusbotAuthSession();
   if (session) {
-    void ensureDeviceRegistered();
+    void ensureClientRegistered();
     void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
   }
 });
@@ -1333,7 +1349,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await captureCurrentActiveTab();
   const session = await loadFocusbotAuthSession();
   if (session) {
-    void ensureDeviceRegistered();
+    void ensureClientRegistered();
     void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
   }
 });

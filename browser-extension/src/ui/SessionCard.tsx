@@ -335,32 +335,36 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
               </div>
 
               <div
-                className="fragmentation"
-                aria-label={`Time fragmentation: ${liveAlignedPctRounded} percent aligned, ${liveDistractedPctRounded} percent distracted`}
+                className="focus-split"
+                aria-label={`Focus time split: ${liveAlignedPctRounded} percent focused, ${liveDistractedPctRounded} percent distracted`}
               >
-                <div className="fragmentation-header">
-                  <span className="fragmentation-label">Fragmentation</span>
+                <div className="focus-split-header">
+                  <span className="focus-split-label">Focus split</span>
                 </div>
 
-                <div className="fragmentation-bar" role="img" aria-label={`Focus progress: ${liveAlignedPctRounded}% aligned, ${liveDistractedPctRounded}% distracted`}>
+                <div
+                  className="focus-split-bar"
+                  role="img"
+                  aria-label={`Session focus: ${liveAlignedPctRounded}% focused, ${liveDistractedPctRounded}% distracted`}
+                >
                   <span
-                    className="fragmentation-segment fragmentation-segment-aligned"
+                    className="focus-split-segment focus-split-segment-focused"
                     style={{ width: `${liveAlignedPctRounded}%` }}
                   />
                   <span
-                    className="fragmentation-segment fragmentation-segment-distracted"
+                    className="focus-split-segment focus-split-segment-distracted"
                     style={{ width: `${liveDistractedPctRounded}%` }}
                   />
                 </div>
 
-                <div className="fragmentation-legend" aria-label="Legend">
-                  <div className="fragmentation-legend-item">
-                    <span className="fragmentation-dot fragmentation-dot-aligned" aria-hidden="true" />
-                    <span className="fragmentation-legend-text">Aligned {liveAlignedPctRounded}%</span>
+                <div className="focus-split-legend" aria-label="Focused and distracted percentages">
+                  <div className="focus-split-legend-item">
+                    <span className="focus-split-dot focus-split-dot-focused" aria-hidden="true" />
+                    <span className="focus-split-legend-text">Focused {liveAlignedPctRounded}%</span>
                   </div>
-                  <div className="fragmentation-legend-item">
-                    <span className="fragmentation-dot fragmentation-dot-distracted" aria-hidden="true" />
-                    <span className="fragmentation-legend-text">Distracted {liveDistractedPctRounded}%</span>
+                  <div className="focus-split-legend-item">
+                    <span className="focus-split-dot focus-split-dot-distracted" aria-hidden="true" />
+                    <span className="focus-split-legend-text">Distracted {liveDistractedPctRounded}%</span>
                   </div>
                 </div>
               </div>

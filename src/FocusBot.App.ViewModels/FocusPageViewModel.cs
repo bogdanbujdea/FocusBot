@@ -14,6 +14,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly ISettingsService _settingsService;
     private readonly IFocusSessionOrchestrator _sessionOrchestrator;
+    private readonly IFocusHubClient _focusHubClient;
     public AccountSettingsViewModel AccountSection { get; }
 
     /// <summary>
@@ -155,6 +156,7 @@ public partial class FocusPageViewModel : ObservableObject
         INavigationService navigationService,
         ISettingsService settingsService,
         IFocusSessionOrchestrator sessionOrchestrator,
+        IFocusHubClient focusHubClient,
         AccountSettingsViewModel accountSection,
         FocusStatusViewModel status,
         IIntegrationService? integrationService = null,
@@ -164,12 +166,18 @@ public partial class FocusPageViewModel : ObservableObject
         _navigationService = navigationService;
         _settingsService = settingsService;
         _sessionOrchestrator = sessionOrchestrator;
+        _focusHubClient = focusHubClient;
         AccountSection = accountSection;
         Status = status;
         _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
 
         _sessionOrchestrator.StateChanged += OnOrchestratorStateChanged;
+
+        _focusHubClient.SessionStarted += OnFocusHubSessionStarted;
+        _focusHubClient.SessionEnded += OnFocusHubSessionEnded;
+        _focusHubClient.SessionPaused += OnFocusHubSessionPaused;
+        _focusHubClient.SessionResumed += OnFocusHubSessionResumed;
 
         if (_integrationService != null)
         {
@@ -237,6 +245,7 @@ public partial class FocusPageViewModel : ObservableObject
             }
             else
             {
+                _sessionOrchestrator.StopLocalTrackingIfActive();
                 ResetFocusState();
             }
 
@@ -245,6 +254,99 @@ public partial class FocusPageViewModel : ObservableObject
         finally
         {
             IsSessionBusy = false;
+        }
+    }
+
+    private void OnFocusHubSessionStarted(SessionStartedEvent e)
+    {
+        void Handle()
+        {
+            if (ActiveSession != null && ActiveSession.SessionId == e.SessionId.ToString())
+                return;
+
+            _ = LoadBoardAsync();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Handle();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Handle();
+        }
+    }
+
+    private void OnFocusHubSessionEnded(SessionEndedEvent e)
+    {
+        void Handle()
+        {
+            _ = LoadBoardAsync();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Handle();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Handle();
+        }
+    }
+
+    private void OnFocusHubSessionPaused(SessionPausedEvent e)
+    {
+        void Handle()
+        {
+            if (ActiveSession == null || ActiveSession.SessionId != e.SessionId.ToString())
+                return;
+
+            PauseSession();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Handle();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Handle();
+        }
+    }
+
+    private void OnFocusHubSessionResumed(SessionResumedEvent e)
+    {
+        void Handle()
+        {
+            if (ActiveSession == null || ActiveSession.SessionId != e.SessionId.ToString())
+                return;
+
+            ResumeSession();
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Handle();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Handle();
         }
     }
 

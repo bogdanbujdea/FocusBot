@@ -14,7 +14,7 @@ import { api } from "../api/client";
 import type {
   AnalyticsSummaryResponse,
   AnalyticsTrendsResponse,
-  AnalyticsDevicesResponse,
+  AnalyticsClientsResponse,
   SessionResponse,
   PaginatedResponse,
 } from "../api/types";
@@ -44,9 +44,7 @@ export function AnalyticsPage() {
     null
   );
   const [trends, setTrends] = useState<AnalyticsTrendsResponse | null>(null);
-  const [devices, setDevices] = useState<AnalyticsDevicesResponse | null>(
-    null
-  );
+  const [clients, setClients] = useState<AnalyticsClientsResponse | null>(null);
   const [sessions, setSessions] =
     useState<PaginatedResponse<SessionResponse> | null>(null);
   const [page, setPage] = useState(1);
@@ -73,14 +71,14 @@ export function AnalyticsPage() {
           to,
           granularity: granularityForPreset(preset),
         }),
-        api.getAnalyticsDevices({ from, to }),
+        api.getAnalyticsClients({ from, to }),
         api.getSessions({ page, pageSize: 10, from, to }),
       ]);
 
       if (!cancelled) {
         setSummary(s);
         setTrends(t);
-        setDevices(d);
+        setClients(d);
         setSessions(sess);
         setLoading(false);
       }
@@ -93,7 +91,7 @@ export function AnalyticsPage() {
 
   const trendData = (trends?.dataPoints ?? []).map(mapTrendDataPointForChart);
 
-  const deviceData = (devices?.devices ?? []).map((d) => ({
+  const clientData = (clients?.clients ?? []).map((d) => ({
     ...d,
     focusedMinutes: Math.round(d.focusedSeconds / 60),
     distractedMinutes: Math.round(d.distractedSeconds / 60),
@@ -102,8 +100,7 @@ export function AnalyticsPage() {
   const s = summary;
   const hasSessions = (s?.totalSessions ?? 0) > 0;
   const focusPct = s?.averageFocusScorePercent ?? 0;
-  const trackedSeconds =
-    (s?.totalFocusedSeconds ?? 0) + (s?.totalDistractedSeconds ?? 0);
+  const trackedSeconds = s?.totalActiveSeconds ?? 0;
   const avgDistractionSec = averageDistractionDurationSeconds(
     s?.totalDistractedSeconds ?? 0,
     s?.totalDistractionCount ?? 0
@@ -249,12 +246,12 @@ export function AnalyticsPage() {
             </section>
           )}
 
-          {deviceData.length > 0 && (
+          {clientData.length > 0 && (
             <section className="chart-section">
-              <h2 className="section-title">Device breakdown</h2>
+              <h2 className="section-title">Client breakdown</h2>
               <div className="chart-container">
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={deviceData}>
+                  <BarChart data={clientData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="rgba(255,255,255,0.06)"

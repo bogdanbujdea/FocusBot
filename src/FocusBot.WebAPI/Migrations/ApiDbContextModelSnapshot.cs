@@ -17,7 +17,7 @@ namespace FocusBot.WebAPI.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -60,7 +60,7 @@ namespace FocusBot.WebAPI.Migrations
                     b.ToTable("ClassificationCaches");
                 });
 
-            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Device", b =>
+            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Client", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -69,16 +69,23 @@ namespace FocusBot.WebAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<int>("ClientType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DeviceType")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Fingerprint")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Host")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
 
                     b.Property<DateTime>("LastSeenAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -100,12 +107,15 @@ namespace FocusBot.WebAPI.Migrations
                     b.HasIndex("UserId", "Fingerprint")
                         .IsUnique();
 
-                    b.ToTable("Devices");
+                    b.ToTable("Clients");
                 });
 
             modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Session", b =>
                 {
                     b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ClientId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Context")
@@ -114,9 +124,6 @@ namespace FocusBot.WebAPI.Migrations
 
                     b.Property<int?>("ContextSwitchCount")
                         .HasColumnType("integer");
-
-                    b.Property<Guid?>("DeviceId")
-                        .HasColumnType("uuid");
 
                     b.Property<long?>("DistractedSeconds")
                         .HasColumnType("bigint");
@@ -157,7 +164,7 @@ namespace FocusBot.WebAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DeviceId");
+                    b.HasIndex("ClientId");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -241,7 +248,7 @@ namespace FocusBot.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Device", b =>
+            modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Client", b =>
                 {
                     b.HasOne("FocusBot.WebAPI.Data.Entities.User", "User")
                         .WithMany()
@@ -254,9 +261,9 @@ namespace FocusBot.WebAPI.Migrations
 
             modelBuilder.Entity("FocusBot.WebAPI.Data.Entities.Session", b =>
                 {
-                    b.HasOne("FocusBot.WebAPI.Data.Entities.Device", null)
+                    b.HasOne("FocusBot.WebAPI.Data.Entities.Client", null)
                         .WithMany()
-                        .HasForeignKey("DeviceId");
+                        .HasForeignKey("ClientId");
 
                     b.HasOne("FocusBot.WebAPI.Data.Entities.User", "User")
                         .WithMany()

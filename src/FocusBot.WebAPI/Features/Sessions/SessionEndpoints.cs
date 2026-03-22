@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using FocusBot.WebAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace FocusBot.WebAPI.Features.Sessions;
 
@@ -52,6 +54,7 @@ public static class SessionEndpoints
     private static async Task<IResult> StartSession(
         StartSessionRequest request,
         SessionService service,
+        IHubContext<FocusHub, IFocusHubClient> hub,
         HttpContext ctx,
         CancellationToken ct
     )
@@ -59,15 +62,21 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var result = await service.StartSessionAsync(userId, request, ct);
 
-        return result.StatusCode == 409
-            ? Results.Conflict(new { error = result.Error })
-            : Results.Created($"/sessions/{result.Session!.Id}", result.Session);
+        if (result.StatusCode == 409)
+            return Results.Conflict(new { error = result.Error });
+
+        var s = result.Session!;
+        await hub.Clients.Group(userId.ToString()).SessionStarted(
+            new SessionStartedEvent(s.Id, s.SessionTitle, s.SessionContext, s.StartedAtUtc, s.Source));
+
+        return Results.Created($"/sessions/{s.Id}", s);
     }
 
     private static async Task<IResult> EndSession(
         Guid id,
         EndSessionRequest request,
         SessionService service,
+        IHubContext<FocusHub, IFocusHubClient> hub,
         HttpContext ctx,
         CancellationToken ct
     )
@@ -75,21 +84,28 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var result = await service.EndSessionAsync(userId, id, request, ct);
 
-        return result.StatusCode switch
+        if (result.StatusCode != 200)
         {
-            403 => Results.Json(
-                new { error = result.Error },
-                statusCode: StatusCodes.Status403Forbidden
-            ),
-            404 => Results.NotFound(new { error = result.Error }),
-            409 => Results.Conflict(new { error = result.Error }),
-            _ => Results.Ok(result.Session),
-        };
+            return result.StatusCode switch
+            {
+                403 => Results.Json(new { error = result.Error }, statusCode: StatusCodes.Status403Forbidden),
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.Ok(result.Session),
+            };
+        }
+
+        var s = result.Session!;
+        await hub.Clients.Group(userId.ToString()).SessionEnded(
+            new SessionEndedEvent(s.Id, s.EndedAtUtc!.Value, s.Source));
+
+        return Results.Ok(s);
     }
 
     private static async Task<IResult> PauseSession(
         Guid id,
         SessionService service,
+        IHubContext<FocusHub, IFocusHubClient> hub,
         HttpContext ctx,
         CancellationToken ct
     )
@@ -97,17 +113,27 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var result = await service.PauseSessionAsync(userId, id, ct);
 
-        return result.StatusCode switch
+        if (result.StatusCode != 200)
         {
-            404 => Results.NotFound(new { error = result.Error }),
-            409 => Results.Conflict(new { error = result.Error }),
-            _ => Results.Ok(result.Session),
-        };
+            return result.StatusCode switch
+            {
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.Ok(result.Session),
+            };
+        }
+
+        var s = result.Session!;
+        await hub.Clients.Group(userId.ToString()).SessionPaused(
+            new SessionPausedEvent(s.Id, s.PausedAtUtc!.Value, s.Source));
+
+        return Results.Ok(s);
     }
 
     private static async Task<IResult> ResumeSession(
         Guid id,
         SessionService service,
+        IHubContext<FocusHub, IFocusHubClient> hub,
         HttpContext ctx,
         CancellationToken ct
     )
@@ -115,12 +141,21 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var result = await service.ResumeSessionAsync(userId, id, ct);
 
-        return result.StatusCode switch
+        if (result.StatusCode != 200)
         {
-            404 => Results.NotFound(new { error = result.Error }),
-            409 => Results.Conflict(new { error = result.Error }),
-            _ => Results.Ok(result.Session),
-        };
+            return result.StatusCode switch
+            {
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.Ok(result.Session),
+            };
+        }
+
+        var s = result.Session!;
+        await hub.Clients.Group(userId.ToString()).SessionResumed(
+            new SessionResumedEvent(s.Id, s.Source));
+
+        return Results.Ok(s);
     }
 
     private static async Task<IResult> GetActiveSession(
@@ -132,7 +167,9 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var session = await service.GetActiveSessionAsync(userId, ct);
 
-        return session is not null ? Results.Ok(session) : Results.NotFound();
+        return session is null
+            ? Results.Content("null", "application/json")
+            : Results.Json(session);
     }
 
     private static async Task<IResult> GetSessions(
@@ -140,7 +177,7 @@ public static class SessionEndpoints
         HttpContext ctx,
         int page = 1,
         int pageSize = 20,
-        Guid? deviceId = null,
+        Guid? clientId = null,
         DateTime? from = null,
         DateTime? to = null,
         string? sessionTitle = null,
@@ -150,7 +187,7 @@ public static class SessionEndpoints
     )
     {
         var userId = GetUserId(ctx);
-        var filter = new SessionFilter(deviceId, from, to, sessionTitle, sortBy, sortOrder);
+        var filter = new SessionFilter(clientId, from, to, sessionTitle, sortBy, sortOrder);
         var result = await service.GetSessionsAsync(userId, page, pageSize, filter, ct);
         return Results.Ok(result);
     }

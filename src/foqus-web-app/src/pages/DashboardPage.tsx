@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
+import { connectFocusHub, disconnectFocusHub } from "../api/signalr";
+import { useAuth } from "../auth/useAuth";
 import type { AnalyticsSummaryResponse, SessionResponse } from "../api/types";
 import { KpiCard } from "../components/KpiCard";
 import { SessionTimer } from "../components/SessionTimer";
@@ -16,6 +18,7 @@ import {
 import "./DashboardPage.css";
 
 export function DashboardPage() {
+  const { session } = useAuth();
   const [summary, setSummary] = useState<AnalyticsSummaryResponse | null>(
     null
   );
@@ -68,6 +71,25 @@ export function DashboardPage() {
     }, 5000);
     return () => window.clearInterval(id);
   }, [activeSession, refreshActive]);
+
+  useEffect(() => {
+    if (!session) return;
+    void connectFocusHub({
+      onSessionStarted: () => {
+        void refreshActive();
+        void loadTodayData();
+      },
+      onSessionEnded: () => {
+        void refreshActive();
+        void loadTodayData();
+      },
+      onSessionPaused: () => void refreshActive(),
+      onSessionResumed: () => void refreshActive(),
+    });
+    return () => {
+      void disconnectFocusHub();
+    };
+  }, [session, refreshActive, loadTodayData]);
 
   async function handleStart() {
     const title = sessionTitle.trim();
@@ -161,8 +183,7 @@ export function DashboardPage() {
   const s = summary;
   const hasSessions = (s?.totalSessions ?? 0) > 0;
   const focusPct = s?.averageFocusScorePercent ?? 0;
-  const trackedSeconds =
-    (s?.totalFocusedSeconds ?? 0) + (s?.totalDistractedSeconds ?? 0);
+  const trackedSeconds = s?.totalActiveSeconds ?? 0;
   const avgDistractionSec = averageDistractionDurationSeconds(
     s?.totalDistractedSeconds ?? 0,
     s?.totalDistractionCount ?? 0

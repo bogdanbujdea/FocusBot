@@ -24,6 +24,7 @@ public class OnForegroundWindowChangedShould
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
+            Mock.Of<IFocusHubClient>(),
             accountVm,
             statusBar);
 

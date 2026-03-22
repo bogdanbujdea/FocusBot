@@ -12,7 +12,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<ClassificationCache> ClassificationCaches => Set<ClassificationCache>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
-    public DbSet<Device> Devices => Set<Device>();
+    public DbSet<Client> Clients => Set<Client>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,7 +31,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasKey(s => s.Id);
             entity.Property(s => s.Id).ValueGeneratedNever();
             entity.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
-            entity.HasOne<Device>().WithMany().HasForeignKey(s => s.DeviceId).IsRequired(false);
+            entity.HasOne<Client>().WithMany().HasForeignKey(s => s.ClientId).IsRequired(false);
             entity.HasIndex(s => s.UserId).HasFilter("\"EndedAtUtc\" IS NULL").IsUnique();
             entity.Property(s => s.SessionTitle).HasMaxLength(200);
             entity.Property(s => s.Context).HasMaxLength(500);
@@ -63,16 +63,17 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.Property(s => s.Status).HasMaxLength(20);
         });
 
-        modelBuilder.Entity<Device>(entity =>
+        modelBuilder.Entity<Client>(entity =>
         {
-            entity.HasKey(d => d.Id);
-            entity.Property(d => d.Id).ValueGeneratedNever();
-            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
-            entity.HasIndex(d => new { d.UserId, d.Fingerprint }).IsUnique();
-            entity.Property(d => d.Name).HasMaxLength(100);
-            entity.Property(d => d.Fingerprint).HasMaxLength(100);
-            entity.Property(d => d.AppVersion).HasMaxLength(50);
-            entity.Property(d => d.Platform).HasMaxLength(100);
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).ValueGeneratedNever();
+            entity.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
+            entity.HasIndex(c => new { c.UserId, c.Fingerprint }).IsUnique();
+            entity.Property(c => c.Name).HasMaxLength(100);
+            entity.Property(c => c.Fingerprint).HasMaxLength(100);
+            entity.Property(c => c.AppVersion).HasMaxLength(50);
+            entity.Property(c => c.Platform).HasMaxLength(100);
+            entity.Property(c => c.IpAddress).HasMaxLength(45);
         });
     }
 }

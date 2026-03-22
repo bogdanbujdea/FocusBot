@@ -9,15 +9,15 @@ namespace FocusBot.WebAPI.Features.Auth;
 public class AccountService(ApiDbContext db)
 {
     /// <summary>
-    /// Deletes all user data: sessions, devices, subscriptions, classification caches, and the user record.
+    /// Deletes all user data: sessions, clients, subscriptions, classification caches, and the user record.
     /// </summary>
     public async Task DeleteAccountAsync(Guid userId, CancellationToken ct = default)
     {
         var sessions = await db.Sessions.Where(s => s.UserId == userId).ToListAsync(ct);
         db.Sessions.RemoveRange(sessions);
 
-        var devices = await db.Devices.Where(d => d.UserId == userId).ToListAsync(ct);
-        db.Devices.RemoveRange(devices);
+        var clients = await db.Clients.Where(c => c.UserId == userId).ToListAsync(ct);
+        db.Clients.RemoveRange(clients);
 
         var caches = await db.ClassificationCaches.Where(c => c.UserId == userId).ToListAsync(ct);
         db.ClassificationCaches.RemoveRange(caches);

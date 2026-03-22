@@ -6,7 +6,7 @@ import type {
   PaginatedResponse,
   AnalyticsSummaryResponse,
   AnalyticsTrendsResponse,
-  AnalyticsDevicesResponse,
+  AnalyticsClientsResponse,
   ApiMutationResult,
   StartSessionRequest,
   EndSessionRequest,
@@ -145,7 +145,7 @@ export const api = {
   getSessions: (params?: {
     page?: number;
     pageSize?: number;
-    deviceId?: string;
+    clientId?: string;
     from?: string;
     to?: string;
     sessionTitle?: string;
@@ -155,7 +155,7 @@ export const api = {
     const query = buildQuery({
       page: params?.page?.toString(),
       pageSize: params?.pageSize?.toString(),
-      deviceId: params?.deviceId,
+      clientId: params?.clientId,
       from: params?.from,
       to: params?.to,
       sessionTitle: params?.sessionTitle,
@@ -173,7 +173,7 @@ export const api = {
       body: JSON.stringify({
         sessionTitle: req.sessionTitle,
         sessionContext: req.sessionContext ?? null,
-        deviceId: req.deviceId ?? null,
+        clientId: req.clientId ?? null,
       }),
     }),
 
@@ -186,7 +186,7 @@ export const api = {
         distractedSeconds: req.distractedSeconds,
         distractionCount: req.distractionCount,
         contextSwitchCount: req.contextSwitchCount,
-        deviceId: req.deviceId ?? null,
+        clientId: req.clientId ?? null,
       }),
     }),
 
@@ -203,12 +203,12 @@ export const api = {
   getAnalyticsSummary: (params?: {
     from?: string;
     to?: string;
-    deviceId?: string;
+    clientId?: string;
   }) => {
     const query = buildQuery({
       from: params?.from,
       to: params?.to,
-      deviceId: params?.deviceId,
+      clientId: params?.clientId,
     });
     return apiFetch<AnalyticsSummaryResponse>(`/analytics/summary${query}`);
   },
@@ -217,22 +217,22 @@ export const api = {
     from?: string;
     to?: string;
     granularity?: string;
-    deviceId?: string;
+    clientId?: string;
   }) => {
     const query = buildQuery({
       from: params?.from,
       to: params?.to,
       granularity: params?.granularity,
-      deviceId: params?.deviceId,
+      clientId: params?.clientId,
     });
     return apiFetch<AnalyticsTrendsResponse>(`/analytics/trends${query}`);
   },
 
-  getAnalyticsDevices: (params?: { from?: string; to?: string }) => {
+  getAnalyticsClients: (params?: { from?: string; to?: string }) => {
     const query = buildQuery({
       from: params?.from,
       to: params?.to,
     });
-    return apiFetch<AnalyticsDevicesResponse>(`/analytics/devices${query}`);
+    return apiFetch<AnalyticsClientsResponse>(`/analytics/clients${query}`);
   },
 };

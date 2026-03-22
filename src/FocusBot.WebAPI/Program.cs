@@ -3,15 +3,15 @@ using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Analytics;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
-using FocusBot.WebAPI.Features.Devices;
+using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Features.Sessions;
 using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Features.Waitlist;
+using FocusBot.WebAPI.Hubs;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -47,9 +47,28 @@ builder
             ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
             IssuerSigningKeyResolver = jwksService.ResolveSigningKeys,
         };
+
+        // SignalR WebSocket and SSE transports cannot send Authorization headers,
+        // so the client passes the token as an "access_token" query parameter instead.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization();
+
+// ── SignalR ──────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -66,12 +85,13 @@ builder.Services.AddCors(options =>
             {
                 policy
                     .WithOrigins(allowedOrigins)
-                    .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
-                    .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             }
             else
             {
-                policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+                policy.SetIsOriginAllowed(_ => true).AllowCredentials().AllowAnyHeader().AllowAnyMethod();
             }
         }
     );
@@ -143,7 +163,7 @@ builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<WaitlistService>();
-builder.Services.AddScoped<DeviceService>();
+builder.Services.AddScoped<ClientService>();
 builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -188,6 +208,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
+app.MapHub<FocusHub>("/hubs/focus");
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok("Foqus API"));
 app.MapAuthEndpoints();
@@ -195,7 +216,7 @@ app.MapSessionEndpoints();
 app.MapClassificationEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapWaitlistEndpoints();
-app.MapDevicesEndpoints();
+app.MapClientsEndpoints();
 app.MapAnalyticsEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────

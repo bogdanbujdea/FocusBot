@@ -24,11 +24,11 @@ public class AnalyticsTests(CustomWebApplicationFactory factory)
 
         var summaryResponse = await client.GetAsync("/analytics/summary");
         var trendsResponse = await client.GetAsync("/analytics/trends");
-        var devicesResponse = await client.GetAsync("/analytics/devices");
+        var clientsResponse = await client.GetAsync("/analytics/clients");
 
         summaryResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         trendsResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        devicesResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        clientsResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class AnalyticsTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Analytics test", null, DeviceId: null));
+            new StartSessionRequest("Analytics test", null, ClientId: null));
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -86,7 +86,7 @@ public class AnalyticsTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Trend test", null, DeviceId: null));
+            new StartSessionRequest("Trend test", null, ClientId: null));
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
 
         await client.PostAsJsonAsync($"/sessions/{session!.Id}/end",
@@ -102,19 +102,19 @@ public class AnalyticsTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
-    public async Task GetDevices_ReturnsEmptyList_WhenNoDeviceSessions()
+    public async Task GetClients_ReturnsEmptyList_WhenNoClientSessions()
     {
         var userId = Guid.NewGuid();
         var client = CreateAuthenticatedClient(userId);
 
         await client.GetAsync("/auth/me");
 
-        var devicesResponse = await client.GetAsync("/analytics/devices");
-        devicesResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var clientsResponse = await client.GetAsync("/analytics/clients");
+        clientsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var devices = await devicesResponse.Content.ReadFromJsonAsync<AnalyticsDevicesResponse>();
-        devices.Should().NotBeNull();
-        devices!.Devices.Should().BeEmpty();
+        var clients = await clientsResponse.Content.ReadFromJsonAsync<AnalyticsClientsResponse>();
+        clients.Should().NotBeNull();
+        clients!.Clients.Should().BeEmpty();
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class AnalyticsTests(CustomWebApplicationFactory factory)
         await client2.GetAsync("/auth/me");
 
         var start1 = await client1.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("User1 session", null, DeviceId: null));
+            new StartSessionRequest("User1 session", null, ClientId: null));
         var session1 = await start1.Content.ReadFromJsonAsync<SessionResponse>();
         await client1.PostAsJsonAsync($"/sessions/{session1!.Id}/end",
             new EndSessionRequest(90, 3600, 100, 1, 5, null));

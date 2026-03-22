@@ -24,10 +24,10 @@ public class AccountServiceTests
         db.Users.Add(new User { Id = userId, Email = "test@foqus.me" });
         db.Sessions.Add(new Session { UserId = userId, SessionTitle = "Test session" });
         db.Subscriptions.Add(new Subscription { UserId = userId, Status = "active" });
-        db.Devices.Add(new Device
+        db.Clients.Add(new Client
         {
             UserId = userId, Name = "Desktop", Fingerprint = "fp",
-            DeviceType = DeviceType.Desktop,
+            ClientType = ClientType.Desktop,
         });
         db.ClassificationCaches.Add(new ClassificationCache
         {
@@ -42,7 +42,7 @@ public class AccountServiceTests
         (await db.Users.CountAsync()).Should().Be(0);
         (await db.Sessions.CountAsync()).Should().Be(0);
         (await db.Subscriptions.CountAsync()).Should().Be(0);
-        (await db.Devices.CountAsync()).Should().Be(0);
+        (await db.Clients.CountAsync()).Should().Be(0);
         (await db.ClassificationCaches.CountAsync()).Should().Be(0);
     }
 

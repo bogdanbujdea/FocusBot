@@ -35,7 +35,7 @@ public class AccountTests(CustomWebApplicationFactory factory)
         await client.GetAsync("/auth/me");
 
         var startResponse = await client.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("Session to delete", null, DeviceId: null));
+            new StartSessionRequest("Session to delete", null, ClientId: null));
         startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var session = await startResponse.Content.ReadFromJsonAsync<SessionResponse>();
@@ -63,7 +63,7 @@ public class AccountTests(CustomWebApplicationFactory factory)
         await client2.GetAsync("/auth/me");
 
         var start2 = await client2.PostAsJsonAsync("/sessions",
-            new StartSessionRequest("User2 session", null, DeviceId: null));
+            new StartSessionRequest("User2 session", null, ClientId: null));
         var session2 = await start2.Content.ReadFromJsonAsync<SessionResponse>();
         await client2.PostAsJsonAsync($"/sessions/{session2!.Id}/end",
             new EndSessionRequest(90, 2400, 200, 3, 8, null));

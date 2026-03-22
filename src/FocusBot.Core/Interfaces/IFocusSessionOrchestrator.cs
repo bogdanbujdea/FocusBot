@@ -33,6 +33,12 @@ public interface IFocusSessionOrchestrator
     Task<UserSession?> LoadActiveSessionAsync();
 
     /// <summary>
+    /// Stops local monitoring and clears in-memory session state when the server has no active session
+    /// (e.g. session ended on another device). Does not call the API.
+    /// </summary>
+    void StopLocalTrackingIfActive();
+
+    /// <summary>
     /// Ends the current session. Calls the API first; on failure the local session stays active.
     /// </summary>
     /// <returns>Summary and optional API error message, or null if no active session.</returns>

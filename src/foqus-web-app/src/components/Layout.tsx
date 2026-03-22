@@ -1,13 +1,33 @@
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import "./Layout.css";
 
 export function Layout() {
   const { user, signOut } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  useEffect(() => {
+    closeSidebar();
+  }, [location.pathname, closeSidebar]);
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={closeSidebar} />
+      )}
+      <button
+        type="button"
+        className="mobile-menu-btn"
+        aria-label="Open navigation"
+        onClick={() => setSidebarOpen((o) => !o)}
+      >
+        <span className="hamburger-icon" />
+      </button>
+      <aside className={`sidebar${sidebarOpen ? " sidebar-open" : ""}`}>
         <div className="sidebar-header">
           <h1 className="logo">Foqus</h1>
         </div>

@@ -23,6 +23,7 @@ public class SessionStatisticsShould
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
+            Mock.Of<IFocusHubClient>(),
             accountVm,
             statusBar);
 

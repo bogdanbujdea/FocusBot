@@ -1,7 +1,7 @@
 namespace FocusBot.WebAPI.Features.Sessions;
 
 /// <summary>Request body for starting a new focus session.</summary>
-public sealed record StartSessionRequest(string SessionTitle, string? SessionContext, Guid? DeviceId);
+public sealed record StartSessionRequest(string SessionTitle, string? SessionContext, Guid? ClientId);
 
 /// <summary>Request body for ending an active focus session with summary metrics.</summary>
 public sealed record EndSessionRequest(
@@ -10,7 +10,7 @@ public sealed record EndSessionRequest(
     long DistractedSeconds,
     int DistractionCount,
     int ContextSwitchCount,
-    Guid? DeviceId
+    Guid? ClientId
 );
 
 /// <summary>Response DTO for a single focus session.</summary>
@@ -18,7 +18,7 @@ public sealed record SessionResponse(
     Guid Id,
     string SessionTitle,
     string? SessionContext,
-    Guid? DeviceId,
+    Guid? ClientId,
     DateTime StartedAtUtc,
     DateTime? EndedAtUtc,
     DateTime? PausedAtUtc,
@@ -34,7 +34,7 @@ public sealed record SessionResponse(
 
 /// <summary>Filter and sort parameters for session queries.</summary>
 public sealed record SessionFilter(
-    Guid? DeviceId,
+    Guid? ClientId,
     DateTime? From,
     DateTime? To,
     string? SessionTitle,

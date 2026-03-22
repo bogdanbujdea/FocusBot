@@ -67,9 +67,33 @@
       const searchParams = new URLSearchParams(window.location.search);
       const source = searchParams.get("source");
 
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const accessToken = params.get("access_token");
+      const fullHash = window.location.hash || "";
+      const hashBody = fullHash.startsWith("#") ? fullHash.slice(1) : fullHash;
+      const hashParams = new URLSearchParams(hashBody);
+      const accessToken = hashParams.get("access_token");
+
+      // Desktop app deep link: Supabase may return implicit tokens in the hash or PKCE code in the query.
+      if (source === "desktop") {
+        if (accessToken) {
+          window.location.href = "foqus://auth-callback" + fullHash;
+          return;
+        }
+        const code = searchParams.get("code");
+        if (code) {
+          const qp = new URLSearchParams();
+          qp.set("code", code);
+          const state = searchParams.get("state");
+          if (state) {
+            qp.set("state", state);
+          }
+          window.location.href = "foqus://auth-callback?" + qp.toString();
+          return;
+        }
+        statusEl.textContent =
+          "No access token or authorization code was found in this link. Please request a new magic link from Foqus.";
+        statusEl.classList.add("error");
+        return;
+      }
 
       if (!accessToken) {
         statusEl.textContent = "No access token was found in this link. Please request a new magic link from Foqus.";
@@ -77,15 +101,7 @@
         return;
       }
 
-      // Desktop app deep link: immediately redirect to foqus:// so the WinUI app can
-      // handle the Supabase callback via its protocol handler.
-      if (source === "desktop") {
-        const fullHash = window.location.hash || "";
-        window.location.href = "foqus://auth-callback" + fullHash;
-        return;
-      }
-
-      const refreshToken = params.get("refresh_token") || "";
+      const refreshToken = hashParams.get("refresh_token") || "";
 
       try {
         const response = await fetch("/auth/me", {

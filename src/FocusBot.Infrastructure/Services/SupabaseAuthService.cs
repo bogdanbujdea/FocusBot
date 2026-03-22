@@ -38,13 +38,13 @@ public class SupabaseAuthService : IAuthService
     private const string DefaultSupabaseUrl = "https://mokjfxtnqmudypnukqsv.supabase.co";
     private const string DefaultSupabasePublishableKey =
         "sb_publishable_U9dKqMzxtpms_EGvvUybCg_IKGoPc3t";
-#if DEBUG
-    private const string DefaultMagicLinkRedirectTo =
-        "http://localhost:5251/auth/callback.html?source=desktop";
-#else
-    private const string DefaultMagicLinkRedirectTo =
-        "https://api.foqus.me/auth/callback.html?source=desktop";
-#endif
+
+    /// <summary>
+    /// Magic-link redirect for the WinUI app. Must match a URL allowed in the Supabase project
+    /// (Authentication → URL Configuration → Redirect URLs). Using the HTTP shim on localhost
+    /// breaks when that URL is not whitelisted—Supabase then falls back to the Site URL.
+    /// </summary>
+    private const string DefaultMagicLinkRedirectTo = "foqus://auth-callback";
 
     /// <summary>
     /// The buffer time before token expiry at which a proactive refresh is triggered.
@@ -97,7 +97,11 @@ public class SupabaseAuthService : IAuthService
             }
             else
             {
-                _logger.LogInformation("Magic link sent to {Email}", email);
+                _logger.LogInformation(
+                    "Magic link sent to {Email} with RedirectTo {RedirectTo}",
+                    email,
+                    DefaultMagicLinkRedirectTo
+                );
             }
 
             return didSendMagicLink;

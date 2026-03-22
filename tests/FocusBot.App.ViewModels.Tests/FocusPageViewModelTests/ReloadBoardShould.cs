@@ -31,6 +31,7 @@ public class ReloadBoardShould
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
+            Mock.Of<IFocusHubClient>(),
             accountVm,
             statusBar);
 
