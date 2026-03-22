@@ -167,7 +167,9 @@ public static class SessionEndpoints
         var userId = GetUserId(ctx);
         var session = await service.GetActiveSessionAsync(userId, ct);
 
-        return session is not null ? Results.Ok(session) : Results.NotFound();
+        return session is null
+            ? Results.Content("null", "application/json")
+            : Results.Json(session);
     }
 
     private static async Task<IResult> GetSessions(

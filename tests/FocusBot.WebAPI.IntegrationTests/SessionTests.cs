@@ -90,7 +90,8 @@ public class SessionTests(CustomWebApplicationFactory factory)
         endedSession.EndedAtUtc.Should().NotBeNull();
 
         var noActiveResponse = await client.GetAsync("/sessions/active");
-        noActiveResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        noActiveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await noActiveResponse.Content.ReadFromJsonAsync<SessionResponse>()).Should().BeNull();
 
         var historyResponse = await client.GetAsync("/sessions?page=1&pageSize=10");
         historyResponse.StatusCode.Should().Be(HttpStatusCode.OK);

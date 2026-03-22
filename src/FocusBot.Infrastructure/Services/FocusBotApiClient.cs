@@ -152,8 +152,6 @@ public class FocusBotApiClient : IFocusBotApiClient
             if (request is null) return null;
 
             var response = await _httpClient.SendAsync(request);
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
 
             if (!response.IsSuccessStatusCode)
             {
