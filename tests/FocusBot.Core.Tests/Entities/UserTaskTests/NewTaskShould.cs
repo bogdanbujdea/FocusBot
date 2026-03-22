@@ -7,54 +7,64 @@ public class NewTaskShould
     [Fact]
     public void HaveNonEmptyTaskId()
     {
-        // Arrange
-        var task = new UserSession();
+        var task = UserSession.FromApiResponse(
+            new ApiSessionResponse(
+                Guid.NewGuid(),
+                "Title",
+                null,
+                null,
+                DateTime.UtcNow,
+                null));
 
-        // Act
-        var taskId = task.SessionId;
-
-        // Assert
-        taskId.Should().NotBeNullOrEmpty();
+        task.SessionId.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
     public void HaveParseableGuidTaskId()
     {
-        // Arrange
-        var task = new UserSession();
+        var task = UserSession.FromApiResponse(
+            new ApiSessionResponse(
+                Guid.NewGuid(),
+                "Title",
+                null,
+                null,
+                DateTime.UtcNow,
+                null));
 
-        // Act
         var parseable = Guid.TryParse(task.SessionId, out _);
 
-        // Assert
         parseable.Should().BeTrue();
     }
 
     [Fact]
     public void DefaultIsCompletedToFalse()
     {
-        // Arrange
-        var task = new UserSession();
+        var task = UserSession.FromApiResponse(
+            new ApiSessionResponse(
+                Guid.NewGuid(),
+                "Title",
+                null,
+                null,
+                DateTime.UtcNow,
+                null));
 
-        // Act
-        var isCompleted = task.IsCompleted;
-
-        // Assert
-        isCompleted.Should().BeFalse();
+        task.IsCompleted.Should().BeFalse();
     }
 
     [Fact]
     public void HaveUtcCreatedAtSet()
     {
-        // Arrange
-        var task = new UserSession();
+        var started = DateTime.UtcNow.AddMinutes(-5);
+        var task = UserSession.FromApiResponse(
+            new ApiSessionResponse(
+                Guid.NewGuid(),
+                "Title",
+                null,
+                null,
+                started,
+                null));
 
-        // Act
-        var createdAt = task.CreatedAt;
-
-        // Assert
-        createdAt.Should().NotBe(default);
-        createdAt.Kind.Should().Be(DateTimeKind.Utc);
+        task.CreatedAt.Should().Be(started);
+        task.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
     }
-
 }

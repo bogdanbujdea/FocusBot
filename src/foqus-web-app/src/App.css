@@ -7,12 +7,19 @@
   --color-section-light: #f5f3fa;
   --color-card-light: #ffffff;
 
-  /* Accent colors */
-  --color-aligned: #22c55e;
+  /* Accent colors (aligned with browser extension analytics) */
+  --color-aligned: #2db871;
   --color-neutral: #eab308;
-  --color-distracted: #ef4444;
+  --color-distracted: #ff6666;
   --color-primary: #8b5cf6;
   --color-primary-hover: #7c3aed;
+  --color-segment-active: #365cff;
+  --color-card-bg: rgba(255, 255, 255, 0.04);
+  --color-focus-gradient: linear-gradient(
+    135deg,
+    rgba(45, 184, 113, 0.12) 0%,
+    rgba(54, 92, 255, 0.08) 100%
+  );
 
   /* Text colors */
   --color-text-primary: rgba(255, 255, 255, 0.95);
@@ -33,7 +40,7 @@
   /* Border radius */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 12px;
+  --radius-lg: 14px;
 }
 
 * {

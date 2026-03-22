@@ -45,7 +45,6 @@ namespace FocusBot.App
                 .SetApplicationName("FocusBot")
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
             services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
-            services.AddScoped<ISessionRepository, SessionRepository>();
             services.AddScoped<IAlignmentCacheRepository, AlignmentCacheRepository>();
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),
@@ -97,6 +96,20 @@ namespace FocusBot.App
         {
             var activationArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
             HandleActivation(activationArgs);
+            _ = StartApplicationAsync();
+        }
+
+        /// <summary>
+        /// Restores auth before creating the focus ViewModel so <see cref="FocusPageViewModel"/>
+        /// can load the active session from the API on first paint.
+        /// </summary>
+        private async Task StartApplicationAsync()
+        {
+            var auth = _services!.GetRequiredService<IAuthService>();
+            auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
+            auth.ReAuthRequired += OnReAuthRequired;
+
+            await InitializeAuthAsync(auth);
 
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
@@ -109,14 +122,6 @@ namespace FocusBot.App
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
 
             _ = _integrationService.StartAsync();
-
-            var auth = _services!.GetRequiredService<IAuthService>();
-            auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
-            auth.ReAuthRequired += OnReAuthRequired;
-
-            // Restore session and refresh token BEFORE any API calls.
-            // Must await to ensure token is valid when OnAuthStateChangedAsync runs.
-            _ = InitializeAuthAsync(auth);
 
             _window.Activate();
 
@@ -260,14 +265,25 @@ namespace FocusBot.App
             if (!planService.IsCloudPlan(plan))
             {
                 StopHeartbeat();
-                return;
+            }
+            else
+            {
+                var deviceService = _services.GetRequiredService<IDeviceService>();
+                if (deviceService.GetDeviceId() is null)
+                    await deviceService.RegisterAsync();
+
+                StartHeartbeat(deviceService);
             }
 
-            var deviceService = _services.GetRequiredService<IDeviceService>();
-            if (deviceService.GetDeviceId() is null)
-                await deviceService.RegisterAsync();
+            await ReloadFocusBoardIfReadyAsync();
+        }
 
-            StartHeartbeat(deviceService);
+        private async Task ReloadFocusBoardIfReadyAsync()
+        {
+            if (_viewModel is null)
+                return;
+
+            await _viewModel.ReloadBoardAsync().ConfigureAwait(false);
         }
 
         private void StartHeartbeat(IDeviceService deviceService)

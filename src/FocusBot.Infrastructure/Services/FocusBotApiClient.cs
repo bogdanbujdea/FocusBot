@@ -5,6 +5,8 @@ using System.Net;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 
 namespace FocusBot.Infrastructure.Services;
 
@@ -24,6 +26,35 @@ public class FocusBotApiClient : IFocusBotApiClient
         PropertyNameCaseInsensitive = true
     };
 
+    private static readonly ResiliencePipeline<ApiResult<ApiSessionResponse>> SessionApiRetryPipeline =
+        new ResiliencePipelineBuilder<ApiResult<ApiSessionResponse>>()
+            .AddRetry(new RetryStrategyOptions<ApiResult<ApiSessionResponse>>
+            {
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromSeconds(2),
+                BackoffType = DelayBackoffType.Constant,
+                ShouldHandle = static args =>
+                {
+                    if (args.Outcome.Exception is not null)
+                        return new ValueTask<bool>(args.Outcome.Exception is HttpRequestException);
+                    var r = args.Outcome.Result!;
+                    return new ValueTask<bool>(ShouldRetrySessionApiResult(r));
+                },
+            })
+            .Build();
+
+    private static bool ShouldRetrySessionApiResult(ApiResult<ApiSessionResponse> r)
+    {
+        if (r.IsSuccess)
+            return false;
+        if (r.StatusCode is null)
+            return true;
+        var code = (int)r.StatusCode.Value;
+        if (code == 408)
+            return true;
+        return code >= 500 && code <= 599;
+    }
+
     public bool IsConfigured => _authService.IsAuthenticated;
 
     public FocusBotApiClient(
@@ -36,53 +67,80 @@ public class FocusBotApiClient : IFocusBotApiClient
         _logger = logger;
     }
 
-    public async Task<ApiSessionResponse?> StartSessionAsync(StartSessionPayload payload)
+    public async Task<ApiResult<ApiSessionResponse>> StartSessionAsync(StartSessionPayload payload)
+    {
+        return await SessionApiRetryPipeline.ExecuteAsync(
+            async ct => await StartSessionCoreAsync(payload, ct));
+    }
+
+    public async Task<ApiResult<ApiSessionResponse>> EndSessionAsync(Guid sessionId, EndSessionPayload payload)
+    {
+        return await SessionApiRetryPipeline.ExecuteAsync(
+            async ct => await EndSessionCoreAsync(sessionId, payload, ct));
+    }
+
+    private async Task<ApiResult<ApiSessionResponse>> StartSessionCoreAsync(
+        StartSessionPayload payload,
+        CancellationToken cancellationToken)
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/sessions");
-            if (request is null) return null;
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("StartSession failed: {StatusCode}", response.StatusCode);
-                return null;
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "StartSession request failed");
-            return null;
+            return ApiResult<ApiSessionResponse>.NetworkError();
         }
     }
 
-    public async Task<ApiSessionResponse?> EndSessionAsync(Guid sessionId, EndSessionPayload payload)
+    private async Task<ApiResult<ApiSessionResponse>> EndSessionCoreAsync(
+        Guid sessionId,
+        EndSessionPayload payload,
+        CancellationToken cancellationToken)
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/end");
-            if (request is null) return null;
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("EndSession failed: {StatusCode}", response.StatusCode);
-                return null;
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "EndSession request failed");
-            return null;
+            return ApiResult<ApiSessionResponse>.NetworkError();
         }
     }
 

@@ -102,16 +102,42 @@ public class SessionService(ApiDbContext db)
         Guid userId,
         int page,
         int pageSize,
+        SessionFilter? filter = null,
         CancellationToken ct = default
     )
     {
-        var query = db
-            .Sessions.Where(s => s.UserId == userId && s.EndedAtUtc != null)
-            .OrderByDescending(s => s.StartedAtUtc);
+        var baseQuery = db.Sessions.Where(s => s.UserId == userId && s.EndedAtUtc != null);
 
-        var totalCount = await query.CountAsync(ct);
+        if (filter?.DeviceId is not null)
+            baseQuery = baseQuery.Where(s => s.DeviceId == filter.DeviceId);
 
-        var items = await query
+        if (filter?.From is not null)
+            baseQuery = baseQuery.Where(s => s.StartedAtUtc >= filter.From);
+
+        if (filter?.To is not null)
+            baseQuery = baseQuery.Where(s => s.StartedAtUtc < filter.To);
+
+        if (!string.IsNullOrWhiteSpace(filter?.SessionTitle))
+            baseQuery = baseQuery.Where(s => s.SessionTitle.Contains(filter.SessionTitle));
+
+        var totalCount = await baseQuery.CountAsync(ct);
+
+        var isAsc = string.Equals(filter?.SortOrder, "asc", StringComparison.OrdinalIgnoreCase);
+
+        IOrderedQueryable<Data.Entities.Session> ordered = filter?.SortBy?.ToLowerInvariant() switch
+        {
+            "focusscore" => isAsc
+                ? baseQuery.OrderBy(s => s.FocusScorePercent)
+                : baseQuery.OrderByDescending(s => s.FocusScorePercent),
+            "duration" => isAsc
+                ? baseQuery.OrderBy(s => s.EndedAtUtc!.Value.Ticks - s.StartedAtUtc.Ticks)
+                : baseQuery.OrderByDescending(s => s.EndedAtUtc!.Value.Ticks - s.StartedAtUtc.Ticks),
+            _ => isAsc
+                ? baseQuery.OrderBy(s => s.StartedAtUtc)
+                : baseQuery.OrderByDescending(s => s.StartedAtUtc),
+        };
+
+        var items = await ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(s => ToResponse(s))

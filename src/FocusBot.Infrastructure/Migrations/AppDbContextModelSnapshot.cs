@@ -44,59 +44,6 @@ namespace FocusBot.Infrastructure.Migrations
 
                     b.ToTable("AlignmentCacheEntries");
                 });
-
-            modelBuilder.Entity("FocusBot.Core.Entities.UserSession", b =>
-                {
-                    b.Property<string>("SessionId")
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Context")
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ContextSwitchCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("DistractedSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("DistractionCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("FocusScorePercent")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("FocusedSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SessionTitle")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TopAlignedApps")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TopDistractingApps")
-                        .HasMaxLength(2048)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("TotalElapsedSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("SessionId");
-
-                    b.HasIndex("IsCompleted");
-
-                    b.ToTable("UserSessions");
-                });
 #pragma warning restore 612, 618
         }
     }

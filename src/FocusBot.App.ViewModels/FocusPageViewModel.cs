@@ -11,7 +11,6 @@ namespace FocusBot.App.ViewModels;
 
 public partial class FocusPageViewModel : ObservableObject
 {
-    private readonly ISessionRepository _repo;
     private readonly INavigationService _navigationService;
     private readonly ISettingsService _settingsService;
     private readonly IFocusSessionOrchestrator _sessionOrchestrator;
@@ -100,14 +99,26 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     } = "00:00:00";
 
-    private string? _aiRequestError;
     public string? AiRequestError
     {
-        get => _aiRequestError;
-        set { if (SetProperty(ref _aiRequestError, value)) { } }
+        get;
+        set { if (SetProperty(ref field, value)) { } }
     }
 
+    [ObservableProperty]
+    private string? _apiErrorMessage;
 
+    [ObservableProperty]
+    private bool _isApiErrorVisible;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartSessionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EndSessionCommand))]
+    [NotifyPropertyChangedFor(nameof(IsSessionOperationEnabled))]
+    private bool _isSessionBusy;
+
+    /// <summary>False while a session API call (start, end, or loading board) is in progress.</summary>
+    public bool IsSessionOperationEnabled => !IsSessionBusy;
 
     public bool IsExtensionConnected
     {
@@ -141,7 +152,6 @@ public partial class FocusPageViewModel : ObservableObject
     public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
 
     public FocusPageViewModel(
-        ISessionRepository repo,
         INavigationService navigationService,
         ISettingsService settingsService,
         IFocusSessionOrchestrator sessionOrchestrator,
@@ -151,7 +161,6 @@ public partial class FocusPageViewModel : ObservableObject
         IUIThreadDispatcher? uiDispatcher = null
     )
     {
-        _repo = repo;
         _navigationService = navigationService;
         _settingsService = settingsService;
         _sessionOrchestrator = sessionOrchestrator;
@@ -208,35 +217,42 @@ public partial class FocusPageViewModel : ObservableObject
 
     private async Task LoadBoardAsync()
     {
-        ActiveSession = null;
-
-        var inProgress = await _repo.GetInProgressSessionAsync();
-        if (inProgress != null)
+        IsSessionBusy = true;
+        try
         {
-            ActiveSession = inProgress;
-        }
+            ActiveSession = null;
 
-        if (HasActiveSession())
-        {
-            var session = ActiveSession!;
-            _sessionElapsedSeconds = session.TotalElapsedSeconds;
-            SessionElapsedTime = TimeFormatHelper.FormatElapsed(_sessionElapsedSeconds);
-            CurrentFocusScorePercent = 0;
-            FocusedTime = "00:00:00";
-            DistractedTime = "00:00:00";
-            DistractionCount = 0;
-            OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            _sessionOrchestrator.StartSession(session, session.TotalElapsedSeconds);
-        }
-        else
-        {
-            ResetFocusState();
-        }
-        UpdateMonitoringState();
+            var session = await _sessionOrchestrator.LoadActiveSessionAsync();
+            if (session != null)
+            {
+                ActiveSession = session;
+                _sessionElapsedSeconds = session.TotalElapsedSeconds;
+                SessionElapsedTime = TimeFormatHelper.FormatElapsed(_sessionElapsedSeconds);
+                CurrentFocusScorePercent = 0;
+                FocusedTime = "00:00:00";
+                DistractedTime = "00:00:00";
+                DistractionCount = 0;
+                OnPropertyChanged(nameof(IsFocusScorePercentVisible));
+                _sessionOrchestrator.BeginLocalSessionTracking(session, session.TotalElapsedSeconds);
+            }
+            else
+            {
+                ResetFocusState();
+            }
 
-        // Sync backend session state so EndSession can close it properly
-        await _sessionOrchestrator.SyncBackendSessionAsync();
+            UpdateMonitoringState();
+        }
+        finally
+        {
+            IsSessionBusy = false;
+        }
     }
+
+    /// <summary>
+    /// Reloads the focus board from the API (active session). Call when authentication becomes
+    /// available after the ViewModel was created (e.g. magic-link sign-in after launch).
+    /// </summary>
+    public Task ReloadBoardAsync() => LoadBoardAsync();
 
     /// <summary>
     /// Refreshes the displayed AI provider and model from settings. Call when returning to the board so the corner label is up to date.
@@ -251,36 +267,91 @@ public partial class FocusPageViewModel : ObservableObject
             ? null
             : StartSessionContext.Trim();
 
-        // Create session directly as InProgress
-        var session = await _repo.AddSessionAsync(StartSessionTitle.Trim(), context);
-        await _repo.SetActiveAsync(session.SessionId);
+        IsSessionBusy = true;
+        try
+        {
+            var result = await _sessionOrchestrator.StartSessionAsync(StartSessionTitle.Trim(), context);
+            if (!result.IsSuccess || result.Value is null)
+            {
+                ApiErrorMessage = result.ErrorMessage ?? "Something went wrong, please try again.";
+                IsApiErrorVisible = true;
+                return;
+            }
 
-        // Clear form
-        StartSessionTitle = string.Empty;
-        StartSessionContext = string.Empty;
+            StartSessionTitle = string.Empty;
+            StartSessionContext = string.Empty;
 
-        ActiveSession = session;
-        _sessionOrchestrator.StartSession(session);
-        UpdateMonitoringState();
+            ActiveSession = result.Value;
+            UpdateMonitoringState();
+        }
+        finally
+        {
+            IsSessionBusy = false;
+        }
     }
 
-    private bool CanStartSession() => !string.IsNullOrWhiteSpace(StartSessionTitle);
+    private bool CanStartSession() =>
+        !IsSessionBusy && !string.IsNullOrWhiteSpace(StartSessionTitle);
 
     partial void OnStartSessionTitleChanged(string value)
     {
         StartSessionCommand.NotifyCanExecuteChanged();
     }
 
-    [RelayCommand]
+    partial void OnActiveSessionChanged(UserSession? value)
+    {
+        EndSessionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsSessionBusyChanged(bool value)
+    {
+        StartSessionCommand.NotifyCanExecuteChanged();
+        EndSessionCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEndSession))]
     private async Task EndSessionAsync()
     {
         if (ActiveSession == null)
             return;
 
-        await _sessionOrchestrator.EndSessionAsync();
-        ActiveSession = null;
-        ResetFocusState();
-        UpdateMonitoringState();
+        IsSessionBusy = true;
+        try
+        {
+            var endResult = await _sessionOrchestrator.EndSessionAsync();
+            if (endResult == null)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(endResult.ApiErrorMessage))
+            {
+                ApiErrorMessage = endResult.ApiErrorMessage;
+                IsApiErrorVisible = true;
+                return;
+            }
+
+            ActiveSession = null;
+            ResetFocusState();
+            UpdateMonitoringState();
+        }
+        finally
+        {
+            IsSessionBusy = false;
+        }
+    }
+
+    private bool CanEndSession() => ActiveSession != null && !IsSessionBusy;
+
+    [RelayCommand]
+    private void DismissApiError()
+    {
+        IsApiErrorVisible = false;
+        ApiErrorMessage = null;
+    }
+
+    partial void OnIsApiErrorVisibleChanged(bool value)
+    {
+        if (!value)
+            ApiErrorMessage = null;
     }
 
     [RelayCommand]

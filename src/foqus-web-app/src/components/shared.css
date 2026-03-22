@@ -1,0 +1,168 @@
+/* KPI / analytics cards (aligned with browser extension) */
+.kpi-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.kpi-card[data-variant="aligned"] .kpi-value {
+  color: var(--color-aligned);
+}
+
+.kpi-card[data-variant="distracted"] .kpi-value {
+  color: var(--color-distracted);
+}
+
+.kpi-card-focus-score {
+  grid-column: 1 / -1;
+  background: var(--color-focus-gradient);
+  border-color: rgba(45, 184, 113, 0.25);
+}
+
+.kpi-card-focus-score-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.kpi-card-focus-left {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.kpi-value-focus-primary {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.kpi-sublabel {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.kpi-focus-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  font-size: 0.85rem;
+}
+
+.kpi-focus-detail-aligned {
+  color: var(--color-aligned);
+  font-weight: 600;
+}
+
+.kpi-focus-detail-distracting {
+  color: var(--color-distracted);
+  font-weight: 600;
+}
+
+/* Focus gauge */
+.focus-gauge {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.focus-gauge-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.focus-gauge-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 8;
+}
+
+.focus-gauge-fill {
+  fill: none;
+  stroke: var(--color-aligned);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.focus-gauge-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.focus-gauge-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-aligned);
+}
+
+.focus-gauge-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Segmented control */
+.segmented-control {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.segmented-option {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented-option:hover {
+  color: var(--color-text-primary);
+}
+
+.segmented-option.active {
+  background: var(--color-segment-active);
+  color: #fff;
+}
+
+.session-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: var(--color-text-primary);
+}

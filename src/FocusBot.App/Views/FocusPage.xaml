@@ -18,18 +18,28 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="250"/>
         </Grid.RowDefinitions>
 
+        <InfoBar
+            Grid.Row="0"
+            Severity="Error"
+            Title="Session error"
+            Message="{x:Bind ViewModel.ApiErrorMessage, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.IsApiErrorVisible, Mode=TwoWay}"
+            IsClosable="True"
+            automation:AutomationProperties.Name="Session API sync error"/>
+
         <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
         <controls:FocusStatusControl
-            Grid.Row="0"
+            Grid.Row="1"
             DataContext="{x:Bind ViewModel.Status}"
             Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
             Margin="0,4,0,8"/>
 
         <!-- Header with Settings -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -77,6 +87,12 @@
                 </StackPanel>
             </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <ProgressRing
+                    Width="24"
+                    Height="24"
+                    IsActive="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Session operation in progress"/>
                 <Button Content="Sign in"
                         Style="{StaticResource FbAccentButtonStyle}"
                         automation:AutomationProperties.Name="Sign in with magic link"
@@ -95,7 +111,7 @@
 
 
         <!-- Main Content: Start Form or Active Session Card -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <!-- Start Session Form (visible when no active session) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"
@@ -120,6 +136,7 @@
                              PlaceholderText="What are you working on?"
                              MaxLength="200"
                              CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                             IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                              automation:AutomationProperties.Name="Session title"/>
                     
                     <TextBox Text="{x:Bind ViewModel.StartSessionContext, Mode=TwoWay}"
@@ -129,12 +146,14 @@
                              AcceptsReturn="True"
                              Height="80"
                              CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                             IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                              automation:AutomationProperties.Name="Session context"/>
                     
                     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
                         <Button Content="Start Session"
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 Command="{x:Bind ViewModel.StartSessionCommand}"
+                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                                 automation:AutomationProperties.Name="Start session"/>
                     </StackPanel>
                 </StackPanel>
@@ -279,18 +298,21 @@
                                 Style="{StaticResource FbOutlineButtonStyle}"
                                 MinWidth="100"
                                 Command="{x:Bind ViewModel.PauseSessionCommand}"
+                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                 automation:AutomationProperties.Name="Pause session"/>
                         <Button Content="Resume"
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 MinWidth="100"
                                 Command="{x:Bind ViewModel.ResumeSessionCommand}"
+                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                 automation:AutomationProperties.Name="Resume session"/>
                         <Button Content="End Session"
                                 Style="{StaticResource FbAccentButtonStyle}"
                                 MinWidth="100"
                                 Command="{x:Bind ViewModel.EndSessionCommand}"
+                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
                                 automation:AutomationProperties.Name="End session"/>
                     </StackPanel>
                 </StackPanel>

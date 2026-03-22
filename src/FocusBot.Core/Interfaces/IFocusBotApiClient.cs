@@ -13,8 +13,8 @@ public interface IFocusBotApiClient
     bool IsConfigured { get; }
 
     // Sessions
-    Task<ApiSessionResponse?> StartSessionAsync(StartSessionPayload payload);
-    Task<ApiSessionResponse?> EndSessionAsync(Guid sessionId, EndSessionPayload payload);
+    Task<ApiResult<ApiSessionResponse>> StartSessionAsync(StartSessionPayload payload);
+    Task<ApiResult<ApiSessionResponse>> EndSessionAsync(Guid sessionId, EndSessionPayload payload);
     /// <summary>Gets the currently active focus session for the authenticated user, or null if none exists.</summary>
     Task<ApiSessionResponse?> GetActiveSessionAsync();
 

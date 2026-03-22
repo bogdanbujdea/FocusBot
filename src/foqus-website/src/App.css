@@ -785,7 +785,20 @@ button:disabled {
     gap: 16px;
   }
 
+  .landing-hero-copy {
+    text-align: center;
+  }
+
   .landing-hero-copy h1 {
-    font-size: 1.8rem;
+    font-size: clamp(2rem, 6vw, 2.6rem);
+  }
+
+  .landing-lede {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .landing-hero-actions {
+    justify-content: center;
   }
 }

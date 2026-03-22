@@ -1,0 +1,19 @@
+# Foqus web app
+
+React (Vite) client for account management, billing, and cross-device focus analytics. Uses Supabase auth and the Foqus Web API.
+
+## Pages
+
+- **Dashboard** (`/`): Today’s KPIs (focus score ring, deep work, sessions, distractions), expandable list of completed sessions today, and **session controls** (start / pause / resume / end). Polling refreshes the active session every 5 seconds while one is in progress.
+- **Analytics** (`/analytics`): Period summaries (7 / 30 / 90 days), focus trend chart, device breakdown, and paginated session history with focus-score coloring.
+
+Sessions you **start and end only in the web app** are stored with **no distraction classification** (the web app sends full focused time and 100% focus score on end). For alignment metrics from the classifier, use the Windows app or browser extension.
+
+## Scripts
+
+- `npm run dev` — dev server (port 5174)
+- `npm run build` — typecheck + production build
+- `npm run test` — Vitest unit and component tests (formatting, analytics math, API client, pages)
+- `npm run lint` — ESLint
+
+Local dev needs `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Optional: `VITE_API_BASE_URL` (defaults to `http://localhost:5251` in dev).

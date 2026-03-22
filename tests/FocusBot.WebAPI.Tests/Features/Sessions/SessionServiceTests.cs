@@ -296,4 +296,114 @@ public class SessionServiceTests
         result2.Session.PausedAtUtc.Should().BeNull();
         result2.Session.IsPaused.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetSessionsAsync_FiltersByDeviceId()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var deviceA = Guid.NewGuid();
+        var deviceB = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Device A", DeviceId = deviceA,
+            StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
+        });
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Device B", DeviceId = deviceB,
+            StartedAtUtc = now.AddHours(-3), EndedAtUtc = now.AddHours(-2),
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var filter = new SessionFilter(DeviceId: deviceA, From: null, To: null, SessionTitle: null);
+        var result = await service.GetSessionsAsync(userId, 1, 20, filter);
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().ContainSingle(s => s.SessionTitle == "Device A");
+    }
+
+    [Fact]
+    public async Task GetSessionsAsync_FiltersByDateRange()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Recent",
+            StartedAtUtc = now.AddHours(-1), EndedAtUtc = now,
+        });
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Old",
+            StartedAtUtc = now.AddDays(-10), EndedAtUtc = now.AddDays(-10).AddHours(1),
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var filter = new SessionFilter(null, From: now.AddDays(-2), To: now.AddDays(1), SessionTitle: null);
+        var result = await service.GetSessionsAsync(userId, 1, 20, filter);
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().ContainSingle(s => s.SessionTitle == "Recent");
+    }
+
+    [Fact]
+    public async Task GetSessionsAsync_FiltersBySessionTitle()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Write unit tests",
+            StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
+        });
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Review code",
+            StartedAtUtc = now.AddHours(-3), EndedAtUtc = now.AddHours(-2),
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var filter = new SessionFilter(null, null, null, SessionTitle: "unit tests");
+        var result = await service.GetSessionsAsync(userId, 1, 20, filter);
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().ContainSingle(s => s.SessionTitle == "Write unit tests");
+    }
+
+    [Fact]
+    public async Task GetSessionsAsync_SortsByFocusScore()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "Low", FocusScorePercent = 30,
+            StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
+        });
+        db.Sessions.Add(new Session
+        {
+            UserId = userId, SessionTitle = "High", FocusScorePercent = 95,
+            StartedAtUtc = now.AddHours(-3), EndedAtUtc = now.AddHours(-2),
+        });
+        await db.SaveChangesAsync();
+
+        var service = new SessionService(db);
+        var filter = new SessionFilter(null, null, null, null, SortBy: "focusscore", SortOrder: "desc");
+        var result = await service.GetSessionsAsync(userId, 1, 20, filter);
+
+        result.Items[0].SessionTitle.Should().Be("High");
+        result.Items[1].SessionTitle.Should().Be("Low");
+    }
 }

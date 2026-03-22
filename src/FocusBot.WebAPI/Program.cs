@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using FocusBot.WebAPI.Data;
+using FocusBot.WebAPI.Features.Analytics;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
 using FocusBot.WebAPI.Features.Devices;
@@ -137,11 +138,13 @@ builder.Services.AddOpenApi(options =>
 
 // ── Services ────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<WaitlistService>();
 builder.Services.AddScoped<DeviceService>();
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
@@ -193,6 +196,7 @@ app.MapClassificationEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapWaitlistEndpoints();
 app.MapDevicesEndpoints();
+app.MapAnalyticsEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────
 if (!app.Environment.IsEnvironment("Testing"))

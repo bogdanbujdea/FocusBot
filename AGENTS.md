@@ -19,24 +19,37 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 | `FocusBot.WebAPI.Tests` | `net10.0` | Yes |
 | `FocusBot.WebAPI.IntegrationTests` | `net10.0` | Yes |
 | `browser-extension` (Node/TS) | N/A | Yes |
+| `foqus-web-app` (Vite/React) | N/A | Yes |
 
 ### Running services
 
 - **WebAPI**: Requires PostgreSQL. Start PG via `docker run -d --name focusbot-pg -e POSTGRES_DB=focusbot -e POSTGRES_USER=focusbot -e POSTGRES_PASSWORD=focusbot_dev -p 5432:5432 postgres:16-alpine`, then `dotnet run --project src/FocusBot.WebAPI/FocusBot.WebAPI.csproj --launch-profile http` (listens on `http://localhost:5251`). Auto-migrates the database on startup.
+- **Web app dev**: `cd src/foqus-web-app && npm run dev` (listens on `http://localhost:5174`). Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for local dev (production defaults are built in for `import.meta.env.PROD`).
 - **Browser extension dev**: `cd browser-extension && npm run dev`
 
 ### Running tests
 
-- **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj` (25 tests)
-- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (29 tests, InMemory EF Core)
-- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (6 tests, WebApplicationFactory + InMemory DB)
-- **Browser extension tests**: `cd browser-extension && npm test` (76 tests, Vitest)
+- **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj`
+- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (49 tests, InMemory EF Core)
+- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (32 tests, WebApplicationFactory + InMemory DB)
+- **ViewModel tests**: `dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj`
+- **Infrastructure tests**: `dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj`
+- **Browser extension tests**: `cd browser-extension && npm test` (80 tests, Vitest)
+- **Web app tests**: `cd src/foqus-web-app && npm test` (Vitest, jsdom)
 - Integration tests use `CustomWebApplicationFactory` which provides test JWT config and swaps Npgsql for InMemory DB.
 
 ### Building
 
 - **.NET**: `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj` (no `.sln` file; build individual `.csproj` files)
+- **Web app**: `cd src/foqus-web-app && npm run build`
 - **Browser extension**: `cd browser-extension && npm run build`
+
+### Desktop app: focus sessions (API-only)
+
+- Focus sessions are **not** stored in local SQLite. The desktop app uses the FocusBot Web API as the only source of truth for session lifecycle (`POST /sessions`, `GET /sessions/active`, `POST /sessions/{id}/end`). Users must be signed in; there is no offline session mode.
+- The focus **board** (`FocusPageViewModel`) loads the active session from the API **after** Supabase auth is restored at startup, and **again** when authentication becomes available later (e.g. magic-link sign-in), so the UI matches the server’s in-progress session.
+- Local SQLite (`AppDbContext`) retains **alignment cache** entries only; the `UserSessions` table was removed.
+- `FocusBotApiClient` wraps session start/end calls with **Polly** retries: 3 attempts, 2 second delay between attempts, on transient HTTP failures (5xx, 408, `HttpRequestException`).
 
 ### Key caveats
 
