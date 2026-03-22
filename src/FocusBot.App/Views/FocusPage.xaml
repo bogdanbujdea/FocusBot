@@ -18,18 +18,28 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="250"/>
         </Grid.RowDefinitions>
 
+        <InfoBar
+            Grid.Row="0"
+            Severity="Error"
+            Title="Could not sync with server"
+            Message="{x:Bind ViewModel.ApiErrorMessage, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.IsApiErrorVisible, Mode=TwoWay}"
+            IsClosable="True"
+            automation:AutomationProperties.Name="Session API sync error"/>
+
         <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
         <controls:FocusStatusControl
-            Grid.Row="0"
+            Grid.Row="1"
             DataContext="{x:Bind ViewModel.Status}"
             Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
             Margin="0,4,0,8"/>
 
         <!-- Header with Settings -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -95,7 +105,7 @@
 
 
         <!-- Main Content: Start Form or Active Session Card -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <!-- Start Session Form (visible when no active session) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"

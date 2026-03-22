@@ -100,14 +100,17 @@ public partial class FocusPageViewModel : ObservableObject
         set => SetProperty(ref field, value);
     } = "00:00:00";
 
-    private string? _aiRequestError;
     public string? AiRequestError
     {
-        get => _aiRequestError;
-        set { if (SetProperty(ref _aiRequestError, value)) { } }
+        get;
+        set { if (SetProperty(ref field, value)) { } }
     }
 
+    [ObservableProperty]
+    private string? _apiErrorMessage;
 
+    [ObservableProperty]
+    private bool _isApiErrorVisible;
 
     public bool IsExtensionConnected
     {
@@ -161,6 +164,7 @@ public partial class FocusPageViewModel : ObservableObject
         _uiDispatcher = uiDispatcher;
 
         _sessionOrchestrator.StateChanged += OnOrchestratorStateChanged;
+        _sessionOrchestrator.BackendApiErrorOccurred += OnBackendApiErrorOccurred;
 
         if (_integrationService != null)
         {
@@ -168,6 +172,28 @@ public partial class FocusPageViewModel : ObservableObject
         }
 
         _ = LoadBoardAsync();
+    }
+
+    private void OnBackendApiErrorOccurred(object? sender, string message)
+    {
+        void Apply()
+        {
+            ApiErrorMessage = message;
+            IsApiErrorVisible = true;
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Apply();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Apply();
+        }
     }
 
     private void OnOrchestratorStateChanged(object? sender, FocusSessionStateChangedEventArgs e)
@@ -277,10 +303,29 @@ public partial class FocusPageViewModel : ObservableObject
         if (ActiveSession == null)
             return;
 
-        await _sessionOrchestrator.EndSessionAsync();
+        var endResult = await _sessionOrchestrator.EndSessionAsync();
         ActiveSession = null;
         ResetFocusState();
         UpdateMonitoringState();
+
+        if (!string.IsNullOrWhiteSpace(endResult?.ApiErrorMessage))
+        {
+            ApiErrorMessage = endResult!.ApiErrorMessage;
+            IsApiErrorVisible = true;
+        }
+    }
+
+    [RelayCommand]
+    private void DismissApiError()
+    {
+        IsApiErrorVisible = false;
+        ApiErrorMessage = null;
+    }
+
+    partial void OnIsApiErrorVisibleChanged(bool value)
+    {
+        if (!value)
+            ApiErrorMessage = null;
     }
 
     [RelayCommand]

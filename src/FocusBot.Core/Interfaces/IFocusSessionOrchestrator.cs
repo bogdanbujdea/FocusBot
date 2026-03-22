@@ -17,6 +17,11 @@ public interface IFocusSessionOrchestrator
     event EventHandler<FocusSessionStateChangedEventArgs>? StateChanged;
 
     /// <summary>
+    /// Raised when the backend session start API fails after the local session has started.
+    /// </summary>
+    event EventHandler<string>? BackendApiErrorOccurred;
+
+    /// <summary>
     /// Starts orchestrating a new focus session. Subscribes to window monitor events
     /// and begins time tracking.
     /// </summary>
@@ -28,8 +33,8 @@ public interface IFocusSessionOrchestrator
     /// Ends the current session. Stops monitoring, computes final summary,
     /// and notifies the backend.
     /// </summary>
-    /// <returns>The session summary with focus metrics, or null if no active session.</returns>
-    Task<SessionSummary?> EndSessionAsync();
+    /// <returns>Summary and optional API error message, or null if no active session.</returns>
+    Task<SessionEndResult?> EndSessionAsync();
 
     /// <summary>
     /// Pauses the current session. Stops time tracking and monitoring.

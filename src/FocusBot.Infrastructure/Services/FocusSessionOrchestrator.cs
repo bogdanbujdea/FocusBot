@@ -1,3 +1,4 @@
+using System.Net;
 using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
@@ -44,6 +45,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
     /// <inheritdoc />
     public event EventHandler<FocusSessionStateChangedEventArgs>? StateChanged;
+
+    /// <inheritdoc />
+    public event EventHandler<string>? BackendApiErrorOccurred;
 
     /// <inheritdoc />
     public bool HasActiveSession => _activeSession != null;
@@ -111,7 +115,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
-    public async Task<SessionSummary?> EndSessionAsync()
+    public async Task<SessionEndResult?> EndSessionAsync()
     {
         UserSession? sessionToEnd;
         SessionSummary? summary;
@@ -153,6 +157,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         );
         await _sessionRepository.SetCompletedAsync(sessionToEnd.SessionId);
 
+        string? apiErrorMessage = null;
+
         // Notify backend
         if (backendId.HasValue)
         {
@@ -166,11 +172,17 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 summary.TopAlignedApps,
                 _deviceService?.GetDeviceId()
             );
-            _ = _apiClient.EndSessionAsync(backendId.Value, payload);
+            var endResult = await _apiClient.EndSessionAsync(backendId.Value, payload);
+            if (!endResult.IsSuccess)
+                apiErrorMessage = endResult.ErrorMessage;
         }
 
         RaiseStateChanged();
-        return summary;
+        return new SessionEndResult
+        {
+            Summary = summary,
+            ApiErrorMessage = apiErrorMessage,
+        };
     }
 
     /// <inheritdoc />
@@ -529,43 +541,66 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
         var deviceId = _deviceService?.GetDeviceId();
         var payload = new StartSessionPayload(session.SessionTitle, session.Context, deviceId);
-        var response = await _apiClient.StartSessionAsync(payload);
+        var result = await _apiClient.StartSessionAsync(payload);
 
-        if (response != null)
+        if (result.IsSuccess && result.Value != null)
         {
             lock (_lock)
             {
-                _backendSessionId = response.Id;
+                _backendSessionId = result.Value.Id;
             }
             return;
         }
 
-        // StartSession failed — likely 409 Conflict (active session already exists).
-        // End the stale session and retry creating a new one.
-        var staleSession = await _apiClient.GetActiveSessionAsync();
-        if (staleSession == null)
-            return;
-
-        var abandonPayload = new EndSessionPayload(
-            FocusScorePercent: 0,
-            FocusedSeconds: 0,
-            DistractedSeconds: 0,
-            DistractionCount: 0,
-            ContextSwitchCount: 0,
-            TopDistractingApps: null,
-            TopAlignedApps: null,
-            DeviceId: deviceId
-        );
-        await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
-
-        var retryResponse = await _apiClient.StartSessionAsync(payload);
-        if (retryResponse != null)
+        // StartSession failed — 409 Conflict (active session already exists): end stale and retry.
+        if (result.StatusCode == HttpStatusCode.Conflict)
         {
-            lock (_lock)
+            var staleSession = await _apiClient.GetActiveSessionAsync();
+            if (staleSession == null)
             {
-                _backendSessionId = retryResponse.Id;
+                RaiseBackendApiError(result.ErrorMessage);
+                return;
             }
+
+            var abandonPayload = new EndSessionPayload(
+                FocusScorePercent: 0,
+                FocusedSeconds: 0,
+                DistractedSeconds: 0,
+                DistractionCount: 0,
+                ContextSwitchCount: 0,
+                TopDistractingApps: null,
+                TopAlignedApps: null,
+                DeviceId: deviceId
+            );
+            var abandonResult = await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
+            if (!abandonResult.IsSuccess)
+            {
+                RaiseBackendApiError(abandonResult.ErrorMessage);
+                return;
+            }
+
+            var retryResult = await _apiClient.StartSessionAsync(payload);
+            if (retryResult.IsSuccess && retryResult.Value != null)
+            {
+                lock (_lock)
+                {
+                    _backendSessionId = retryResult.Value.Id;
+                }
+                return;
+            }
+
+            RaiseBackendApiError(retryResult.ErrorMessage);
+            return;
         }
+
+        RaiseBackendApiError(result.ErrorMessage);
+    }
+
+    private void RaiseBackendApiError(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            message = "Something went wrong, please try again.";
+        BackendApiErrorOccurred?.Invoke(this, message);
     }
 
     private async Task PersistElapsedTimeAsync(string sessionId)

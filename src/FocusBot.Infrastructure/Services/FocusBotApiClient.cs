@@ -36,12 +36,13 @@ public class FocusBotApiClient : IFocusBotApiClient
         _logger = logger;
     }
 
-    public async Task<ApiSessionResponse?> StartSessionAsync(StartSessionPayload payload)
+    public async Task<ApiResult<ApiSessionResponse>> StartSessionAsync(StartSessionPayload payload)
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/sessions");
-            if (request is null) return null;
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
@@ -49,24 +50,29 @@ public class FocusBotApiClient : IFocusBotApiClient
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("StartSession failed: {StatusCode}", response.StatusCode);
-                return null;
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "StartSession request failed");
-            return null;
+            return ApiResult<ApiSessionResponse>.NetworkError();
         }
     }
 
-    public async Task<ApiSessionResponse?> EndSessionAsync(Guid sessionId, EndSessionPayload payload)
+    public async Task<ApiResult<ApiSessionResponse>> EndSessionAsync(Guid sessionId, EndSessionPayload payload)
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/end");
-            if (request is null) return null;
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
@@ -74,15 +80,19 @@ public class FocusBotApiClient : IFocusBotApiClient
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("EndSession failed: {StatusCode}", response.StatusCode);
-                return null;
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            return await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "EndSession request failed");
-            return null;
+            return ApiResult<ApiSessionResponse>.NetworkError();
         }
     }
 
