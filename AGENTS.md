@@ -19,6 +19,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 | `FocusBot.WebAPI.Tests` | `net10.0` | Yes |
 | `FocusBot.WebAPI.IntegrationTests` | `net10.0` | Yes |
 | `browser-extension` (Node/TS) | N/A | Yes |
+| `foqus-web-app` (Vite/React) | N/A | Yes |
 
 ### Running services
 
@@ -34,6 +35,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - **ViewModel tests**: `dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj`
 - **Infrastructure tests**: `dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj`
 - **Browser extension tests**: `cd browser-extension && npm test` (80 tests, Vitest)
+- **Web app tests**: `cd src/foqus-web-app && npm test` (Vitest, jsdom)
 - Integration tests use `CustomWebApplicationFactory` which provides test JWT config and swaps Npgsql for InMemory DB.
 
 ### Building

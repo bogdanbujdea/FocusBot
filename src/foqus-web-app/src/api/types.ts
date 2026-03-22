@@ -12,6 +12,25 @@ export interface SubscriptionStatusResponse {
   currentPeriodEndsAt?: string;
 }
 
+export type ApiMutationResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; status: number; error?: string };
+
+export interface StartSessionRequest {
+  sessionTitle: string;
+  sessionContext?: string;
+  deviceId?: string;
+}
+
+export interface EndSessionRequest {
+  focusScorePercent: number;
+  focusedSeconds: number;
+  distractedSeconds: number;
+  distractionCount: number;
+  contextSwitchCount: number;
+  deviceId?: string;
+}
+
 export interface SessionResponse {
   id: string;
   sessionTitle: string;

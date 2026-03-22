@@ -7,6 +7,9 @@ import type {
   AnalyticsSummaryResponse,
   AnalyticsTrendsResponse,
   AnalyticsDevicesResponse,
+  ApiMutationResult,
+  StartSessionRequest,
+  EndSessionRequest,
 } from "./types";
 
 const API_BASE_URL =
@@ -54,6 +57,64 @@ async function apiFetch<T>(
 
   const text = await response.text();
   return text ? (JSON.parse(text) as T) : null;
+}
+
+async function parseErrorMessage(response: Response): Promise<string | undefined> {
+  try {
+    const text = await response.text();
+    if (!text) return undefined;
+    const j = JSON.parse(text) as { error?: string };
+    return typeof j.error === "string" ? j.error : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function apiMutate<T>(
+  path: string,
+  init: RequestInit
+): Promise<ApiMutationResult<T>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const headers: Record<string, string> = {
+    ...(init.headers as Record<string, string> | undefined),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  if (init.body !== undefined && init.body !== null && init.body !== "") {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const url = `${API_BASE_URL}${path}`;
+
+  const doFetch = async (hdrs: Record<string, string>) =>
+    fetch(url, { ...init, headers: hdrs });
+
+  let response = await doFetch(headers);
+
+  if (!response.ok && response.status === 401) {
+    const { error } = await supabase.auth.refreshSession();
+    if (!error) {
+      const {
+        data: { session: refreshed },
+      } = await supabase.auth.getSession();
+      if (refreshed?.access_token) {
+        headers["Authorization"] = `Bearer ${refreshed.access_token}`;
+        response = await doFetch(headers);
+      }
+    }
+  }
+
+  if (!response.ok) {
+    const error = await parseErrorMessage(response);
+    return { ok: false, status: response.status, error };
+  }
+
+  const text = await response.text();
+  const data = (text ? JSON.parse(text) : null) as T;
+  return { ok: true, data };
 }
 
 function buildQuery(params: Record<string, string | undefined>): string {
@@ -105,6 +166,39 @@ export const api = {
   },
 
   getSession: (id: string) => apiFetch<SessionResponse>(`/sessions/${id}`),
+
+  startSession: (req: StartSessionRequest) =>
+    apiMutate<SessionResponse>("/sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionTitle: req.sessionTitle,
+        sessionContext: req.sessionContext ?? null,
+        deviceId: req.deviceId ?? null,
+      }),
+    }),
+
+  endSession: (id: string, req: EndSessionRequest) =>
+    apiMutate<SessionResponse>(`/sessions/${encodeURIComponent(id)}/end`, {
+      method: "POST",
+      body: JSON.stringify({
+        focusScorePercent: req.focusScorePercent,
+        focusedSeconds: req.focusedSeconds,
+        distractedSeconds: req.distractedSeconds,
+        distractionCount: req.distractionCount,
+        contextSwitchCount: req.contextSwitchCount,
+        deviceId: req.deviceId ?? null,
+      }),
+    }),
+
+  pauseSession: (id: string) =>
+    apiMutate<SessionResponse>(`/sessions/${encodeURIComponent(id)}/pause`, {
+      method: "POST",
+    }),
+
+  resumeSession: (id: string) =>
+    apiMutate<SessionResponse>(`/sessions/${encodeURIComponent(id)}/resume`, {
+      method: "POST",
+    }),
 
   getAnalyticsSummary: (params?: {
     from?: string;
