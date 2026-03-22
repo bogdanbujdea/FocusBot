@@ -263,36 +263,38 @@ export function DashboardPage() {
           <p className="dashboard-start-lead">
             Name your task and start the clock. You can pause or end anytime.
           </p>
-          <label className="dashboard-field-label" htmlFor="dash-task">
-            Task
-          </label>
-          <input
-            id="dash-task"
-            className="dashboard-input"
-            value={sessionTitle}
-            onChange={(e) => setSessionTitle(e.target.value)}
-            placeholder="e.g. Deep work on API design"
-            autoComplete="off"
-          />
-          <label className="dashboard-field-label" htmlFor="dash-context">
-            Context (optional)
-          </label>
-          <textarea
-            id="dash-context"
-            className="dashboard-textarea"
-            value={sessionContext}
-            onChange={(e) => setSessionContext(e.target.value)}
-            placeholder="Extra notes for yourself"
-            rows={3}
-          />
-          <button
-            type="button"
-            className="btn-primary dashboard-start-btn"
-            disabled={actionBusy}
-            onClick={() => void handleStart()}
-          >
-            Start focus session
-          </button>
+          <div className="dashboard-start-form">
+            <label className="dashboard-field-label" htmlFor="dash-task">
+              Task
+            </label>
+            <input
+              id="dash-task"
+              className="dashboard-input"
+              value={sessionTitle}
+              onChange={(e) => setSessionTitle(e.target.value)}
+              placeholder="e.g. Deep work on API design"
+              autoComplete="off"
+            />
+            <label className="dashboard-field-label" htmlFor="dash-context">
+              Context (optional)
+            </label>
+            <textarea
+              id="dash-context"
+              className="dashboard-textarea"
+              value={sessionContext}
+              onChange={(e) => setSessionContext(e.target.value)}
+              placeholder="Extra notes for yourself"
+              rows={3}
+            />
+            <button
+              type="button"
+              className="btn-primary dashboard-start-btn"
+              disabled={actionBusy}
+              onClick={() => void handleStart()}
+            >
+              Start focus session
+            </button>
+          </div>
         </section>
       )}
 

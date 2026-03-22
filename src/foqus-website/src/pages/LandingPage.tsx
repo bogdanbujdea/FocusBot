@@ -13,7 +13,6 @@ type FoqusWorkExample = {
   id: string;
   persona: string;
   headIcon: FoqusHeadIcon;
-  sameTaskAsPrevious?: boolean;
   task: string;
   /** When false, task string is shown as-is (e.g. inner quotes on a phrase). Otherwise wrapped in outer quotation marks. */
   taskEncloseInQuotes?: boolean;
@@ -44,7 +43,6 @@ const FOQUS_WORK_EXAMPLES: FoqusWorkExample[] = [
     id: "writer-excel",
     persona: "Writer",
     headIcon: "excel",
-    sameTaskAsPrevious: true,
     task: "Find inspiration for the \u201cSocial Media in 2026\u201d book",
     taskEncloseInQuotes: false,
     where: { surface: "desktop", label: "Excel", detail: "Monthly budget", brand: "excel" },
@@ -65,7 +63,6 @@ const FOQUS_WORK_EXAMPLES: FoqusWorkExample[] = [
     id: "dev-youtube-learn",
     persona: "Programmer",
     headIcon: "programmer",
-    sameTaskAsPrevious: true,
     task: "Fix the major bug today",
     where: { surface: "browser", label: "youtube.com", detail: "JavaScript tutorial", brand: "youtube" },
     verdict: "focused",
@@ -489,10 +486,8 @@ export function LandingPage() {
                       <p className="foqus-persona-line">
                         You&rsquo;re a <strong className="foqus-persona-role">{ex.persona}</strong>
                       </p>
-                      {ex.sameTaskAsPrevious ? <span className="foqus-same-task-badge">Same task</span> : null}
                     </div>
                   </div>
-                  <FoqusExampleVerdictBadge verdict={ex.verdict} />
                 </header>
                 <div className="foqus-example-body">
                   <p className="foqus-example-task">
@@ -520,10 +515,16 @@ export function LandingPage() {
                     ) : null}
                   </div>
                 </div>
-                <p className={`foqus-example-why foqus-example-why--${ex.verdict}`}>
-                  <FoqusExampleWhyIcon verdict={ex.verdict} />
-                  <span className="foqus-why-copy">{ex.why}</span>
-                </p>
+                <footer className={`foqus-example-why foqus-example-why--${ex.verdict}`}>
+                  <div className="foqus-example-why-head">
+                    <span className="foqus-example-why-label">Foqus classification</span>
+                    <FoqusExampleVerdictBadge verdict={ex.verdict} />
+                  </div>
+                  <div className="foqus-example-why-main">
+                    <FoqusExampleWhyIcon verdict={ex.verdict} />
+                    <span className="foqus-why-copy">{ex.why}</span>
+                  </div>
+                </footer>
               </li>
             ))}
           </ul>

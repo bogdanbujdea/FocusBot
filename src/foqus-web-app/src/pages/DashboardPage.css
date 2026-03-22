@@ -91,6 +91,17 @@
 
 .dashboard-session-panel-start {
   background: var(--color-card-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dashboard-start-form {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .dashboard-start-heading {
@@ -136,7 +147,7 @@
 
 .dashboard-start-btn {
   margin-top: var(--spacing-lg);
-  align-self: flex-start;
+  align-self: flex-end;
 }
 
 .btn-primary,

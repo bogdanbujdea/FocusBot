@@ -525,7 +525,6 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 12px 16px;
   padding: 16px 18px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -592,18 +591,6 @@
 .foqus-persona-role {
   font-weight: 800;
   color: rgba(231, 236, 255, 1);
-}
-
-.foqus-same-task-badge {
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(231, 236, 255, 0.55);
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .foqus-card-verdict {
@@ -744,15 +731,39 @@
 .foqus-example-why {
   margin: 0;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   padding: 14px 18px 17px;
   font-size: 0.86rem;
   line-height: 1.45;
-  font-style: italic;
   color: rgba(231, 236, 255, 0.58);
   background: rgba(0, 0, 0, 0.22);
   border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.foqus-example-why-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
+.foqus-example-why-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: rgba(231, 236, 255, 0.4);
+  font-style: normal;
+}
+
+.foqus-example-why-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
 }
 
 .foqus-example-why--focused .foqus-why-glyph {
@@ -769,6 +780,7 @@
 
 .foqus-why-copy {
   min-width: 0;
+  font-style: italic;
 }
 
 .coverage-callout {
@@ -1183,12 +1195,12 @@ button:disabled {
 }
 
 @media (max-width: 520px) {
-  .foqus-example-head {
+  .foqus-example-why-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .foqus-card-verdict {
+  .foqus-example-why-head .foqus-card-verdict {
     align-self: flex-start;
   }
 
