@@ -249,6 +249,12 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Reloads the focus board from the API (active session). Call when authentication becomes
+    /// available after the ViewModel was created (e.g. magic-link sign-in after launch).
+    /// </summary>
+    public Task ReloadBoardAsync() => LoadBoardAsync();
+
+    /// <summary>
     /// Refreshes the displayed AI provider and model from settings. Call when returning to the board so the corner label is up to date.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanStartSession))]

@@ -45,6 +45,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 ### Desktop app: focus sessions (API-only)
 
 - Focus sessions are **not** stored in local SQLite. The desktop app uses the FocusBot Web API as the only source of truth for session lifecycle (`POST /sessions`, `GET /sessions/active`, `POST /sessions/{id}/end`). Users must be signed in; there is no offline session mode.
+- The focus **board** (`FocusPageViewModel`) loads the active session from the API **after** Supabase auth is restored at startup, and **again** when authentication becomes available later (e.g. magic-link sign-in), so the UI matches the server’s in-progress session.
 - Local SQLite (`AppDbContext`) retains **alignment cache** entries only; the `UserSessions` table was removed.
 - `FocusBotApiClient` wraps session start/end calls with **Polly** retries: 3 attempts, 2 second delay between attempts, on transient HTTP failures (5xx, 408, `HttpRequestException`).
 
