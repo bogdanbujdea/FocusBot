@@ -3,18 +3,21 @@ namespace FocusBot.Core.Interfaces;
 /// <summary>
 /// Client-side interface for receiving real-time session events from the server
 /// via SignalR. Implementations handle incoming notifications from other devices.
+/// Payload shapes match <c>FocusBot.WebAPI.Hubs</c> hub events for correct deserialization.
 /// </summary>
 public interface IFocusHubClient
 {
-    event Action<SessionStartedNotification>? SessionStarted;
-    event Action<SessionEndedNotification>? SessionEnded;
+    event Action<SessionStartedEvent>? SessionStarted;
+    event Action<SessionEndedEvent>? SessionEnded;
+    event Action<SessionPausedEvent>? SessionPaused;
+    event Action<SessionResumedEvent>? SessionResumed;
 
     Task ConnectAsync(CancellationToken ct = default);
     Task DisconnectAsync();
     bool IsConnected { get; }
 }
 
-public sealed record SessionStartedNotification(
+public sealed record SessionStartedEvent(
     Guid SessionId,
     string SessionTitle,
     string? SessionContext,
@@ -22,8 +25,8 @@ public sealed record SessionStartedNotification(
     string Source
 );
 
-public sealed record SessionEndedNotification(
-    Guid SessionId,
-    DateTime EndedAtUtc,
-    string Source
-);
+public sealed record SessionEndedEvent(Guid SessionId, DateTime EndedAtUtc, string Source);
+
+public sealed record SessionPausedEvent(Guid SessionId, DateTime PausedAtUtc, string Source);
+
+public sealed record SessionResumedEvent(Guid SessionId, string Source);

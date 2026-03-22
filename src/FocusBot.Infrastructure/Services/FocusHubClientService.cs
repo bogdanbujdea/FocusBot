@@ -6,7 +6,7 @@ namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// SignalR client that connects to the Focus hub on the Web API and
-/// raises events when sessions are started or ended on other devices.
+/// raises events when sessions change on other devices (or the same user elsewhere).
 /// </summary>
 public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
 {
@@ -15,14 +15,17 @@ public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
     private readonly string _hubUrl;
     private HubConnection? _connection;
 
-    public event Action<SessionStartedNotification>? SessionStarted;
-    public event Action<SessionEndedNotification>? SessionEnded;
+    public event Action<SessionStartedEvent>? SessionStarted;
+    public event Action<SessionEndedEvent>? SessionEnded;
+    public event Action<SessionPausedEvent>? SessionPaused;
+    public event Action<SessionResumedEvent>? SessionResumed;
     public bool IsConnected => _connection?.State == HubConnectionState.Connected;
 
     public FocusHubClientService(
         IAuthService authService,
         ILogger<FocusHubClientService> logger,
-        string? apiBaseUrl = null)
+        string? apiBaseUrl = null
+    )
     {
         _authService = authService;
         _logger = logger;
@@ -46,25 +49,39 @@ public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
                 options.AccessTokenProvider = async () =>
                     await _authService.GetAccessTokenAsync() ?? string.Empty;
             })
-            .WithAutomaticReconnect([
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(10),
-                TimeSpan.FromSeconds(30)
-            ])
+            .WithAutomaticReconnect(
+                [
+                    TimeSpan.Zero,
+                    TimeSpan.FromSeconds(2),
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(10),
+                    TimeSpan.FromSeconds(30),
+                ]
+            )
             .Build();
 
-        _connection.On<SessionStartedNotification>("SessionStarted", n =>
+        _connection.On<SessionStartedEvent>("SessionStarted", n =>
         {
             _logger.LogInformation("SignalR: SessionStarted {SessionId}", n.SessionId);
             SessionStarted?.Invoke(n);
         });
 
-        _connection.On<SessionEndedNotification>("SessionEnded", n =>
+        _connection.On<SessionEndedEvent>("SessionEnded", n =>
         {
             _logger.LogInformation("SignalR: SessionEnded {SessionId}", n.SessionId);
             SessionEnded?.Invoke(n);
+        });
+
+        _connection.On<SessionPausedEvent>("SessionPaused", n =>
+        {
+            _logger.LogInformation("SignalR: SessionPaused {SessionId}", n.SessionId);
+            SessionPaused?.Invoke(n);
+        });
+
+        _connection.On<SessionResumedEvent>("SessionResumed", n =>
+        {
+            _logger.LogInformation("SignalR: SessionResumed {SessionId}", n.SessionId);
+            SessionResumed?.Invoke(n);
         });
 
         try
@@ -75,6 +92,16 @@ public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to connect to SignalR hub");
+            try
+            {
+                await _connection.DisposeAsync();
+            }
+            catch (Exception disposeEx)
+            {
+                _logger.LogTrace(disposeEx, "Disposing failed SignalR connection");
+            }
+
+            _connection = null;
         }
     }
 

@@ -78,6 +78,15 @@ namespace FocusBot.App
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
             services.AddSingleton<IFocusSessionOrchestrator, FocusSessionOrchestrator>();
+            services.AddSingleton<IFocusHubClient>(sp =>
+            {
+                var baseUrl = GetFocusBotApiBaseUrl();
+                return new FocusHubClientService(
+                    sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<ILogger<FocusHubClientService>>(),
+                    baseUrl
+                );
+            });
             services.AddTransient<FocusStatusViewModel>();
             services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
@@ -94,7 +103,19 @@ namespace FocusBot.App
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _ = StartApplicationAsync();
+            _ = RunStartupAsync();
+        }
+
+        private async Task RunStartupAsync()
+        {
+            try
+            {
+                await StartApplicationAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowExceptionMessage("Startup failed", ex);
+            }
         }
 
         /// <summary>
@@ -124,6 +145,7 @@ namespace FocusBot.App
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
             _integrationService = _services!.GetRequiredService<IIntegrationService>();
+
             _window = new MainWindow(_viewModel);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
@@ -131,9 +153,21 @@ namespace FocusBot.App
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
 
+            // Connect SignalR only after DispatcherQueue exists. Hub handlers marshal to the UI thread;
+            // if DispatcherQueue was still null, RunOnUIThreadAsync would run work on the SignalR thread
+            // and WinRT/XAML updates throw COMException.
+            var authAfterVm = _services!.GetRequiredService<IAuthService>();
+            if (authAfterVm.IsAuthenticated)
+            {
+                // Do not use ConfigureAwait(false) here: WinUI requires Activate(), overlay, and further
+                // XAML work on the window's UI thread. Continuing on the thread pool leaves no window
+                // in the taskbar.
+                await ConnectFocusHubAsync();
+            }
+
             _ = _integrationService.StartAsync();
 
-            _window.Activate();
+            await ActivateAndShowChromeAsync();
 
             try
             {
@@ -207,6 +241,7 @@ namespace FocusBot.App
         private void OnReAuthRequired()
         {
             StopHeartbeat();
+            _ = DisconnectFocusHubAsync();
 
             if (_services is null)
                 return;
@@ -248,6 +283,7 @@ namespace FocusBot.App
             if (!auth.IsAuthenticated)
             {
                 StopHeartbeat();
+                await DisconnectFocusHubAsync().ConfigureAwait(false);
                 return;
             }
 
@@ -274,6 +310,9 @@ namespace FocusBot.App
             StartHeartbeat(clientService);
 
             await ReloadFocusBoardIfReadyAsync();
+
+            if (_viewModel is not null)
+                await ConnectFocusHubAsync().ConfigureAwait(false);
         }
 
         private async Task ReloadFocusBoardIfReadyAsync()
@@ -331,6 +370,77 @@ namespace FocusBot.App
         {
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = null;
+        }
+
+        private async Task ConnectFocusHubAsync()
+        {
+            if (_services is null)
+                return;
+
+            try
+            {
+                var hub = _services.GetRequiredService<IFocusHubClient>();
+                // Preserve UI sync context when called from startup so Activate() stays on the UI thread.
+                await hub.ConnectAsync();
+            }
+            catch (Exception ex)
+            {
+                var logger = _services.GetRequiredService<ILogger<App>>();
+                logger.LogWarning(ex, "Focus hub connect failed");
+            }
+        }
+
+        /// <summary>
+        /// Activates the main window on its UI thread (required for WinUI; worker-thread Activate is unreliable).
+        /// </summary>
+        private Task ActivateAndShowChromeAsync()
+        {
+            var window = _window;
+            if (window is null)
+                return Task.CompletedTask;
+
+            var dq = window.DispatcherQueue;
+            if (dq.HasThreadAccess)
+            {
+                window.Activate();
+                return Task.CompletedTask;
+            }
+
+            var tcs = new TaskCompletionSource();
+            if (!dq.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        window.Activate();
+                        tcs.TrySetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.TrySetException(ex);
+                    }
+                }))
+            {
+                tcs.TrySetException(new InvalidOperationException("Could not enqueue main window Activate."));
+            }
+
+            return tcs.Task;
+        }
+
+        private async Task DisconnectFocusHubAsync()
+        {
+            if (_services is null)
+                return;
+
+            try
+            {
+                var hub = _services.GetRequiredService<IFocusHubClient>();
+                await hub.DisconnectAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var logger = _services.GetRequiredService<ILogger<App>>();
+                logger.LogWarning(ex, "Focus hub disconnect failed");
+            }
         }
 
         public readonly record struct ActivationRequest(

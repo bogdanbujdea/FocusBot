@@ -50,6 +50,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - The focus **board** (`FocusPageViewModel`) loads the active session from the API **after** Supabase auth is restored at startup, and **again** when authentication becomes available later (e.g. magic-link sign-in), so the UI matches the server’s in-progress session.
 - Local SQLite (`AppDbContext`) retains **alignment cache** entries only; the `UserSessions` table was removed.
 - `FocusBotApiClient` wraps session start/end calls with **Polly** retries: 3 attempts, 2 second delay between attempts, on transient HTTP failures (5xx, 408, `HttpRequestException`).
+- **Cross-device session sync (desktop ↔ web)**: After sign-in, the desktop app connects to the same SignalR hub as the web dashboard (`IFocusHubClient` / `FocusHubClientService` → `{apiBaseUrl}/hubs/focus`, JWT via `access_token`). `FocusPageViewModel` reloads the active session from the API on `SessionStarted` / `SessionEnded` and mirrors pause/resume via `SessionPaused` / `SessionResumed` when the event matches the current session. The hub is disconnected on sign-out and on `ReAuthRequired`. Connection is established after `FocusPageViewModel` is created on cold start (so event handlers are subscribed before the first connect).
 
 ### Client registration (API)
 

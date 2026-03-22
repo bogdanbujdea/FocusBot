@@ -28,6 +28,7 @@ public class InitializeShould
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
+            Mock.Of<IFocusHubClient>(),
             accountVm,
             statusBar);
 

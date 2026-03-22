@@ -138,6 +138,35 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
+    public void StopLocalTrackingIfActive()
+    {
+        lock (_lock)
+        {
+            if (_activeSession == null)
+                return;
+
+            _windowMonitor.Stop();
+            _sessionTracker.Reset();
+
+            _activeSession = null;
+            _sessionElapsedSeconds = 0;
+            _isSessionPaused = false;
+            _backendSessionId = null;
+            _currentFocusScorePercent = 0;
+
+            _currentProcessName = string.Empty;
+            _currentWindowTitle = string.Empty;
+            _focusScore = 0;
+            _focusReason = string.Empty;
+            _isClassifying = false;
+            _hasCurrentFocusResult = false;
+            _aiRequestError = null;
+        }
+
+        RaiseStateChanged();
+    }
+
+    /// <inheritdoc />
     public async Task<SessionEndResult?> EndSessionAsync()
     {
         UserSession? sessionToEnd;
@@ -184,27 +213,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             };
         }
 
-        lock (_lock)
-        {
-            _windowMonitor.Stop();
-            _sessionTracker.Reset();
+        StopLocalTrackingIfActive();
 
-            _activeSession = null;
-            _sessionElapsedSeconds = 0;
-            _isSessionPaused = false;
-            _backendSessionId = null;
-            _currentFocusScorePercent = 0;
-
-            _currentProcessName = string.Empty;
-            _currentWindowTitle = string.Empty;
-            _focusScore = 0;
-            _focusReason = string.Empty;
-            _isClassifying = false;
-            _hasCurrentFocusResult = false;
-            _aiRequestError = null;
-        }
-
-        RaiseStateChanged();
         return new SessionEndResult
         {
             Summary = summary,

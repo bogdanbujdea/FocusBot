@@ -134,6 +134,9 @@ Choose which devices participate in sync:
 - Auto-conflict resolution (end remote session)
 - No offline support
 
+**Phase 1 status (implemented)**  
+The Web API already broadcasts session lifecycle events on SignalR (`/hubs/focus`). The web app was already subscribed; the desktop app now registers `FocusHubClientService`, connects when the user is authenticated, and `FocusPageViewModel` refreshes from `GET /sessions/active` on hub events (skipping redundant `SessionStarted` when the session id already matches the local board). `FocusSessionOrchestrator.StopLocalTrackingIfActive` clears local monitoring when the API reports no active session (e.g. session ended on the web). Pause/resume from the web dashboard apply locally when the hub event’s session id matches the active session.
+
 **Phase 2: Extension Integration**
 - Add browser extension to the sync ecosystem
 - Full parity across all three client types
