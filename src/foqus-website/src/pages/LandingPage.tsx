@@ -155,7 +155,7 @@ export function LandingPage() {
               <div className="preview-card">
                 <div className="preview-card-header">
                   <span className="preview-title">Current Focus Session</span>
-                  <span className="preview-pill preview-pill-aligned">Aligned</span>
+                  <span className="preview-pill preview-pill-aligned">Focused</span>
                 </div>
                 <div className="preview-context">
                   <span className="preview-context-label">Current website</span>
@@ -187,41 +187,24 @@ export function LandingPage() {
                     <span className="preview-metric-value">00:38</span>
                   </div>
                 </div>
-                <div className="fragmentation" aria-label="Fragmentation">
+                <div className="fragmentation" aria-label="Focus time split">
                   <div className="fragmentation-header">
-                    <span className="fragmentation-label">Fragmentation</span>
+                    <span className="fragmentation-label">Focus split</span>
                   </div>
                   <div
                     className="fragmentation-bar"
-                    role="img"
-                    aria-label="Time fragmentation: 86 percent aligned, 14 percent distracted"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={86}
+                    aria-label="Session focus: 86 percent focused, 14 percent distracted"
                   >
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "22%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "4%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "18%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "5%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "20%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-distracted" style={{ width: "5%" }}>
-                      <span className="fragmentation-sr">Distracted segment</span>
-                    </span>
-                    <span className="fragmentation-segment fragmentation-segment-aligned" style={{ width: "26%" }}>
-                      <span className="fragmentation-sr">Aligned segment</span>
-                    </span>
+                    <div className="fragmentation-progress-fill" style={{ width: "86%" }} />
                   </div>
                   <div className="fragmentation-legend" aria-label="Legend">
                     <div className="fragmentation-legend-item">
                       <span className="fragmentation-dot fragmentation-dot-aligned" aria-hidden="true" />
-                      <span className="fragmentation-legend-text">Aligned 86%</span>
+                      <span className="fragmentation-legend-text">Focused 86%</span>
                     </div>
                     <div className="fragmentation-legend-item">
                       <span className="fragmentation-dot fragmentation-dot-distracted" aria-hidden="true" />
