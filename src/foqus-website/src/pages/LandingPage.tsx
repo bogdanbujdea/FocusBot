@@ -1,4 +1,4 @@
-import { type FormEvent, type MouseEvent, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, useId, useMemo, useState } from "react";
 import appIcon from "../../../FocusBot.App/Assets/1080.png";
 
 type Feature = {
@@ -35,24 +35,90 @@ const STEPS: Step[] = [
   { title: "Learn from each block", description: "See what pulled you off track so your next block stays sharper." }
 ];
 
+type WaitlistSignupFormProps = {
+  formId?: string;
+  emailFieldId: string;
+  className?: string;
+  submitButtonClassName?: string;
+  email: string;
+  onEmailChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  isSubmitting: boolean;
+  canSubmit: boolean;
+  submittedEmail: string | null;
+  submitError: string | null;
+};
+
+function WaitlistSignupForm({
+  formId,
+  emailFieldId,
+  className,
+  submitButtonClassName,
+  email,
+  onEmailChange,
+  onSubmit,
+  isSubmitting,
+  canSubmit,
+  submittedEmail,
+  submitError
+}: WaitlistSignupFormProps) {
+  return (
+    <form id={formId} className={className} onSubmit={onSubmit} aria-label="Join the Foqus waitlist">
+      <label className="label" htmlFor={emailFieldId}>
+        Email
+      </label>
+      <div className="waitlist-row">
+        <input
+          id={emailFieldId}
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          disabled={isSubmitting}
+        />
+        <input
+          className="waitlist-honeypot"
+          tabIndex={-1}
+          aria-hidden="true"
+          autoComplete="off"
+          name="company"
+          type="text"
+          defaultValue=""
+        />
+        <button type="submit" className={submitButtonClassName} disabled={!canSubmit || isSubmitting}>
+          {isSubmitting ? "Joining..." : "Get early access"}
+        </button>
+      </div>
+      <p className="trust-note muted">One email when it launches. No spam.</p>
+      {submittedEmail ? (
+        <p className="muted" role="status">
+          Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
+        </p>
+      ) : submitError ? (
+        <p className="muted" role="status">
+          {submitError}
+        </p>
+      ) : (
+        <p className="muted" role="status">
+          For people who want cleaner time blocks, fewer detours, and more meaningful work done.
+        </p>
+      )}
+    </form>
+  );
+}
+
 export function LandingPage() {
-  const emailId = useId();
-  const emailInputRef = useRef<HTMLInputElement>(null);
+  const emailIdHero = useId();
+  const emailIdFooter = useId();
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => email.trim().length > 3 && email.includes("@"), [email]);
-
-  const onHeroWaitlistClick = (event: MouseEvent<HTMLAnchorElement>): void => {
-    const input = emailInputRef.current;
-    if (!input) return;
-    event.preventDefault();
-    input.scrollIntoView({ behavior: "smooth", block: "center" });
-    window.history.replaceState(null, "", "#waitlist");
-    requestAnimationFrame(() => input.focus({ preventScroll: true }));
-  };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -121,10 +187,22 @@ export function LandingPage() {
                   One task per block, with a clear signal when you drift so you can recover before the block fragments. Task-aware across Windows apps and
                   websites — no manual whitelists.
                 </p>
+                <div className="landing-hero-waitlist">
+                  <WaitlistSignupForm
+                    formId="waitlist-hero"
+                    emailFieldId={emailIdHero}
+                    className="waitlist-form waitlist-form--hero"
+                    submitButtonClassName="btn btn-primary"
+                    email={email}
+                    onEmailChange={setEmail}
+                    onSubmit={onSubmit}
+                    isSubmitting={isSubmitting}
+                    canSubmit={canSubmit}
+                    submittedEmail={submittedEmail}
+                    submitError={submitError}
+                  />
+                </div>
                 <div className="landing-hero-actions">
-                  <a className="btn btn-primary" href="#waitlist" onClick={onHeroWaitlistClick}>
-                    Get early access
-                  </a>
                   <a className="btn btn-secondary" href="#how-it-works">
                     How it works
                   </a>
@@ -197,28 +275,28 @@ export function LandingPage() {
                     <span className="preview-metric-value">00:38</span>
                   </div>
                 </div>
-                <div className="fragmentation" aria-label="Focus time split">
-                  <div className="fragmentation-header">
-                    <span className="fragmentation-label">Focus split</span>
+                <div className="focus-split" aria-label="Focus time split">
+                  <div className="focus-split-header">
+                    <span className="focus-split-label">Focus split</span>
                   </div>
                   <div
-                    className="fragmentation-bar"
+                    className="focus-split-bar"
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={86}
                     aria-label="Session focus: 86 percent focused, 14 percent distracted"
                   >
-                    <div className="fragmentation-progress-fill" style={{ width: "86%" }} />
+                    <div className="focus-split-progress-fill" style={{ width: "86%" }} />
                   </div>
-                  <div className="fragmentation-legend" aria-label="Legend">
-                    <div className="fragmentation-legend-item">
-                      <span className="fragmentation-dot fragmentation-dot-aligned" aria-hidden="true" />
-                      <span className="fragmentation-legend-text">Focused 86%</span>
+                  <div className="focus-split-legend" aria-label="Focused and distracted percentages">
+                    <div className="focus-split-legend-item">
+                      <span className="focus-split-dot focus-split-dot-focused" aria-hidden="true" />
+                      <span className="focus-split-legend-text">Focused 86%</span>
                     </div>
-                    <div className="fragmentation-legend-item">
-                      <span className="fragmentation-dot fragmentation-dot-distracted" aria-hidden="true" />
-                      <span className="fragmentation-legend-text">Distracted 14%</span>
+                    <div className="focus-split-legend-item">
+                      <span className="focus-split-dot focus-split-dot-distracted" aria-hidden="true" />
+                      <span className="focus-split-legend-text">Distracted 14%</span>
                     </div>
                   </div>
                 </div>
@@ -312,51 +390,18 @@ export function LandingPage() {
           </div>
 
           <div className="cta-card card">
-            <form id="waitlist" className="waitlist-form" onSubmit={onSubmit}>
-              <label className="label" htmlFor={emailId}>
-                Email
-              </label>
-              <div className="waitlist-row">
-                <input
-                  ref={emailInputRef}
-                  id={emailId}
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <input
-                  className="waitlist-honeypot"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  autoComplete="off"
-                  name="company"
-                  type="text"
-                  defaultValue=""
-                />
-                <button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Joining..." : "Get early access"}
-                </button>
-              </div>
-              <p className="trust-note muted">One email when it launches. No spam.</p>
-              {submittedEmail ? (
-                <p className="muted" role="status">
-                  Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
-                </p>
-              ) : submitError ? (
-                <p className="muted" role="status">
-                  {submitError}
-                </p>
-              ) : (
-                <p className="muted" role="status">
-                  For people who want cleaner time blocks, fewer detours, and more meaningful work done.
-                </p>
-              )}
-            </form>
+            <WaitlistSignupForm
+              formId="waitlist"
+              emailFieldId={emailIdFooter}
+              className="waitlist-form"
+              email={email}
+              onEmailChange={setEmail}
+              onSubmit={onSubmit}
+              isSubmitting={isSubmitting}
+              canSubmit={canSubmit}
+              submittedEmail={submittedEmail}
+              submitError={submitError}
+            />
           </div>
         </section>
       </main>

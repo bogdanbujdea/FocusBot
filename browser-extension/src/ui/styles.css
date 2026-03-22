@@ -1034,7 +1034,7 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.fragmentation {
+.focus-split {
   margin-top: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1044,14 +1044,14 @@ button:disabled {
   gap: 8px;
 }
 
-.fragmentation-header {
+.focus-split-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 10px;
 }
 
-.fragmentation-label {
+.focus-split-label {
   font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1059,7 +1059,7 @@ button:disabled {
   color: rgba(231, 236, 255, 0.6);
 }
 
-.fragmentation-bar {
+.focus-split-bar {
   display: flex;
   width: 100%;
   height: 10px;
@@ -1069,61 +1069,49 @@ button:disabled {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.fragmentation-segment {
+.focus-split-segment {
   height: 100%;
   transition: width 0.4s ease;
 }
 
-.fragmentation-segment-aligned {
+.focus-split-segment-focused {
   background: rgba(45, 184, 113, 0.9);
 }
 
-.fragmentation-segment-distracted {
+.focus-split-segment-distracted {
   background: rgba(255, 102, 102, 0.9);
 }
 
-.fragmentation-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.fragmentation-legend {
+.focus-split-legend {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.fragmentation-legend-item {
+.focus-split-legend-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
 
-.fragmentation-dot {
+.focus-split-dot {
   width: 10px;
   height: 10px;
   border-radius: 3px;
   flex: 0 0 auto;
 }
 
-.fragmentation-dot-aligned {
+.focus-split-dot-focused {
   background: rgba(45, 184, 113, 0.9);
 }
 
-.fragmentation-dot-distracted {
+.focus-split-dot-distracted {
   background: rgba(255, 102, 102, 0.9);
 }
 
-.fragmentation-legend-text {
+.focus-split-legend-text {
   font-size: 0.8rem;
   font-weight: 700;
   color: rgba(231, 236, 255, 0.82);
