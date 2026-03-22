@@ -6,9 +6,13 @@ export const APP_KEYS = {
   classificationCache: "focusbot.classificationCache",
   lastSummary: "focusbot.lastSummary",
   lastError: "focusbot.lastError",
-  /** Stable device fingerprint (UUID). Survives extension updates. */
+  /** Stable client fingerprint (UUID). Survives extension updates. */
+  clientFingerprint: "focusbot.clientFingerprint",
+  /** Server-assigned client ID returned from POST /clients. */
+  clientId: "focusbot.clientId",
+  /** @deprecated Use clientFingerprint; migrated on read. */
   deviceFingerprint: "focusbot.deviceFingerprint",
-  /** Server-assigned device ID returned from POST /devices. */
+  /** @deprecated Use clientId; migrated on read. */
   deviceId: "focusbot.deviceId",
   /** Server-assigned session ID for the currently active cloud session. */
   serverSessionId: "focusbot.serverSessionId",

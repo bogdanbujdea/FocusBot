@@ -14,7 +14,7 @@ const emptySummary = (over: Partial<AnalyticsSummaryResponse> = {}): AnalyticsSu
   totalContextSwitchCount: 0,
   averageSessionDurationSeconds: 0,
   longestSessionSeconds: 0,
-  devicesActive: 0,
+  clientsActive: 0,
   ...over,
 });
 

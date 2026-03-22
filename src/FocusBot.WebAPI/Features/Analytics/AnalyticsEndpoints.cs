@@ -21,9 +21,9 @@ public static class AnalyticsEndpoints
             .WithName("GetAnalyticsTrends")
             .WithSummary("Time-series trend data for charts");
 
-        group.MapGet("/devices", GetDeviceBreakdown)
-            .WithName("GetAnalyticsDevices")
-            .WithSummary("Per-device analytics breakdown");
+        group.MapGet("/clients", GetClientBreakdown)
+            .WithName("GetAnalyticsClients")
+            .WithSummary("Per-client analytics breakdown");
 
         return group;
     }
@@ -33,7 +33,7 @@ public static class AnalyticsEndpoints
         HttpContext ctx,
         DateTime? from = null,
         DateTime? to = null,
-        Guid? deviceId = null,
+        Guid? clientId = null,
         CancellationToken ct = default
     )
     {
@@ -41,7 +41,7 @@ public static class AnalyticsEndpoints
         var fromDate = from ?? DateTime.UtcNow.AddDays(-7);
         var toDate = to ?? DateTime.UtcNow;
 
-        var result = await service.GetSummaryAsync(userId, fromDate, toDate, deviceId, ct);
+        var result = await service.GetSummaryAsync(userId, fromDate, toDate, clientId, ct);
         return Results.Ok(result);
     }
 
@@ -51,7 +51,7 @@ public static class AnalyticsEndpoints
         DateTime? from = null,
         DateTime? to = null,
         string granularity = "daily",
-        Guid? deviceId = null,
+        Guid? clientId = null,
         CancellationToken ct = default
     )
     {
@@ -59,11 +59,11 @@ public static class AnalyticsEndpoints
         var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
         var toDate = to ?? DateTime.UtcNow;
 
-        var result = await service.GetTrendsAsync(userId, fromDate, toDate, granularity, deviceId, ct);
+        var result = await service.GetTrendsAsync(userId, fromDate, toDate, granularity, clientId, ct);
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> GetDeviceBreakdown(
+    private static async Task<IResult> GetClientBreakdown(
         AnalyticsService service,
         HttpContext ctx,
         DateTime? from = null,
@@ -75,7 +75,7 @@ public static class AnalyticsEndpoints
         var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
         var toDate = to ?? DateTime.UtcNow;
 
-        var result = await service.GetDeviceBreakdownAsync(userId, fromDate, toDate, ct);
+        var result = await service.GetClientBreakdownAsync(userId, fromDate, toDate, ct);
         return Results.Ok(result);
     }
 

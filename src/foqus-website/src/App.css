@@ -640,6 +640,7 @@
 .waitlist-form {
   display: grid;
   gap: 10px;
+  scroll-margin-top: 24px;
 }
 
 .trust-note {

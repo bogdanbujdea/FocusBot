@@ -11,7 +11,7 @@ public sealed record AnalyticsSummaryResponse(
     int TotalContextSwitchCount,
     long AverageSessionDurationSeconds,
     long LongestSessionSeconds,
-    int DevicesActive,
+    int ClientsActive,
     long TotalActiveSeconds
 );
 
@@ -31,13 +31,13 @@ public sealed record TrendDataPoint(
     int DistractionCount
 );
 
-/// <summary>Response for GET /analytics/devices — per-device breakdown.</summary>
-public sealed record AnalyticsDevicesResponse(IReadOnlyList<DeviceAnalytics> Devices);
+/// <summary>Response for GET /analytics/clients — per-client breakdown.</summary>
+public sealed record AnalyticsClientsResponse(IReadOnlyList<ClientAnalytics> Clients);
 
-/// <summary>Analytics breakdown for a single device.</summary>
-public sealed record DeviceAnalytics(
-    Guid DeviceId,
-    string DeviceType,
+/// <summary>Analytics breakdown for a single registered client.</summary>
+public sealed record ClientAnalytics(
+    Guid ClientId,
+    string ClientType,
     string Name,
     int Sessions,
     long FocusedSeconds,

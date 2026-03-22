@@ -244,49 +244,53 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
-    public async Task<ApiDeviceResponse?> RegisterDeviceAsync(string name, string fingerprint)
+    public async Task<ApiClientResponse?> RegisterClientAsync(
+        string name,
+        string fingerprint,
+        ClientType clientType = ClientType.Desktop,
+        ClientHost host = ClientHost.Windows)
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/devices");
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/clients");
             if (request is null) return null;
 
-            request.Content = JsonContent.Create(new
-            {
-                deviceType = 1, // Desktop
+            var payload = new RegisterClientRequest(
+                clientType,
+                host,
                 name,
                 fingerprint,
-                appVersion = GetAppVersion(),
-                platform = "Windows"
-            }, options: JsonOptions);
+                GetAppVersion(),
+                "Windows");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
 
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("RegisterDevice failed: {StatusCode}", response.StatusCode);
+                _logger.LogWarning("RegisterClient failed: {StatusCode}", response.StatusCode);
                 return null;
             }
 
-            return await response.Content.ReadFromJsonAsync<ApiDeviceResponse>(JsonOptions);
+            return await response.Content.ReadFromJsonAsync<ApiClientResponse>(JsonOptions);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "RegisterDevice request failed");
+            _logger.LogWarning(ex, "RegisterClient request failed");
             return null;
         }
     }
 
-    public async Task<HttpStatusCode?> SendHeartbeatAsync(Guid deviceId)
+    public async Task<HttpStatusCode?> SendHeartbeatAsync(Guid clientId)
     {
         try
         {
-            var statusCode = await SendHeartbeatRequestAsync(deviceId);
+            var statusCode = await SendHeartbeatRequestAsync(clientId);
 
             if (statusCode == HttpStatusCode.Unauthorized)
             {
                 var refreshed = await _authService.RefreshTokenAsync();
                 if (refreshed)
-                    statusCode = await SendHeartbeatRequestAsync(deviceId);
+                    statusCode = await SendHeartbeatRequestAsync(clientId);
             }
 
             return statusCode;
@@ -298,9 +302,9 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
-    private async Task<HttpStatusCode> SendHeartbeatRequestAsync(Guid deviceId)
+    private async Task<HttpStatusCode> SendHeartbeatRequestAsync(Guid clientId)
     {
-        using var request = await CreateAuthorizedRequestAsync(HttpMethod.Put, $"/devices/{deviceId}/heartbeat");
+        using var request = await CreateAuthorizedRequestAsync(HttpMethod.Put, $"/clients/{clientId}/heartbeat");
         if (request is null)
             return HttpStatusCode.Unauthorized;
 
@@ -315,11 +319,11 @@ public class FocusBotApiClient : IFocusBotApiClient
     }
 
 
-    public async Task<bool> DeregisterDeviceAsync(Guid deviceId)
+    public async Task<bool> DeregisterClientAsync(Guid clientId)
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Delete, $"/devices/{deviceId}");
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Delete, $"/clients/{clientId}");
             if (request is null) return false;
 
             var response = await _httpClient.SendAsync(request);
@@ -327,7 +331,7 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "DeregisterDevice request failed");
+            _logger.LogWarning(ex, "DeregisterClient request failed");
             return false;
         }
     }

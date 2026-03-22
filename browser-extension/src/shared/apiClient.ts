@@ -146,7 +146,7 @@ export interface EndSessionResponse {
 
 export const startCloudSession = async (
   taskText: string,
-  deviceId: string | null,
+  clientId: string | null,
   taskHints?: string
 ): Promise<StartSessionResponse | null> =>
   apiFetch<StartSessionResponse>("/sessions", {
@@ -154,14 +154,14 @@ export const startCloudSession = async (
     body: JSON.stringify({
       sessionTitle: taskText,
       sessionContext: taskHints ?? null,
-      deviceId: deviceId ?? null
+      clientId: clientId ?? null
     })
   });
 
 export const endCloudSession = async (
   sessionId: string,
   summary: Record<string, unknown>,
-  deviceId: string | null
+  clientId: string | null
 ): Promise<EndSessionResponse | null> => {
   const focusPercentage = typeof summary.focusPercentage === "number" ? summary.focusPercentage : 0;
   const alignedSeconds = typeof summary.alignedSeconds === "number" ? summary.alignedSeconds : 0;
@@ -176,40 +176,59 @@ export const endCloudSession = async (
       distractedSeconds: Math.round(distractingSeconds),
       distractionCount,
       contextSwitchCount: 0,
-      deviceId: deviceId ?? null
+      clientId: clientId ?? null
     })
   });
 };
 
 // ---------------------------------------------------------------------------
-// Devices
+// Clients
 // ---------------------------------------------------------------------------
 
-export type DeviceType = "Desktop" | "Extension";
+export type ClientTypeName = "Desktop" | "Extension";
 
-export interface RegisterDeviceRequest {
-  deviceType: DeviceType;
+/** Matches API ClientHost enum: Unknown=0, Windows=1, Chrome=2, Edge=3 */
+export type ClientHostValue = 0 | 1 | 2 | 3;
+
+export const getClientHostFromUserAgent = (): ClientHostValue => {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/")) return 3;
+  if (ua.includes("Chrome/")) return 2;
+  return 0;
+};
+
+export interface RegisterClientRequest {
+  clientType: ClientTypeName;
+  host: ClientHostValue;
   name: string;
   fingerprint: string;
   appVersion: string;
   platform: string;
 }
 
-export interface RegisterDeviceResponse {
+export interface RegisterClientResponse {
   id: string;
+  clientType: number;
+  host: number;
   name: string;
-  deviceType: number;
+  fingerprint: string;
+  appVersion: string | null;
+  platform: string | null;
+  ipAddress: string | null;
   lastSeenAtUtc: string;
+  createdAtUtc: string;
+  isOnline: boolean;
 }
 
-export const registerDevice = async (
-  request: RegisterDeviceRequest
-): Promise<RegisterDeviceResponse | null> => {
-  const deviceTypeInt = request.deviceType === "Desktop" ? 1 : 2;
-  return apiFetch<RegisterDeviceResponse>("/devices", {
+export const registerClient = async (
+  request: RegisterClientRequest
+): Promise<RegisterClientResponse | null> => {
+  const clientTypeInt = request.clientType === "Desktop" ? 1 : 2;
+  return apiFetch<RegisterClientResponse>("/clients", {
     method: "POST",
     body: JSON.stringify({
-      deviceType: deviceTypeInt,
+      clientType: clientTypeInt,
+      host: request.host,
       name: request.name,
       fingerprint: request.fingerprint,
       appVersion: request.appVersion,
@@ -218,15 +237,15 @@ export const registerDevice = async (
   });
 };
 
-export const sendHeartbeat = async (deviceId: string): Promise<boolean> => {
-  const result = await apiFetch<unknown>(`/devices/${deviceId}/heartbeat`, {
+export const sendHeartbeat = async (clientId: string): Promise<boolean> => {
+  const result = await apiFetch<unknown>(`/clients/${clientId}/heartbeat`, {
     method: "PUT"
   });
   return result !== null;
 };
 
-export const deregisterDevice = async (deviceId: string): Promise<boolean> => {
-  const result = await apiFetch<unknown>(`/devices/${deviceId}`, {
+export const deregisterClient = async (clientId: string): Promise<boolean> => {
+  const result = await apiFetch<unknown>(`/clients/${clientId}`, {
     method: "DELETE"
   });
   return result !== null;

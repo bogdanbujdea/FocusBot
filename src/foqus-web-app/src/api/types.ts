@@ -19,7 +19,7 @@ export type ApiMutationResult<T> =
 export interface StartSessionRequest {
   sessionTitle: string;
   sessionContext?: string;
-  deviceId?: string;
+  clientId?: string;
 }
 
 export interface EndSessionRequest {
@@ -28,14 +28,14 @@ export interface EndSessionRequest {
   distractedSeconds: number;
   distractionCount: number;
   contextSwitchCount: number;
-  deviceId?: string;
+  clientId?: string;
 }
 
 export interface SessionResponse {
   id: string;
   sessionTitle: string;
   sessionContext?: string;
-  deviceId?: string;
+  clientId?: string;
   startedAtUtc: string;
   endedAtUtc?: string;
   pausedAtUtc?: string;
@@ -66,7 +66,7 @@ export interface AnalyticsSummaryResponse {
   totalContextSwitchCount: number;
   averageSessionDurationSeconds: number;
   longestSessionSeconds: number;
-  devicesActive: number;
+  clientsActive: number;
   totalActiveSeconds: number;
 }
 
@@ -84,9 +84,9 @@ export interface AnalyticsTrendsResponse {
   dataPoints: TrendDataPoint[];
 }
 
-export interface DeviceAnalytics {
-  deviceId: string;
-  deviceType: string;
+export interface ClientAnalytics {
+  clientId: string;
+  clientType: string;
   name: string;
   sessions: number;
   focusedSeconds: number;
@@ -94,8 +94,8 @@ export interface DeviceAnalytics {
   focusScorePercent: number;
 }
 
-export interface AnalyticsDevicesResponse {
-  devices: DeviceAnalytics[];
+export interface AnalyticsClientsResponse {
+  clients: ClientAnalytics[];
 }
 
 export const PlanType = {

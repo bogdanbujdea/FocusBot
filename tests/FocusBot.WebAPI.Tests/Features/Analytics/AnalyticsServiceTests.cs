@@ -70,30 +70,30 @@ public class AnalyticsServiceTests
     }
 
     [Fact]
-    public async Task GetSummaryAsync_FiltersbyDeviceId()
+    public async Task GetSummaryAsync_FiltersByClientId()
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
-        var deviceA = Guid.NewGuid();
-        var deviceB = Guid.NewGuid();
+        var clientA = Guid.NewGuid();
+        var clientB = Guid.NewGuid();
         var now = DateTime.UtcNow;
 
         db.Sessions.Add(new Session
         {
-            UserId = userId, DeviceId = deviceA, SessionTitle = "A",
+            UserId = userId, ClientId = clientA, SessionTitle = "A",
             StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
             FocusScorePercent = 80, FocusedSeconds = 3000, DistractedSeconds = 500,
         });
         db.Sessions.Add(new Session
         {
-            UserId = userId, DeviceId = deviceB, SessionTitle = "B",
+            UserId = userId, ClientId = clientB, SessionTitle = "B",
             StartedAtUtc = now.AddHours(-3), EndedAtUtc = now.AddHours(-2),
             FocusScorePercent = 60, FocusedSeconds = 1000, DistractedSeconds = 200,
         });
         await db.SaveChangesAsync();
 
         var service = new AnalyticsService(db);
-        var result = await service.GetSummaryAsync(userId, now.AddDays(-1), now.AddDays(1), deviceA);
+        var result = await service.GetSummaryAsync(userId, now.AddDays(-1), now.AddDays(1), clientA);
 
         result.TotalSessions.Should().Be(1);
         result.TotalFocusedSeconds.Should().Be(3000);
@@ -147,33 +147,33 @@ public class AnalyticsServiceTests
     }
 
     [Fact]
-    public async Task GetDeviceBreakdownAsync_GroupsByDevice()
+    public async Task GetClientBreakdownAsync_GroupsByClient()
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
-        var deviceId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
         var now = DateTime.UtcNow;
 
-        db.Devices.Add(new Device
+        db.Clients.Add(new Client
         {
-            Id = deviceId, UserId = userId, Name = "Work Laptop",
-            DeviceType = DeviceType.Desktop, Fingerprint = "fp-1",
+            Id = clientId, UserId = userId, Name = "Work Laptop",
+            ClientType = ClientType.Desktop, Fingerprint = "fp-1",
         });
         db.Sessions.Add(new Session
         {
-            UserId = userId, DeviceId = deviceId, SessionTitle = "Session",
+            UserId = userId, ClientId = clientId, SessionTitle = "Session",
             StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
             FocusScorePercent = 80, FocusedSeconds = 3000, DistractedSeconds = 500,
         });
         await db.SaveChangesAsync();
 
         var service = new AnalyticsService(db);
-        var result = await service.GetDeviceBreakdownAsync(userId, now.AddDays(-1), now.AddDays(1));
+        var result = await service.GetClientBreakdownAsync(userId, now.AddDays(-1), now.AddDays(1));
 
-        result.Devices.Should().HaveCount(1);
-        result.Devices[0].Name.Should().Be("Work Laptop");
-        result.Devices[0].Sessions.Should().Be(1);
-        result.Devices[0].FocusedSeconds.Should().Be(3000);
+        result.Clients.Should().HaveCount(1);
+        result.Clients[0].Name.Should().Be("Work Laptop");
+        result.Clients[0].Sessions.Should().Be(1);
+        result.Clients[0].FocusedSeconds.Should().Be(3000);
     }
 
     [Fact]

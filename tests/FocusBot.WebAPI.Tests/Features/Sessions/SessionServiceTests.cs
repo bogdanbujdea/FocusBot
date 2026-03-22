@@ -21,7 +21,7 @@ public class SessionServiceTests
         await using var db = CreateInMemoryDb();
         var service = new SessionService(db);
         var userId = Guid.NewGuid();
-        var request = new StartSessionRequest("Write tests", "Unit tests only", DeviceId: null);
+        var request = new StartSessionRequest("Write tests", "Unit tests only", ClientId: null);
 
         var result = await service.StartSessionAsync(userId, request);
 
@@ -44,7 +44,7 @@ public class SessionServiceTests
         var service = new SessionService(db);
         var result = await service.StartSessionAsync(
             userId,
-            new StartSessionRequest("New session", null, DeviceId: null)
+            new StartSessionRequest("New session", null, ClientId: null)
         );
 
         result.StatusCode.Should().Be(409);
@@ -75,7 +75,7 @@ public class SessionServiceTests
             DistractedSeconds: 300,
             DistractionCount: 5,
             ContextSwitchCount: 120,
-            DeviceId: null
+            ClientId: null
         );
 
         var result = await service.EndSessionAsync(userId, sessionId, endRequest);
@@ -248,7 +248,7 @@ public class SessionServiceTests
             DistractedSeconds: 200,
             DistractionCount: 3,
             ContextSwitchCount: 60,
-            DeviceId: null
+            ClientId: null
         );
 
         var result = await service.EndSessionAsync(userId, sessionId, endRequest);
@@ -298,32 +298,32 @@ public class SessionServiceTests
     }
 
     [Fact]
-    public async Task GetSessionsAsync_FiltersByDeviceId()
+    public async Task GetSessionsAsync_FiltersByClientId()
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
-        var deviceA = Guid.NewGuid();
-        var deviceB = Guid.NewGuid();
+        var clientA = Guid.NewGuid();
+        var clientB = Guid.NewGuid();
         var now = DateTime.UtcNow;
 
         db.Sessions.Add(new Session
         {
-            UserId = userId, SessionTitle = "Device A", DeviceId = deviceA,
+            UserId = userId, SessionTitle = "Client A", ClientId = clientA,
             StartedAtUtc = now.AddHours(-2), EndedAtUtc = now.AddHours(-1),
         });
         db.Sessions.Add(new Session
         {
-            UserId = userId, SessionTitle = "Device B", DeviceId = deviceB,
+            UserId = userId, SessionTitle = "Client B", ClientId = clientB,
             StartedAtUtc = now.AddHours(-3), EndedAtUtc = now.AddHours(-2),
         });
         await db.SaveChangesAsync();
 
         var service = new SessionService(db);
-        var filter = new SessionFilter(DeviceId: deviceA, From: null, To: null, SessionTitle: null);
+        var filter = new SessionFilter(ClientId: clientA, From: null, To: null, SessionTitle: null);
         var result = await service.GetSessionsAsync(userId, 1, 20, filter);
 
         result.TotalCount.Should().Be(1);
-        result.Items.Should().ContainSingle(s => s.SessionTitle == "Device A");
+        result.Items.Should().ContainSingle(s => s.SessionTitle == "Client A");
     }
 
     [Fact]

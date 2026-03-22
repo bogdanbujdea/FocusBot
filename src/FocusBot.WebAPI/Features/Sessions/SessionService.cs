@@ -28,7 +28,7 @@ public class SessionService(ApiDbContext db)
             UserId = userId,
             SessionTitle = request.SessionTitle,
             Context = request.SessionContext,
-            DeviceId = request.DeviceId,
+            ClientId = request.ClientId,
             StartedAtUtc = DateTime.UtcNow,
             Source = "api",
         };
@@ -72,17 +72,17 @@ public class SessionService(ApiDbContext db)
         session.DistractionCount = request.DistractionCount;
         session.ContextSwitchCount = request.ContextSwitchCount;
 
-        if (request.DeviceId.HasValue)
+        if (request.ClientId.HasValue)
         {
-            var deviceBelongsToUser = await db.Devices.AnyAsync(
-                d => d.Id == request.DeviceId.Value && d.UserId == userId,
+            var clientBelongsToUser = await db.Clients.AnyAsync(
+                c => c.Id == request.ClientId.Value && c.UserId == userId,
                 ct
             );
 
-            if (!deviceBelongsToUser)
-                return SessionResult.Forbidden("Device does not belong to the current user.");
+            if (!clientBelongsToUser)
+                return SessionResult.Forbidden("Client does not belong to the current user.");
 
-            session.DeviceId = request.DeviceId;
+            session.ClientId = request.ClientId;
         }
 
         await db.SaveChangesAsync(ct);
@@ -108,8 +108,8 @@ public class SessionService(ApiDbContext db)
     {
         var baseQuery = db.Sessions.Where(s => s.UserId == userId && s.EndedAtUtc != null);
 
-        if (filter?.DeviceId is not null)
-            baseQuery = baseQuery.Where(s => s.DeviceId == filter.DeviceId);
+        if (filter?.ClientId is not null)
+            baseQuery = baseQuery.Where(s => s.ClientId == filter.ClientId);
 
         if (filter?.From is not null)
             baseQuery = baseQuery.Where(s => s.StartedAtUtc >= filter.From);
@@ -213,7 +213,7 @@ public class SessionService(ApiDbContext db)
             s.Id,
             s.SessionTitle,
             s.Context,
-            s.DeviceId,
+            s.ClientId,
             s.StartedAtUtc,
             s.EndedAtUtc,
             s.PausedAtUtc,

@@ -177,7 +177,7 @@ public static class SessionEndpoints
         HttpContext ctx,
         int page = 1,
         int pageSize = 20,
-        Guid? deviceId = null,
+        Guid? clientId = null,
         DateTime? from = null,
         DateTime? to = null,
         string? sessionTitle = null,
@@ -187,7 +187,7 @@ public static class SessionEndpoints
     )
     {
         var userId = GetUserId(ctx);
-        var filter = new SessionFilter(deviceId, from, to, sessionTitle, sortBy, sortOrder);
+        var filter = new SessionFilter(clientId, from, to, sessionTitle, sortBy, sortOrder);
         var result = await service.GetSessionsAsync(userId, page, pageSize, filter, ct);
         return Results.Ok(result);
     }

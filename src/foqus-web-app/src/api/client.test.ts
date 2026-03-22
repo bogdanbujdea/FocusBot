@@ -5,7 +5,7 @@ const sampleSession = {
   id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
   sessionTitle: "Task",
   sessionContext: null,
-  deviceId: null,
+  clientId: null,
   startedAtUtc: "2025-01-01T10:00:00Z",
   endedAtUtc: null,
   pausedAtUtc: null,
@@ -46,7 +46,7 @@ describe("api session mutations", () => {
         body: JSON.stringify({
           sessionTitle: "Deep work",
           sessionContext: null,
-          deviceId: null,
+          clientId: null,
         }),
       })
     );
@@ -75,7 +75,7 @@ describe("api session mutations", () => {
           distractedSeconds: 0,
           distractionCount: 0,
           contextSwitchCount: 0,
-          deviceId: null,
+          clientId: null,
         }),
       })
     );

@@ -3,7 +3,7 @@ using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Analytics;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
-using FocusBot.WebAPI.Features.Devices;
+using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Features.Sessions;
 using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Features.Waitlist;
@@ -148,7 +148,7 @@ builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<WaitlistService>();
-builder.Services.AddScoped<DeviceService>();
+builder.Services.AddScoped<ClientService>();
 builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -201,7 +201,7 @@ app.MapSessionEndpoints();
 app.MapClassificationEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapWaitlistEndpoints();
-app.MapDevicesEndpoints();
+app.MapClientsEndpoints();
 app.MapAnalyticsEndpoints();
 
 // ── Database migration ──────────────────────────────────────────────────────

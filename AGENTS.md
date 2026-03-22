@@ -51,6 +51,13 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - Local SQLite (`AppDbContext`) retains **alignment cache** entries only; the `UserSessions` table was removed.
 - `FocusBotApiClient` wraps session start/end calls with **Polly** retries: 3 attempts, 2 second delay between attempts, on transient HTTP failures (5xx, 408, `HttpRequestException`).
 
+### Client registration (API)
+
+- The API treats a **client** as one registered **software install** (WinUI app, Chrome extension, Edge extension, etc.), not necessarily one physical machine. Each install has a stable **fingerprint** and a server-assigned **client id** (`POST /clients`, `PUT /clients/{id}/heartbeat`, `DELETE /clients/{id}`).
+- **Startup**: `App.xaml.cs` subscribes to `AuthStateChanged` only **after** the initial `InitializeAuthAsync` completes, so `OnAuthStateChangedAsync` does not run twice on restore. `IClientService.EnsureClientIdLoadedAsync` hydrates the cached id from settings before deciding to register.
+- Sessions and analytics use **`clientId`** (JSON: `clientId`). Analytics breakdown: `GET /analytics/clients`. Summary includes **`clientsActive`**.
+- **Host** (`ClientHost`): `Unknown`, `Windows` (desktop), `Chrome`, `Edge` (extensions). **IpAddress** on the `Client` row is set from `HttpContext.Connection.RemoteIpAddress` on register and heartbeat.
+
 ### Key caveats
 
 - .NET 10 SDK is required (installed at `/usr/share/dotnet`). The update script restores NuGet and npm packages.

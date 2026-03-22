@@ -12,7 +12,7 @@ public class AnalyticsService(ApiDbContext db)
         Guid userId,
         DateTime from,
         DateTime to,
-        Guid? deviceId,
+        Guid? clientId,
         CancellationToken ct = default
     )
     {
@@ -24,8 +24,8 @@ public class AnalyticsService(ApiDbContext db)
                 && s.StartedAtUtc < to
             );
 
-        if (deviceId.HasValue)
-            query = query.Where(s => s.DeviceId == deviceId.Value);
+        if (clientId.HasValue)
+            query = query.Where(s => s.ClientId == clientId.Value);
 
         var sessions = await query.ToListAsync(ct);
 
@@ -61,9 +61,9 @@ public class AnalyticsService(ApiDbContext db)
         var avgDuration = (long)durations.Average();
         var longestDuration = durations.Max();
         var totalActive = durations.Sum();
-        var devicesActive = sessions
-            .Where(s => s.DeviceId.HasValue)
-            .Select(s => s.DeviceId!.Value)
+        var clientsActive = sessions
+            .Where(s => s.ClientId.HasValue)
+            .Select(s => s.ClientId!.Value)
             .Distinct()
             .Count();
 
@@ -77,7 +77,7 @@ public class AnalyticsService(ApiDbContext db)
             totalContextSwitches,
             avgDuration,
             longestDuration,
-            devicesActive,
+            clientsActive,
             totalActive
         );
     }
@@ -87,7 +87,7 @@ public class AnalyticsService(ApiDbContext db)
         DateTime from,
         DateTime to,
         string granularity,
-        Guid? deviceId,
+        Guid? clientId,
         CancellationToken ct = default
     )
     {
@@ -99,8 +99,8 @@ public class AnalyticsService(ApiDbContext db)
                 && s.StartedAtUtc < to
             );
 
-        if (deviceId.HasValue)
-            query = query.Where(s => s.DeviceId == deviceId.Value);
+        if (clientId.HasValue)
+            query = query.Where(s => s.ClientId == clientId.Value);
 
         var sessions = await query
             .OrderBy(s => s.StartedAtUtc)
@@ -133,7 +133,7 @@ public class AnalyticsService(ApiDbContext db)
         return new AnalyticsTrendsResponse(granularity, dataPoints);
     }
 
-    public async Task<AnalyticsDevicesResponse> GetDeviceBreakdownAsync(
+    public async Task<AnalyticsClientsResponse> GetClientBreakdownAsync(
         Guid userId,
         DateTime from,
         DateTime to,
@@ -144,31 +144,31 @@ public class AnalyticsService(ApiDbContext db)
             .Sessions.Where(s =>
                 s.UserId == userId
                 && s.EndedAtUtc != null
-                && s.DeviceId != null
+                && s.ClientId != null
                 && s.StartedAtUtc >= from
                 && s.StartedAtUtc < to
             )
             .ToListAsync(ct);
 
-        var devices = await db
-            .Devices.Where(d => d.UserId == userId)
+        var clients = await db
+            .Clients.Where(c => c.UserId == userId)
             .ToListAsync(ct);
 
-        var deviceMap = devices.ToDictionary(d => d.Id);
+        var clientMap = clients.ToDictionary(c => c.Id);
 
-        var grouped = sessions.GroupBy(s => s.DeviceId!.Value);
+        var grouped = sessions.GroupBy(s => s.ClientId!.Value);
 
         var result = grouped
             .Select(g =>
             {
-                var device = deviceMap.GetValueOrDefault(g.Key);
+                var client = clientMap.GetValueOrDefault(g.Key);
                 var scored = g.Where(s => s.FocusScorePercent.HasValue).ToList();
                 var avgFocus = scored.Count > 0 ? (int)scored.Average(s => s.FocusScorePercent!.Value) : 0;
 
-                return new DeviceAnalytics(
+                return new ClientAnalytics(
                     g.Key,
-                    device?.DeviceType.ToString() ?? "Unknown",
-                    device?.Name ?? "Unknown Device",
+                    client?.ClientType.ToString() ?? "Unknown",
+                    client?.Name ?? "Unknown client",
                     g.Count(),
                     g.Sum(s => s.FocusedSeconds ?? 0),
                     g.Sum(s => s.DistractedSeconds ?? 0),
@@ -177,7 +177,7 @@ public class AnalyticsService(ApiDbContext db)
             })
             .ToList();
 
-        return new AnalyticsDevicesResponse(result);
+        return new AnalyticsClientsResponse(result);
     }
 
     private static DateTime GetWeekStart(DateTime date)

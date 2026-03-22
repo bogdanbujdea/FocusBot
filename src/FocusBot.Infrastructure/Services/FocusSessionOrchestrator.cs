@@ -21,7 +21,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     private readonly IFocusBotApiClient _apiClient;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly IIntegrationService? _integrationService;
-    private readonly IDeviceService? _deviceService;
+    private readonly IClientService? _clientService;
 
     private readonly object _lock = new();
 
@@ -63,7 +63,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         IFocusBotApiClient apiClient,
         IAlignmentCacheRepository alignmentCacheRepository,
         IIntegrationService? integrationService = null,
-        IDeviceService? deviceService = null
+        IClientService? clientService = null
     )
     {
         _sessionTracker = sessionTracker;
@@ -72,7 +72,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         _apiClient = apiClient;
         _alignmentCacheRepository = alignmentCacheRepository;
         _integrationService = integrationService;
-        _deviceService = deviceService;
+        _clientService = clientService;
 
         _windowMonitor.Tick += OnTick;
         _windowMonitor.UserBecameIdle += OnUserBecameIdle;
@@ -86,8 +86,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         if (!_apiClient.IsConfigured)
             return ApiResult<UserSession>.NotAuthenticated();
 
-        var deviceId = _deviceService?.GetDeviceId();
-        var payload = new StartSessionPayload(sessionTitle, sessionContext, deviceId);
+        var clientId = _clientService?.GetClientId();
+        var payload = new StartSessionPayload(sessionTitle, sessionContext, clientId);
         var result = await _apiClient.StartSessionAsync(payload);
 
         if (result.IsSuccess && result.Value != null)
@@ -98,7 +98,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         }
 
         if (result.StatusCode == HttpStatusCode.Conflict)
-            return await TryResolveConflictAndStartAsync(payload, deviceId);
+            return await TryResolveConflictAndStartAsync(payload, clientId);
 
         return ApiResultMappings.FromFailedSessionCall<UserSession>(result);
     }
@@ -171,7 +171,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             summary.ContextSwitchCount,
             summary.TopDistractingApps,
             summary.TopAlignedApps,
-            _deviceService?.GetDeviceId()
+            _clientService?.GetClientId()
         );
 
         var endResult = await _apiClient.EndSessionAsync(backendId.Value, payload);
@@ -293,7 +293,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
     private async Task<ApiResult<UserSession>> TryResolveConflictAndStartAsync(
         StartSessionPayload payload,
-        Guid? deviceId
+        Guid? clientId
     )
     {
         var staleSession = await _apiClient.GetActiveSessionAsync();
@@ -308,7 +308,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             ContextSwitchCount: 0,
             TopDistractingApps: null,
             TopAlignedApps: null,
-            DeviceId: deviceId
+            ClientId: clientId
         );
         var abandonResult = await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
         if (!abandonResult.IsSuccess)

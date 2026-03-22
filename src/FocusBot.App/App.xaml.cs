@@ -73,7 +73,7 @@ namespace FocusBot.App
             });
             services.AddScoped<IClassificationService, AlignmentClassificationService>();
             services.AddSingleton<ILocalSessionTracker, LocalSessionTracker>();
-            services.AddSingleton<IDeviceService, DesktopDeviceService>();
+            services.AddSingleton<IClientService, DesktopClientService>();
             services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
             services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
@@ -94,8 +94,6 @@ namespace FocusBot.App
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            var activationArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
-            HandleActivation(activationArgs);
             _ = StartApplicationAsync();
         }
 
@@ -106,10 +104,22 @@ namespace FocusBot.App
         private async Task StartApplicationAsync()
         {
             var auth = _services!.GetRequiredService<IAuthService>();
-            auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
             auth.ReAuthRequired += OnReAuthRequired;
 
+            // Protocol launch (magic link): complete the callback before session restore so tokens
+            // exist on disk before TryRestoreSessionAsync, and avoid racing InitializeAuthAsync.
+            var launchActivation = AppInstance.GetCurrent().GetActivatedEventArgs();
+            var launchRequest = ActivationRequest.From(launchActivation);
+            if (launchRequest.IsSupported && !string.IsNullOrWhiteSpace(launchRequest.ProtocolUri))
+            {
+                await HandleActivationAsync(launchRequest);
+            }
+
             await InitializeAuthAsync(auth);
+
+            auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
+
+            await OnAuthStateChangedAsync();
 
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
@@ -214,7 +224,7 @@ namespace FocusBot.App
 
         /// <summary>
         /// Initializes auth state at startup. Awaits session restore (including token refresh)
-        /// before triggering auth-dependent initialization like device registration.
+        /// before triggering auth-dependent initialization like client registration.
         /// </summary>
         private async Task InitializeAuthAsync(IAuthService auth)
         {
@@ -227,11 +237,6 @@ namespace FocusBot.App
                 var logger = _services?.GetRequiredService<ILogger<App>>();
                 logger?.LogError(ex, "Failed to restore auth session at startup");
             }
-
-            // Trigger auth-dependent initialization.
-            // TryRestoreSessionAsync fires AuthStateChanged on success, but for no-session
-            // or failed-refresh cases we need to explicitly initialize.
-            await OnAuthStateChangedAsync();
         }
 
         private async Task OnAuthStateChangedAsync()
@@ -261,11 +266,12 @@ namespace FocusBot.App
             var planService = _services.GetRequiredService<IPlanService>();
             await planService.RefreshAsync();
 
-            var deviceService = _services.GetRequiredService<IDeviceService>();
-            if (deviceService.GetDeviceId() is null)
-                await deviceService.RegisterAsync();
+            var clientService = _services.GetRequiredService<IClientService>();
+            await clientService.EnsureClientIdLoadedAsync();
+            if (clientService.GetClientId() is null)
+                await clientService.RegisterAsync();
 
-            StartHeartbeat(deviceService);
+            StartHeartbeat(clientService);
 
             await ReloadFocusBoardIfReadyAsync();
         }
@@ -278,7 +284,7 @@ namespace FocusBot.App
             await _viewModel.ReloadBoardAsync().ConfigureAwait(false);
         }
 
-        private void StartHeartbeat(IDeviceService deviceService)
+        private void StartHeartbeat(IClientService clientService)
         {
             if (_heartbeatTimer is not null)
                 return;
@@ -293,7 +299,7 @@ namespace FocusBot.App
                     if (!semaphore.Wait(0))
                         return;
 
-                    _ = SendHeartbeatSafeAsync(deviceService, semaphore, logger);
+                    _ = SendHeartbeatSafeAsync(clientService, semaphore, logger);
                 },
                 state: null,
                 dueTime: TimeSpan.FromSeconds(60),
@@ -302,18 +308,18 @@ namespace FocusBot.App
         }
 
         private static async Task SendHeartbeatSafeAsync(
-            IDeviceService deviceService,
+            IClientService clientService,
             SemaphoreSlim semaphore,
             ILogger<App> logger
         )
         {
             try
             {
-                await deviceService.SendHeartbeatAsync().ConfigureAwait(false);
+                await clientService.SendHeartbeatAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while sending the device heartbeat.");
+                logger.LogError(ex, "An error occurred while sending the client heartbeat.");
             }
             finally
             {

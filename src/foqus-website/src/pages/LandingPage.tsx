@@ -1,4 +1,4 @@
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, type MouseEvent, useId, useMemo, useRef, useState } from "react";
 import appIcon from "../../../FocusBot.App/Assets/1080.png";
 
 type Feature = {
@@ -37,12 +37,22 @@ const STEPS: Step[] = [
 
 export function LandingPage() {
   const emailId = useId();
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => email.trim().length > 3 && email.includes("@"), [email]);
+
+  const onHeroWaitlistClick = (event: MouseEvent<HTMLAnchorElement>): void => {
+    const input = emailInputRef.current;
+    if (!input) return;
+    event.preventDefault();
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.history.replaceState(null, "", "#waitlist");
+    requestAnimationFrame(() => input.focus({ preventScroll: true }));
+  };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -112,7 +122,7 @@ export function LandingPage() {
                   websites — no manual whitelists.
                 </p>
                 <div className="landing-hero-actions">
-                  <a className="btn btn-primary" href="#waitlist">
+                  <a className="btn btn-primary" href="#waitlist" onClick={onHeroWaitlistClick}>
                     Get early access
                   </a>
                   <a className="btn btn-secondary" href="#how-it-works">
@@ -295,19 +305,20 @@ export function LandingPage() {
           </ol>
         </section>
 
-        <section id="waitlist" className="landing-section landing-cta" aria-labelledby="cta-title">
+        <section className="landing-section landing-cta" aria-labelledby="cta-title">
           <div className="landing-section-header">
             <h2 id="cta-title">Get early access to Foqus</h2>
             <p className="muted">Join the waitlist for early access when Foqus launches.</p>
           </div>
 
           <div className="cta-card card">
-            <form className="waitlist-form" onSubmit={onSubmit}>
+            <form id="waitlist" className="waitlist-form" onSubmit={onSubmit}>
               <label className="label" htmlFor={emailId}>
                 Email
               </label>
               <div className="waitlist-row">
                 <input
+                  ref={emailInputRef}
                   id={emailId}
                   name="email"
                   type="email"
