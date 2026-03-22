@@ -109,10 +109,13 @@ public static class SessionEndpoints
 
     private static async Task<IResult> GetSessions(
         SessionService service, HttpContext ctx, int page = 1, int pageSize = 20,
+        Guid? deviceId = null, DateTime? from = null, DateTime? to = null,
+        string? sessionTitle = null, string sortBy = "startedAt", string sortOrder = "desc",
         CancellationToken ct = default)
     {
         var userId = GetUserId(ctx);
-        var result = await service.GetSessionsAsync(userId, page, pageSize, ct);
+        var filter = new SessionFilter(deviceId, from, to, sessionTitle, sortBy, sortOrder);
+        var result = await service.GetSessionsAsync(userId, page, pageSize, filter, ct);
         return Results.Ok(result);
     }
 

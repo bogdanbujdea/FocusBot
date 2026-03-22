@@ -32,6 +32,16 @@ public sealed record SessionResponse(
     string Source
 );
 
+/// <summary>Filter and sort parameters for session queries.</summary>
+public sealed record SessionFilter(
+    Guid? DeviceId,
+    DateTime? From,
+    DateTime? To,
+    string? SessionTitle,
+    string SortBy = "startedAt",
+    string SortOrder = "desc"
+);
+
 /// <summary>Generic paginated response wrapper.</summary>
 public sealed record PaginatedResponse<T>(
     IReadOnlyList<T> Items,
