@@ -23,19 +23,21 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 ### Running services
 
 - **WebAPI**: Requires PostgreSQL. Start PG via `docker run -d --name focusbot-pg -e POSTGRES_DB=focusbot -e POSTGRES_USER=focusbot -e POSTGRES_PASSWORD=focusbot_dev -p 5432:5432 postgres:16-alpine`, then `dotnet run --project src/FocusBot.WebAPI/FocusBot.WebAPI.csproj --launch-profile http` (listens on `http://localhost:5251`). Auto-migrates the database on startup.
+- **Web app dev**: `cd src/foqus-web-app && npm run dev` (listens on `http://localhost:5174`). Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for local dev (production defaults are built in for `import.meta.env.PROD`).
 - **Browser extension dev**: `cd browser-extension && npm run dev`
 
 ### Running tests
 
 - **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj` (25 tests)
-- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (29 tests, InMemory EF Core)
-- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (6 tests, WebApplicationFactory + InMemory DB)
-- **Browser extension tests**: `cd browser-extension && npm test` (76 tests, Vitest)
+- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (49 tests, InMemory EF Core)
+- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (32 tests, WebApplicationFactory + InMemory DB)
+- **Browser extension tests**: `cd browser-extension && npm test` (80 tests, Vitest)
 - Integration tests use `CustomWebApplicationFactory` which provides test JWT config and swaps Npgsql for InMemory DB.
 
 ### Building
 
 - **.NET**: `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj` (no `.sln` file; build individual `.csproj` files)
+- **Web app**: `cd src/foqus-web-app && npm run build`
 - **Browser extension**: `cd browser-extension && npm run build`
 
 ### Key caveats
