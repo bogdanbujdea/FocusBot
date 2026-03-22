@@ -30,9 +30,9 @@ const FEATURES: Feature[] = [
 ];
 
 const STEPS: Step[] = [
-  { title: "Set your task", description: "Tell Foqus what you're trying to finish right now." },
-  { title: "Work normally", description: "Foqus quietly checks whether your activity stays aligned across websites and Windows apps." },
-  { title: "Learn from the block", description: "Review what caused context switches so your next block stays cleaner." }
+  { title: "Set your task", description: "Name the outcome you want from this focus block." },
+  { title: "Stay aligned as you work", description: "Foqus quietly checks whether your activity still matches that intent across websites and Windows apps." },
+  { title: "Learn from each block", description: "See what pulled you off track so your next block stays sharper." }
 ];
 
 export function LandingPage() {
@@ -106,10 +106,10 @@ export function LandingPage() {
           <div className="landing-hero-inner">
             <div className="landing-hero-left">
               <div className="landing-hero-copy">
-                <h1 id="hero-title">Protect your focus block</h1>
+                <h1 id="hero-title">Supercharge your brain and reach your goals with full focus.</h1>
                 <p className="landing-lede">
-                  Time block one task. Foqus quietly detects when your work starts to drift across apps and websites, so you can get back before the block
-                  is lost.
+                  One task per block, with a clear signal when you drift so you can recover before the block fragments. Task-aware across Windows apps and
+                  websites — no manual whitelists.
                 </p>
                 <div className="landing-hero-actions">
                   <a className="btn btn-primary" href="#waitlist">
