@@ -12,7 +12,6 @@ using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -48,6 +47,22 @@ builder
             ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
             IssuerSigningKeyResolver = jwksService.ResolveSigningKeys,
         };
+
+        // SignalR WebSocket and SSE transports cannot send Authorization headers,
+        // so the client passes the token as an "access_token" query parameter instead.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -70,9 +85,9 @@ builder.Services.AddCors(options =>
             {
                 policy
                     .WithOrigins(allowedOrigins)
-                    .AllowCredentials()
-                    .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
-                    .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             }
             else
             {

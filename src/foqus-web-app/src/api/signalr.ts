@@ -3,6 +3,7 @@ import {
   HubConnectionState,
   LogLevel,
   type HubConnection,
+  type ILogger,
 } from "@microsoft/signalr";
 import { supabase } from "../auth/supabase";
 
@@ -11,6 +12,19 @@ const API_BASE_URL =
   (import.meta.env.DEV ? "http://localhost:5251" : "https://api.foqus.me");
 
 let connection: HubConnection | null = null;
+
+// Custom logger that swallows the "stopped during negotiation" noise that
+// React Strict Mode generates by unmounting/remounting effects in development.
+// Real connection failures are still forwarded to console.warn.
+const signalRLogger: ILogger = {
+  log(level: LogLevel, message: string): void {
+    if (message.includes("stopped during negotiation")) return;
+    if (level >= LogLevel.Warning) {
+      // eslint-disable-next-line no-console
+      console.warn(`[SignalR] ${message}`);
+    }
+  },
+};
 
 export interface SessionStartedEvent {
   sessionId: string;
@@ -64,7 +78,7 @@ export async function connectFocusHub(
       },
     })
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-    .configureLogging(LogLevel.Warning)
+    .configureLogging(signalRLogger)
     .build();
 
   if (callbacks.onSessionStarted) {
@@ -83,6 +97,8 @@ export async function connectFocusHub(
   try {
     await connection.start();
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("stopped during negotiation")) return;
     console.warn("[SignalR] Failed to connect:", err);
   }
 }

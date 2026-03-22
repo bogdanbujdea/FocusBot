@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { connectFocusHub, disconnectFocusHub } from "../api/signalr";
+import { useAuth } from "../auth/useAuth";
 import type { AnalyticsSummaryResponse, SessionResponse } from "../api/types";
 import { KpiCard } from "../components/KpiCard";
 import { SessionTimer } from "../components/SessionTimer";
@@ -17,6 +18,7 @@ import {
 import "./DashboardPage.css";
 
 export function DashboardPage() {
+  const { session } = useAuth();
   const [summary, setSummary] = useState<AnalyticsSummaryResponse | null>(
     null
   );
@@ -71,6 +73,7 @@ export function DashboardPage() {
   }, [activeSession, refreshActive]);
 
   useEffect(() => {
+    if (!session) return;
     void connectFocusHub({
       onSessionStarted: () => {
         void refreshActive();
@@ -86,7 +89,7 @@ export function DashboardPage() {
     return () => {
       void disconnectFocusHub();
     };
-  }, [refreshActive, loadTodayData]);
+  }, [session, refreshActive, loadTodayData]);
 
   async function handleStart() {
     const title = sessionTitle.trim();
