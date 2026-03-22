@@ -8,7 +8,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        analytics: "src/analytics/index.html"
+        analytics: "src/analytics/index.html",
+        authCallback: "auth-callback.html"
       }
     }
   },

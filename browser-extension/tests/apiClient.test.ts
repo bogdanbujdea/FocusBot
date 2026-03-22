@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  classify,
+  classifyViaWebApi,
   startSession,
   endSession,
   getSubscriptionStatus,
@@ -39,8 +39,9 @@ beforeEach(() => {
   });
 
   setApiBaseUrl("https://test.foqus.me");
-  store["focusbot.accessToken"] = "test-access-token";
-  store["focusbot.refreshToken"] = "test-refresh-token";
+  store["focusbot.supabaseAccessToken"] = "test-access-token";
+  store["focusbot.supabaseRefreshToken"] = "test-refresh-token";
+  store["focusbot.supabaseEmail"] = "user@test.com";
 });
 
 afterEach(() => {
@@ -55,14 +56,14 @@ const jsonResponse = (body: unknown, status = 200): Response =>
     headers: { "Content-Type": "application/json" }
   });
 
-describe("classify", () => {
+describe("classifyViaWebApi", () => {
   it("sends correct POST request with auth header", async () => {
-    const responseBody = { classification: "aligned", confidence: 0.9, reason: "on task" };
+    const responseBody = { score: 0.9, reason: "on task", cached: false };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
-    const result = await classify({
+    const result = await classifyViaWebApi({
       url: "https://example.com",
-      title: "Example",
+      pageTitle: "Example",
       taskText: "research"
     });
 
@@ -78,19 +79,13 @@ describe("classify", () => {
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  it("includes X-Api-Key header when apiKey provided", async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({ classification: "aligned", confidence: 0.8 }));
+  it("throws when API returns null (error)", async () => {
+    mockFetch.mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
+    mockFetch.mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
-    await classify({
-      url: "https://example.com",
-      title: "Example",
-      taskText: "research",
-      apiKey: "my-api-key"
-    });
-
-    const [, init] = mockFetch.mock.calls[0];
-    const headers = init?.headers as Record<string, string>;
-    expect(headers["X-Api-Key"]).toBe("my-api-key");
+    await expect(
+      classifyViaWebApi({ taskText: "research", url: "https://example.com" })
+    ).rejects.toThrow("Foqus classification failed");
   });
 });
 
@@ -145,12 +140,12 @@ describe("getSubscriptionStatus", () => {
 
 describe("getMe", () => {
   it("sends GET to /auth/me", async () => {
-    const responseBody = { id: "u1", email: "user@test.com" };
+    const responseBody = { userId: "u1", email: "user@test.com", subscriptionStatus: "active" };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
     const result = await getMe();
 
-    expect(result).toEqual(responseBody);
+    expect(result).toEqual({ id: "u1", email: "user@test.com" });
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe("https://test.foqus.me/auth/me");
   });
@@ -177,10 +172,10 @@ describe("error handling", () => {
 describe("401 retry", () => {
   it("retries with refreshed token on 401", async () => {
     const refreshResponse = jsonResponse({
-      accessToken: "new-access-token",
-      refreshToken: "new-refresh-token"
+      access_token: "new-access-token",
+      refresh_token: "new-refresh-token"
     });
-    const meResponse = jsonResponse({ id: "u1", email: "user@test.com" });
+    const meResponse = jsonResponse({ userId: "u1", email: "user@test.com", subscriptionStatus: "active" });
 
     mockFetch
       .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
@@ -193,7 +188,7 @@ describe("401 retry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
 
     const [refreshUrl] = mockFetch.mock.calls[1];
-    expect(refreshUrl).toBe("https://api.foqus.me/auth/refresh");
+    expect(refreshUrl).toContain("supabase.co/auth/v1/token");
   });
 
   it("returns null when refresh fails on 401", async () => {

@@ -4,6 +4,7 @@ import type { RuntimeState } from "../shared/types";
 
 const emptyState: RuntimeState = {
   settings: {
+    plan: "free-byok",
     openAiApiKey: "",
     classifierModel: "gpt-4o-mini",
     onboardingCompleted: false,
@@ -11,7 +12,8 @@ const emptyState: RuntimeState = {
   },
   activeSession: null,
   lastSummary: null,
-  lastError: null
+  lastError: null,
+  isAuthenticated: false
 };
 
 export const useRuntimeState = (): {

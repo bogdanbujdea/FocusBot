@@ -17,7 +17,7 @@ export default defineManifest({
   action: {
     default_title: "Foqus",
     default_popup: "src/popup/index.html",
-    default_icons: {
+    default_icon: {
       16: "icons/icon-default-16.png",
       32: "icons/icon-default-32.png",
       48: "icons/icon-default-48.png",
@@ -50,7 +50,8 @@ export default defineManifest({
         "icons/icon-aligned.svg",
         "icons/icon-distracting.svg",
         "icons/icon-analyzing.svg",
-        "icons/icon-error.svg"
+        "icons/icon-error.svg",
+        "auth-callback.html"
       ],
       matches: ["<all_urls>"]
     }

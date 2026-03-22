@@ -5,7 +5,15 @@ export const APP_KEYS = {
   completedSessions: "focusbot.completedSessions",
   classificationCache: "focusbot.classificationCache",
   lastSummary: "focusbot.lastSummary",
-  lastError: "focusbot.lastError"
+  lastError: "focusbot.lastError",
+  /** Stable device fingerprint (UUID). Survives extension updates. */
+  deviceFingerprint: "focusbot.deviceFingerprint",
+  /** Server-assigned device ID returned from POST /devices. */
+  deviceId: "focusbot.deviceId",
+  /** Server-assigned session ID for the currently active cloud session. */
+  serverSessionId: "focusbot.serverSessionId",
+  /** Pending operations to retry when network is restored. */
+  offlineQueue: "focusbot.offlineQueue"
 } as const;
 
 export const DEFAULT_MODEL = "gpt-4o-mini";

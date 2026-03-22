@@ -59,19 +59,13 @@
 
 .settings-auth-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-@media (max-width: 560px) {
-  .settings-auth-cards {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .settings-radio-card {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   padding: 12px;
@@ -80,6 +74,17 @@
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.settings-radio-card-body {
+  min-width: 0;
+}
+
+.settings-radio-card .pill,
+.settings-radio-card .button-link {
+  white-space: nowrap;
+  align-self: start;
+  margin-top: 2px;
 }
 
 .settings-radio-card:hover {
@@ -155,4 +160,18 @@
 
 .settings-actions .pill {
   background: rgba(54, 92, 255, 0.22);
+}
+
+.settings-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 600;
+  color: rgba(231, 236, 255, 0.9);
+  cursor: pointer;
+}
+
+.settings-checkbox-row input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
 }

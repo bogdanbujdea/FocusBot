@@ -124,11 +124,16 @@ window.addEventListener("message", (event) => {
   if (event.source !== window || event.data?.type !== "FOCUSBOT_AUTH_CALLBACK") {
     return;
   }
-  const { accessToken, email } = event.data as { accessToken: string; email: string };
+  const { accessToken, refreshToken, email } = event.data as {
+    accessToken: string;
+    refreshToken?: string;
+    email: string;
+  };
   if (!accessToken || !email) return;
 
   void chrome.storage.local.set({
     "focusbot.supabaseAccessToken": accessToken,
+    "focusbot.supabaseRefreshToken": refreshToken ?? "",
     "focusbot.supabaseEmail": email
   });
 

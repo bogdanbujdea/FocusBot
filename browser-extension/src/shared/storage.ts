@@ -1,21 +1,31 @@
-import type { CompletedSession, FocusSession, SessionSummary, Settings } from "./types";
+import type { CompletedSession, FocusSession, PlanType, SessionSummary, Settings } from "./types";
 import { APP_KEYS, DEFAULT_MODEL } from "./utils";
 
 type ClassificationCacheMap = Record<string, CacheEntry>;
 
 export interface CacheEntry {
-  classification: "aligned" | "distracting";
+  classification: "aligned" | "neutral" | "distracting";
   confidence: number;
   reason?: string;
   createdAt: string;
 }
 
+/** Pending cloud operation that should be retried when network is restored. */
+export interface OfflineQueueItem {
+  id: string;
+  type: "session-start" | "session-end";
+  payload: Record<string, unknown>;
+  createdAt: string;
+  retryCount: number;
+}
+
 const defaultSettings: Settings = {
-  authMode: "byok",
+  plan: "free-byok",
   openAiApiKey: "",
   classifierModel: DEFAULT_MODEL,
   onboardingCompleted: false,
-  excludedDomains: []
+  excludedDomains: [],
+  desktopAppIntegration: false
 };
 
 // Storage implementation uses chrome.storage.local for all data.
@@ -36,18 +46,32 @@ const setInStorage = async (key: string, value: unknown): Promise<void> => {
   await chrome.storage.local.set({ [key]: value });
 };
 
+/**
+ * Migrates legacy authMode values to the new PlanType. Old BYOK users become
+ * free-byok, old foqus-account users become cloud-managed (closest equivalent).
+ */
+const migrateLegacyAuthMode = (stored: Record<string, unknown>): PlanType => {
+  const legacy = (stored as { authMode?: string }).authMode;
+  if (legacy === "foqus-account") return "cloud-managed";
+  return "free-byok";
+};
+
 export const loadSettings = async (): Promise<Settings> => {
-  const stored = await getFromStorage<Settings>(APP_KEYS.settings);
+  const stored = await getFromStorage<Record<string, unknown>>(APP_KEYS.settings);
   if (!stored) {
     return defaultSettings;
   }
 
+  const plan: PlanType =
+    (stored.plan as PlanType | undefined) ??
+    migrateLegacyAuthMode(stored);
+
   return {
     ...defaultSettings,
     ...stored,
-    authMode: stored.authMode ?? "byok",
-    excludedDomains: stored.excludedDomains ?? [],
-    focusbotEmail: stored.focusbotEmail
+    plan,
+    excludedDomains: (stored.excludedDomains as string[] | undefined) ?? [],
+    focusbotEmail: stored.focusbotEmail as string | undefined
   };
 };
 
@@ -150,4 +174,17 @@ export const saveLastError = async (errorMessage: string | null): Promise<void> 
   }
 
   await setInStorage(APP_KEYS.lastError, errorMessage);
+};
+
+export const loadOfflineQueue = async (): Promise<OfflineQueueItem[]> =>
+  (await getFromStorage<OfflineQueueItem[]>(APP_KEYS.offlineQueue)) ?? [];
+
+export const saveOfflineQueue = async (queue: OfflineQueueItem[]): Promise<void> => {
+  await setInStorage(APP_KEYS.offlineQueue, queue);
+};
+
+export const enqueueOfflineItem = async (item: OfflineQueueItem): Promise<void> => {
+  const current = await loadOfflineQueue();
+  current.push(item);
+  await saveOfflineQueue(current);
 };

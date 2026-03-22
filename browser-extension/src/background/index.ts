@@ -15,7 +15,8 @@ import {
   saveLastError,
   saveLastSummary,
   saveSession,
-  setCompletedSessions
+  setCompletedSessions,
+  enqueueOfflineItem
 } from "../shared/storage";
 import type {
   ClassificationResult,
@@ -25,12 +26,26 @@ import type {
   RuntimeRequest,
   RuntimeResponse
 } from "../shared/types";
+import { planRequiresApiKey, planIsCloud } from "../shared/types";
 import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
-import { loadFocusbotAuthSession } from "../shared/focusbotAuth";
+import {
+  loadFocusbotAuthSession,
+  clearFocusbotAuthSession
+} from "../shared/focusbotAuth";
+import {
+  startCloudSession,
+  endCloudSession,
+  getSubscriptionStatus,
+  sendHeartbeat,
+  deregisterDevice,
+  registerDevice,
+  fetchCurrentUser
+} from "../shared/apiClient";
 import {
   startIntegration,
+  stopIntegration,
   setMessageHandler,
   setHandshakeProvider,
   sendHandshake,
@@ -55,6 +70,89 @@ import type {
 } from "../shared/integrationTypes";
 import { MESSAGE_TYPES } from "../shared/integrationTypes";
 
+// Chrome persists openPanelOnActionClick across extension reloads; force popup as the toolbar action.
+void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch((error) => {
+  console.warn("[Foqus] sidePanel.setPanelBehavior failed:", error);
+});
+
+const openSidePanelForAuthWindow = async (sender: chrome.runtime.MessageSender): Promise<void> => {
+  let windowId = sender.tab?.windowId;
+  if (windowId === undefined) {
+    try {
+      const last = await chrome.windows.getLastFocused({ windowTypes: ["normal"] });
+      windowId = last.id;
+    } catch {
+      return;
+    }
+  }
+  if (windowId === undefined) return;
+  try {
+    await chrome.sidePanel.open({ windowId });
+  } catch (error) {
+    console.warn("[Foqus] sidePanel.open after sign-in failed:", error);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Device helpers
+// ---------------------------------------------------------------------------
+
+const HEARTBEAT_ALARM_NAME = "focusbot-heartbeat";
+
+const getStoredDeviceId = async (): Promise<string | null> => {
+  const result = await chrome.storage.local.get(APP_KEYS.deviceId);
+  return (result[APP_KEYS.deviceId] as string) ?? null;
+};
+
+const getStoredServerSessionId = async (): Promise<string | null> => {
+  const result = await chrome.storage.local.get(APP_KEYS.serverSessionId);
+  return (result[APP_KEYS.serverSessionId] as string) ?? null;
+};
+
+const getBrowserName = (): string => {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/")) return "Edge";
+  if (ua.includes("Chrome/")) return "Chrome";
+  if (ua.includes("Firefox/")) return "Firefox";
+  if (ua.includes("Safari/")) return "Safari";
+  return "Browser";
+};
+
+/**
+ * Registers the extension as a device and stores the returned deviceId.
+ * Uses a stable fingerprint (UUID that persists in storage).
+ */
+const ensureDeviceRegistered = async (): Promise<void> => {
+  const existingDeviceId = await getStoredDeviceId();
+  if (existingDeviceId) return;
+
+  let fingerprint = (await chrome.storage.local.get(APP_KEYS.deviceFingerprint))[APP_KEYS.deviceFingerprint] as
+    | string
+    | undefined;
+  if (!fingerprint) {
+    fingerprint = crypto.randomUUID();
+    await chrome.storage.local.set({ [APP_KEYS.deviceFingerprint]: fingerprint });
+  }
+
+  const manifest = chrome.runtime.getManifest();
+  const result = await registerDevice({
+    deviceType: "Extension",
+    name: getBrowserName(),
+    fingerprint,
+    appVersion: manifest.version,
+    platform: navigator.userAgent
+  });
+
+  if (result?.deviceId) {
+    await chrome.storage.local.set({ [APP_KEYS.deviceId]: result.deviceId });
+    await chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// State queue
+// ---------------------------------------------------------------------------
+
 let stateMutationQueue: Promise<void> = Promise.resolve();
 
 const runExclusive = async <T>(handler: () => Promise<T>): Promise<T> => {
@@ -77,7 +175,8 @@ const toRuntimeState = async () => ({
   settings: await loadSettings(),
   activeSession: await loadActiveSession(),
   lastSummary: await loadLastSummary(),
-  lastError: await loadLastError()
+  lastError: await loadLastError(),
+  isAuthenticated: Boolean((await loadFocusbotAuthSession())?.accessToken)
 });
 
 const broadcastStateUpdate = async (): Promise<void> => {
@@ -300,9 +399,16 @@ setHandshakeProvider(async () => {
   };
 });
 
-// Start desktop integration as soon as the background loads so we connect when the
-// Windows app is running without requiring the user to open the popup first.
-startIntegration();
+const syncDesktopIntegrationFromSettings = async (): Promise<void> => {
+  const settings = await loadSettings();
+  if (settings.desktopAppIntegration === true) {
+    startIntegration();
+  } else {
+    stopIntegration();
+  }
+};
+
+void syncDesktopIntegrationFromSettings();
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;
@@ -755,15 +861,12 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     }
 
     const settings = await loadSettings();
-    if (settings.authMode === "byok") {
-      if (!settings.openAiApiKey.trim()) {
-        return { ok: false, error: "OpenAI API key is required. Add it in Settings first." };
-      }
-    } else {
-      const auth = await loadFocusbotAuthSession();
-      if (!auth?.accessToken) {
-        return { ok: false, error: "Foqus account sign-in is required. Complete sign-in in Settings first." };
-      }
+    const auth = await loadFocusbotAuthSession();
+    if (!auth?.accessToken) {
+      return { ok: false, error: "Sign in to start a focus session. Click Settings to sign in." };
+    }
+    if (planRequiresApiKey(settings.plan) && !settings.openAiApiKey.trim()) {
+      return { ok: false, error: "OpenAI API key is required for your plan. Add it in Settings first." };
     }
 
     const session: FocusSession = {
@@ -777,6 +880,25 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     await saveActiveSession(session);
     await startBadgeInterval();
     void captureCurrentActiveTab();
+
+    // Submit cloud session start for all signed-in users.
+    const deviceId = await getStoredDeviceId();
+    void startCloudSession(session.taskText, deviceId, session.taskHints)
+      .then(async (cloudSession) => {
+        if (cloudSession?.sessionId) {
+          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.sessionId });
+        }
+      })
+      .catch(async () => {
+        await enqueueOfflineItem({
+          id: createId(),
+          type: "session-start",
+          payload: { taskText: session.taskText, taskHints: session.taskHints, deviceId, localSessionId: session.sessionId },
+          createdAt: nowIso(),
+          retryCount: 0
+        });
+      });
+
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
 
@@ -898,6 +1020,25 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
     stopBadgeInterval();
+
+    // Submit cloud session end for all signed-in users.
+    const serverSessionId = await getStoredServerSessionId();
+    const deviceId = await getStoredDeviceId();
+    if (serverSessionId) {
+      const summaryPayload = session.summary as unknown as Record<string, unknown>;
+      void endCloudSession(serverSessionId, summaryPayload, deviceId)
+        .catch(async () => {
+          await enqueueOfflineItem({
+            id: createId(),
+            type: "session-end",
+            payload: { serverSessionId, summary: summaryPayload, deviceId },
+            createdAt: nowIso(),
+            retryCount: 0
+          });
+        });
+      await chrome.storage.local.remove(APP_KEYS.serverSessionId);
+    }
+
     await broadcastStateUpdate();
 
     if (isConnected()) {
@@ -931,6 +1072,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
         classifierModel: request.payload.classifierModel ?? current.classifierModel
       });
       await broadcastStateUpdate();
+      void syncDesktopIntegrationFromSettings();
       return { ok: true, data: updated };
     }
     case "CLEAR_ERROR":
@@ -955,6 +1097,30 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     }
     case "GET_INTEGRATION_STATE":
       return { ok: true, data: getIntegrationState() };
+    case "SIGN_OUT": {
+      const deviceIdToDeregister = await getStoredDeviceId();
+      if (deviceIdToDeregister) {
+        void deregisterDevice(deviceIdToDeregister).catch(() => {});
+      }
+      await clearFocusbotAuthSession();
+      await chrome.alarms.clear(HEARTBEAT_ALARM_NAME);
+      await broadcastStateUpdate();
+      return { ok: true };
+    }
+    case "REFRESH_PLAN": {
+      const sub = await getSubscriptionStatus();
+      if (sub) {
+        const planMap: Record<number, import("../shared/types").PlanType> = {
+          0: "free-byok",
+          1: "cloud-byok",
+          2: "cloud-managed"
+        };
+        const plan = planMap[sub.planType] ?? "free-byok";
+        await patchSettings({ plan });
+        await broadcastStateUpdate();
+      }
+      return { ok: true };
+    }
     default:
       return { ok: false, error: "Unknown request." };
   }
@@ -962,6 +1128,30 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
 
 const START_DESKTOP_INTEGRATION = "START_DESKTOP_INTEGRATION";
 const FOCUSBOT_AUTH_SESSION_STORED = "FOCUSBOT_AUTH_SESSION_STORED";
+const FOCUSBOT_AUTH_FROM_EXTENSION_CALLBACK = "FOCUSBOT_AUTH_FROM_EXTENSION_CALLBACK";
+
+const finalizeFocusbotSignInAfterTokensStored = async (email: string | undefined): Promise<void> => {
+  await patchSettings({
+    focusbotEmail: email,
+    onboardingCompleted: true
+  });
+
+  await fetchCurrentUser();
+
+  const sub = await getSubscriptionStatus();
+  if (sub) {
+    const planMap: Record<number, import("../shared/types").PlanType> = {
+      0: "free-byok",
+      1: "cloud-byok",
+      2: "cloud-managed"
+    };
+    await patchSettings({ plan: planMap[sub.planType] ?? "free-byok" });
+  }
+
+  await ensureDeviceRegistered();
+
+  await broadcastStateUpdate();
+};
 
 chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.MessageSender, sendResponse) => {
   if (
@@ -982,8 +1172,42 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
     "type" in message &&
     (message as { type: string }).type === START_DESKTOP_INTEGRATION
   ) {
-    startIntegration();
-    sendResponse({ ok: true });
+    void syncDesktopIntegrationFromSettings().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    (message as { type: string }).type === FOCUSBOT_AUTH_FROM_EXTENSION_CALLBACK
+  ) {
+    const m = message as {
+      type: string;
+      accessToken?: unknown;
+      refreshToken?: unknown;
+      email?: unknown;
+    };
+    const accessToken = typeof m.accessToken === "string" ? m.accessToken : "";
+    const refreshToken = typeof m.refreshToken === "string" ? m.refreshToken : "";
+    const email = typeof m.email === "string" ? m.email : "";
+    if (!accessToken || !email) {
+      sendResponse({ ok: false });
+      return true;
+    }
+
+    runExclusive(async () => {
+      await chrome.storage.local.set({
+        "focusbot.supabaseAccessToken": accessToken,
+        "focusbot.supabaseRefreshToken": refreshToken,
+        "focusbot.supabaseEmail": email
+      });
+      await finalizeFocusbotSignInAfterTokensStored(email);
+    })
+      .then(async () => {
+        await openSidePanelForAuthWindow(sender);
+        sendResponse({ ok: true });
+      })
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
   if (
@@ -997,14 +1221,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
       : undefined;
 
     runExclusive(async () => {
-      await patchSettings({
-        authMode: "foqus-account",
-        focusbotEmail: email,
-        onboardingCompleted: true
-      });
-      await broadcastStateUpdate();
+      await finalizeFocusbotSignInAfterTokensStored(email);
     })
-      .then(() => sendResponse({ ok: true }))
+      .then(async () => {
+        await openSidePanelForAuthWindow(sender);
+        sendResponse({ ok: true });
+      })
       .catch(() => sendResponse({ ok: false }));
     return true;
   }
@@ -1057,12 +1279,26 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await updateIconState();
     await startBadgeInterval();
   }
+  if (alarm.name === HEARTBEAT_ALARM_NAME) {
+    const deviceId = await getStoredDeviceId();
+    if (!deviceId) return;
+    const sent = await sendHeartbeat(deviceId);
+    if (!sent) {
+      // 404 means device was removed — re-register on next startup.
+      await chrome.storage.local.remove(APP_KEYS.deviceId);
+    }
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  const session = await loadFocusbotAuthSession();
+  if (session) {
+    void ensureDeviceRegistered();
+    void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
+  }
 });
 
 const migrateSessionsToCompletedSessions = async (): Promise<void> => {
@@ -1095,11 +1331,16 @@ chrome.runtime.onInstalled.addListener(async () => {
   await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  const session = await loadFocusbotAuthSession();
+  if (session) {
+    void ensureDeviceRegistered();
+    void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
+  }
 });
 
 chrome.idle.setDetectionInterval(IDLE_DETECTION_INTERVAL_SECONDS);
 
-chrome.idle.onStateChanged.addListener((newState: chrome.IdleState) => {
+chrome.idle.onStateChanged.addListener((newState: string) => {
   if (newState === "idle" || newState === "locked") {
     void runExclusive(async () => {
       const session = await loadActiveSession();

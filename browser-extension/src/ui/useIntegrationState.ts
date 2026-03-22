@@ -3,8 +3,8 @@ import { sendRuntimeRequest } from "../shared/runtime";
 import type { IntegrationState } from "../shared/integrationTypes";
 
 const defaultState: IntegrationState = {
-  mode: "standalone",
-  connected: false
+  connected: false,
+  browserInForeground: false
 };
 
 export const useIntegrationState = (): IntegrationState => {

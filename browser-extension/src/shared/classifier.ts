@@ -1,4 +1,5 @@
 import type { ClassificationResult, Settings } from "./types";
+import { planUsesDirectClassification } from "./types";
 import { loadClassificationCache, saveClassificationCache } from "./storage";
 import { classifyViaWebApi } from "./apiClient";
 
@@ -94,7 +95,7 @@ export const classifyDesktopApp = async (
   taskHints?: string,
   timeoutMs = 8000
 ): Promise<ClassificationResult> => {
-  if (settings.authMode === "foqus-account") {
+  if (!planUsesDirectClassification(settings.plan)) {
     const web = await classifyViaWebApi({
       taskText,
       taskHints,
@@ -191,7 +192,7 @@ export const classifyPage = async (
   timeoutMs = 8000,
   taskHints?: string
 ): Promise<ClassificationResult> => {
-  if (settings.authMode === "foqus-account") {
+  if (!planUsesDirectClassification(settings.plan)) {
     const web = await classifyViaWebApi({
       taskText,
       taskHints,

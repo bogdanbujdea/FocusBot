@@ -68,6 +68,13 @@ The Foqus Browser Extension is a standalone Chrome/Edge extension that enables *
    - Receives distraction alerts from background
    - Displays distraction overlay when classified as distracting
 
+### Desktop app integration (Windows)
+
+The extension can connect to the **Foqus Windows desktop app** over a local WebSocket (`ws://localhost:9876/focusbot`) so the browser and desktop share task state.
+
+- **Settings:** Under **Classifier behavior**, **Connect to Foqus for Windows on this computer** is **off by default**. Turn it on only when the desktop app is installed and running; otherwise the browser may log `ERR_CONNECTION_REFUSED` for that WebSocket (harmless but noisy in the extension error list).
+- **CSP messages:** If you see “Executing inline script violates Content Security Policy” in the extension or page console, they often come from **strict CSP on websites you visit** or from dev tooling, not from Foqus UI code (popup/options use external module scripts only). If a message points at a specific `chrome-extension://` asset and persists after a production build, capture the full URL and hash from the console for investigation.
+
 ---
 
 ## State Management

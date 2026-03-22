@@ -7,18 +7,40 @@ export interface ClassificationResult {
   score?: number;
 }
 
-export type AuthMode = "byok" | "foqus-account";
+/**
+ * Plan tier for the signed-in user. All users must have an account;
+ * there is no anonymous usage.
+ *
+ * - free-byok: User provides their own API key. Local basic analytics only.
+ * - cloud-byok: User provides their own API key + full cloud analytics and sync.
+ * - cloud-managed: Platform provides the API key. Full cloud analytics and sync.
+ */
+export type PlanType = "free-byok" | "cloud-byok" | "cloud-managed";
+
+/** Returns true when the plan uses a user-supplied OpenAI API key. */
+export const planRequiresApiKey = (plan: PlanType): boolean => plan !== "cloud-managed";
+
+/** Returns true when classification routes directly to the LLM provider (not via POST /classify). */
+export const planUsesDirectClassification = (plan: PlanType): boolean => plan !== "cloud-managed";
+
+/** Returns true when the plan includes cloud session sync and full analytics. */
+export const planIsCloud = (plan: PlanType): boolean => plan === "cloud-byok" || plan === "cloud-managed";
 
 export interface Settings {
-  /** How the extension authenticates for classification and sync. */
-  authMode: AuthMode;
-  /** User-provided OpenAI API key when in BYOK mode. */
+  /** Active plan tier. Requires a signed-in account for all values. */
+  plan: PlanType;
+  /** User-provided OpenAI API key when plan is free-byok or cloud-byok. */
   openAiApiKey: string;
   classifierModel: string;
   onboardingCompleted: boolean;
   excludedDomains: string[];
-  /** Email associated with the FocusBot account when authMode === "foqus-account". */
+  /** Email of the signed-in Foqus account. */
   focusbotEmail?: string;
+  /**
+   * When true, the extension opens a WebSocket to the Foqus Windows app (localhost) for task sync.
+   * Default off so browsers do not log connection errors when the desktop app is not running.
+   */
+  desktopAppIntegration?: boolean;
 }
 
 export interface PageVisit {
@@ -135,6 +157,8 @@ export interface RuntimeState {
   activeSession: FocusSession | null;
   lastSummary: SessionSummary | null;
   lastError: string | null;
+  /** True when a valid Supabase access token is present in storage. */
+  isAuthenticated: boolean;
 }
 
 export type RuntimeRequest =
@@ -149,7 +173,9 @@ export type RuntimeRequest =
   | { type: "OPEN_OPTIONS" }
   | { type: "OPEN_ANALYTICS" }
   | { type: "OPEN_SIDE_PANEL" }
-  | { type: "GET_INTEGRATION_STATE" };
+  | { type: "GET_INTEGRATION_STATE" }
+  | { type: "SIGN_OUT" }
+  | { type: "REFRESH_PLAN" };
 
 export type RuntimeResponse<T = unknown> = {
   ok: boolean;
@@ -164,7 +190,7 @@ const createSvgDataUrl = (bg: string, symbol: string): string => {
     <rect width="128" height="128" rx="20" fill="${bg}"/>
     <text x="64" y="72" font-size="72" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial">${symbol}</text>
   </svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 };
 
 export const ICON_DATA_URLS: Record<IconState, string> = {
