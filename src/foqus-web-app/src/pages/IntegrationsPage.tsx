@@ -9,10 +9,9 @@ export function IntegrationsPage() {
       </header>
 
       <div className="coming-soon">
-        <p>Device management coming soon.</p>
+        <p>Device management and integrations coming soon.</p>
         <p className="coming-soon-hint">
-          View connected devices, manage sync settings, and configure
-          SignalR real-time updates.
+          View connected devices, sync settings, and manage third-party integrations.
         </p>
       </div>
     </div>

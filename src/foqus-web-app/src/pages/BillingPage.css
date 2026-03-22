@@ -1,0 +1,143 @@
+.billing-page {
+  max-width: 1000px;
+}
+
+.billing-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.billing-card {
+  background-color: var(--color-card-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plan-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.plan-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.plan-badge {
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plan-badge.active {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--color-aligned);
+}
+
+.plan-badge.inactive {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted);
+}
+
+.plan-detail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: var(--spacing-sm) 0 0 0;
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.plan-card {
+  background-color: var(--color-card-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-card.highlighted {
+  border-color: var(--color-primary);
+}
+
+.plan-card.current {
+  border-color: var(--color-aligned);
+}
+
+.plan-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--color-text-primary);
+}
+
+.plan-card-price {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-primary);
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--spacing-lg) 0;
+  flex: 1;
+}
+
+.plan-features li {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: var(--spacing-xs) 0;
+}
+
+.plan-features li::before {
+  content: "- ";
+  color: var(--color-aligned);
+}
+
+.current-plan-label {
+  padding: var(--spacing-xs) var(--spacing-md);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-aligned);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+.plan-upgrade-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+
+.plan-upgrade-btn:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.plan-upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
