@@ -1,5 +1,5 @@
 .dashboard-page {
-  max-width: 960px;
+  width: 100%;
 }
 
 .page-header {
@@ -136,6 +136,7 @@
 
 .dashboard-start-btn {
   margin-top: var(--spacing-lg);
+  align-self: flex-start;
 }
 
 .btn-primary,
@@ -289,4 +290,17 @@
 .focus-pct-low {
   color: var(--color-distracted);
   font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .dashboard-input,
+  .dashboard-textarea {
+    max-width: 100%;
+  }
+
+  .dashboard-history-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

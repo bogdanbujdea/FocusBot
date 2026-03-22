@@ -102,8 +102,7 @@ export function AnalyticsPage() {
   const s = summary;
   const hasSessions = (s?.totalSessions ?? 0) > 0;
   const focusPct = s?.averageFocusScorePercent ?? 0;
-  const trackedSeconds =
-    (s?.totalFocusedSeconds ?? 0) + (s?.totalDistractedSeconds ?? 0);
+  const trackedSeconds = s?.totalActiveSeconds ?? 0;
   const avgDistractionSec = averageDistractionDurationSeconds(
     s?.totalDistractedSeconds ?? 0,
     s?.totalDistractionCount ?? 0

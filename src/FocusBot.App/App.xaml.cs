@@ -260,20 +260,12 @@ namespace FocusBot.App
 
             var planService = _services.GetRequiredService<IPlanService>();
             await planService.RefreshAsync();
-            var plan = await planService.GetCurrentPlanAsync();
 
-            if (!planService.IsCloudPlan(plan))
-            {
-                StopHeartbeat();
-            }
-            else
-            {
-                var deviceService = _services.GetRequiredService<IDeviceService>();
-                if (deviceService.GetDeviceId() is null)
-                    await deviceService.RegisterAsync();
+            var deviceService = _services.GetRequiredService<IDeviceService>();
+            if (deviceService.GetDeviceId() is null)
+                await deviceService.RegisterAsync();
 
-                StartHeartbeat(deviceService);
-            }
+            StartHeartbeat(deviceService);
 
             await ReloadFocusBoardIfReadyAsync();
         }

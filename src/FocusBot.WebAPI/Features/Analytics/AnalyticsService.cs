@@ -41,6 +41,7 @@ public class AnalyticsService(ApiDbContext db)
                 0,
                 0,
                 0,
+                0,
                 0
             );
         }
@@ -59,6 +60,7 @@ public class AnalyticsService(ApiDbContext db)
         );
         var avgDuration = (long)durations.Average();
         var longestDuration = durations.Max();
+        var totalActive = durations.Sum();
         var devicesActive = sessions
             .Where(s => s.DeviceId.HasValue)
             .Select(s => s.DeviceId!.Value)
@@ -75,7 +77,8 @@ public class AnalyticsService(ApiDbContext db)
             totalContextSwitches,
             avgDuration,
             longestDuration,
-            devicesActive
+            devicesActive,
+            totalActive
         );
     }
 

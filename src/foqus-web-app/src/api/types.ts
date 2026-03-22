@@ -67,6 +67,7 @@ export interface AnalyticsSummaryResponse {
   averageSessionDurationSeconds: number;
   longestSessionSeconds: number;
   devicesActive: number;
+  totalActiveSeconds: number;
 }
 
 export interface TrendDataPoint {

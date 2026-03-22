@@ -7,6 +7,7 @@ using FocusBot.WebAPI.Features.Devices;
 using FocusBot.WebAPI.Features.Sessions;
 using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Features.Waitlist;
+using FocusBot.WebAPI.Hubs;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,9 @@ builder
 
 builder.Services.AddAuthorization();
 
+// ── SignalR ──────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 // ── CORS ────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
@@ -66,12 +70,13 @@ builder.Services.AddCors(options =>
             {
                 policy
                     .WithOrigins(allowedOrigins)
+                    .AllowCredentials()
                     .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization)
                     .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
             }
             else
             {
-                policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+                policy.SetIsOriginAllowed(_ => true).AllowCredentials().AllowAnyHeader().AllowAnyMethod();
             }
         }
     );
@@ -188,6 +193,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
+app.MapHub<FocusHub>("/hubs/focus");
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok("Foqus API"));
 app.MapAuthEndpoints();

@@ -1,5 +1,5 @@
 .analytics-page {
-  max-width: 960px;
+  width: 100%;
 }
 
 .page-header {
@@ -157,4 +157,23 @@
   color: var(--color-text-muted);
   font-size: 14px;
   margin-top: var(--spacing-sm);
+}
+
+@media (min-width: 960px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header-row {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .sessions-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

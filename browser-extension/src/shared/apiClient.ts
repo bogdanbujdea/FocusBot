@@ -133,15 +133,15 @@ export const getSubscriptionStatus = async (): Promise<SubscriptionStatusRespons
 // ---------------------------------------------------------------------------
 
 export interface StartSessionResponse {
-  sessionId: string;
-  taskText: string;
-  taskHints?: string;
-  startedAt: string;
+  id: string;
+  sessionTitle: string;
+  sessionContext?: string;
+  startedAtUtc: string;
 }
 
 export interface EndSessionResponse {
-  sessionId: string;
-  endedAt: string;
+  id: string;
+  endedAtUtc: string;
 }
 
 export const startCloudSession = async (
@@ -152,9 +152,9 @@ export const startCloudSession = async (
   apiFetch<StartSessionResponse>("/sessions", {
     method: "POST",
     body: JSON.stringify({
-      taskText,
-      taskHints,
-      deviceId: deviceId ?? undefined
+      sessionTitle: taskText,
+      sessionContext: taskHints ?? null,
+      deviceId: deviceId ?? null
     })
   });
 
@@ -162,20 +162,30 @@ export const endCloudSession = async (
   sessionId: string,
   summary: Record<string, unknown>,
   deviceId: string | null
-): Promise<EndSessionResponse | null> =>
-  apiFetch<EndSessionResponse>(`/sessions/${sessionId}/end`, {
+): Promise<EndSessionResponse | null> => {
+  const focusPercentage = typeof summary.focusPercentage === "number" ? summary.focusPercentage : 0;
+  const alignedSeconds = typeof summary.alignedSeconds === "number" ? summary.alignedSeconds : 0;
+  const distractingSeconds = typeof summary.distractingSeconds === "number" ? summary.distractingSeconds : 0;
+  const distractionCount = typeof summary.distractionCount === "number" ? summary.distractionCount : 0;
+
+  return apiFetch<EndSessionResponse>(`/sessions/${sessionId}/end`, {
     method: "POST",
     body: JSON.stringify({
-      summary,
-      deviceId: deviceId ?? undefined
+      focusScorePercent: Math.round(focusPercentage),
+      focusedSeconds: Math.round(alignedSeconds),
+      distractedSeconds: Math.round(distractingSeconds),
+      distractionCount,
+      contextSwitchCount: 0,
+      deviceId: deviceId ?? null
     })
   });
+};
 
 // ---------------------------------------------------------------------------
 // Devices
 // ---------------------------------------------------------------------------
 
-export type DeviceType = "WindowsApp" | "Extension";
+export type DeviceType = "Desktop" | "Extension";
 
 export interface RegisterDeviceRequest {
   deviceType: DeviceType;
@@ -186,19 +196,27 @@ export interface RegisterDeviceRequest {
 }
 
 export interface RegisterDeviceResponse {
-  deviceId: string;
+  id: string;
   name: string;
-  deviceType: DeviceType;
-  lastSeen: string;
+  deviceType: number;
+  lastSeenAtUtc: string;
 }
 
 export const registerDevice = async (
   request: RegisterDeviceRequest
-): Promise<RegisterDeviceResponse | null> =>
-  apiFetch<RegisterDeviceResponse>("/devices", {
+): Promise<RegisterDeviceResponse | null> => {
+  const deviceTypeInt = request.deviceType === "Desktop" ? 1 : 2;
+  return apiFetch<RegisterDeviceResponse>("/devices", {
     method: "POST",
-    body: JSON.stringify(request)
+    body: JSON.stringify({
+      deviceType: deviceTypeInt,
+      name: request.name,
+      fingerprint: request.fingerprint,
+      appVersion: request.appVersion,
+      platform: request.platform
+    })
   });
+};
 
 export const sendHeartbeat = async (deviceId: string): Promise<boolean> => {
   const result = await apiFetch<unknown>(`/devices/${deviceId}/heartbeat`, {

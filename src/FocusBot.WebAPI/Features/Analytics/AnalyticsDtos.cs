@@ -11,7 +11,8 @@ public sealed record AnalyticsSummaryResponse(
     int TotalContextSwitchCount,
     long AverageSessionDurationSeconds,
     long LongestSessionSeconds,
-    int DevicesActive
+    int DevicesActive,
+    long TotalActiveSeconds
 );
 
 /// <summary>A date range with inclusive start and exclusive end.</summary>

@@ -143,8 +143,8 @@ const ensureDeviceRegistered = async (): Promise<void> => {
     platform: navigator.userAgent
   });
 
-  if (result?.deviceId) {
-    await chrome.storage.local.set({ [APP_KEYS.deviceId]: result.deviceId });
+  if (result?.id) {
+    await chrome.storage.local.set({ [APP_KEYS.deviceId]: result.id });
     await chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
   }
 };
@@ -885,8 +885,8 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     const deviceId = await getStoredDeviceId();
     void startCloudSession(session.taskText, deviceId, session.taskHints)
       .then(async (cloudSession) => {
-        if (cloudSession?.sessionId) {
-          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.sessionId });
+        if (cloudSession?.id) {
+          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.id });
         }
       })
       .catch(async () => {
