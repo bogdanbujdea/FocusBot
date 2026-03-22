@@ -1,23 +1,54 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../auth/supabase";
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { error } = await supabase.auth.getSession();
-      if (error) {
-        setError(error.message);
-      } else {
+      const code = searchParams.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          setError(error.message);
+          return;
+        }
         navigate("/", { replace: true });
+        return;
       }
+
+      const hashParams = new URLSearchParams(
+        window.location.hash.substring(1)
+      );
+      if (hashParams.get("access_token")) {
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          setError(error.message);
+          return;
+        }
+        navigate("/", { replace: true });
+        return;
+      }
+
+      const errorDescription =
+        searchParams.get("error_description") ??
+        hashParams.get("error_description");
+      if (errorDescription) {
+        setError(errorDescription);
+        return;
+      }
+
+      setError(
+        "No authentication code found. The link may have expired — please request a new one."
+      );
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   if (error) {
     return (
