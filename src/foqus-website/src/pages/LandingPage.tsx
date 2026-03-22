@@ -1,38 +1,95 @@
 import { type FormEvent, useId, useMemo, useState } from "react";
 import appIcon from "../../../FocusBot.App/Assets/1080.png";
 
-type Feature = {
-  title: string;
-  description: string;
-};
-
 type Step = {
   title: string;
   description: string;
 };
 
-const FEATURES: Feature[] = [
+type FoqusWorkExample = {
+  id: string;
+  persona: string;
+  sameTaskAsPrevious?: boolean;
+  task: string;
+  /** When false, task string is shown as-is (e.g. inner quotes on a phrase). Otherwise wrapped in outer quotation marks. */
+  taskEncloseInQuotes?: boolean;
+  where: {
+    surface: "browser" | "desktop";
+    label: string;
+    detail?: string;
+  };
+  verdict: "focused" | "distracted";
+  why: string;
+};
+
+const FOQUS_WORK_EXAMPLES: FoqusWorkExample[] = [
   {
-    title: "Task-aware alignment (AI)",
-    description:
-      "Foqus evaluates what you're doing against your task — so the same app can be aligned for one block and distracting for another."
+    id: "writer-facebook",
+    persona: "Writer",
+    task: "Find inspiration for the \u201cSocial Media in 2026\u201d book",
+    taskEncloseInQuotes: false,
+    where: { surface: "browser", label: "facebook.com" },
+    verdict: "focused",
+    why: "Social feeds match the book topic."
   },
   {
-    title: "Catch drift before it breaks the block",
-    description:
-      "Foqus gives you a clear signal when your current app or site stops matching the task you set, so you can return before small detours turn into fragmented work."
+    id: "writer-excel",
+    persona: "Writer",
+    sameTaskAsPrevious: true,
+    task: "Find inspiration for the \u201cSocial Media in 2026\u201d book",
+    taskEncloseInQuotes: false,
+    where: { surface: "desktop", label: "Excel", detail: "Monthly budget" },
+    verdict: "distracted",
+    why: "Personal finance is not book research."
   },
   {
-    title: "Analytics that reveal your triggers",
-    description:
-      "See which sites and apps break your blocks most often, how fragmented your sessions become, and how long it takes to settle back into focused work."
+    id: "dev-youtube-fun",
+    persona: "Programmer",
+    task: "Fix the major bug today",
+    where: { surface: "browser", label: "youtube.com", detail: "Funny video" },
+    verdict: "distracted",
+    why: "Entertainment, not the bug."
+  },
+  {
+    id: "dev-youtube-learn",
+    persona: "Programmer",
+    sameTaskAsPrevious: true,
+    task: "Fix the major bug today",
+    where: { surface: "browser", label: "youtube.com", detail: "JavaScript tutorial" },
+    verdict: "focused",
+    why: "Learning that can unblock the fix."
+  }
+];
+
+const ANTI_POSITIONING: { headline: string; body: string }[] = [
+  {
+    headline: "It doesn't block anything.",
+    body: "Foqus gives you a signal when you drift. You decide what to do with it."
+  },
+  {
+    headline: "It doesn't assume YouTube is bad.",
+    body: "Every app and page is evaluated against your current task, not a hardcoded category list."
+  },
+  {
+    headline: "It doesn't guilt you.",
+    body: "Focus score is feedback, not punishment. Take a break when you need one."
   }
 ];
 
 const STEPS: Step[] = [
-  { title: "Set your task", description: "Name the outcome you want from this focus block." },
-  { title: "Stay aligned as you work", description: "Foqus quietly checks whether your activity still matches that intent across websites and Windows apps." },
-  { title: "Learn from each block", description: "See what pulled you off track so your next block stays sharper." }
+  {
+    title: "Name your task",
+    description: 'Examples: "Write the Q2 plan", "Review pull requests", "Take a break".'
+  },
+  {
+    title: "Work naturally",
+    description: "Foqus watches your browser tabs and Windows apps — one session, full picture."
+  },
+  {
+    title: "Get the signal",
+    description:
+      "Foqus shows Focused or Distracted when you drift (you do not set those labels yourself), plus a session summary when you are done."
+  }
 ];
 
 type WaitlistSignupFormProps = {
@@ -110,6 +167,16 @@ function WaitlistSignupForm({
   );
 }
 
+function FoqusExampleVerdictBadge({ verdict }: { verdict: "focused" | "distracted" }) {
+  const label = verdict === "focused" ? "Focused" : "Distracted";
+  const pillClass = verdict === "focused" ? "preview-pill preview-pill-aligned" : "preview-pill preview-pill-distracted";
+  return (
+    <span className={`foqus-verdict-badge ${pillClass}`} aria-label={`Foqus: ${label}`}>
+      {label}
+    </span>
+  );
+}
+
 export function LandingPage() {
   const emailIdHero = useId();
   const emailIdFooter = useId();
@@ -177,15 +244,15 @@ export function LandingPage() {
         </nav>
       </header>
 
-      <main className="landing-main">
+      <main className="landing-main landing-main--wide">
         <section className="landing-hero" aria-labelledby="hero-title">
           <div className="landing-hero-inner">
             <div className="landing-hero-left">
               <div className="landing-hero-copy">
-                <h1 id="hero-title">Supercharge your brain and reach your goals with full focus.</h1>
+                <h1 id="hero-title">The first focus tool that understands what you are working on.</h1>
                 <p className="landing-lede">
-                  One task per block, with a clear signal when you drift so you can recover before the block fragments. Task-aware across Windows apps and
-                  websites — no manual whitelists.
+                  Foqus uses AI to evaluate whether your current app or website actually matches your task — across your desktop and browser, in one session.
+                  No whitelists, no assumptions, no nagging.
                 </p>
                 <div className="landing-hero-waitlist">
                   <WaitlistSignupForm
@@ -202,48 +269,22 @@ export function LandingPage() {
                     submitError={submitError}
                   />
                 </div>
-                <div className="landing-hero-actions">
-                  <a className="btn btn-secondary" href="#how-it-works">
-                    How it works
-                  </a>
-                </div>
-                <p className="landing-note">
-                  Passive by default. Task-aware. Built for deep work.
-                </p>
-              </div>
-
-              <div className="hero-built-for" aria-label="Built for focused blocks">
-                <h3 className="hero-built-for-title">Built for focused blocks</h3>
-                <div className="role-grid role-grid-compact" aria-label="Work types">
-                  <span className="role-pill">Coding</span>
-                  <span className="role-pill">Writing</span>
-                  <span className="role-pill">Planning</span>
-                  <span className="role-pill">Research</span>
-                  <span className="role-pill">Strategy</span>
-                  <span className="role-pill">Design</span>
-                </div>
-              </div>
-
-              <div className="landing-hero-why-foqus">
-                <h3 className="why-foqus-title">Why Foqus</h3>
-                <ul className="why-foqus-list">
-                  <li className="why-foqus-item">
-                    <span className="why-foqus-bullet" aria-hidden="true">●</span>
-                    <span className="why-foqus-text">Catch drift before the block is diluted</span>
-                  </li>
-                  <li className="why-foqus-item">
-                    <span className="why-foqus-bullet" aria-hidden="true">●</span>
-                    <span className="why-foqus-text">Task-aware across Windows apps + websites</span>
-                  </li>
-                </ul>
               </div>
             </div>
 
             <div className="landing-hero-preview" aria-label="Status preview">
               <div className="preview-card">
                 <div className="preview-card-header">
-                  <span className="preview-title">Current Focus Session</span>
-                  <span className="preview-pill preview-pill-aligned">Focused</span>
+                  <div className="preview-card-header-text">
+                    <span className="preview-title">Current Focus Session</span>
+                    <span className="preview-card-subtitle">
+                      You choose the task for the block. Foqus sets Focused or Distracted from what you are actually on — not something you toggle.
+                    </span>
+                  </div>
+                  <div className="preview-classification-block">
+                    <span className="preview-classification-label">Foqus</span>
+                    <span className="preview-pill preview-pill-aligned">Focused</span>
+                  </div>
                 </div>
                 <div className="preview-context">
                   <span className="preview-context-label">Current website</span>
@@ -311,62 +352,123 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section" aria-labelledby="not-timer-title">
-          <div className="landing-section-header">
-            <h2 id="not-timer-title">Not another pomodoro timer</h2>
-            <p className="muted">
-              Foqus doesn't just count time. It uses AI to understand your task and checks whether your current app or website still matches what you
-              intended to do — without you manually maintaining whitelists.
+        <section className="landing-section landing-section--examples" aria-labelledby="examples-title">
+          <div className="landing-section-header landing-section-header--xl">
+            <h2 id="examples-title">Examples of working with Foqus</h2>
+            <p className="muted landing-section-lede">
+              Same person, same task — different tab or app, different call. Foqus compares what you are doing to the task you set;{" "}
+              <strong>Focused</strong> and <strong>Distracted</strong> are its readouts, not buttons you press.
             </p>
           </div>
-          <article className="card">
-            <h3 className="card-title">Example: intent-aware, not rule-based</h3>
-            <div className="compare">
-              <div className="compare-panel">
-                <div className="compare-header">
-                  <span className="compare-title">Traditional apps</span>
-                  <span className="compare-badge">Rule-based</span>
+
+          <ul className="foqus-examples" aria-label="Four persona examples">
+            {FOQUS_WORK_EXAMPLES.map((ex) => (
+              <li key={ex.id} className={`foqus-example foqus-example--${ex.verdict}`}>
+                <div className="foqus-example-top">
+                  <p className="foqus-persona-line">
+                    You&rsquo;re a <strong className="foqus-persona-role">{ex.persona}</strong>
+                  </p>
+                  {ex.sameTaskAsPrevious ? (
+                    <span className="foqus-same-task-badge">Same task</span>
+                  ) : null}
                 </div>
-                <ul className="compare-list">
-                  <li>Needs per-task allow / block lists</li>
-                  <li>Makes generic assumptions about apps and categories</li>
-                  <li>Can nag or guilt you when you "break the rules"</li>
-                </ul>
+                <p className="foqus-example-task">
+                  <span className="foqus-example-task-label">Task</span>
+                  <span className="foqus-quote">
+                    {ex.taskEncloseInQuotes === false ? (
+                      ex.task
+                    ) : (
+                      <>
+                        &ldquo;{ex.task}&rdquo;
+                      </>
+                    )}
+                  </span>
+                </p>
+                <div className="foqus-example-flow">
+                  <div className={`foqus-where foqus-where--${ex.where.surface}`}>
+                    <span className="foqus-where-kind">{ex.where.surface === "browser" ? "Browser tab" : "Foreground app"}</span>
+                    <span className="foqus-where-label">{ex.where.label}</span>
+                    {ex.where.detail ? <span className="foqus-where-detail">{ex.where.detail}</span> : null}
+                  </div>
+                  <span className="foqus-flow-arrow">&rarr;</span>
+                  <FoqusExampleVerdictBadge verdict={ex.verdict} />
+                </div>
+                <p className="foqus-example-why">{ex.why}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="coverage-callout" aria-labelledby="coverage-callout-title">
+          <h3 id="coverage-callout-title" className="visually-hidden">
+            One session across browser and desktop
+          </h3>
+          <div className="coverage-callout-inner" aria-hidden="true">
+            <div className="coverage-node coverage-node--browser">
+              <span className="coverage-node-label">Extension</span>
+              <span className="coverage-node-sub">Browser tabs</span>
+            </div>
+            <div className="coverage-join">
+              <span className="coverage-join-line" />
+              <span className="coverage-join-badge">One session</span>
+              <span className="coverage-join-line" />
+            </div>
+            <div className="coverage-node coverage-node--desktop">
+              <span className="coverage-node-label">Windows app</span>
+              <span className="coverage-node-sub">Foreground apps</span>
+            </div>
+          </div>
+          <p className="coverage-callout-copy">Browser tabs and desktop apps, tracked together in one focus session.</p>
+        </section>
+
+        <section className="landing-section landing-section--anti" aria-labelledby="anti-title">
+          <div className="landing-section-header landing-section-header--xl">
+            <h2 id="anti-title">Not another blocker</h2>
+            <p className="muted landing-section-lede">Foqus is built for people who are tired of being judged by their tools.</p>
+          </div>
+          <ul className="anti-list">
+            {ANTI_POSITIONING.map((item) => (
+              <li key={item.headline} className="anti-item">
+                <p className="anti-headline">{item.headline}</p>
+                <p className="anti-body muted">{item.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="landing-section landing-section--analytics" aria-labelledby="learn-title">
+          <div className="landing-section-header landing-section-header--xl">
+            <h2 id="learn-title">What you learn from each session</h2>
+            <p className="muted landing-section-lede">
+              Every block teaches you something. See which apps pull you off track, how fast you recover, and how your focus patterns change over time.
+            </p>
+          </div>
+          <div className="analytics-preview">
+            <div className="analytics-preview-grid">
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Focus score</span>
+                <span className="preview-metric-value preview-metric-value-aligned">86%</span>
               </div>
-              <div className="compare-panel compare-panel-foqus">
-                <div className="compare-header">
-                  <span className="compare-title">Foqus</span>
-                  <span className="compare-badge compare-badge-foqus">AI task-aware</span>
-                </div>
-                <ul className="compare-list">
-                  <li>No manual whitelisting per task</li>
-                  <li>Evaluates alignment based on your intent</li>
-                  <li>Supports deep work and intentional breaks</li>
-                </ul>
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Context switches</span>
+                <span className="preview-metric-value">3</span>
+              </div>
+              <div className="preview-metric analytics-metric">
+                <span className="preview-metric-label">Avg recovery</span>
+                <span className="preview-metric-value">00:38</span>
+              </div>
+              <div className="preview-metric analytics-metric analytics-metric--wide">
+                <span className="preview-metric-label">Top drift triggers</span>
+                <span className="preview-metric-value">Slack, email</span>
               </div>
             </div>
-          </article>
-        </section>
-
-        <section className="landing-section" aria-labelledby="features-title">
-          <div className="landing-section-header">
-            <h2 id="features-title">Built for real focused work</h2>
-            <p className="muted">Glassy UI, subtle borders, and information you can scan at a glance.</p>
-          </div>
-          <div className="card-grid">
-            {FEATURES.map((f) => (
-              <article key={f.title} className="card">
-                <h3 className="card-title">{f.title}</h3>
-                <p className="muted">{f.description}</p>
-              </article>
-            ))}
           </div>
         </section>
 
-        <section id="how-it-works" className="landing-section" aria-labelledby="how-title">
-          <div className="landing-section-header">
+        <section id="how-it-works" className="landing-section landing-section--steps" aria-labelledby="how-title">
+          <div className="landing-section-header landing-section-header--xl">
             <h2 id="how-title">How it works</h2>
-            <p className="muted">Three steps. No ceremony.</p>
+            <p className="muted landing-section-lede">Three steps. No ceremony.</p>
           </div>
           <ol className="step-grid">
             {STEPS.map((s, index) => (
@@ -375,7 +477,7 @@ export function LandingPage() {
                   {index + 1}
                 </div>
                 <div className="step-content">
-                  <h3 className="card-title">{s.title}</h3>
+                  <h3 className="step-title">{s.title}</h3>
                   <p className="muted">{s.description}</p>
                 </div>
               </li>
@@ -383,13 +485,13 @@ export function LandingPage() {
           </ol>
         </section>
 
-        <section className="landing-section landing-cta" aria-labelledby="cta-title">
-          <div className="landing-section-header">
-            <h2 id="cta-title">Get early access to Foqus</h2>
-            <p className="muted">Join the waitlist for early access when Foqus launches.</p>
+        <section className="landing-section landing-cta landing-cta--footer" aria-labelledby="cta-title">
+          <div className="landing-section-header landing-section-header--center landing-section-header--xl">
+            <h2 id="cta-title">Be the first to try a focus tool that actually gets it.</h2>
+            <p className="muted landing-section-lede">Join the waitlist for early access when Foqus launches.</p>
           </div>
 
-          <div className="cta-card card">
+          <div className="cta-card card cta-card--narrow">
             <WaitlistSignupForm
               formId="waitlist"
               emailFieldId={emailIdFooter}
