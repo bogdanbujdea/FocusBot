@@ -7,26 +7,28 @@ public class IsActiveShould
     [Fact]
     public void ReturnTrue_WhenNotCompleted()
     {
-        // Arrange
-        var task = new UserSession { IsCompleted = false };
+        var task = UserSession.FromApiResponse(
+            new ApiSessionResponse(
+                Guid.NewGuid(),
+                "Title",
+                null,
+                null,
+                DateTime.UtcNow,
+                null));
 
-        // Act
-        var isActive = task.IsActive;
-
-        // Assert
-        isActive.Should().BeTrue();
+        task.IsActive.Should().BeTrue();
     }
 
     [Fact]
     public void ReturnFalse_WhenCompleted()
     {
-        // Arrange
-        var task = new UserSession { IsCompleted = true };
+        var task = new UserSession
+        {
+            SessionId = Guid.NewGuid().ToString(),
+            SessionTitle = "T",
+            IsCompleted = true,
+        };
 
-        // Act
-        var isActive = task.IsActive;
-
-        // Assert
-        isActive.Should().BeFalse();
+        task.IsActive.Should().BeFalse();
     }
 }

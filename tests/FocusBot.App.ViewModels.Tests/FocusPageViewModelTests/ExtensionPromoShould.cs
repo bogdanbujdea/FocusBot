@@ -1,3 +1,4 @@
+using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -122,9 +123,10 @@ public class ExtensionPromoShould
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
     }
 
-    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModelWithoutIntegration(FocusPageTestContext ctx)
+    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModelWithoutIntegration(FocusPageTestContext _)
     {
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -132,7 +134,6 @@ public class ExtensionPromoShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
@@ -144,10 +145,11 @@ public class ExtensionPromoShould
     }
 
     private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModelWithIntegration(
-        FocusPageTestContext ctx,
+        FocusPageTestContext _,
         IIntegrationService integrationService)
     {
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -155,7 +157,6 @@ public class ExtensionPromoShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,

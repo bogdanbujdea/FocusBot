@@ -45,7 +45,6 @@ namespace FocusBot.App
                 .SetApplicationName("FocusBot")
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
             services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
-            services.AddScoped<ISessionRepository, SessionRepository>();
             services.AddScoped<IAlignmentCacheRepository, AlignmentCacheRepository>();
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),

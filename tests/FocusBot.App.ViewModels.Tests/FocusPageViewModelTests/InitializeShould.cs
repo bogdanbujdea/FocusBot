@@ -1,3 +1,4 @@
+using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Moq;
 
@@ -6,34 +7,32 @@ namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 public class InitializeShould
 {
     [Fact]
-    public async Task LoadActiveSession_WhenThereAreTasksInProgress()
+    public async Task LoadActiveSession_WhenApiReturnsActiveSession()
     {
-        // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddSessionAsync("In progress task");
-        await ctx.Repo.SetActiveAsync(task.SessionId);
+        var id = Guid.NewGuid();
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(id, "In progress task", null, null, DateTime.UtcNow, null));
 
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync(session);
+
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
             Mock.Of<IAuthService>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
 
-        // Act
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
             accountVm,
             statusBar);
 
-        // Wait for async initialization
-        await Task.Delay(150);
+        await Task.Delay(200);
 
-        // Assert
         vm.ActiveSession.Should().NotBeNull();
         vm.ActiveSession!.SessionTitle.Should().Be("In progress task");
     }

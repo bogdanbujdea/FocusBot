@@ -1,3 +1,4 @@
+using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -9,12 +10,10 @@ public class TaskElapsedTimeShould
     [Fact]
     public async Task UpdateFromOrchestratorStateChange()
     {
-        // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddSessionAsync("Tracked task");
-        await ctx.Repo.SetActiveAsync(task.SessionId);
-
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
+
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -22,35 +21,30 @@ public class TaskElapsedTimeShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
             accountVm,
             statusBar);
 
-        // Act - first tick
+        await Task.Delay(150);
+
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateStateArgs(sessionElapsedSeconds: 1));
 
-        // Assert
         vm.SessionElapsedTime.Should().Be("00:00:01");
 
-        // Act - second tick
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateStateArgs(sessionElapsedSeconds: 2));
 
-        // Assert
         vm.SessionElapsedTime.Should().Be("00:00:02");
     }
 
     [Fact]
     public async Task ShowFormattedTime_FromOrchestratorState()
     {
-        // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var task = await ctx.Repo.AddSessionAsync("Resumed task");
-        await ctx.Repo.SetActiveAsync(task.SessionId);
-
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
+
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -58,26 +52,26 @@ public class TaskElapsedTimeShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
             accountVm,
             statusBar);
 
-        // Act - simulate orchestrator state with 1h 1m 1s
+        await Task.Delay(150);
+
         orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateStateArgs(sessionElapsedSeconds: 3661));
 
-        // Assert
         vm.SessionElapsedTime.Should().Be("01:01:01");
     }
 
     [Fact]
     public async Task ShowZero_WhenNoSessionActive()
     {
-        // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
+
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -85,7 +79,6 @@ public class TaskElapsedTimeShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
@@ -93,7 +86,6 @@ public class TaskElapsedTimeShould
             statusBar);
         await Task.Delay(150);
 
-        // Assert - no state change, so elapsed time should be 00:00:00
         vm.SessionElapsedTime.Should().Be("00:00:00");
     }
 

@@ -1,3 +1,4 @@
+using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using Moq;
@@ -12,6 +13,7 @@ public class OnForegroundWindowChangedShould
         // Arrange
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -19,7 +21,6 @@ public class OnForegroundWindowChangedShould
             Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
         var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
         var vm = new FocusPageViewModel(
-            ctx.Repo,
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,

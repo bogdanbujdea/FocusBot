@@ -5,7 +5,7 @@ namespace FocusBot.Core.Interfaces;
 
 /// <summary>
 /// Orchestrates focus session business logic: time tracking, classification triggers,
-/// idle/active handling, and backend synchronization. The ViewModel subscribes to
+/// idle/active handling, and Web API session lifecycle. The ViewModel subscribes to
 /// <see cref="StateChanged"/> and updates UI-bound properties.
 /// </summary>
 public interface IFocusSessionOrchestrator
@@ -17,21 +17,23 @@ public interface IFocusSessionOrchestrator
     event EventHandler<FocusSessionStateChangedEventArgs>? StateChanged;
 
     /// <summary>
-    /// Raised when the backend session start API fails after the local session has started.
+    /// Starts a session on the server, then begins local monitoring when successful.
     /// </summary>
-    event EventHandler<string>? BackendApiErrorOccurred;
+    Task<ApiResult<UserSession>> StartSessionAsync(string sessionTitle, string? sessionContext);
 
     /// <summary>
-    /// Starts orchestrating a new focus session. Subscribes to window monitor events
-    /// and begins time tracking.
+    /// Resumes local monitoring for a session already returned by the API (e.g. after app restart).
+    /// Does not call the API.
     /// </summary>
-    /// <param name="session">The active session to track.</param>
-    /// <param name="initialElapsedSeconds">Initial elapsed seconds (for resuming a session).</param>
-    void StartSession(UserSession session, long initialElapsedSeconds = 0);
+    void BeginLocalSessionTracking(UserSession session, long initialElapsedSeconds = 0);
 
     /// <summary>
-    /// Ends the current session. Stops monitoring, computes final summary,
-    /// and notifies the backend.
+    /// Returns the current active session from the API, or null if none.
+    /// </summary>
+    Task<UserSession?> LoadActiveSessionAsync();
+
+    /// <summary>
+    /// Ends the current session. Calls the API first; on failure the local session stays active.
     /// </summary>
     /// <returns>Summary and optional API error message, or null if no active session.</returns>
     Task<SessionEndResult?> EndSessionAsync();
@@ -45,12 +47,6 @@ public interface IFocusSessionOrchestrator
     /// Resumes a paused session. Restarts time tracking and monitoring.
     /// </summary>
     void ResumeSession();
-
-    /// <summary>
-    /// Synchronizes backend session state on startup. If an active session exists
-    /// on the backend, adopts it so EndSession can properly close it.
-    /// </summary>
-    Task SyncBackendSessionAsync();
 
     /// <summary>
     /// Records a manual focus override (user marks current window as focused/distracting).

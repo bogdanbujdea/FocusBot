@@ -1,26 +1,43 @@
 namespace FocusBot.Core.Entities;
 
 /// <summary>
-/// Represents a user-defined task (single-task flow: active or completed).
+/// In-memory view of an active focus session (backed by the Web API only).
 /// </summary>
-public class UserSession
+public sealed class UserSession
 {
-    public UserSession() { }
+    /// <summary>Server session id (API session <c>Id</c> as a string).</summary>
+    public string SessionId { get; init; } = string.Empty;
 
-    public string SessionId { get; set; } = Guid.NewGuid().ToString();
-    public string SessionTitle { get; set; } = string.Empty;
-    public string? Context { get; set; }
-    public bool IsCompleted { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public long TotalElapsedSeconds { get; set; } = 0;
-    public int? FocusScorePercent { get; set; }
+    public string SessionTitle { get; init; } = string.Empty;
+    public string? Context { get; init; }
+    public bool IsCompleted { get; init; }
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public long TotalElapsedSeconds { get; init; }
+    public int? FocusScorePercent { get; init; }
 
-    public long FocusedSeconds { get; set; }
-    public long DistractedSeconds { get; set; }
-    public int DistractionCount { get; set; }
-    public int ContextSwitchCount { get; set; }
-    public string? TopDistractingApps { get; set; }
-    public string? TopAlignedApps { get; set; }
+    public long FocusedSeconds { get; init; }
+    public long DistractedSeconds { get; init; }
+    public int DistractionCount { get; init; }
+    public int ContextSwitchCount { get; init; }
+    public string? TopDistractingApps { get; init; }
+    public string? TopAlignedApps { get; init; }
 
     public bool IsActive => !IsCompleted;
+
+    /// <summary>
+    /// Builds a session DTO from the active-session API model for UI and orchestration.
+    /// </summary>
+    public static UserSession FromApiResponse(ApiSessionResponse response)
+    {
+        var elapsed = (long)Math.Max(0, (DateTime.UtcNow - response.StartedAtUtc).TotalSeconds);
+        return new UserSession
+        {
+            SessionId = response.Id.ToString(),
+            SessionTitle = response.SessionTitle,
+            Context = response.SessionContext,
+            IsCompleted = false,
+            CreatedAt = response.StartedAtUtc,
+            TotalElapsedSeconds = elapsed,
+        };
+    }
 }

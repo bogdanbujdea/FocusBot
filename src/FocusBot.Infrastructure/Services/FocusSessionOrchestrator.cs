@@ -9,14 +9,13 @@ namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// Orchestrates focus session business logic: time tracking, classification triggers,
-/// idle/active handling, and backend synchronization.
+/// idle/active handling, and Web API session lifecycle.
 /// </summary>
 public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 {
     private const int NeutralAppScore = 5;
 
     private readonly ILocalSessionTracker _sessionTracker;
-    private readonly ISessionRepository _sessionRepository;
     private readonly IWindowMonitorService _windowMonitor;
     private readonly IClassificationService _classificationService;
     private readonly IFocusBotApiClient _apiClient;
@@ -29,7 +28,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     // Session state
     private UserSession? _activeSession;
     private long _sessionElapsedSeconds;
-    private int _secondsSinceLastPersist;
     private bool _isSessionPaused;
     private Guid? _backendSessionId;
 
@@ -47,9 +45,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     public event EventHandler<FocusSessionStateChangedEventArgs>? StateChanged;
 
     /// <inheritdoc />
-    public event EventHandler<string>? BackendApiErrorOccurred;
-
-    /// <inheritdoc />
     public bool HasActiveSession => _activeSession != null;
 
     /// <inheritdoc />
@@ -63,7 +58,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
     public FocusSessionOrchestrator(
         ILocalSessionTracker sessionTracker,
-        ISessionRepository sessionRepository,
         IWindowMonitorService windowMonitor,
         IClassificationService classificationService,
         IFocusBotApiClient apiClient,
@@ -73,7 +67,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     )
     {
         _sessionTracker = sessionTracker;
-        _sessionRepository = sessionRepository;
         _windowMonitor = windowMonitor;
         _classificationService = classificationService;
         _apiClient = apiClient;
@@ -88,17 +81,39 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
-    public void StartSession(UserSession session, long initialElapsedSeconds = 0)
+    public async Task<ApiResult<UserSession>> StartSessionAsync(string sessionTitle, string? sessionContext)
+    {
+        if (!_apiClient.IsConfigured)
+            return ApiResult<UserSession>.NotAuthenticated();
+
+        var deviceId = _deviceService?.GetDeviceId();
+        var payload = new StartSessionPayload(sessionTitle, sessionContext, deviceId);
+        var result = await _apiClient.StartSessionAsync(payload);
+
+        if (result.IsSuccess && result.Value != null)
+        {
+            var session = UserSession.FromApiResponse(result.Value);
+            BeginLocalSessionTracking(session, 0);
+            return ApiResult<UserSession>.Success(session);
+        }
+
+        if (result.StatusCode == HttpStatusCode.Conflict)
+            return await TryResolveConflictAndStartAsync(payload, deviceId);
+
+        return ApiResultMappings.FromFailedSessionCall<UserSession>(result);
+    }
+
+    /// <inheritdoc />
+    public void BeginLocalSessionTracking(UserSession session, long initialElapsedSeconds = 0)
     {
         lock (_lock)
         {
             _activeSession = session;
+            _backendSessionId = Guid.TryParse(session.SessionId, out var sid) ? sid : null;
             _sessionElapsedSeconds = initialElapsedSeconds;
-            _secondsSinceLastPersist = 0;
             _isSessionPaused = false;
             _currentFocusScorePercent = 0;
 
-            // Reset classification state
             _focusScore = 0;
             _focusReason = string.Empty;
             _isClassifying = false;
@@ -107,18 +122,26 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
             _sessionTracker.Start(session.SessionTitle);
             _windowMonitor.Start();
-
-            _ = StartBackendSessionAsync(session);
         }
 
         RaiseStateChanged();
     }
 
     /// <inheritdoc />
+    public async Task<UserSession?> LoadActiveSessionAsync()
+    {
+        if (!_apiClient.IsConfigured)
+            return null;
+
+        var api = await _apiClient.GetActiveSessionAsync();
+        return api == null ? null : UserSession.FromApiResponse(api);
+    }
+
+    /// <inheritdoc />
     public async Task<SessionEndResult?> EndSessionAsync()
     {
         UserSession? sessionToEnd;
-        SessionSummary? summary;
+        SessionSummary summary;
         Guid? backendId;
 
         lock (_lock)
@@ -129,18 +152,49 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
             summary = _sessionTracker.GetSessionSummary();
             backendId = _backendSessionId;
+        }
 
+        if (!backendId.HasValue)
+        {
+            return new SessionEndResult
+            {
+                Summary = summary,
+                ApiErrorMessage = "Session is not linked to the server.",
+            };
+        }
+
+        var payload = new EndSessionPayload(
+            summary.FocusScorePercent,
+            summary.FocusedSeconds,
+            summary.DistractedSeconds,
+            summary.DistractionCount,
+            summary.ContextSwitchCount,
+            summary.TopDistractingApps,
+            summary.TopAlignedApps,
+            _deviceService?.GetDeviceId()
+        );
+
+        var endResult = await _apiClient.EndSessionAsync(backendId.Value, payload);
+        if (!endResult.IsSuccess)
+        {
+            return new SessionEndResult
+            {
+                Summary = summary,
+                ApiErrorMessage = endResult.ErrorMessage,
+            };
+        }
+
+        lock (_lock)
+        {
             _windowMonitor.Stop();
             _sessionTracker.Reset();
 
             _activeSession = null;
             _sessionElapsedSeconds = 0;
-            _secondsSinceLastPersist = 0;
             _isSessionPaused = false;
             _backendSessionId = null;
             _currentFocusScorePercent = 0;
 
-            // Reset classification state
             _currentProcessName = string.Empty;
             _currentWindowTitle = string.Empty;
             _focusScore = 0;
@@ -150,38 +204,11 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             _aiRequestError = null;
         }
 
-        // Persist final state
-        await _sessionRepository.UpdateFocusScoreAsync(
-            sessionToEnd.SessionId,
-            summary.FocusScorePercent
-        );
-        await _sessionRepository.SetCompletedAsync(sessionToEnd.SessionId);
-
-        string? apiErrorMessage = null;
-
-        // Notify backend
-        if (backendId.HasValue)
-        {
-            var payload = new EndSessionPayload(
-                summary.FocusScorePercent,
-                summary.FocusedSeconds,
-                summary.DistractedSeconds,
-                summary.DistractionCount,
-                summary.ContextSwitchCount,
-                summary.TopDistractingApps,
-                summary.TopAlignedApps,
-                _deviceService?.GetDeviceId()
-            );
-            var endResult = await _apiClient.EndSessionAsync(backendId.Value, payload);
-            if (!endResult.IsSuccess)
-                apiErrorMessage = endResult.ErrorMessage;
-        }
-
         RaiseStateChanged();
         return new SessionEndResult
         {
             Summary = summary,
-            ApiErrorMessage = apiErrorMessage,
+            ApiErrorMessage = null,
         };
     }
 
@@ -215,22 +242,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         }
 
         RaiseStateChanged();
-    }
-
-    /// <inheritdoc />
-    public async Task SyncBackendSessionAsync()
-    {
-        if (!_apiClient.IsConfigured)
-            return;
-
-        var activeSession = await _apiClient.GetActiveSessionAsync();
-        if (activeSession != null)
-        {
-            lock (_lock)
-            {
-                _backendSessionId = activeSession.Id;
-            }
-        }
     }
 
     /// <inheritdoc />
@@ -280,41 +291,54 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         RaiseStateChanged();
     }
 
+    private async Task<ApiResult<UserSession>> TryResolveConflictAndStartAsync(
+        StartSessionPayload payload,
+        Guid? deviceId
+    )
+    {
+        var staleSession = await _apiClient.GetActiveSessionAsync();
+        if (staleSession == null)
+            return ApiResult<UserSession>.NetworkError();
+
+        var abandonPayload = new EndSessionPayload(
+            FocusScorePercent: 0,
+            FocusedSeconds: 0,
+            DistractedSeconds: 0,
+            DistractionCount: 0,
+            ContextSwitchCount: 0,
+            TopDistractingApps: null,
+            TopAlignedApps: null,
+            DeviceId: deviceId
+        );
+        var abandonResult = await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
+        if (!abandonResult.IsSuccess)
+            return ApiResultMappings.FromFailedSessionCall<UserSession>(abandonResult);
+
+        var retryResult = await _apiClient.StartSessionAsync(payload);
+        if (retryResult.IsSuccess && retryResult.Value != null)
+        {
+            var session = UserSession.FromApiResponse(retryResult.Value);
+            BeginLocalSessionTracking(session, 0);
+            return ApiResult<UserSession>.Success(session);
+        }
+
+        return ApiResultMappings.FromFailedSessionCall<UserSession>(retryResult);
+    }
+
     private void OnTick(object? sender, EventArgs e)
     {
-        string? sessionId;
-
         lock (_lock)
         {
             if (_activeSession == null)
                 return;
 
-            sessionId = _activeSession.SessionId;
             _sessionElapsedSeconds++;
 
             _sessionTracker.RecordTick();
             _currentFocusScorePercent = _sessionTracker.GetFocusScore();
-
-            _secondsSinceLastPersist++;
         }
 
         RaiseStateChanged();
-
-        // Persist periodically (outside lock to avoid holding it during async)
-        int secondsSincePersist;
-        lock (_lock)
-        {
-            secondsSincePersist = _secondsSinceLastPersist;
-            if (secondsSincePersist >= FocusSessionConfig.PersistIntervalSeconds)
-            {
-                _secondsSinceLastPersist = 0;
-            }
-        }
-
-        if (secondsSincePersist >= FocusSessionConfig.PersistIntervalSeconds && sessionId != null)
-        {
-            _ = PersistElapsedTimeAsync(sessionId);
-        }
     }
 
     private void OnUserBecameIdle(object? sender, EventArgs e)
@@ -363,7 +387,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
             if (session == null)
             {
-                // No active session - just notify extension about foreground
                 if (_integrationService is { IsExtensionConnected: true })
                 {
                     _ = _integrationService.SendDesktopForegroundAsync(
@@ -383,7 +406,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             sessionTitle = session.SessionTitle;
             sessionContext = session.Context;
 
-            // Check for neutral app
             if (IsNeutralApp(e.ProcessName))
             {
                 _focusScore = NeutralAppScore;
@@ -394,7 +416,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 return;
             }
 
-            // Reset state before classification
             _focusScore = 0;
             _focusReason = string.Empty;
             _isClassifying = false;
@@ -403,13 +424,11 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
         RaiseStateChanged();
 
-        // Notify extension about foreground
         if (_integrationService is { IsExtensionConnected: true })
         {
             _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
         }
 
-        // Trigger classification
         if (
             BrowserProcessNames.IsBrowser(e.ProcessName)
             && _integrationService is { IsExtensionConnected: true }
@@ -532,85 +551,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 windowTitle
             );
         }
-    }
-
-    private async Task StartBackendSessionAsync(UserSession session)
-    {
-        if (!_apiClient.IsConfigured)
-            return;
-
-        var deviceId = _deviceService?.GetDeviceId();
-        var payload = new StartSessionPayload(session.SessionTitle, session.Context, deviceId);
-        var result = await _apiClient.StartSessionAsync(payload);
-
-        if (result.IsSuccess && result.Value != null)
-        {
-            lock (_lock)
-            {
-                _backendSessionId = result.Value.Id;
-            }
-            return;
-        }
-
-        // StartSession failed — 409 Conflict (active session already exists): end stale and retry.
-        if (result.StatusCode == HttpStatusCode.Conflict)
-        {
-            var staleSession = await _apiClient.GetActiveSessionAsync();
-            if (staleSession == null)
-            {
-                RaiseBackendApiError(result.ErrorMessage);
-                return;
-            }
-
-            var abandonPayload = new EndSessionPayload(
-                FocusScorePercent: 0,
-                FocusedSeconds: 0,
-                DistractedSeconds: 0,
-                DistractionCount: 0,
-                ContextSwitchCount: 0,
-                TopDistractingApps: null,
-                TopAlignedApps: null,
-                DeviceId: deviceId
-            );
-            var abandonResult = await _apiClient.EndSessionAsync(staleSession.Id, abandonPayload);
-            if (!abandonResult.IsSuccess)
-            {
-                RaiseBackendApiError(abandonResult.ErrorMessage);
-                return;
-            }
-
-            var retryResult = await _apiClient.StartSessionAsync(payload);
-            if (retryResult.IsSuccess && retryResult.Value != null)
-            {
-                lock (_lock)
-                {
-                    _backendSessionId = retryResult.Value.Id;
-                }
-                return;
-            }
-
-            RaiseBackendApiError(retryResult.ErrorMessage);
-            return;
-        }
-
-        RaiseBackendApiError(result.ErrorMessage);
-    }
-
-    private void RaiseBackendApiError(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-            message = "Something went wrong, please try again.";
-        BackendApiErrorOccurred?.Invoke(this, message);
-    }
-
-    private async Task PersistElapsedTimeAsync(string sessionId)
-    {
-        long elapsed;
-        lock (_lock)
-        {
-            elapsed = _sessionElapsedSeconds;
-        }
-        await _sessionRepository.UpdateElapsedTimeAsync(sessionId, elapsed);
     }
 
     private static bool IsNeutralApp(string processName)
