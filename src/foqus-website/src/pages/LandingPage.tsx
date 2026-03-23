@@ -274,6 +274,27 @@ function FoqusExampleVerdictBadge({ verdict }: { verdict: "focused" | "distracte
   );
 }
 
+function FoqusExampleTaskLinkGlyph() {
+  return (
+    <svg
+      className="foqus-example-why-bridge-svg"
+      width={18}
+      height={14}
+      viewBox="0 0 18 14"
+      aria-hidden="true"
+    >
+      <path
+        d="M9 12V3M4 7l5-5 5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function FoqusExampleWhyIcon({ verdict }: { verdict: "focused" | "distracted" }) {
   if (verdict === "focused") {
     return (
@@ -502,22 +523,58 @@ export function LandingPage() {
                       )}
                     </span>
                   </p>
-                  <div className={`foqus-where-strip foqus-where-strip--${ex.where.brand}`}>
-                    <IconWhereBrand brand={ex.where.brand} />
-                    <div className="foqus-where-strip-text">
-                      <span className="foqus-where-label">{ex.where.label}</span>
-                      {ex.where.detail ? <span className="foqus-where-detail">{ex.where.detail}</span> : null}
-                    </div>
-                    {ex.youtubeVariant === "fun" ? (
-                      <div className="foqus-yt-thumb" aria-hidden="true">
-                        <span className="foqus-yt-thumb-play" />
+                  <div className="foqus-example-connector" aria-hidden="true">
+                    <span className="foqus-example-connector-line" />
+                    <span className="foqus-example-connector-arrow" />
+                  </div>
+                  <div
+                    className={`foqus-where-frame foqus-where-frame--${ex.where.surface}`}
+                    aria-label={
+                      ex.where.surface === "browser"
+                        ? `Browser tab showing ${ex.where.label}`
+                        : `Foreground window: ${ex.where.label}`
+                    }
+                  >
+                    {ex.where.surface === "browser" ? (
+                      <div className="foqus-where-frame-chrome foqus-where-frame-chrome--browser" aria-hidden="true">
+                        <span className="foqus-where-frame-traffic">
+                          <span className="foqus-where-frame-dot foqus-where-frame-dot--r" />
+                          <span className="foqus-where-frame-dot foqus-where-frame-dot--y" />
+                          <span className="foqus-where-frame-dot foqus-where-frame-dot--g" />
+                        </span>
+                        <span className="foqus-where-frame-tab" />
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="foqus-where-frame-chrome foqus-where-frame-chrome--desktop" aria-hidden="true">
+                        <span className="foqus-where-frame-win-icon" />
+                        <span className="foqus-where-frame-win-title" />
+                        <span className="foqus-where-frame-win-btns">
+                          <span className="foqus-where-frame-win-btn" />
+                          <span className="foqus-where-frame-win-btn" />
+                          <span className="foqus-where-frame-win-btn foqus-where-frame-win-btn--close" />
+                        </span>
+                      </div>
+                    )}
+                    <div className={`foqus-where-strip foqus-where-strip--${ex.where.brand}`}>
+                      <IconWhereBrand brand={ex.where.brand} />
+                      <div className="foqus-where-strip-text">
+                        <span className="foqus-where-label">{ex.where.label}</span>
+                        {ex.where.detail ? <span className="foqus-where-detail">{ex.where.detail}</span> : null}
+                      </div>
+                      {ex.youtubeVariant === "fun" ? (
+                        <div className="foqus-yt-thumb" aria-hidden="true">
+                          <span className="foqus-yt-thumb-play" />
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <footer className={`foqus-example-why foqus-example-why--${ex.verdict}`}>
                   <div className="foqus-example-why-head">
-                    <span className="foqus-example-why-label">Foqus classification</span>
+                    <div className="foqus-example-why-label-row">
+                      <FoqusExampleTaskLinkGlyph />
+                      <span className="foqus-example-why-label">Foqus classification</span>
+                    </div>
                     <FoqusExampleVerdictBadge verdict={ex.verdict} />
                   </div>
                   <div className="foqus-example-why-main">
