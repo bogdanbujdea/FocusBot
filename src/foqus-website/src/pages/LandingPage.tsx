@@ -472,7 +472,7 @@ export function LandingPage() {
                     <span className="preview-metric-value">3</span>
                   </div>
                   <div className="preview-metric">
-                    <span className="preview-metric-label">Avg recovery time</span>
+                    <span className="preview-metric-label">Avg distraction time</span>
                     <span className="preview-metric-value">00:38</span>
                   </div>
                 </div>
@@ -667,7 +667,7 @@ export function LandingPage() {
                 <span className="preview-metric-value">3</span>
               </div>
               <div className="preview-metric analytics-metric">
-                <span className="preview-metric-label">Avg recovery</span>
+                <span className="preview-metric-label">Avg distraction time</span>
                 <span className="preview-metric-value">00:38</span>
               </div>
               <div className="preview-metric analytics-metric analytics-metric--wide">
