@@ -138,7 +138,8 @@ function WaitlistSignupForm({
       <div className={`waitlist-confirmed ${className ?? ""}`.trim()} role="status" aria-live="polite">
         <p className="waitlist-confirmed-title">Thank you — you&rsquo;re on the list.</p>
         <p className="muted waitlist-confirmed-body">
-          Your email is confirmed. We&rsquo;ll notify you as soon as Foqus launches.
+          Your email is confirmed. We&rsquo;ll notify you as soon as Foqus launches. Waitlist members get{" "}
+          <strong className="waitlist-discount-emphasis">50% off the first month</strong>.
         </p>
       </div>
     );
@@ -174,10 +175,14 @@ function WaitlistSignupForm({
           {isSubmitting ? "Joining..." : "Get early access"}
         </button>
       </div>
-      <p className="trust-note muted">One email when it launches. No spam.</p>
+      <p className="trust-note muted">
+        Waitlist members get <strong className="waitlist-discount-emphasis">50% off the first month</strong>. One email
+        when we launch. No spam.
+      </p>
       {submittedEmail ? (
         <p className="muted" role="status">
-          Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>.
+          Thanks — check your inbox to confirm <strong>{submittedEmail}</strong>. Waitlist members get{" "}
+          <strong className="waitlist-discount-emphasis">50% off the first month</strong>.
         </p>
       ) : submitError ? (
         <p className="muted" role="status">
@@ -701,7 +706,10 @@ export function LandingPage() {
         <section className="landing-section landing-cta landing-cta--footer" aria-labelledby="cta-title">
           <div className="landing-section-header landing-section-header--center landing-section-header--xl">
             <h2 id="cta-title">Be the first to try a focus tool that actually gets it.</h2>
-            <p className="muted landing-section-lede">Join the waitlist for early access when Foqus launches.</p>
+            <p className="muted landing-section-lede">
+              Join the waitlist for early access when Foqus launches —{" "}
+              <strong className="waitlist-discount-emphasis">50% off your first month</strong>.
+            </p>
           </div>
 
           <div className="cta-card card cta-card--narrow">
