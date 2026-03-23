@@ -1,4 +1,5 @@
-import { type FormEvent, useId, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import appIcon from "../../../FocusBot.App/Assets/1080.png";
 
 type Step = {
@@ -114,6 +115,8 @@ type WaitlistSignupFormProps = {
   canSubmit: boolean;
   submittedEmail: string | null;
   submitError: string | null;
+  /** Set after the user returns from the double opt-in link (?accepted=true). */
+  subscriptionConfirmed?: boolean;
 };
 
 function WaitlistSignupForm({
@@ -127,8 +130,20 @@ function WaitlistSignupForm({
   isSubmitting,
   canSubmit,
   submittedEmail,
-  submitError
+  submitError,
+  subscriptionConfirmed
 }: WaitlistSignupFormProps) {
+  if (subscriptionConfirmed) {
+    return (
+      <div className={`waitlist-confirmed ${className ?? ""}`.trim()} role="status" aria-live="polite">
+        <p className="waitlist-confirmed-title">Thank you — you&rsquo;re on the list.</p>
+        <p className="muted waitlist-confirmed-body">
+          Your email is confirmed. We&rsquo;ll notify you as soon as Foqus launches.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form id={formId} className={className} onSubmit={onSubmit} aria-label="Join the Foqus waitlist">
       <label className="label" htmlFor={emailFieldId}>
@@ -313,12 +328,21 @@ function FoqusExampleWhyIcon({ verdict }: { verdict: "focused" | "distracted" })
 }
 
 export function LandingPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const emailIdHero = useId();
   const emailIdFooter = useId();
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [subscriptionConfirmed, setSubscriptionConfirmed] = useState(false);
+
+  useEffect(() => {
+    const raw = searchParams.get("accepted");
+    if (raw === null || raw.toLowerCase() !== "true") return;
+    setSubscriptionConfirmed(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const canSubmit = useMemo(() => email.trim().length > 3 && email.includes("@"), [email]);
 
@@ -402,6 +426,7 @@ export function LandingPage() {
                     canSubmit={canSubmit}
                     submittedEmail={submittedEmail}
                     submitError={submitError}
+                    subscriptionConfirmed={subscriptionConfirmed}
                   />
                 </div>
               </div>
@@ -691,6 +716,7 @@ export function LandingPage() {
               canSubmit={canSubmit}
               submittedEmail={submittedEmail}
               submitError={submitError}
+              subscriptionConfirmed={subscriptionConfirmed}
             />
           </div>
         </section>

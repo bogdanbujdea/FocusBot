@@ -1143,6 +1143,28 @@
   scroll-margin-top: 24px;
 }
 
+.waitlist-confirmed {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--fb-radius-sm);
+  border: 1px solid rgba(45, 184, 113, 0.35);
+  background: rgba(45, 184, 113, 0.08);
+  scroll-margin-top: 24px;
+}
+
+.waitlist-confirmed-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.waitlist-confirmed-body {
+  margin: 0;
+  line-height: 1.45;
+}
+
 .trust-note {
   margin: -2px 0 2px;
   font-size: 0.85rem;
