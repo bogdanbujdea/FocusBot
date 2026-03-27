@@ -6,6 +6,13 @@ SignalR enables real-time, bidirectional communication between the Foqus backend
 
 **Key Purpose:** Cross-device session synchronization and real-time presence updates.
 
+### Consistency Requirement (March 2026)
+
+- Pause/resume must be **server-backed** on every platform.
+- Local-only pause/resume state transitions are not allowed for normal authenticated flows.
+- A pause/resume action is considered successful only after `POST /sessions/{id}/pause` or `POST /sessions/{id}/resume` succeeds.
+- SignalR `SessionPaused` / `SessionResumed` is the cross-device propagation channel; clients must not re-post pause/resume when handling those remote events.
+
 ---
 
 ## Architecture
@@ -125,7 +132,8 @@ public sealed record SessionResumedEvent(
    │        └─ Updates UI to show active session
    │
    ├─ Browser Extension receives event (if connected)
-   │  └─ Updates local state, shows indicator
+   │  ├─ Hydrates local activeSession from event payload (no extra API call)
+   │  └─ Updates UI/badge immediately
    │
    └─ Other Desktop Instances receive event (if any)
       └─ Could trigger conflict resolution
@@ -213,11 +221,26 @@ Service Worker Termination
   ↓
 On Alarm Wake
   ├─ Check if still logged in
-  └─ Reconnect to hub
+  ├─ Reconnect to hub
+  └─ Reconcile active session via GET /sessions/active (only after reconnect)
 
 User Logs Out
   ↓
 disconnectFocusHub() + clear reconnect alarm
+```
+
+Pause/resume mutation flow:
+
+```
+User or idle trigger in extension
+  ↓
+Resolve server session id (stored id first; fallback GET /sessions/active if needed)
+  ↓
+POST /sessions/{id}/pause or POST /sessions/{id}/resume
+  ↓
+API broadcasts SessionPaused / SessionResumed to user group
+  ↓
+All clients converge to server state
 ```
 
 ---
@@ -233,7 +256,7 @@ disconnectFocusHub() + clear reconnect alarm
 **Manual Reconnection:**
 - Desktop App: `ConnectAsync()` called after auth token refresh
 - Web App: Dashboard effect re-runs on session/route changes
-- Extension: Triggered by `chrome.alarms` or manual wake
+- Extension: Triggered by `chrome.alarms` or manual wake; reconciles state with `GET /sessions/active` on startup/install/auth restore and on SignalR reconnected
 
 ---
 
@@ -329,6 +352,8 @@ void connectFocusHub({
 - Token provider uses `IAuthService.GetAccessTokenAsync()`
 - Events wired to `FocusPageViewModel` for UI updates
 - Automatic reconnection with exponential backoff
+- User pause/resume commands are API-backed via `IFocusSessionOrchestrator.PauseSessionAsync()` / `ResumeSessionAsync()`
+- Remote SignalR pause/resume applies local state only via `ApplyRemotePause()` / `ApplyRemoteResume()` (prevents API re-post loops)
 
 ### Browser Extension
 
@@ -338,7 +363,10 @@ void connectFocusHub({
 - Connects from MV3 background service worker after sign-in and on startup/install when auth exists
 - Uses `focusbot-signalr-reconnect` alarm (1-minute period) to reconnect after service worker suspension
 - Handles `SessionStarted`, `SessionEnded`, `SessionPaused`, `SessionResumed` in background and broadcasts updated state
+- Low-traffic hybrid sync: uses SignalR event payload as primary source and only calls `GET /sessions/active` on lifecycle boundaries (startup/install/auth restore/reconnect)
 - On remote `SessionEnded`, ends local tracking and stores a completed session summary
+- Local pause/resume actions (including idle-triggered pause/resume) now attempt server mutation first (`/pause`, `/resume`) and then update local state from server response
+- If server session id is missing, extension reconciles via `GET /sessions/active` before pause/resume to avoid local/server id drift
 
 ---
 
@@ -428,6 +456,10 @@ try {
 - [ ] End session on web app → Verify desktop app stops tracking
 - [ ] Pause session on desktop → Verify web app shows paused state
 - [ ] Resume session on web app → Verify desktop app resumes
+- [ ] Pause session in extension → Verify Windows app pauses within one SignalR round trip
+- [ ] Resume session in extension → Verify Windows app resumes within one SignalR round trip
+- [ ] Trigger extension idle pause → Verify desktop and web reflect paused state
+- [ ] Trigger extension idle resume → Verify desktop and web reflect resumed state
 - [ ] Kill desktop app while connected → Verify web app still updates
 - [ ] Refresh web app during active session → Verify re-connects and loads session
 - [ ] Logout from any client → Verify all clients disconnect from hub

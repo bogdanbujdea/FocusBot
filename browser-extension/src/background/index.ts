@@ -46,6 +46,8 @@ import {
   startCloudSession,
   endCloudSession,
   getActiveCloudSession,
+  pauseCloudSession,
+  resumeCloudSession,
   getSubscriptionStatus,
   sendHeartbeat,
   deregisterClient,
@@ -122,6 +124,31 @@ const getStoredClientId = async (): Promise<string | null> => {
 const getStoredServerSessionId = async (): Promise<string | null> => {
   const result = await chrome.storage.local.get(APP_KEYS.serverSessionId);
   return (result[APP_KEYS.serverSessionId] as string) ?? null;
+};
+
+const resolveServerSessionIdForSync = async (localSessionId: string): Promise<string | null> => {
+  const stored = await getStoredServerSessionId();
+  if (stored) {
+    return stored;
+  }
+
+  const auth = await loadFocusbotAuthSession();
+  if (!auth?.accessToken) {
+    return null;
+  }
+
+  const remote = await getActiveCloudSession();
+  if (!remote?.id) {
+    return null;
+  }
+
+  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: remote.id });
+  if (remote.id !== localSessionId) {
+    await saveActiveSession(buildLocalSessionFromServer(remote));
+    await startBadgeInterval();
+  }
+
+  return remote.id;
 };
 
 const buildLocalSessionFromServer = (session: {
@@ -1138,6 +1165,26 @@ const pauseSession = async (
       return { ok: false, error: "Session is already paused." };
     }
 
+    const serverSessionId = await resolveServerSessionIdForSync(session.sessionId);
+    const targetSession = (await loadActiveSession()) ?? session;
+    if (serverSessionId) {
+      const remote = await pauseCloudSession(serverSessionId);
+      if (!remote) {
+        return { ok: false, error: "Could not pause session on server." };
+      }
+      targetSession.pausedAt = remote.pausedAtUtc ?? nowIso();
+      targetSession.pausedBy = reason;
+      targetSession.totalPausedSeconds = remote.totalPausedSeconds;
+      const tabIdToHide = targetSession.currentVisit?.tabId;
+      finalizeCurrentVisit(targetSession, targetSession.pausedAt);
+      if (tabIdToHide !== undefined) {
+        await sendDistractionAlert(tabIdToHide, { show: false });
+      }
+      await saveActiveSession(targetSession);
+      await broadcastStateUpdate();
+      return { ok: true, data: targetSession };
+    }
+
     let pausedAt: string;
     if (reason === "idle" && effectivePausedAt) {
       const enteredAt = session.currentVisit?.enteredAt;
@@ -1168,6 +1215,24 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
     }
     if (!session.pausedAt) {
       return { ok: false, error: "Session is not paused." };
+    }
+
+    const serverSessionId = await resolveServerSessionIdForSync(session.sessionId);
+    const targetSession = (await loadActiveSession()) ?? session;
+    if (serverSessionId) {
+      const remote = await resumeCloudSession(serverSessionId);
+      if (!remote) {
+        return { ok: false, error: "Could not resume session on server." };
+      }
+      targetSession.totalPausedSeconds = remote.totalPausedSeconds;
+      delete targetSession.pausedAt;
+      delete targetSession.pausedBy;
+      await saveActiveSession(targetSession);
+      await broadcastStateUpdate();
+      await startBadgeInterval();
+      void captureCurrentActiveTab();
+      const latest = await loadActiveSession();
+      return { ok: true, data: latest ?? targetSession };
     }
 
     const now = nowIso();

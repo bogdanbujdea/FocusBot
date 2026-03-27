@@ -223,7 +223,71 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
-    public void PauseSession()
+    public async Task<ApiResult<bool>> PauseSessionAsync()
+    {
+        Guid? backendId;
+        lock (_lock)
+        {
+            if (_activeSession == null)
+                return ApiResult<bool>.Failure(HttpStatusCode.NotFound);
+
+            backendId = _backendSessionId;
+        }
+
+        if (!backendId.HasValue)
+            return ApiResult<bool>.Failure(HttpStatusCode.Conflict);
+
+        var result = await _apiClient.PauseSessionAsync(backendId.Value);
+        if (!result.IsSuccess)
+            return ApiResult<bool>.Failure(result.StatusCode ?? HttpStatusCode.InternalServerError);
+
+        lock (_lock)
+        {
+            if (_activeSession == null)
+                return ApiResult<bool>.Failure(HttpStatusCode.NotFound);
+            _isSessionPaused = true;
+            _sessionTracker.HandleIdle(true);
+            _windowMonitor.Stop();
+        }
+
+        RaiseStateChanged();
+        return ApiResult<bool>.Success(true);
+    }
+
+    /// <inheritdoc />
+    public async Task<ApiResult<bool>> ResumeSessionAsync()
+    {
+        Guid? backendId;
+        lock (_lock)
+        {
+            if (_activeSession == null)
+                return ApiResult<bool>.Failure(HttpStatusCode.NotFound);
+
+            backendId = _backendSessionId;
+        }
+
+        if (!backendId.HasValue)
+            return ApiResult<bool>.Failure(HttpStatusCode.Conflict);
+
+        var result = await _apiClient.ResumeSessionAsync(backendId.Value);
+        if (!result.IsSuccess)
+            return ApiResult<bool>.Failure(result.StatusCode ?? HttpStatusCode.InternalServerError);
+
+        lock (_lock)
+        {
+            if (_activeSession == null)
+                return ApiResult<bool>.Failure(HttpStatusCode.NotFound);
+            _isSessionPaused = false;
+            _sessionTracker.HandleIdle(false);
+            _windowMonitor.Start();
+        }
+
+        RaiseStateChanged();
+        return ApiResult<bool>.Success(true);
+    }
+
+    /// <inheritdoc />
+    public void ApplyRemotePause()
     {
         lock (_lock)
         {
@@ -239,7 +303,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
-    public void ResumeSession()
+    public void ApplyRemoteResume()
     {
         lock (_lock)
         {

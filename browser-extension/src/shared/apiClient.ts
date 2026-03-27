@@ -197,6 +197,20 @@ export const endCloudSession = async (
 export const getActiveCloudSession = async (): Promise<ActiveSessionResponse | null> =>
   apiFetch<ActiveSessionResponse>("/sessions/active");
 
+export const pauseCloudSession = async (
+  sessionId: string
+): Promise<ActiveSessionResponse | null> =>
+  apiFetch<ActiveSessionResponse>(`/sessions/${encodeURIComponent(sessionId)}/pause`, {
+    method: "POST"
+  });
+
+export const resumeCloudSession = async (
+  sessionId: string
+): Promise<ActiveSessionResponse | null> =>
+  apiFetch<ActiveSessionResponse>(`/sessions/${encodeURIComponent(sessionId)}/resume`, {
+    method: "POST"
+  });
+
 // ---------------------------------------------------------------------------
 // Clients
 // ---------------------------------------------------------------------------

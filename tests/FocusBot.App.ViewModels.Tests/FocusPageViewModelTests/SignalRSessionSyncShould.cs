@@ -105,7 +105,7 @@ public class SignalRSessionSyncShould
 
         await Task.Delay(100);
 
-        orchestratorMock.Verify(o => o.PauseSession(), Times.Once);
+        orchestratorMock.Verify(o => o.ApplyRemotePause(), Times.Once);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class SignalRSessionSyncShould
 
         await Task.Delay(100);
 
-        orchestratorMock.Verify(o => o.ResumeSession(), Times.Once);
+        orchestratorMock.Verify(o => o.ApplyRemoteResume(), Times.Once);
     }
 
     private static FocusPageViewModel CreateVm(Mock<IFocusSessionOrchestrator> orchestratorMock, IFocusHubClient hub)

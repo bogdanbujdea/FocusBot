@@ -79,6 +79,18 @@ public class FocusBotApiClient : IFocusBotApiClient
             async ct => await EndSessionCoreAsync(sessionId, payload, ct));
     }
 
+    public async Task<ApiResult<ApiSessionResponse>> PauseSessionAsync(Guid sessionId)
+    {
+        return await SessionApiRetryPipeline.ExecuteAsync(
+            async ct => await PauseSessionCoreAsync(sessionId, ct));
+    }
+
+    public async Task<ApiResult<ApiSessionResponse>> ResumeSessionAsync(Guid sessionId)
+    {
+        return await SessionApiRetryPipeline.ExecuteAsync(
+            async ct => await ResumeSessionCoreAsync(sessionId, ct));
+    }
+
     private async Task<ApiResult<ApiSessionResponse>> StartSessionCoreAsync(
         StartSessionPayload payload,
         CancellationToken cancellationToken)
@@ -140,6 +152,66 @@ public class FocusBotApiClient : IFocusBotApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "EndSession request failed");
+            return ApiResult<ApiSessionResponse>.NetworkError();
+        }
+    }
+
+    private async Task<ApiResult<ApiSessionResponse>> PauseSessionCoreAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/pause");
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("PauseSession failed: {StatusCode}", response.StatusCode);
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PauseSession request failed");
+            return ApiResult<ApiSessionResponse>.NetworkError();
+        }
+    }
+
+    private async Task<ApiResult<ApiSessionResponse>> ResumeSessionCoreAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/resume");
+            if (request is null)
+                return ApiResult<ApiSessionResponse>.NotAuthenticated();
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("ResumeSession failed: {StatusCode}", response.StatusCode);
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            if (body is null)
+                return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
+
+            return ApiResult<ApiSessionResponse>.Success(body);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ResumeSession request failed");
             return ApiResult<ApiSessionResponse>.NetworkError();
         }
     }

@@ -45,14 +45,26 @@ public interface IFocusSessionOrchestrator
     Task<SessionEndResult?> EndSessionAsync();
 
     /// <summary>
-    /// Pauses the current session. Stops time tracking and monitoring.
+    /// Pauses the current session through the API, then stops local tracking on success.
     /// </summary>
-    void PauseSession();
+    Task<ApiResult<bool>> PauseSessionAsync();
 
     /// <summary>
-    /// Resumes a paused session. Restarts time tracking and monitoring.
+    /// Resumes a paused session through the API, then resumes local tracking on success.
     /// </summary>
-    void ResumeSession();
+    Task<ApiResult<bool>> ResumeSessionAsync();
+
+    /// <summary>
+    /// Applies a pause state update that was received from another device via SignalR.
+    /// Does not call the API.
+    /// </summary>
+    void ApplyRemotePause();
+
+    /// <summary>
+    /// Applies a resume state update that was received from another device via SignalR.
+    /// Does not call the API.
+    /// </summary>
+    void ApplyRemoteResume();
 
     /// <summary>
     /// Records a manual focus override (user marks current window as focused/distracting).

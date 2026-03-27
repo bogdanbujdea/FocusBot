@@ -309,7 +309,9 @@ public partial class FocusPageViewModel : ObservableObject
             if (ActiveSession == null || ActiveSession.SessionId != e.SessionId.ToString())
                 return;
 
-            PauseSession();
+            _sessionOrchestrator.ApplyRemotePause();
+            OnPropertyChanged(nameof(IsSessionPaused));
+            RaiseFocusOverlayStateChanged();
         }
 
         if (_uiDispatcher != null)
@@ -333,7 +335,9 @@ public partial class FocusPageViewModel : ObservableObject
             if (ActiveSession == null || ActiveSession.SessionId != e.SessionId.ToString())
                 return;
 
-            ResumeSession();
+            _sessionOrchestrator.ApplyRemoteResume();
+            OnPropertyChanged(nameof(IsSessionPaused));
+            RaiseFocusOverlayStateChanged();
         }
 
         if (_uiDispatcher != null)
@@ -457,23 +461,35 @@ public partial class FocusPageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void PauseSession()
+    private async Task PauseSessionAsync()
     {
         if (ActiveSession == null)
             return;
 
-        _sessionOrchestrator.PauseSession();
+        var result = await _sessionOrchestrator.PauseSessionAsync();
+        if (!result.IsSuccess)
+        {
+            ApiErrorMessage = result.ErrorMessage ?? "Could not pause session.";
+            IsApiErrorVisible = true;
+            return;
+        }
         OnPropertyChanged(nameof(IsSessionPaused));
         RaiseFocusOverlayStateChanged();
     }
 
     [RelayCommand]
-    private void ResumeSession()
+    private async Task ResumeSessionAsync()
     {
         if (ActiveSession == null)
             return;
 
-        _sessionOrchestrator.ResumeSession();
+        var result = await _sessionOrchestrator.ResumeSessionAsync();
+        if (!result.IsSuccess)
+        {
+            ApiErrorMessage = result.ErrorMessage ?? "Could not resume session.";
+            IsApiErrorVisible = true;
+            return;
+        }
         OnPropertyChanged(nameof(IsSessionPaused));
         RaiseFocusOverlayStateChanged();
     }
