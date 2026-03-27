@@ -12,6 +12,7 @@ const API_BASE_URL =
   (import.meta.env.DEV ? "http://localhost:5251" : "https://api.foqus.me");
 
 let connection: HubConnection | null = null;
+const logPrefix = "[SignalR][focus]";
 
 // Custom logger that swallows the "stopped during negotiation" noise that
 // React Strict Mode generates by unmounting/remounting effects in development.
@@ -63,7 +64,7 @@ export async function connectFocusHub(
 ): Promise<void> {
   if (
     connection &&
-    connection.state !== HubConnectionState.Disconnected
+    connection.state === HubConnectionState.Connected
   ) {
     return;
   }
@@ -80,6 +81,18 @@ export async function connectFocusHub(
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .configureLogging(signalRLogger)
     .build();
+
+  connection.onreconnecting((err) => {
+    console.warn(`${logPrefix} reconnecting`, err);
+  });
+
+  connection.onreconnected((connectionId) => {
+    console.info(`${logPrefix} reconnected (connectionId=${connectionId})`);
+  });
+
+  connection.onclose((err) => {
+    console.warn(`${logPrefix} connection closed`, err);
+  });
 
   if (callbacks.onSessionStarted) {
     connection.on("SessionStarted", callbacks.onSessionStarted);
@@ -99,7 +112,12 @@ export async function connectFocusHub(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("stopped during negotiation")) return;
-    console.warn("[SignalR] Failed to connect:", err);
+    console.warn(`${logPrefix} failed to connect`, {
+      error: err,
+      message: msg,
+      state: connection?.state ?? "none",
+      hasConnection: connection !== null,
+    });
   }
 }
 
@@ -109,6 +127,7 @@ export async function disconnectFocusHub(): Promise<void> {
       await connection.stop();
     } catch {
       // Ignore stop errors during teardown
+      console.warn(`${logPrefix} connection stop failed during teardown`);
     }
     connection = null;
   }

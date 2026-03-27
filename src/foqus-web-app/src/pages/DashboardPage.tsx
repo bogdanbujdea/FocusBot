@@ -19,6 +19,7 @@ import "./DashboardPage.css";
 
 export function DashboardPage() {
   const { session } = useAuth();
+  const logPrefix = "[Dashboard][focus]";
   const [summary, setSummary] = useState<AnalyticsSummaryResponse | null>(
     null
   );
@@ -83,13 +84,25 @@ export function DashboardPage() {
         void refreshActive();
         void loadTodayData();
       },
-      onSessionPaused: () => void refreshActive(),
-      onSessionResumed: () => void refreshActive(),
+      onSessionPaused: () => {
+        void refreshActive();
+      },
+      onSessionResumed: () => {
+        void refreshActive();
+      },
     });
     return () => {
       void disconnectFocusHub();
     };
   }, [session, refreshActive, loadTodayData]);
+
+  useEffect(() => {
+    console.info(`${logPrefix} activeSession state changed`, {
+      hasActive: activeSession !== null,
+      sessionId: activeSession?.id ?? null,
+      isPaused: activeSession?.isPaused ?? null,
+    });
+  }, [activeSession, logPrefix]);
 
   async function handleStart() {
     const title = sessionTitle.trim();
