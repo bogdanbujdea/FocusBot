@@ -4,14 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "prebuild": "node scripts/resize-icons.mjs",
+    "build": "vite build --mode development",
+    "build:prod": "npm run prepare:assets && vite build --mode production",
+    "prebuild": "npm run prepare:assets",
+    "prepare:assets": "node scripts/resize-icons.mjs",
     "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
-    "pack": "npm run build && node scripts/pack-store.mjs"
+    "pack": "npm run build:prod && node scripts/pack-store.mjs"
   },
   "dependencies": {
+    "@microsoft/signalr": "^8.0.7",
     "@supabase/supabase-js": "^2.49.1",
     "chart.js": "^4.5.1",
     "react": "^19.1.1",

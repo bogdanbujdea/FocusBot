@@ -72,7 +72,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.Property(c => c.Name).HasMaxLength(100);
             entity.Property(c => c.Fingerprint).HasMaxLength(100);
             entity.Property(c => c.AppVersion).HasMaxLength(50);
-            entity.Property(c => c.Platform).HasMaxLength(100);
+            entity.Property(c => c.Platform).HasMaxLength(500);
             entity.Property(c => c.IpAddress).HasMaxLength(45);
         });
     }

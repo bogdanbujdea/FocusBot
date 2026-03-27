@@ -35,8 +35,17 @@ import {
   clearFocusbotAuthSession
 } from "../shared/focusbotAuth";
 import {
+  connectFocusHub,
+  disconnectFocusHub,
+  type SessionEndedEvent,
+  type SessionPausedEvent,
+  type SessionResumedEvent,
+  type SessionStartedEvent
+} from "../shared/signalr";
+import {
   startCloudSession,
   endCloudSession,
+  getActiveCloudSession,
   getSubscriptionStatus,
   sendHeartbeat,
   deregisterClient,
@@ -99,6 +108,7 @@ const openSidePanelForAuthWindow = async (sender: chrome.runtime.MessageSender):
 // ---------------------------------------------------------------------------
 
 const HEARTBEAT_ALARM_NAME = "focusbot-heartbeat";
+const SIGNALR_RECONNECT_ALARM_NAME = "focusbot-signalr-reconnect";
 
 const getStoredClientId = async (): Promise<string | null> => {
   const result = await chrome.storage.local.get([APP_KEYS.clientId, APP_KEYS.deviceId]);
@@ -112,6 +122,184 @@ const getStoredClientId = async (): Promise<string | null> => {
 const getStoredServerSessionId = async (): Promise<string | null> => {
   const result = await chrome.storage.local.get(APP_KEYS.serverSessionId);
   return (result[APP_KEYS.serverSessionId] as string) ?? null;
+};
+
+const buildLocalSessionFromServer = (session: {
+  id: string;
+  sessionTitle: string;
+  sessionContext?: string;
+  startedAtUtc: string;
+  pausedAtUtc?: string;
+  totalPausedSeconds?: number;
+  isPaused?: boolean;
+}): FocusSession => {
+  const local: FocusSession = {
+    sessionId: session.id,
+    taskText: session.sessionTitle,
+    taskHints: session.sessionContext?.trim() || undefined,
+    startedAt: session.startedAtUtc,
+    visits: []
+  };
+
+  if (session.isPaused && session.pausedAtUtc) {
+    local.pausedAt = session.pausedAtUtc;
+    local.pausedBy = "user";
+  }
+  if ((session.totalPausedSeconds ?? 0) > 0) {
+    local.totalPausedSeconds = session.totalPausedSeconds;
+  }
+
+  return local;
+};
+
+const reconcileActiveSessionFromCloud = async (): Promise<void> => {
+  const auth = await loadFocusbotAuthSession();
+  if (!auth?.accessToken) return;
+
+  const remote = await getActiveCloudSession();
+  if (!remote) {
+    return;
+  }
+
+  const local = await loadActiveSession();
+  const localServerSessionId = await getStoredServerSessionId();
+  const shouldReplaceLocal =
+    !local || local.sessionId !== remote.id || localServerSessionId !== remote.id;
+
+  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: remote.id });
+
+  if (shouldReplaceLocal) {
+    await saveActiveSession(buildLocalSessionFromServer(remote));
+    await startBadgeInterval();
+  }
+
+  await broadcastStateUpdate();
+};
+
+const endLocalSessionFromRemoteEvent = async (endedAtUtc: string): Promise<void> => {
+  const session = await loadActiveSession();
+  if (!session) return;
+
+  if (session.currentVisit?.tabId !== undefined) {
+    await sendDistractionAlert(session.currentVisit.tabId, { show: false });
+  }
+
+  const endedAt = endedAtUtc || nowIso();
+  if (session.pausedAt) {
+    session.totalPausedSeconds =
+      (session.totalPausedSeconds ?? 0) + secondsBetween(session.pausedAt, endedAt);
+  }
+  finalizeCurrentVisit(session, endedAt);
+  session.endedAt = endedAt;
+  const totalPaused = session.totalPausedSeconds ?? 0;
+  session.summary = calculateSessionSummary(
+    session.taskText,
+    session.startedAt,
+    endedAt,
+    session.visits,
+    totalPaused
+  );
+
+  const completedSession: CompletedSession = {
+    sessionId: session.sessionId,
+    taskText: session.taskText,
+    taskHints: session.taskHints,
+    startedAt: session.startedAt,
+    endedAt,
+    summary: session.summary
+  };
+
+  await saveCompletedSession(completedSession);
+  await pruneOldSessions(100, 90);
+  await saveLastSummary(session.summary);
+  await saveActiveSession(null);
+  stopBadgeInterval();
+};
+
+const handleSignalRSessionStarted = async (event: SessionStartedEvent): Promise<void> => {
+  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: event.sessionId });
+  const local = await loadActiveSession();
+  if (!local || local.sessionId !== event.sessionId) {
+    await saveActiveSession(
+      buildLocalSessionFromServer({
+        id: event.sessionId,
+        sessionTitle: event.sessionTitle,
+        sessionContext: event.sessionContext,
+        startedAtUtc: event.startedAtUtc
+      })
+    );
+    await startBadgeInterval();
+  }
+  await broadcastStateUpdate();
+};
+
+const handleSignalRSessionEnded = async (event: SessionEndedEvent): Promise<void> => {
+  const storedServerSessionId = await getStoredServerSessionId();
+  if (storedServerSessionId === event.sessionId) {
+    await endLocalSessionFromRemoteEvent(event.endedAtUtc);
+  }
+  await chrome.storage.local.remove(APP_KEYS.serverSessionId);
+  await broadcastStateUpdate();
+};
+
+const handleSignalRSessionPaused = async (_event: SessionPausedEvent): Promise<void> => {
+  const local = await loadActiveSession();
+  if (local && local.sessionId === _event.sessionId) {
+    local.pausedAt = _event.pausedAtUtc;
+    local.pausedBy = "user";
+    await saveActiveSession(local);
+  }
+  await broadcastStateUpdate();
+};
+
+const handleSignalRSessionResumed = async (_event: SessionResumedEvent): Promise<void> => {
+  const local = await loadActiveSession();
+  if (local && local.sessionId === _event.sessionId && local.pausedAt) {
+    const now = nowIso();
+    local.totalPausedSeconds =
+      (local.totalPausedSeconds ?? 0) + secondsBetween(local.pausedAt, now);
+    delete local.pausedAt;
+    delete local.pausedBy;
+    await saveActiveSession(local);
+    await startBadgeInterval();
+  }
+  await broadcastStateUpdate();
+};
+
+const ensureFocusHubConnected = async (): Promise<void> => {
+  const auth = await loadFocusbotAuthSession();
+  if (!auth?.accessToken) {
+    await disconnectFocusHub();
+    return;
+  }
+
+  await connectFocusHub({
+    onSessionStarted: (event) => {
+      void runExclusive(async () => {
+        await handleSignalRSessionStarted(event);
+      });
+    },
+    onSessionEnded: (event) => {
+      void runExclusive(async () => {
+        await handleSignalRSessionEnded(event);
+      });
+    },
+    onSessionPaused: (event) => {
+      void runExclusive(async () => {
+        await handleSignalRSessionPaused(event);
+      });
+    },
+    onSessionResumed: (event) => {
+      void runExclusive(async () => {
+        await handleSignalRSessionResumed(event);
+      });
+    },
+    onReconnected: () => {
+      void runExclusive(async () => {
+        await reconcileActiveSessionFromCloud();
+      });
+    }
+  });
 };
 
 const getBrowserName = (): string => {
@@ -1118,8 +1306,10 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       if (clientIdToDeregister) {
         void deregisterClient(clientIdToDeregister).catch(() => {});
       }
+      await disconnectFocusHub();
       await clearFocusbotAuthSession();
       await chrome.alarms.clear(HEARTBEAT_ALARM_NAME);
+      await chrome.alarms.clear(SIGNALR_RECONNECT_ALARM_NAME);
       await broadcastStateUpdate();
       return { ok: true };
     }
@@ -1165,6 +1355,9 @@ const finalizeFocusbotSignInAfterTokensStored = async (email: string | undefined
   }
 
   await ensureClientRegistered();
+  await ensureFocusHubConnected();
+  await reconcileActiveSessionFromCloud();
+  await chrome.alarms.create(SIGNALR_RECONNECT_ALARM_NAME, { periodInMinutes: 1 });
 
   await broadcastStateUpdate();
 };
@@ -1304,6 +1497,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       await chrome.storage.local.remove([APP_KEYS.clientId, APP_KEYS.deviceId]);
     }
   }
+  if (alarm.name === SIGNALR_RECONNECT_ALARM_NAME) {
+    await ensureFocusHubConnected();
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -1314,6 +1510,9 @@ chrome.runtime.onStartup.addListener(async () => {
   if (session) {
     void ensureClientRegistered();
     void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
+    void ensureFocusHubConnected();
+    void reconcileActiveSessionFromCloud();
+    void chrome.alarms.create(SIGNALR_RECONNECT_ALARM_NAME, { periodInMinutes: 1 });
   }
 });
 
@@ -1351,6 +1550,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (session) {
     void ensureClientRegistered();
     void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
+    void ensureFocusHubConnected();
+    void reconcileActiveSessionFromCloud();
+    void chrome.alarms.create(SIGNALR_RECONNECT_ALARM_NAME, { periodInMinutes: 1 });
   }
 });
 

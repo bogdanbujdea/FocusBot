@@ -144,6 +144,19 @@ export interface EndSessionResponse {
   endedAtUtc: string;
 }
 
+export interface ActiveSessionResponse {
+  id: string;
+  sessionTitle: string;
+  sessionContext?: string;
+  clientId?: string;
+  startedAtUtc: string;
+  endedAtUtc?: string;
+  pausedAtUtc?: string;
+  totalPausedSeconds: number;
+  isPaused: boolean;
+  source: string;
+}
+
 export const startCloudSession = async (
   taskText: string,
   clientId: string | null,
@@ -180,6 +193,9 @@ export const endCloudSession = async (
     })
   });
 };
+
+export const getActiveCloudSession = async (): Promise<ActiveSessionResponse | null> =>
+  apiFetch<ActiveSessionResponse>("/sessions/active");
 
 // ---------------------------------------------------------------------------
 // Clients

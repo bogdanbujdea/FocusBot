@@ -21,10 +21,13 @@ public class ClientService(ApiDbContext db)
         Guid userId,
         RegisterClientRequest request,
         string? remoteIpAddress,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
-        var existing = await db.Clients
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.Fingerprint == request.Fingerprint, ct);
+        var existing = await db.Clients.FirstOrDefaultAsync(
+            c => c.UserId == userId && c.Fingerprint == request.Fingerprint,
+            ct
+        );
 
         if (existing is not null)
         {
@@ -53,10 +56,13 @@ public class ClientService(ApiDbContext db)
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
         {
-            var race = await db.Clients
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Fingerprint == request.Fingerprint, ct);
+            var race = await db.Clients.FirstOrDefaultAsync(
+                c => c.UserId == userId && c.Fingerprint == request.Fingerprint,
+                ct
+            );
             if (race is null)
                 throw;
 
@@ -71,7 +77,8 @@ public class ClientService(ApiDbContext db)
     private static void ApplyRegistrationUpdate(
         Client target,
         RegisterClientRequest request,
-        string? remoteIpAddress)
+        string? remoteIpAddress
+    )
     {
         target.Name = request.Name;
         target.ClientType = request.ClientType;
@@ -84,10 +91,12 @@ public class ClientService(ApiDbContext db)
 
     /// <summary>Returns all clients registered to the user.</summary>
     public async Task<IReadOnlyList<ClientResponse>> GetClientsAsync(
-        Guid userId, CancellationToken ct = default)
+        Guid userId,
+        CancellationToken ct = default
+    )
     {
-        var clients = await db.Clients
-            .AsNoTracking()
+        var clients = await db
+            .Clients.AsNoTracking()
             .Where(c => c.UserId == userId)
             .OrderByDescending(c => c.LastSeenAtUtc)
             .ToListAsync(ct);
@@ -104,10 +113,13 @@ public class ClientService(ApiDbContext db)
         Guid clientId,
         HeartbeatRequest request,
         string? remoteIpAddress,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
-        var client = await db.Clients
-            .FirstOrDefaultAsync(c => c.Id == clientId && c.UserId == userId, ct);
+        var client = await db.Clients.FirstOrDefaultAsync(
+            c => c.Id == clientId && c.UserId == userId,
+            ct
+        );
 
         if (client is null)
             return null;
@@ -131,8 +143,10 @@ public class ClientService(ApiDbContext db)
     /// </summary>
     public async Task<bool> DeleteAsync(Guid userId, Guid clientId, CancellationToken ct = default)
     {
-        var client = await db.Clients
-            .FirstOrDefaultAsync(c => c.Id == clientId && c.UserId == userId, ct);
+        var client = await db.Clients.FirstOrDefaultAsync(
+            c => c.Id == clientId && c.UserId == userId,
+            ct
+        );
 
         if (client is null)
             return false;
@@ -155,5 +169,6 @@ public class ClientService(ApiDbContext db)
             c.IpAddress,
             c.LastSeenAtUtc,
             c.CreatedAtUtc,
-            IsOnline: DateTime.UtcNow - c.LastSeenAtUtc < OnlineThreshold);
+            IsOnline: DateTime.UtcNow - c.LastSeenAtUtc < OnlineThreshold
+        );
 }
