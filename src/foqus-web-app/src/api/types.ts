@@ -38,7 +38,7 @@ export interface SessionResponse {
   clientId?: string;
   startedAtUtc: string;
   endedAtUtc?: string;
-  pausedAtUtc?: string;
+  pausedAtUtc?: string | null;
   totalPausedSeconds: number;
   isPaused: boolean;
   focusScorePercent?: number;

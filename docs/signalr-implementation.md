@@ -64,6 +64,7 @@ public sealed record SessionStartedEvent(
 - **Web App:** Calls `refreshActive()` to fetch and display the session
 - **Desktop App:** Updates local session state and UI
 - **Extension:** Receives notification (if connected)
+- **UI Requirement:** After `SessionStarted`, all clients (web app, extension, Windows app) must show a running elapsed timer/counter using `StartedAtUtc` as the time origin.
 
 ---
 
@@ -127,13 +128,14 @@ public sealed record SessionResumedEvent(
 
 2. API → Broadcasts SessionStarted to user group
    ├─ Web App receives event
+   │  ├─ Optimistically hydrates active session from event payload
    │  └─ Calls refreshActive() → GET /sessions/active
    │     └─ Fetches new session data
-   │        └─ Updates UI to show active session
+   │        └─ Updates UI to show active session and running timer
    │
    ├─ Browser Extension receives event (if connected)
    │  ├─ Hydrates local activeSession from event payload (no extra API call)
-   │  └─ Updates UI/badge immediately
+   │  └─ Updates UI/badge immediately; elapsed timer starts from startedAtUtc
    │
    └─ Other Desktop Instances receive event (if any)
       └─ Could trigger conflict resolution
@@ -453,6 +455,8 @@ try {
 ### Manual Testing Checklist
 
 - [ ] Start session on desktop → Verify web app updates immediately
+- [ ] Start session on desktop → Verify web app elapsed timer starts running immediately (not stuck at 0s)
+- [ ] Start session on desktop → Verify extension elapsed timer starts running immediately (no "Waiting for signal" idle placeholder while active)
 - [ ] End session on web app → Verify desktop app stops tracking
 - [ ] Pause session on desktop → Verify web app shows paused state
 - [ ] Resume session on web app → Verify desktop app resumes

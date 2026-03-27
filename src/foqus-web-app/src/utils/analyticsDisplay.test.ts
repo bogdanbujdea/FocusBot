@@ -130,4 +130,10 @@ describe("computeLiveSessionActiveSeconds", () => {
       computeLiveSessionActiveSeconds(started, paused, 0, now)
     ).toBe(5 * 60);
   });
+
+  it("treats null pausedAtUtc as not paused", () => {
+    const now = new Date("2025-01-15T12:10:00.000Z").getTime();
+    const started = "2025-01-15T12:00:00.000Z";
+    expect(computeLiveSessionActiveSeconds(started, null, 0, now)).toBe(10 * 60);
+  });
 });

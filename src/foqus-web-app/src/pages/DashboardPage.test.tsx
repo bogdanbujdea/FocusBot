@@ -34,6 +34,12 @@ vi.mock("../api/client", () => ({
   api: mockApi,
 }));
 
+vi.mock("../auth/useAuth", () => ({
+  useAuth: () => ({
+    session: { access_token: "test-token" },
+  }),
+}));
+
 describe("DashboardPage", () => {
   it("shows start form when there is no active session", async () => {
     mockApi.getAnalyticsSummary.mockResolvedValue(emptySummary());

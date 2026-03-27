@@ -5,7 +5,7 @@ import "./shared.css";
 
 export interface SessionTimerProps {
   startedAtUtc: string;
-  pausedAtUtc?: string;
+  pausedAtUtc?: string | null;
   totalPausedSeconds: number;
   /** Fixed clock for tests; when set, no live interval runs. */
   nowMs?: () => number;

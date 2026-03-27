@@ -79,13 +79,13 @@ export function mapTrendDataPointForChart(dp: TrendDataPoint) {
 
 export function computeLiveSessionActiveSeconds(
   startedAtUtc: string,
-  pausedAtUtc: string | undefined,
+  pausedAtUtc: string | null | undefined,
   totalPausedSeconds: number,
   nowMs: number = Date.now()
 ): number {
   const start = new Date(startedAtUtc).getTime();
   const endRef =
-    pausedAtUtc !== undefined && pausedAtUtc !== ""
+    pausedAtUtc !== null && pausedAtUtc !== undefined && pausedAtUtc !== ""
       ? new Date(pausedAtUtc).getTime()
       : nowMs;
   const wall = Math.floor((endRef - start) / 1000);

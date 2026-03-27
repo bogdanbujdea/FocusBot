@@ -34,7 +34,7 @@ const classificationToLabel = (
   if (classification === "distracting") {
     return score ? `Distracting (${score}/10)` : "Distracting";
   }
-  return "Waiting for signal";
+  return "Running";
 };
 
 const formatMmSs = (seconds: number): string => {
@@ -315,6 +315,10 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
                 <div className="preview-metric">
                   <span className="preview-metric-label">Focus</span>
                   <span className="preview-metric-value preview-metric-value-aligned">{liveAlignedPctRounded}%</span>
+                </div>
+                <div className="preview-metric">
+                  <span className="preview-metric-label">Elapsed</span>
+                  <span className="preview-metric-value">{formatMmSs(elapsedSeconds)}</span>
                 </div>
                 <div className="preview-metric">
                   <span className="preview-metric-label">Focus time</span>

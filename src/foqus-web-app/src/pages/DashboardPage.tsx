@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import { connectFocusHub, disconnectFocusHub } from "../api/signalr";
+import {
+  connectFocusHub,
+  disconnectFocusHub,
+  type SessionStartedEvent,
+} from "../api/signalr";
 import { useAuth } from "../auth/useAuth";
 import type { AnalyticsSummaryResponse, SessionResponse } from "../api/types";
 import { KpiCard } from "../components/KpiCard";
@@ -73,10 +77,29 @@ export function DashboardPage() {
     return () => window.clearInterval(id);
   }, [activeSession, refreshActive]);
 
+  const applySessionStartedEvent = useCallback((event: SessionStartedEvent) => {
+    setActiveSession((current) => {
+      if (current?.id === event.sessionId) {
+        return current;
+      }
+
+      return {
+        id: event.sessionId,
+        sessionTitle: event.sessionTitle,
+        sessionContext: event.sessionContext,
+        startedAtUtc: event.startedAtUtc,
+        totalPausedSeconds: 0,
+        isPaused: false,
+        source: event.source,
+      };
+    });
+  }, []);
+
   useEffect(() => {
     if (!session) return;
     void connectFocusHub({
-      onSessionStarted: () => {
+      onSessionStarted: (event) => {
+        applySessionStartedEvent(event);
         void refreshActive();
         void loadTodayData();
       },
@@ -94,7 +117,7 @@ export function DashboardPage() {
     return () => {
       void disconnectFocusHub();
     };
-  }, [session, refreshActive, loadTodayData]);
+  }, [session, refreshActive, loadTodayData, applySessionStartedEvent]);
 
   useEffect(() => {
     console.info(`${logPrefix} activeSession state changed`, {
