@@ -21,7 +21,6 @@ export default defineConfig({
         warn(warning);
       },
       input: {
-        analytics: "src/analytics/index.html",
         authCallback: "auth-callback.html"
       }
     }

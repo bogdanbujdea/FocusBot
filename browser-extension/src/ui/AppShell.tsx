@@ -1,4 +1,5 @@
 import { sendRuntimeRequest } from "../shared/runtime";
+import { getWebAppAnalyticsUrl } from "../shared/webAppUrl";
 import type { RuntimeState } from "../shared/types";
 import type { IntegrationState } from "../shared/integrationTypes";
 import { WINDOWS_STORE_APP_URL, INSTALL_APP_MESSAGE } from "../shared/constants";
@@ -84,7 +85,9 @@ export const AppShell = ({
           <button
             type="button"
             className="quick-action-btn quick-action-btn--analytics"
-            onClick={() => void sendRuntimeRequest({ type: "OPEN_ANALYTICS" })}
+            onClick={() => {
+              void chrome.tabs.create({ url: getWebAppAnalyticsUrl() });
+            }}
             title="View Analytics"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

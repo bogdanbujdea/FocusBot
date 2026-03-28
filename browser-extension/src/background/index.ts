@@ -1351,9 +1351,6 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "OPEN_OPTIONS":
       await chrome.runtime.openOptionsPage();
       return { ok: true };
-    case "OPEN_ANALYTICS":
-      await chrome.tabs.create({ url: chrome.runtime.getURL("src/analytics/index.html") });
-      return { ok: true };
     case "OPEN_SIDE_PANEL": {
       const currentWindow = await chrome.windows.getCurrent();
       if (!currentWindow.id) {

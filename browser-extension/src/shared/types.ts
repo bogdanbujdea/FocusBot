@@ -168,7 +168,6 @@ export type RuntimeRequest =
   | { type: "UPDATE_SETTINGS"; payload: Partial<Settings> }
   | { type: "CLEAR_ERROR" }
   | { type: "OPEN_OPTIONS" }
-  | { type: "OPEN_ANALYTICS" }
   | { type: "OPEN_SIDE_PANEL" }
   | { type: "GET_INTEGRATION_STATE" }
   | { type: "SIGN_OUT" }

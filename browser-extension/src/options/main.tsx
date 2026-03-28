@@ -5,6 +5,7 @@ import type { PlanType, Settings } from "../shared/types";
 import { supabase } from "../shared/supabaseClient";
 import { loadFocusbotAuthSession } from "../shared/focusbotAuth";
 import { parseExcludedDomains } from "../shared/url";
+import { getWebAppAnalyticsUrl } from "../shared/webAppUrl";
 import "../ui/styles.css";
 import "./settings.css";
 
@@ -240,7 +241,7 @@ const SettingsPage = (): JSX.Element => {
 
           {settings.plan !== "free-byok" ? (
             <p className="muted" style={{ marginTop: "12px" }}>
-              <a href="https://app.foqus.me/analytics" target="_blank" rel="noopener noreferrer">
+              <a href={getWebAppAnalyticsUrl()} target="_blank" rel="noopener noreferrer">
                 View full analytics →
               </a>
             </p>
