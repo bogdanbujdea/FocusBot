@@ -6,6 +6,10 @@ SignalR enables real-time, bidirectional communication between the Foqus backend
 
 **Key Purpose:** Cross-device session synchronization and real-time presence updates.
 
+Classification coordination note:
+- Classification request coalescing is now server-coordinated in the Web API (`POST /classify`) to deduplicate near-simultaneous desktop and extension requests.
+- See `docs/classification-coalescing.md` for details.
+
 ### Consistency Requirement (March 2026)
 
 - Pause/resume must be **server-backed** on every platform.
@@ -481,6 +485,7 @@ try {
 ## References
 
 - **Epic 6 (Cross-Device Sync):** `docs/MVP/epics/epic-6-cross-device-sync/epic6.md`
+- **Classification Coalescing:** `docs/classification-coalescing.md`
 - **SignalR Docs:** https://learn.microsoft.com/en-us/aspnet/core/signalr/
 - **@microsoft/signalr Docs:** https://github.com/dotnet/aspnetcore/tree/main/src/SignalR/clients/ts
 - **FocusHub Source:** `src/FocusBot.WebAPI/Hubs/FocusHub.cs`

@@ -17,7 +17,7 @@ public static class ClassificationEndpoints
                 "/",
                 async (
                     ClassifyRequest request,
-                    ClassificationService service,
+                    ClassificationCoalescingService coalescingService,
                     SubscriptionService subscriptionService,
                     HttpContext ctx,
                     CancellationToken ct
@@ -47,7 +47,12 @@ public static class ClassificationEndpoints
 
                     try
                     {
-                        var result = await service.ClassifyAsync(userId, request, byokApiKey, ct);
+                        var result = await coalescingService.EnqueueAndWaitAsync(
+                            userId,
+                            request,
+                            byokApiKey,
+                            ct
+                        );
                         return Results.Ok(result);
                     }
                     catch (ClassificationProviderException ex)
