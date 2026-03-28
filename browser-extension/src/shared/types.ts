@@ -23,9 +23,6 @@ export const planRequiresApiKey = (plan: PlanType): boolean => plan !== "cloud-m
 /** Returns true when classification routes directly to the LLM provider (not via POST /classify). */
 export const planUsesDirectClassification = (plan: PlanType): boolean => plan !== "cloud-managed";
 
-/** Returns true when the plan includes cloud session sync and full analytics. */
-export const planIsCloud = (plan: PlanType): boolean => plan === "cloud-byok" || plan === "cloud-managed";
-
 export interface Settings {
   /** Active plan tier. Requires a signed-in account for all values. */
   plan: PlanType;

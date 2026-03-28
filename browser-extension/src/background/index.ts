@@ -26,7 +26,7 @@ import type {
   RuntimeRequest,
   RuntimeResponse
 } from "../shared/types";
-import { planRequiresApiKey, planIsCloud } from "../shared/types";
+import { planRequiresApiKey } from "../shared/types";
 import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
 import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";

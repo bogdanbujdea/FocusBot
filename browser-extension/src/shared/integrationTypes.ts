@@ -19,10 +19,6 @@ export interface TaskStartedPayload {
   startedAt?: string;
 }
 
-export interface TaskEndedPayload {
-  taskId: string;
-}
-
 export interface FocusStatusPayload {
   taskId: string;
   classification: string;
@@ -51,11 +47,6 @@ export interface DesktopClassificationResult {
   timestamp: number;
 }
 
-export interface AuthTokenPayload {
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface IntegrationState {
   connected: boolean;
   browserInForeground: boolean;
@@ -71,6 +62,5 @@ export const MESSAGE_TYPES = {
   TASK_ENDED: "TASK_ENDED",
   FOCUS_STATUS: "FOCUS_STATUS",
   DESKTOP_FOREGROUND: "DESKTOP_FOREGROUND",
-  BROWSER_CONTEXT: "BROWSER_CONTEXT",
-  AUTH_TOKEN: "AUTH_TOKEN"
+  BROWSER_CONTEXT: "BROWSER_CONTEXT"
 } as const;

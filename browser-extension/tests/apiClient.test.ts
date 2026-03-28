@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   classifyViaWebApi,
-  startSession,
-  endSession,
+  startCloudSession,
+  endCloudSession,
   getSubscriptionStatus,
-  getMe,
+  fetchCurrentUser,
   setApiBaseUrl
 } from "../src/shared/apiClient";
 
@@ -89,7 +89,7 @@ describe("classifyViaWebApi", () => {
   });
 });
 
-describe("startSession", () => {
+describe("startCloudSession", () => {
   it("sends POST to /sessions with taskText and taskHints", async () => {
     const responseBody = {
       id: "s1",
@@ -98,7 +98,7 @@ describe("startSession", () => {
     };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
-    const result = await startSession("code review", "PR #42");
+    const result = await startCloudSession("code review", null, "PR #42");
 
     expect(result).toEqual(responseBody);
     const [url, init] = mockFetch.mock.calls[0];
@@ -108,15 +108,16 @@ describe("startSession", () => {
     const body = JSON.parse(init?.body as string);
     expect(body.sessionTitle).toBe("code review");
     expect(body.sessionContext).toBe("PR #42");
+    expect(body.clientId).toBeNull();
   });
 });
 
-describe("endSession", () => {
+describe("endCloudSession", () => {
   it("sends POST to /sessions/{id}/end", async () => {
     const responseBody = { id: "s1", endedAtUtc: "2026-03-16T01:00:00Z" };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
-    const result = await endSession("s1", { focusPercentage: 85 });
+    const result = await endCloudSession("s1", { focusPercentage: 85 }, null);
 
     expect(result).toEqual(responseBody);
     const [url, init] = mockFetch.mock.calls[0];
@@ -138,14 +139,14 @@ describe("getSubscriptionStatus", () => {
   });
 });
 
-describe("getMe", () => {
+describe("fetchCurrentUser", () => {
   it("sends GET to /auth/me", async () => {
     const responseBody = { userId: "u1", email: "user@test.com", subscriptionStatus: "active" };
     mockFetch.mockResolvedValueOnce(jsonResponse(responseBody));
 
-    const result = await getMe();
+    const result = await fetchCurrentUser();
 
-    expect(result).toEqual({ id: "u1", email: "user@test.com" });
+    expect(result).toEqual(responseBody);
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe("https://test.foqus.me/auth/me");
   });
@@ -155,7 +156,7 @@ describe("error handling", () => {
   it("returns null on non-ok response", async () => {
     mockFetch.mockResolvedValueOnce(new Response("Not found", { status: 404 }));
 
-    const result = await getMe();
+    const result = await fetchCurrentUser();
 
     expect(result).toBeNull();
   });
@@ -163,7 +164,7 @@ describe("error handling", () => {
   it("returns null on fetch error", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-    const result = await getMe();
+    const result = await fetchCurrentUser();
 
     expect(result).toBeNull();
   });
@@ -182,9 +183,9 @@ describe("401 retry", () => {
       .mockResolvedValueOnce(refreshResponse)
       .mockResolvedValueOnce(meResponse);
 
-    const result = await getMe();
+    const result = await fetchCurrentUser();
 
-    expect(result).toEqual({ id: "u1", email: "user@test.com" });
+    expect(result).toEqual({ userId: "u1", email: "user@test.com", subscriptionStatus: "active" });
     expect(mockFetch).toHaveBeenCalledTimes(3);
 
     const [refreshUrl] = mockFetch.mock.calls[1];
@@ -196,7 +197,7 @@ describe("401 retry", () => {
       .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
       .mockResolvedValueOnce(new Response("Forbidden", { status: 403 }));
 
-    const result = await getMe();
+    const result = await fetchCurrentUser();
 
     expect(result).toBeNull();
   });

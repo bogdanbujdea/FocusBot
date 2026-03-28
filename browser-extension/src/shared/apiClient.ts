@@ -280,26 +280,3 @@ export const deregisterClient = async (clientId: string): Promise<boolean> => {
   });
   return result !== null;
 };
-
-// ---------------------------------------------------------------------------
-// Legacy shims — kept so existing call sites and tests continue to compile
-// ---------------------------------------------------------------------------
-
-/** @deprecated Use startCloudSession. */
-export const startSession = async (
-  taskText: string,
-  taskHints?: string
-): Promise<StartSessionResponse | null> => startCloudSession(taskText, null, taskHints);
-
-/** @deprecated Use endCloudSession. */
-export const endSession = async (
-  sessionId: string,
-  summary: Record<string, unknown>
-): Promise<EndSessionResponse | null> => endCloudSession(sessionId, summary, null);
-
-/** @deprecated Use fetchCurrentUser. */
-export const getMe = async (): Promise<{ id: string; email: string } | null> => {
-  const me = await fetchCurrentUser();
-  if (!me) return null;
-  return { id: me.userId, email: me.email };
-};
