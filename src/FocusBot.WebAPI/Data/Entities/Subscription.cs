@@ -21,6 +21,19 @@ public class Subscription
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public User User { get; set; } = null!;
+
+    public string? PaddlePriceId { get; set; }
+    public string? PaddleProductId { get; set; }
+    public string? PaddleTransactionId { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? CurrencyCode { get; set; }
+    public long? UnitAmountMinor { get; set; }
+    public string? BillingInterval { get; set; }
+    public DateTime? NextBilledAtUtc { get; set; }
+    public DateTime? CancelledAtUtc { get; set; }
+    public string? CancellationReason { get; set; }
+    public string? PaymentMethodType { get; set; }
+    public string? CardLastFour { get; set; }
 }
 
 /// <summary>The three Foqus subscription tiers.</summary>

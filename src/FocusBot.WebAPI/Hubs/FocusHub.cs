@@ -42,6 +42,7 @@ public interface IFocusHubClient
     Task SessionEnded(SessionEndedEvent e);
     Task SessionPaused(SessionPausedEvent e);
     Task SessionResumed(SessionResumedEvent e);
+    Task PlanChanged(PlanChangedEvent e);
 }
 
 public sealed record SessionStartedEvent(
@@ -68,3 +69,6 @@ public sealed record SessionResumedEvent(
     Guid SessionId,
     string Source
 );
+
+/// <summary>Raised when the user's subscription or plan changed (e.g. Paddle webhook).</summary>
+public sealed record PlanChangedEvent();

@@ -24,6 +24,7 @@ public class SessionStatisticsShould
             settingsMock.Object,
             orchestratorMock.Object,
             Mock.Of<IFocusHubClient>(),
+            new StubPlanService(),
             accountVm,
             statusBar);
 

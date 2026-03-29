@@ -89,12 +89,9 @@ public partial class PlanSelectionViewModel : ObservableObject
     [RelayCommand]
     private void SelectPlan(string planId)
     {
-        var url = planId switch
-        {
-            "cloud-byok" => "https://app.foqus.me/checkout/cloud-byok",
-            "cloud-managed" => "https://app.foqus.me/checkout/cloud-managed",
-            _ => "https://foqus.me/pricing"
-        };
+        var url = planId is "cloud-byok" or "cloud-managed"
+            ? WebAppBillingUrl
+            : "https://foqus.me/pricing";
         OpenUrl(url);
     }
 

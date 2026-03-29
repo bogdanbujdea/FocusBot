@@ -1,10 +1,12 @@
 using System.Threading.RateLimiting;
+using FocusBot.WebAPI;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Features.Analytics;
 using FocusBot.WebAPI.Features.Auth;
 using FocusBot.WebAPI.Features.Classification;
 using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Features.Sessions;
+using FocusBot.WebAPI.Features.Pricing;
 using FocusBot.WebAPI.Features.Subscriptions;
 using FocusBot.WebAPI.Features.Waitlist;
 using FocusBot.WebAPI.Hubs;
@@ -16,6 +18,9 @@ using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<PaddleSettings>(
+    builder.Configuration.GetSection(PaddleSettings.SectionName));
 
 // ── Database ────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApiDbContext>(options =>
@@ -69,6 +74,10 @@ builder.Services.AddAuthorization();
 
 // ── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<IPaddleBillingApi, PaddleBillingApiClient>();
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -215,6 +224,7 @@ app.MapGet("/", () => Results.Ok("Foqus API"));
 app.MapAuthEndpoints();
 app.MapSessionEndpoints();
 app.MapClassificationEndpoints();
+app.MapPricingEndpoints();
 app.MapSubscriptionEndpoints();
 app.MapWaitlistEndpoints();
 app.MapClientsEndpoints();

@@ -19,6 +19,7 @@ public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
     public event Action<SessionEndedEvent>? SessionEnded;
     public event Action<SessionPausedEvent>? SessionPaused;
     public event Action<SessionResumedEvent>? SessionResumed;
+    public event Action<PlanChangedEvent>? PlanChanged;
     public bool IsConnected => _connection?.State == HubConnectionState.Connected;
 
     public FocusHubClientService(
@@ -82,6 +83,12 @@ public sealed class FocusHubClientService : IFocusHubClient, IAsyncDisposable
         {
             _logger.LogInformation("SignalR: SessionResumed {SessionId}", n.SessionId);
             SessionResumed?.Invoke(n);
+        });
+
+        _connection.On<PlanChangedEvent>("PlanChanged", _ =>
+        {
+            _logger.LogInformation("SignalR: PlanChanged");
+            PlanChanged?.Invoke(new PlanChangedEvent());
         });
 
         try

@@ -8,6 +8,7 @@ internal sealed class FakeFocusHubClient : IFocusHubClient
     public event Action<SessionEndedEvent>? SessionEnded;
     public event Action<SessionPausedEvent>? SessionPaused;
     public event Action<SessionResumedEvent>? SessionResumed;
+    public event Action<PlanChangedEvent>? PlanChanged;
 
     public bool IsConnected { get; set; }
 
@@ -22,4 +23,6 @@ internal sealed class FakeFocusHubClient : IFocusHubClient
     public void RaiseSessionPaused(SessionPausedEvent e) => SessionPaused?.Invoke(e);
 
     public void RaiseSessionResumed(SessionResumedEvent e) => SessionResumed?.Invoke(e);
+
+    public void RaisePlanChanged(PlanChangedEvent e) => PlanChanged?.Invoke(e);
 }

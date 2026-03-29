@@ -11,6 +11,7 @@ public interface IFocusHubClient
     event Action<SessionEndedEvent>? SessionEnded;
     event Action<SessionPausedEvent>? SessionPaused;
     event Action<SessionResumedEvent>? SessionResumed;
+    event Action<PlanChangedEvent>? PlanChanged;
 
     Task ConnectAsync(CancellationToken ct = default);
     Task DisconnectAsync();
@@ -30,3 +31,5 @@ public sealed record SessionEndedEvent(Guid SessionId, DateTime EndedAtUtc, stri
 public sealed record SessionPausedEvent(Guid SessionId, DateTime PausedAtUtc, string Source);
 
 public sealed record SessionResumedEvent(Guid SessionId, string Source);
+
+public sealed record PlanChangedEvent();

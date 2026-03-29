@@ -144,6 +144,7 @@ public class SignalRSessionSyncShould
             settingsMock.Object,
             orchestratorMock.Object,
             hub,
+            new StubPlanService(),
             accountVm,
             statusBar);
     }

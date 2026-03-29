@@ -1,6 +1,8 @@
 import { supabase } from "../auth/supabase";
 import type {
+  CustomerPortalResponse,
   MeResponse,
+  PricingResponse,
   SubscriptionStatusResponse,
   SessionResponse,
   PaginatedResponse,
@@ -57,6 +59,14 @@ async function apiFetch<T>(
 
   const text = await response.text();
   return text ? (JSON.parse(text) as T) : null;
+}
+
+export async function fetchPricingPublic(): Promise<PricingResponse | null> {
+  const url = `${API_BASE_URL}/pricing`;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  const text = await response.text();
+  return text ? (JSON.parse(text) as PricingResponse) : null;
 }
 
 async function parseErrorMessage(response: Response): Promise<string | undefined> {
@@ -134,6 +144,9 @@ export const api = {
 
   getSubscriptionStatus: () =>
     apiFetch<SubscriptionStatusResponse>("/subscriptions/status"),
+
+  createCustomerPortalSession: () =>
+    apiMutate<CustomerPortalResponse>("/subscriptions/portal", { method: "POST" }),
 
   activateTrial: () =>
     apiFetch<{ status: string; trialEndsAt: string }>("/subscriptions/trial", {

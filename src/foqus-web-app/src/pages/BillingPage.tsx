@@ -1,22 +1,97 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { SubscriptionStatusResponse } from "../api/types";
-import { getPlanDisplayName } from "../api/types";
+import type { PricingPlanDto, SubscriptionStatusResponse } from "../api/types";
+import { getPlanDisplayName, PlanType } from "../api/types";
+import { useAuth } from "../auth/useAuth";
+import { usePaddle } from "../hooks/usePaddle";
 import "./BillingPage.css";
 
+function formatMinorAmount(minor: number, currency: string): string {
+  const major = minor / 100;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency || "USD",
+    }).format(major);
+  } catch {
+    return `${major.toFixed(2)} ${currency}`;
+  }
+}
+
+function planSlugMatchesCurrentPlan(
+  slug: string,
+  subscription: SubscriptionStatusResponse | null
+): boolean {
+  if (!subscription) return false;
+  if (slug === "cloud-byok" && subscription.planType === PlanType.CloudBYOK) return true;
+  if (slug === "cloud-managed" && subscription.planType === PlanType.CloudManaged)
+    return true;
+  return false;
+}
+
 export function BillingPage() {
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [subscription, setSubscription] =
     useState<SubscriptionStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutBanner, setCheckoutBanner] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
+
+  const reloadSubscription = useCallback(async () => {
+    const status = await api.getSubscriptionStatus();
+    setSubscription(status);
+  }, []);
+
+  const onCheckoutDone = useCallback(() => {
+    setCheckoutBanner(true);
+    void reloadSubscription();
+  }, [reloadSubscription]);
+
+  const { pricing, loadError, ready, openCheckout } = usePaddle(onCheckoutDone);
 
   useEffect(() => {
-    async function load() {
-      const status = await api.getSubscriptionStatus();
-      setSubscription(status);
+    void (async () => {
+      await reloadSubscription();
       setLoading(false);
+    })();
+  }, [reloadSubscription]);
+
+  useEffect(() => {
+    if (searchParams.get("checkout") === "success") {
+      setCheckoutBanner(true);
+      void reloadSubscription();
+      searchParams.delete("checkout");
+      setSearchParams(searchParams, { replace: true });
     }
-    load();
-  }, []);
+  }, [searchParams, setSearchParams, reloadSubscription]);
+
+  const sortedPaidPlans = useMemo(() => {
+    if (!pricing?.plans?.length) return [];
+    return [...pricing.plans].sort((a, b) => {
+      if (a.unitAmountMinor !== b.unitAmountMinor)
+        return a.unitAmountMinor - b.unitAmountMinor;
+      return a.planType.localeCompare(b.planType);
+    });
+  }, [pricing?.plans]);
+
+  const handleSubscribe = (plan: PricingPlanDto) => {
+    if (!user?.id) return;
+    const email =
+      typeof user.email === "string" ? user.email : user.email ?? undefined;
+    openCheckout(plan.priceId, plan.planType, email, user.id);
+  };
+
+  const handleManageSubscription = async () => {
+    setPortalError(null);
+    const result = await api.createCustomerPortalSession();
+    if (!result.ok) {
+      setPortalError(result.error ?? "Could not open customer portal.");
+      return;
+    }
+    window.open(result.data.url, "_blank", "noopener,noreferrer");
+  };
 
   if (loading) {
     return (
@@ -33,12 +108,36 @@ export function BillingPage() {
   const planName = getPlanDisplayName(subscription?.planType ?? 0);
   const isActive = status === "active" || status === "trial";
 
+  const canPortal =
+    isActive &&
+    status !== "trial" &&
+    subscription?.planType !== PlanType.FreeBYOK;
+
   return (
     <div className="billing-page">
       <header className="page-header">
         <h1 className="page-title">Billing</h1>
         <p className="page-subtitle">Manage your subscription</p>
       </header>
+
+      {checkoutBanner ? (
+        <div className="billing-banner" role="status">
+          Checkout completed. If your plan does not update immediately, refresh in a
+          moment while we sync with Paddle.
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div className="billing-banner error" role="alert">
+          {loadError}
+        </div>
+      ) : null}
+
+      {portalError ? (
+        <div className="billing-banner error" role="alert">
+          {portalError}
+        </div>
+      ) : null}
 
       <section className="billing-section">
         <div className="billing-card">
@@ -57,7 +156,7 @@ export function BillingPage() {
             </div>
           </div>
 
-          {status === "trial" && subscription?.trialEndsAt && (
+          {status === "trial" && subscription?.trialEndsAt ? (
             <p className="plan-detail">
               Trial ends:{" "}
               {new Date(subscription.trialEndsAt).toLocaleString("en-US", {
@@ -65,20 +164,37 @@ export function BillingPage() {
                 timeStyle: "short",
               })}
             </p>
-          )}
+          ) : null}
 
-          {status === "active" && subscription?.currentPeriodEndsAt && (
+          {status === "active" && subscription?.currentPeriodEndsAt ? (
             <p className="plan-detail">
               Current period ends:{" "}
-              {new Date(subscription.currentPeriodEndsAt).toLocaleString(
-                "en-US",
-                {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }
-              )}
+              {new Date(subscription.currentPeriodEndsAt).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
-          )}
+          ) : null}
+
+          {subscription?.nextBilledAtUtc ? (
+            <p className="plan-detail">
+              Next bill:{" "}
+              {new Date(subscription.nextBilledAtUtc).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          ) : null}
+
+          {canPortal ? (
+            <button
+              type="button"
+              className="plan-manage-btn"
+              onClick={() => void handleManageSubscription()}
+            >
+              Manage subscription
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -93,31 +209,42 @@ export function BillingPage() {
               "Local analytics in desktop app",
               "Browser extension support",
             ]}
-            current={subscription?.planType === 0}
+            current={
+              subscription?.planType === PlanType.FreeBYOK &&
+              status !== "active" &&
+              status !== "trial"
+            }
           />
-          <PlanCard
-            name="Cloud BYOK"
-            price="$4.99/mo"
-            features={[
-              "Everything in Free",
-              "Cloud session sync",
-              "Full web analytics dashboard",
-              "Cross-device insights",
-            ]}
-            current={subscription?.planType === 1}
-            highlighted
-          />
-          <PlanCard
-            name="Cloud Managed"
-            price="$9.99/mo"
-            features={[
-              "Everything in Cloud BYOK",
-              "No API key needed",
-              "Platform-managed AI access",
-              "Priority support",
-            ]}
-            current={subscription?.planType === 2}
-          />
+          {sortedPaidPlans.map((plan) => (
+            <PlanCard
+              key={plan.priceId}
+              name={plan.name}
+              price={`${formatMinorAmount(plan.unitAmountMinor, plan.currency)}${
+                plan.billingInterval ? ` / ${plan.billingInterval}` : ""
+              }`}
+              features={[
+                plan.description ?? "Cloud sync, analytics, and dashboard on foqus.me",
+                plan.planType === "cloud-byok"
+                  ? "You provide your OpenAI (or other) API key"
+                  : "Platform-managed AI — no API key needed",
+              ]}
+              current={planSlugMatchesCurrentPlan(plan.planType, subscription)}
+              highlighted={plan.planType === "cloud-byok"}
+              actionLabel={
+                ready && user
+                  ? planSlugMatchesCurrentPlan(plan.planType, subscription)
+                    ? undefined
+                    : "Subscribe"
+                  : undefined
+              }
+              onAction={
+                ready && user
+                  ? () => handleSubscribe(plan)
+                  : undefined
+              }
+              disabled={!ready || !user}
+            />
+          ))}
         </div>
       </section>
     </div>
@@ -130,12 +257,18 @@ function PlanCard({
   features,
   current,
   highlighted,
+  actionLabel,
+  onAction,
+  disabled,
 }: {
   name: string;
   price: string;
   features: string[];
   current?: boolean;
   highlighted?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div
@@ -150,11 +283,16 @@ function PlanCard({
       </ul>
       {current ? (
         <div className="current-plan-label">Current plan</div>
-      ) : (
-        <button className="plan-upgrade-btn" disabled>
-          Coming soon
+      ) : actionLabel && onAction ? (
+        <button
+          type="button"
+          className="plan-upgrade-btn"
+          disabled={disabled}
+          onClick={onAction}
+        >
+          {actionLabel}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

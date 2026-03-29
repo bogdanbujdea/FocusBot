@@ -27,14 +27,31 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - **Web app dev**: `cd src/foqus-web-app && npm run dev` (listens on `http://localhost:5174`). Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for local dev (production defaults are built in for `import.meta.env.PROD`).
 - **Browser extension dev**: `cd browser-extension && npm run dev`
 
+### Paddle Billing (subscriptions)
+
+- **Checkout hub**: Paid upgrades use **Paddle.js** on the web app billing page (`/billing`). Desktop and the browser extension open the same web URL; there are no separate `/checkout/*` routes.
+- **WebAPI** (`FocusBot.WebAPI`): Configure the `Paddle` section in `appsettings.json` (`ApiBase`, `IsSandbox`, public `ClientToken`, **`CatalogProductId`** — the Paddle **`pro_...`** product whose prices appear on `/pricing`; use a different value per environment). Store **`ApiKey`** and **`WebhookSecret`** in user secrets or environment variables, for example:
+
+  `dotnet user-secrets set "Paddle:ApiKey" "<sandbox-server-api-key>" --project src/FocusBot.WebAPI`
+
+  `dotnet user-secrets set "Paddle:WebhookSecret" "<webhook-signing-secret>" --project src/FocusBot.WebAPI`
+
+  `dotnet user-secrets set "Paddle:CatalogProductId" "pro_..." --project src/FocusBot.WebAPI`
+
+  `dotnet user-secrets set "Paddle:ClientToken" "<client-side-token>" --project src/FocusBot.WebAPI` (from Paddle Dashboard → Developer tools → Authentication; required for Paddle.js on `/billing`)
+
+- **Webhook URL** (local tunnel or deployed): `POST {apiBase}/subscriptions/paddle-webhook` — must receive the **raw** body for signature verification.
+- **Realtime plan updates**: After webhook processing, the API emits **`PlanChanged`** on the same SignalR hub as focus sessions (`/hubs/focus`); desktop `FocusPageViewModel` and web clients can refresh subscription/plan state immediately.
+- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes). Legacy Windows Store pricing notes are under `pricing/archive/`.
+
 ### Running tests
 
 - **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj`
-- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (49 tests, InMemory EF Core)
-- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (32 tests, WebApplicationFactory + InMemory DB)
+- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (62 tests, InMemory EF Core)
+- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (28 tests, WebApplicationFactory + InMemory DB)
 - **ViewModel tests**: `dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj`
 - **Infrastructure tests**: `dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj`
-- **Browser extension tests**: `cd browser-extension && npm test` (80 tests, Vitest)
+- **Browser extension tests**: `cd browser-extension && npm test` (Vitest)
 - **Web app tests**: `cd src/foqus-web-app && npm test` (Vitest, jsdom)
 - Integration tests use `CustomWebApplicationFactory` which provides test JWT config and swaps Npgsql for InMemory DB.
 

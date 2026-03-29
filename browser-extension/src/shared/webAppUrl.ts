@@ -10,3 +10,5 @@ export const getWebAppBaseUrl = (): string => {
 };
 
 export const getWebAppAnalyticsUrl = (): string => `${getWebAppBaseUrl()}/analytics`;
+
+export const getWebAppBillingUrl = (): string => `${getWebAppBaseUrl()}/billing`;

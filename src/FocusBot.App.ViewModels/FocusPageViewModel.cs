@@ -15,6 +15,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFocusSessionOrchestrator _sessionOrchestrator;
     private readonly IFocusHubClient _focusHubClient;
+    private readonly IPlanService _planService;
     public AccountSettingsViewModel AccountSection { get; }
 
     /// <summary>
@@ -157,6 +158,7 @@ public partial class FocusPageViewModel : ObservableObject
         ISettingsService settingsService,
         IFocusSessionOrchestrator sessionOrchestrator,
         IFocusHubClient focusHubClient,
+        IPlanService planService,
         AccountSettingsViewModel accountSection,
         FocusStatusViewModel status,
         IIntegrationService? integrationService = null,
@@ -167,6 +169,7 @@ public partial class FocusPageViewModel : ObservableObject
         _settingsService = settingsService;
         _sessionOrchestrator = sessionOrchestrator;
         _focusHubClient = focusHubClient;
+        _planService = planService;
         AccountSection = accountSection;
         Status = status;
         _integrationService = integrationService;
@@ -178,6 +181,7 @@ public partial class FocusPageViewModel : ObservableObject
         _focusHubClient.SessionEnded += OnFocusHubSessionEnded;
         _focusHubClient.SessionPaused += OnFocusHubSessionPaused;
         _focusHubClient.SessionResumed += OnFocusHubSessionResumed;
+        _focusHubClient.PlanChanged += OnFocusHubPlanChanged;
 
         if (_integrationService != null)
         {
@@ -185,6 +189,11 @@ public partial class FocusPageViewModel : ObservableObject
         }
 
         _ = LoadBoardAsync();
+    }
+
+    private void OnFocusHubPlanChanged(PlanChangedEvent e)
+    {
+        _ = _planService.RefreshAsync();
     }
 
     private void OnOrchestratorStateChanged(object? sender, FocusSessionStateChangedEventArgs e)

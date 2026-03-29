@@ -60,7 +60,17 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasOne(s => s.User).WithOne().HasForeignKey<Subscription>(s => s.UserId);
             entity.HasIndex(s => s.UserId).IsUnique();
             entity.Property(s => s.PaddleSubscriptionId).HasMaxLength(100);
-            entity.Property(s => s.Status).HasMaxLength(20);
+            entity.Property(s => s.PaddleCustomerId).HasMaxLength(100);
+            entity.Property(s => s.Status).HasMaxLength(32);
+            entity.Property(s => s.PaddlePriceId).HasMaxLength(100);
+            entity.Property(s => s.PaddleProductId).HasMaxLength(100);
+            entity.Property(s => s.PaddleTransactionId).HasMaxLength(100);
+            entity.Property(s => s.CustomerEmail).HasMaxLength(320);
+            entity.Property(s => s.CurrencyCode).HasMaxLength(10);
+            entity.Property(s => s.BillingInterval).HasMaxLength(20);
+            entity.Property(s => s.CancellationReason).HasMaxLength(500);
+            entity.Property(s => s.PaymentMethodType).HasMaxLength(50);
+            entity.Property(s => s.CardLastFour).HasMaxLength(10);
         });
 
         modelBuilder.Entity<Client>(entity =>

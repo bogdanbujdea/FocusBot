@@ -50,8 +50,8 @@ public sealed record ApiSubscriptionStatus(
     string Status,
     int PlanType,
     DateTime? TrialEndsAt,
-    DateTime? CurrentPeriodEndsAt
-);
+    DateTime? CurrentPeriodEndsAt,
+    DateTime? NextBilledAtUtc = null);
 
 /// <summary>Payload sent to POST /clients.</summary>
 public sealed record RegisterClientRequest(

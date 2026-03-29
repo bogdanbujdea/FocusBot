@@ -1,4 +1,4 @@
-# Feature 4 -- Paddle Subscription + 24h Trial
+# Subscriptions & Paddle Billing
 
 ## Goal
 Allow users to activate a free 24-hour trial and manage paid subscriptions via Paddle billing webhooks.
@@ -28,11 +28,25 @@ The `/classify` endpoint checks subscription status when operating in managed mo
 Returns 402 Payment Required if the user has no active subscription or trial.
 
 ## Paddle Webhook Events Handled
-- `subscription.created` -- Creates or updates subscription to active
-- `subscription.updated` -- Updates subscription status
-- `subscription.canceled` -- Marks subscription as canceled
-- `transaction.completed` -- Updates current period end date
 
-## Notes
-- Paddle webhook signature verification is not implemented in this MVP slice (marked with TODO)
-- User ID is passed to Paddle via `custom_data.user_id` in the subscription payload
+Webhooks are deserialized using strongly-typed C# models (`PaddleWebhookModels.cs`):
+
+- `subscription.created` — New subscription starts; status mapped (`"trialing"` → `"trial"`, `"active"` → `"active"`)
+- `subscription.updated` — Plan or billing changes
+- `subscription.canceled` — Subscription canceled
+- `transaction.completed` — Payment succeeds; enriches billing period and payment method
+
+## Webhook Processing
+
+- **Signature verification**: HMAC-SHA256 with `Paddle-Signature` header (see `PaddleWebhookVerifier`)
+- **Status mapping**: Paddle statuses are mapped to app conventions (`MapSubscriptionStatus`)
+- **Plan type**: Resolved from `custom_data.plan_type` (subscription or price level), with `license` fallback
+- **Payment details**: Card type and last 4 digits extracted from nested `method_details.card.last4`
+- **SignalR**: `PlanChanged` event sent after DB updates so desktop/web clients refresh immediately
+
+## Custom Data
+
+Pass from checkout (Paddle.js `customData`):
+
+- `user_id` — App user guid (string)
+- `plan_type` — `"cloud-byok"` or `"cloud-managed"` (maps to `PlanType` enum)

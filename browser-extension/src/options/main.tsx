@@ -5,14 +5,11 @@ import type { PlanType, Settings } from "../shared/types";
 import { supabase } from "../shared/supabaseClient";
 import { loadFocusbotAuthSession } from "../shared/focusbotAuth";
 import { parseExcludedDomains } from "../shared/url";
-import { getWebAppAnalyticsUrl } from "../shared/webAppUrl";
+import { getWebAppAnalyticsUrl, getWebAppBillingUrl } from "../shared/webAppUrl";
 import "../ui/styles.css";
 import "./settings.css";
 
-const PLAN_CHECKOUT_URLS: Record<string, string> = {
-  "cloud-byok": "https://app.foqus.me/checkout/cloud-byok",
-  "cloud-managed": "https://app.foqus.me/checkout/cloud-managed"
-};
+const webAppBillingUrl = getWebAppBillingUrl();
 
 const PLAN_LABELS: Record<PlanType, string> = {
   "free-byok": "Free",
@@ -183,8 +180,8 @@ const SettingsPage = (): JSX.Element => {
                   <span className="settings-radio-card-body">
                     <span className="settings-radio-card-title">
                       {plan === "free-byok" && "Free — Bring your own key"}
-                      {plan === "cloud-byok" && "Cloud BYOK — $2.99/mo"}
-                      {plan === "cloud-managed" && "Cloud Managed — $4.99/mo"}
+                      {plan === "cloud-byok" && "Cloud BYOK — subscribe on foqus.me"}
+                      {plan === "cloud-managed" && "Cloud Managed — subscribe on foqus.me"}
                     </span>
                     <span className="settings-radio-card-desc">
                       {plan === "free-byok" && "Use your own OpenAI key. Local analytics only. No cloud sync."}
@@ -196,12 +193,12 @@ const SettingsPage = (): JSX.Element => {
                     <span className="pill">Current plan</span>
                   ) : isPaid ? (
                     <a
-                      href={PLAN_CHECKOUT_URLS[plan]}
+                      href={webAppBillingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="button-link"
                     >
-                      Select →
+                      Open billing →
                     </a>
                   ) : null}
                 </div>

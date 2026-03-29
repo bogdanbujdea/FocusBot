@@ -25,6 +25,7 @@ public class TaskElapsedTimeShould
             settingsMock.Object,
             orchestratorMock.Object,
             Mock.Of<IFocusHubClient>(),
+            new StubPlanService(),
             accountVm,
             statusBar);
 
@@ -57,6 +58,7 @@ public class TaskElapsedTimeShould
             settingsMock.Object,
             orchestratorMock.Object,
             Mock.Of<IFocusHubClient>(),
+            new StubPlanService(),
             accountVm,
             statusBar);
 
@@ -85,6 +87,7 @@ public class TaskElapsedTimeShould
             settingsMock.Object,
             orchestratorMock.Object,
             Mock.Of<IFocusHubClient>(),
+            new StubPlanService(),
             accountVm,
             statusBar);
         await Task.Delay(150);

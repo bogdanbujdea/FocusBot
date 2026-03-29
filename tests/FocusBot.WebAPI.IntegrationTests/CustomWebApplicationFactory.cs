@@ -1,4 +1,5 @@
 using FocusBot.WebAPI.Data;
+using FocusBot.WebAPI.Features.Pricing;
 using FocusBot.WebAPI.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -84,6 +85,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     .Options;
                 return new ApiDbContext(options);
             });
+
+            foreach (var d in services
+                         .Where(d =>
+                             d.ServiceType == typeof(IPaddleBillingApi)
+                             || d.ImplementationType == typeof(PaddleBillingApiClient))
+                         .ToList())
+                services.Remove(d);
+
+            services.AddSingleton<IPaddleBillingApi, TestPaddleBillingApi>();
         });
     }
 }

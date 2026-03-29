@@ -1,5 +1,9 @@
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
+using FocusBot.WebAPI;
+using FocusBot.WebAPI.Features.Pricing;
+using Microsoft.Extensions.Options;
 
 namespace FocusBot.WebAPI.Features.Subscriptions;
 
@@ -42,18 +46,56 @@ public static class SubscriptionEndpoints
         .WithName("ActivateTrial")
         .WithSummary("Activate a 24-hour free trial");
 
-        // TODO: Add Paddle webhook signature verification for production
-        group.MapPost("/paddle-webhook", async (
-            JsonElement payload,
+        group.MapPost("/portal", async (
             SubscriptionService service,
+            HttpContext ctx,
             CancellationToken ct) =>
         {
-            await service.HandlePaddleWebhookAsync(payload, ct);
-            return Results.Ok();
+            var userId = GetUserId(ctx);
+            var url = await service.CreateCustomerPortalUrlAsync(userId, ct);
+            return url is null
+                ? Results.BadRequest(new { error = "No Paddle customer linked to this account." })
+                : Results.Ok(new CustomerPortalResponse(url));
         })
-        .AllowAnonymous()
-        .WithName("PaddleWebhook")
-        .WithSummary("Receive Paddle billing webhook events");
+        .RequireAuthorization()
+        .WithName("CreateCustomerPortalSession")
+        .WithSummary("Create a Paddle customer portal session URL");
+
+        group.MapPost("/paddle-webhook", HandlePaddleWebhook)
+            .AllowAnonymous()
+            .WithName("PaddleWebhook")
+            .WithSummary("Receive Paddle billing webhook events");
+    }
+
+    private static async Task<IResult> HandlePaddleWebhook(
+        HttpContext http,
+        IOptions<PaddleSettings> paddleSettings,
+        SubscriptionService service,
+        ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        http.Request.EnableBuffering();
+        string rawBody;
+        using (var reader = new StreamReader(http.Request.Body, Encoding.UTF8, leaveOpen: true))
+            rawBody = await reader.ReadToEndAsync(ct);
+        http.Request.Body.Position = 0;
+
+        var log = loggerFactory.CreateLogger("PaddleWebhook");
+        var secret = paddleSettings.Value.WebhookSecret;
+        var sig = http.Request.Headers["Paddle-Signature"].FirstOrDefault();
+
+        if (!PaddleWebhookVerifier.TryVerify(rawBody, sig, secret, out var verifyMessage))
+        {
+            log.LogWarning("Paddle webhook rejected: {Reason}", verifyMessage);
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        if (!string.IsNullOrEmpty(verifyMessage))
+            log.LogInformation("{Message}", verifyMessage);
+
+        using var doc = JsonDocument.Parse(rawBody);
+        await service.HandlePaddleWebhookAsync(doc.RootElement, ct);
+        return Results.Ok();
     }
 
     private static Guid GetUserId(HttpContext ctx)

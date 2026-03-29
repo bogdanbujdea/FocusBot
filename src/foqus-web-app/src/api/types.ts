@@ -10,6 +10,27 @@ export interface SubscriptionStatusResponse {
   planType: number;
   trialEndsAt?: string;
   currentPeriodEndsAt?: string;
+  nextBilledAtUtc?: string;
+}
+
+export interface PricingPlanDto {
+  priceId: string;
+  name: string;
+  description?: string;
+  unitAmountMinor: number;
+  currency: string;
+  billingInterval?: string;
+  planType: string;
+}
+
+export interface PricingResponse {
+  plans: PricingPlanDto[];
+  clientToken: string;
+  isSandbox: boolean;
+}
+
+export interface CustomerPortalResponse {
+  url: string;
 }
 
 export type ApiMutationResult<T> =

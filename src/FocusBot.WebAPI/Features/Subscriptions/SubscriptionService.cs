@@ -1,14 +1,23 @@
+using System.Globalization;
 using System.Text.Json;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
+using FocusBot.WebAPI.Features.Pricing;
+using FocusBot.WebAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using JsonException = System.Text.Json.JsonException;
 
 namespace FocusBot.WebAPI.Features.Subscriptions;
 
 /// <summary>
 /// Business logic for subscription lifecycle, trial activation, and Paddle webhook handling.
 /// </summary>
-public class SubscriptionService(ApiDbContext db)
+public class SubscriptionService(
+    ApiDbContext db,
+    IHubContext<FocusHub, IFocusHubClient> hub,
+    IPaddleBillingApi paddleBilling,
+    ILogger<SubscriptionService> logger)
 {
     /// <summary>
     /// Returns the current subscription status for a user.
@@ -23,14 +32,14 @@ public class SubscriptionService(ApiDbContext db)
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
-            return new SubscriptionStatusResponse("none", PlanType.FreeBYOK, null, null);
+            return new SubscriptionStatusResponse("none", PlanType.FreeBYOK, null, null, null);
 
         return new SubscriptionStatusResponse(
             subscription.Status,
             subscription.PlanType,
             subscription.TrialEndsAtUtc,
-            subscription.CurrentPeriodEndsAtUtc
-        );
+            subscription.CurrentPeriodEndsAtUtc,
+            subscription.NextBilledAtUtc);
     }
 
     /// <summary>
@@ -87,154 +96,313 @@ public class SubscriptionService(ApiDbContext db)
     }
 
     /// <summary>
-    /// Processes Paddle webhook events. Simplified for MVP without cryptographic verification.
+    /// Opens a Paddle customer portal session for the authenticated user.
     /// </summary>
-    // TODO: Add Paddle webhook signature verification for production
+    public async Task<string?> CreateCustomerPortalUrlAsync(Guid userId, CancellationToken ct = default)
+    {
+        var subscription = await db
+            .Subscriptions.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId, ct);
+
+        if (subscription?.PaddleCustomerId is null)
+            return null;
+
+        return await paddleBilling.CreateCustomerPortalSessionAsync(
+            subscription.PaddleCustomerId,
+            subscription.PaddleSubscriptionId,
+            ct);
+    }
+
+    /// <summary>
+    /// Processes verified Paddle webhook events.
+    /// </summary>
     public async Task HandlePaddleWebhookAsync(JsonElement payload, CancellationToken ct = default)
     {
-        if (!payload.TryGetProperty("event_type", out var eventTypeProp))
+        PaddleWebhookPayload? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<PaddleWebhookPayload>(payload.GetRawText());
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to deserialize Paddle webhook envelope");
+            return;
+        }
+
+        if (envelope?.EventType is null || envelope.Data is null)
             return;
 
-        var eventType = eventTypeProp.GetString();
-
-        switch (eventType)
+        switch (envelope.EventType)
         {
             case "subscription.created":
-                await HandleSubscriptionCreated(payload, ct);
-                break;
             case "subscription.updated":
-                await HandleSubscriptionUpdated(payload, ct);
-                break;
             case "subscription.canceled":
-                await HandleSubscriptionCanceled(payload, ct);
+                await HandleSubscriptionEvent(envelope, ct);
                 break;
             case "transaction.completed":
-                await HandleTransactionCompleted(payload, ct);
+                await HandleTransactionCompleted(envelope, ct);
                 break;
         }
     }
 
-    private async Task HandleSubscriptionCreated(JsonElement payload, CancellationToken ct)
+    private async Task HandleSubscriptionEvent(PaddleWebhookPayload envelope, CancellationToken ct)
     {
-        var data = payload.GetProperty("data");
-        var paddleSubId = data.GetProperty("id").GetString()!;
-        var paddleCustomerId = data.TryGetProperty("customer_id", out var custProp)
-            ? custProp.GetString()
-            : null;
-
-        var customData = data.TryGetProperty("custom_data", out var customProp)
-            ? customProp
-            : (JsonElement?)null;
-        if (customData is null || !customData.Value.TryGetProperty("user_id", out var userIdProp))
-            return;
-
-        if (!Guid.TryParse(userIdProp.GetString(), out var userId))
-            return;
-
-        var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
-
-        if (existing is not null)
+        PaddleSubscription? sub;
+        try
         {
-            existing.PaddleSubscriptionId = paddleSubId;
-            existing.PaddleCustomerId = paddleCustomerId;
-            existing.Status = "active";
-            existing.UpdatedAtUtc = DateTime.UtcNow;
+            var dataJson = JsonSerializer.Serialize(envelope.Data);
+            sub = JsonSerializer.Deserialize<PaddleSubscription>(dataJson);
         }
-        else
+        catch (JsonException ex)
         {
-            db.Subscriptions.Add(
-                new Subscription
+            logger.LogWarning(ex, "Failed to deserialize Paddle subscription data");
+            return;
+        }
+
+        if (sub?.Id is null)
+            return;
+
+        var eventType = envelope.EventType;
+
+        if (eventType == "subscription.created")
+        {
+            if (!TryResolveUserId(sub.CustomData, out var userId))
+                return;
+
+            var mappedPlan = MapPlanType(sub.CustomData, sub.Items);
+            var mappedStatus = MapSubscriptionStatus(sub.Status);
+
+            var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+
+            if (existing is not null)
+            {
+                existing.PaddleSubscriptionId = sub.Id;
+                existing.PaddleCustomerId = sub.CustomerId;
+                existing.Status = mappedStatus;
+                if (mappedPlan.HasValue)
+                    existing.PlanType = mappedPlan.Value;
+                existing.UpdatedAtUtc = DateTime.UtcNow;
+                ApplySubscriptionEnrichment(existing, sub);
+            }
+            else
+            {
+                var planType = mappedPlan ?? PlanType.CloudBYOK;
+                var created = new Subscription
                 {
                     UserId = userId,
-                    PaddleSubscriptionId = paddleSubId,
-                    PaddleCustomerId = paddleCustomerId,
-                    Status = "active",
+                    PaddleSubscriptionId = sub.Id,
+                    PaddleCustomerId = sub.CustomerId,
+                    Status = mappedStatus,
+                    PlanType = planType,
                     CreatedAtUtc = DateTime.UtcNow,
                     UpdatedAtUtc = DateTime.UtcNow,
-                }
-            );
-        }
+                };
+                ApplySubscriptionEnrichment(created, sub);
+                db.Subscriptions.Add(created);
+            }
 
-        await db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
+            await NotifyPlanChangedAsync(userId, ct);
+        }
+        else if (eventType == "subscription.updated")
+        {
+            var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+                s => s.PaddleSubscriptionId == sub.Id,
+                ct);
+
+            if (subscription is null)
+                return;
+
+            subscription.Status = MapSubscriptionStatus(sub.Status);
+
+            var mapped = MapPlanType(sub.CustomData, sub.Items);
+            if (mapped.HasValue)
+                subscription.PlanType = mapped.Value;
+
+            ApplySubscriptionEnrichment(subscription, sub);
+            subscription.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            await NotifyPlanChangedAsync(subscription.UserId, ct);
+        }
+        else if (eventType == "subscription.canceled")
+        {
+            var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+                s => s.PaddleSubscriptionId == sub.Id,
+                ct);
+
+            if (subscription is null)
+                return;
+
+            subscription.Status = "canceled";
+            subscription.UpdatedAtUtc = DateTime.UtcNow;
+
+            if (envelope.OccurredAt.HasValue)
+                subscription.CancelledAtUtc = envelope.OccurredAt.Value.ToUniversalTime();
+
+            if (sub.ScheduledChange?.Action is not null)
+                subscription.CancellationReason = sub.ScheduledChange.Action;
+
+            await db.SaveChangesAsync(ct);
+            await NotifyPlanChangedAsync(subscription.UserId, ct);
+        }
     }
 
-    private async Task HandleSubscriptionUpdated(JsonElement payload, CancellationToken ct)
+    private async Task HandleTransactionCompleted(PaddleWebhookPayload envelope, CancellationToken ct)
     {
-        var data = payload.GetProperty("data");
-        var paddleSubId = data.GetProperty("id").GetString()!;
+        PaddleTransaction? txn;
+        try
+        {
+            var dataJson = JsonSerializer.Serialize(envelope.Data);
+            txn = JsonSerializer.Deserialize<PaddleTransaction>(dataJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to deserialize Paddle transaction data");
+            return;
+        }
 
-        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
-            s => s.PaddleSubscriptionId == paddleSubId,
-            ct
-        );
-
-        if (subscription is null)
+        if (txn?.SubscriptionId is null)
             return;
 
-        if (data.TryGetProperty("status", out var statusProp))
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == txn.SubscriptionId,
+            ct);
+
+        if (subscription is null)
         {
-            var paddleStatus = statusProp.GetString();
-            subscription.Status = paddleStatus switch
+            logger.LogInformation(
+                "Transaction {TxnId} references subscription {SubId} not yet in DB; likely race with subscription.created",
+                txn.Id, txn.SubscriptionId);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(txn.Id))
+            subscription.PaddleTransactionId = txn.Id;
+
+        if (txn.BillingPeriod?.EndsAt.HasValue == true)
+            subscription.CurrentPeriodEndsAtUtc = txn.BillingPeriod.EndsAt.Value.ToUniversalTime();
+
+        ApplyPaymentDetails(subscription, txn.Payments);
+        subscription.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await NotifyPlanChangedAsync(subscription.UserId, ct);
+    }
+
+    private static void ApplyPaymentDetails(Subscription subscription, List<PaddlePayment>? payments)
+    {
+        if (payments is null || payments.Count == 0)
+            return;
+
+        var payment = payments[0];
+        var details = payment.MethodDetails;
+
+        if (details?.Type is not null)
+            subscription.PaymentMethodType = details.Type;
+
+        if (details?.Card?.Last4 is not null)
+            subscription.CardLastFour = details.Card.Last4;
+    }
+
+    private static bool TryResolveUserId(PaddleCustomData? customData, out Guid userId)
+    {
+        userId = default;
+        if (customData?.UserId is null)
+            return false;
+
+        return Guid.TryParse(customData.UserId, out userId);
+    }
+
+    private static string MapSubscriptionStatus(string? paddleStatus)
+    {
+        return paddleStatus switch
+        {
+            "active" => "active",
+            "trialing" => "trial",
+            "past_due" => "active",
+            "paused" => "expired",
+            "canceled" => "canceled",
+            _ => paddleStatus ?? "none",
+        };
+    }
+
+    private static PlanType? MapPlanType(PaddleCustomData? customData, List<PaddleSubscriptionItem>? items)
+    {
+        if (customData?.PlanType is not null)
+        {
+            return customData.PlanType switch
             {
-                "active" => "active",
-                "past_due" => "active",
-                "paused" => "expired",
-                "canceled" => "canceled",
-                _ => subscription.Status,
+                "cloud-byok" => PlanType.CloudBYOK,
+                "cloud-managed" => PlanType.CloudManaged,
+                _ => null,
             };
         }
 
-        subscription.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-    }
-
-    private async Task HandleSubscriptionCanceled(JsonElement payload, CancellationToken ct)
-    {
-        var data = payload.GetProperty("data");
-        var paddleSubId = data.GetProperty("id").GetString()!;
-
-        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
-            s => s.PaddleSubscriptionId == paddleSubId,
-            ct
-        );
-
-        if (subscription is null)
-            return;
-
-        subscription.Status = "canceled";
-        subscription.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-    }
-
-    private async Task HandleTransactionCompleted(JsonElement payload, CancellationToken ct)
-    {
-        var data = payload.GetProperty("data");
-
-        if (!data.TryGetProperty("subscription_id", out var subIdProp))
-            return;
-
-        var paddleSubId = subIdProp.GetString();
-        if (string.IsNullOrEmpty(paddleSubId))
-            return;
-
-        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
-            s => s.PaddleSubscriptionId == paddleSubId,
-            ct
-        );
-
-        if (subscription is null)
-            return;
-
-        if (
-            data.TryGetProperty("billing_period", out var billingPeriod)
-            && billingPeriod.TryGetProperty("ends_at", out var endsAtProp)
-        )
+        var firstPrice = items?.FirstOrDefault()?.Price;
+        if (firstPrice?.CustomData is not null)
         {
-            if (DateTime.TryParse(endsAtProp.GetString(), out var endsAt))
-                subscription.CurrentPeriodEndsAtUtc = endsAt.ToUniversalTime();
+            var planType = firstPrice.CustomData.PlanType;
+            if (planType is not null)
+            {
+                return planType switch
+                {
+                    "cloud-byok" => PlanType.CloudBYOK,
+                    "cloud-managed" => PlanType.CloudManaged,
+                    _ => null,
+                };
+            }
+
+            var license = firstPrice.CustomData.License;
+            if (license is not null)
+            {
+                return license switch
+                {
+                    "byok" => PlanType.CloudBYOK,
+                    "premium" => PlanType.CloudManaged,
+                    _ => null,
+                };
+            }
         }
 
-        subscription.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    private static void ApplySubscriptionEnrichment(Subscription subscription, PaddleSubscription sub)
+    {
+        var firstPrice = sub.Items?.FirstOrDefault()?.Price;
+
+        if (firstPrice is not null)
+        {
+            subscription.PaddlePriceId = firstPrice.Id;
+            subscription.PaddleProductId = firstPrice.ProductId;
+
+            if (firstPrice.UnitPrice is not null)
+            {
+                if (long.TryParse(firstPrice.UnitPrice.Amount, CultureInfo.InvariantCulture, out var minor))
+                    subscription.UnitAmountMinor = minor;
+
+                subscription.CurrencyCode = firstPrice.UnitPrice.CurrencyCode;
+            }
+
+            if (firstPrice.BillingCycle?.Interval is not null)
+                subscription.BillingInterval = firstPrice.BillingCycle.Interval;
+        }
+
+        if (sub.CurrentBillingPeriod?.EndsAt.HasValue == true)
+            subscription.CurrentPeriodEndsAtUtc = sub.CurrentBillingPeriod.EndsAt.Value.ToUniversalTime();
+
+        if (sub.NextBilledAt.HasValue)
+            subscription.NextBilledAtUtc = sub.NextBilledAt.Value.ToUniversalTime();
+    }
+
+    private async Task NotifyPlanChangedAsync(Guid userId, CancellationToken ct)
+    {
+        try
+        {
+            await hub.Clients.Group(userId.ToString()).PlanChanged(new PlanChangedEvent());
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to push PlanChanged for user {UserId}", userId);
+        }
     }
 }
