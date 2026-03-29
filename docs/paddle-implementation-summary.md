@@ -50,8 +50,8 @@ This document summarizes the complete Paddle Billing integration across all Foqu
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/pricing` | Proxies active prices for CatalogProductId; 10-min cache |
-| GET | `/subscriptions/status` | User's current plan and billing dates |
-| POST | `/subscriptions/trial` | Activates 24h trial (accepts `{ "planType": 1 or 2 }` in body) |
+| GET | `/subscriptions/status` | User's current plan and billing dates. **Auto-creates a 24h `TrialFullAccess` trial on first call if no row exists.** |
+| POST | `/subscriptions/trial` | Explicit trial activation (accepts `{ "planType": 1, 2, or 3 }`). Returns 409 if a row already exists (auto-trial already created). |
 | POST | `/subscriptions/portal` | Creates Paddle customer portal session URL |
 | POST | `/subscriptions/paddle-webhook` | Webhook receiver with signature verification |
 
@@ -113,6 +113,7 @@ Paddle           → App (SubscriptionStatus enum)
 
 **Core fields:**
 - `UserId`, `Status` (enum: `None`, `Trial`, `Active`, `Expired`, `Canceled`), `PlanType`, `TrialEndsAtUtc`
+- `PlanType` enum: `FreeBYOK = 0` (legacy sentinel), `CloudBYOK = 1`, `CloudManaged = 2`, `TrialFullAccess = 3` (generic 24h trial — plan not yet chosen)
 
 **Paddle identifiers:**
 - `PaddleSubscriptionId`, `PaddleCustomerId`, `PaddlePriceId`, `PaddleProductId`, `PaddleTransactionId`
@@ -142,11 +143,25 @@ Single-query troubleshooting: all subscription/billing/payment data in one row.
 - Provides `openCheckout(priceId, planType, email, userId)` that opens overlay
 - Handles `checkout.completed` event callback
 
+**`SubscriptionContext`** (`contexts/SubscriptionContext.tsx`):
+- Fetches `GET /subscriptions/status` once per authenticated session
+- Exposes `{ subscription, loading, error, refresh }` to the entire protected layout
+- Wraps `Layout` so all pages share subscription state without duplicate fetches
+
+**Trial welcome modal** (`components/TrialWelcomeModal.tsx`):
+- Shown on first visit when `status === 'trial'` and `localStorage` flag `foqus.trialWelcomeSeen.<userId>` is not set
+- Explains Foqus, shows trial end time, links to `/billing` to compare plans
+- Dismissal persists in `localStorage` (scoped per user ID)
+
+**Trial countdown banner** (in `Layout.tsx`):
+- Visible when `status === 'trial'` and `trialEndsAt` is in the future
+- Shows time remaining (hours + minutes) and a "Choose a plan" link to `/billing`
+
 **BillingPage** (`pages/BillingPage.tsx`):
 - Shows current subscription status (plan badge, trial end, period dates)
-- Displays plan cards:
-  - **Free (BYOK)** — static card
-  - **Paid plans** — dynamic from `/pricing`, sorted by price ascending (BYOK $1.99, Premium $4.99)
+- **No "Free (BYOK)" static card** — there is no free tier
+- Trial status shows "Trial — Full Access" header with a hint to choose a plan before expiry
+- **Paid plans only** — dynamic from `/pricing`, sorted by price ascending (BYOK $1.99, Premium $4.99)
 - Subscribe buttons open Paddle.js overlay checkout
 - "Manage Subscription" button (active subscribers only) opens Paddle customer portal
 - Success banner on `checkout.completed` or `?checkout=success` query param

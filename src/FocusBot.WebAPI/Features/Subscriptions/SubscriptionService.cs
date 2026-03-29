@@ -20,7 +20,9 @@ public class SubscriptionService(
     ILogger<SubscriptionService> logger)
 {
     /// <summary>
-    /// Returns the current subscription status for a user.
+    /// Returns the current subscription status for a user. A trial row is normally created
+    /// at account provisioning time (GET /auth/me). If no row exists here, it means the user
+    /// bypassed provisioning, so we create the trial defensively.
     /// </summary>
     public async Task<SubscriptionStatusResponse> GetStatusAsync(
         Guid userId,
@@ -32,7 +34,26 @@ public class SubscriptionService(
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
-            return new SubscriptionStatusResponse(SubscriptionStatus.None, PlanType.FreeBYOK, null, null, null);
+        {
+            logger.LogWarning(
+                "No subscription row found for user {UserId} during GetStatusAsync — creating trial defensively. User may not have called /auth/me first.",
+                userId);
+
+            var trialEnd = DateTime.UtcNow.AddHours(24);
+            var trial = new Subscription
+            {
+                UserId = userId,
+                Status = SubscriptionStatus.Trial,
+                PlanType = PlanType.TrialFullAccess,
+                TrialEndsAtUtc = trialEnd,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow,
+            };
+            db.Subscriptions.Add(trial);
+            await db.SaveChangesAsync(ct);
+
+            return new SubscriptionStatusResponse(SubscriptionStatus.Trial, PlanType.TrialFullAccess, trialEnd, null, null);
+        }
 
         return new SubscriptionStatusResponse(
             subscription.Status,

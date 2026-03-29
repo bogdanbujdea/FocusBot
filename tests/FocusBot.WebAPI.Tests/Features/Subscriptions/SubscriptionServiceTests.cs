@@ -39,6 +39,56 @@ public class SubscriptionServiceTests
     }
 
     [Fact]
+    public async Task GetStatusAsync_AutoCreatesTrialForNewUser()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = CreateService(db);
+        var userId = Guid.NewGuid();
+
+        var result = await service.GetStatusAsync(userId);
+
+        result.Status.Should().Be(SubscriptionStatus.Trial);
+        result.PlanType.Should().Be(PlanType.TrialFullAccess);
+        result.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetStatusAsync_IsIdempotent_DoesNotDuplicateTrial()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = CreateService(db);
+        var userId = Guid.NewGuid();
+
+        await service.GetStatusAsync(userId);
+        await service.GetStatusAsync(userId);
+
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetStatusAsync_ReturnsExistingSubscription_WhenRowExists()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            Status = SubscriptionStatus.Active,
+            PlanType = PlanType.CloudManaged,
+            PaddleSubscriptionId = "sub_123"
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.GetStatusAsync(userId);
+
+        result.Status.Should().Be(SubscriptionStatus.Active);
+        result.PlanType.Should().Be(PlanType.CloudManaged);
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
     public async Task ActivateTrialAsync_CreatesTrialSubscription()
     {
         await using var db = CreateInMemoryDb();
@@ -74,6 +124,26 @@ public class SubscriptionServiceTests
 
         result.Should().BeNull();
         (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task IsSubscribedOrTrialActiveAsync_ReturnsTrue_ForTrialFullAccess()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            Status = SubscriptionStatus.Trial,
+            PlanType = PlanType.TrialFullAccess,
+            TrialEndsAtUtc = DateTime.UtcNow.AddHours(20)
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.IsSubscribedOrTrialActiveAsync(userId);
+
+        result.Should().BeTrue();
     }
 
     [Fact]
@@ -229,7 +299,7 @@ public class SubscriptionServiceTests
         {
             UserId = userId,
             Status = SubscriptionStatus.Trial,
-            PlanType = PlanType.FreeBYOK,
+            PlanType = PlanType.TrialFullAccess,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(12)
         });
         await db.SaveChangesAsync();

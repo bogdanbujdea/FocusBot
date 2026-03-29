@@ -17,7 +17,7 @@ public class Subscription
     public SubscriptionStatus Status { get; set; } = SubscriptionStatus.None;
 
     /// <summary>The subscription tier the user is on.</summary>
-    public PlanType PlanType { get; set; } = PlanType.FreeBYOK;
+    public PlanType PlanType { get; set; } = PlanType.TrialFullAccess;
 
     public DateTime? TrialEndsAtUtc { get; set; }
     public DateTime? CurrentPeriodEndsAtUtc { get; set; }
@@ -39,10 +39,11 @@ public class Subscription
     public string? CardLastFour { get; set; }
 }
 
-/// <summary>The three Foqus subscription tiers.</summary>
+/// <summary>The Foqus subscription tiers.</summary>
 public enum PlanType
 {
-    FreeBYOK = 0,
+    /// <summary>Generic 24h trial — plan not yet chosen by the user.</summary>
+    TrialFullAccess = 0,
     CloudBYOK = 1,
     CloudManaged = 2,
 }

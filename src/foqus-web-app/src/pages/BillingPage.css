@@ -57,6 +57,11 @@
   margin: var(--spacing-sm) 0 0 0;
 }
 
+.plan-detail-hint {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .plans-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

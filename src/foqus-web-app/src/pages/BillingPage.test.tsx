@@ -4,12 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { BillingPage } from "./BillingPage";
 
-const { mockApi, mockOpenCheckout } = vi.hoisted(() => ({
+const { mockApi, mockOpenCheckout, mockRefreshContext } = vi.hoisted(() => ({
   mockApi: {
     getSubscriptionStatus: vi.fn(),
     createCustomerPortalSession: vi.fn(),
   },
   mockOpenCheckout: vi.fn(),
+  mockRefreshContext: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../api/client", () => ({
@@ -19,6 +20,15 @@ vi.mock("../api/client", () => ({
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({
     user: { id: "user-uuid-1", email: "test@example.com" },
+  }),
+}));
+
+vi.mock("../contexts/SubscriptionContext", () => ({
+  useSubscription: () => ({
+    subscription: null,
+    loading: false,
+    error: null,
+    refresh: mockRefreshContext,
   }),
 }));
 
@@ -66,6 +76,47 @@ describe("BillingPage", () => {
     expect(screen.getByText("Cloud BYOK")).toBeInTheDocument();
   });
 
+  it("does not show a Free (BYOK) static plan card", async () => {
+    mockApi.getSubscriptionStatus.mockResolvedValue({
+      status: "none",
+      planType: 0,
+    });
+
+    render(
+      <MemoryRouter>
+        <BillingPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/manage your subscription/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Free (BYOK)")).not.toBeInTheDocument();
+  });
+
+  it("shows generic trial header and hint when status is trial", async () => {
+    const trialEndsAt = new Date(Date.now() + 20 * 3_600_000).toISOString();
+    mockApi.getSubscriptionStatus.mockResolvedValue({
+      status: "trial",
+      planType: 3,
+      trialEndsAt,
+    });
+
+    render(
+      <MemoryRouter>
+        <BillingPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/trial — full access/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/choose a plan below/i)).toBeInTheDocument();
+    expect(screen.queryByText(/current plan/i)).not.toBeInTheDocument();
+  });
+
   it("opens checkout when Subscribe is clicked", async () => {
     mockApi.getSubscriptionStatus.mockResolvedValue({
       status: "none",
@@ -91,6 +142,24 @@ describe("BillingPage", () => {
       "test@example.com",
       "user-uuid-1"
     );
+  });
+
+  it("shows current plan label for active cloud-byok subscription", async () => {
+    mockApi.getSubscriptionStatus.mockResolvedValue({
+      status: "active",
+      planType: 1,
+      currentPeriodEndsAt: "2030-01-01T00:00:00Z",
+    });
+
+    render(
+      <MemoryRouter>
+        <BillingPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/current plan/i)).toBeInTheDocument();
+    });
   });
 
   it("opens portal when Manage subscription is clicked", async () => {

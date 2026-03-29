@@ -46,8 +46,8 @@ public static class SubscriptionEndpoints
             HttpContext ctx,
             CancellationToken ct) =>
         {
-            if (request.PlanType is not (PlanType.CloudBYOK or PlanType.CloudManaged))
-                return Results.BadRequest(new { error = "Trial is only available for paid plans." });
+            if (request.PlanType is not (PlanType.CloudBYOK or PlanType.CloudManaged or PlanType.TrialFullAccess))
+                return Results.BadRequest(new { error = "Invalid plan type for trial activation." });
 
             var userId = GetUserId(ctx);
             var result = await service.ActivateTrialAsync(userId, request.PlanType, ct);

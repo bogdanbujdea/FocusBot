@@ -120,7 +120,7 @@ export interface AnalyticsClientsResponse {
 }
 
 export const PlanType = {
-  FreeBYOK: 0,
+  TrialFullAccess: 0,
   CloudBYOK: 1,
   CloudManaged: 2,
 } as const;
@@ -129,13 +129,13 @@ export type PlanTypeValue = (typeof PlanType)[keyof typeof PlanType];
 
 export function getPlanDisplayName(planType: number): string {
   switch (planType) {
-    case PlanType.FreeBYOK:
-      return "Free (BYOK)";
     case PlanType.CloudBYOK:
-      return "Cloud BYOK";
+      return "Foqus BYOK";
     case PlanType.CloudManaged:
-      return "Cloud Managed";
+      return "Foqus Premium";
+    case PlanType.TrialFullAccess:
+      return "Trial";
     default:
-      return "Unknown";
+      return "No active plan";
   }
 }

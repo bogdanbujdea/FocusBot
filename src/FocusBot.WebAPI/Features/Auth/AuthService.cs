@@ -33,7 +33,18 @@ public class AuthService(ApiDbContext db)
             CreatedAtUtc = DateTime.UtcNow
         };
 
+        var trial = new Subscription
+        {
+            UserId = userId,
+            Status = SubscriptionStatus.Trial,
+            PlanType = PlanType.TrialFullAccess,
+            TrialEndsAtUtc = DateTime.UtcNow.AddHours(24),
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
+        };
+
         db.Users.Add(user);
+        db.Subscriptions.Add(trial);
 
         try
         {
@@ -42,6 +53,7 @@ public class AuthService(ApiDbContext db)
         catch (DbUpdateException)
         {
             db.Entry(user).State = EntityState.Detached;
+            db.Entry(trial).State = EntityState.Detached;
             user = await db.Users.FirstAsync(u => u.Id == userId, ct);
         }
 

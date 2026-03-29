@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { PricingPlanDto, SubscriptionStatusResponse } from "../api/types";
 import { getPlanDisplayName, PlanType } from "../api/types";
 import { useAuth } from "../auth/useAuth";
+import { useSubscription } from "../contexts/SubscriptionContext";
 import { usePaddle } from "../hooks/usePaddle";
 import "./BillingPage.css";
 
@@ -30,19 +31,39 @@ function planSlugMatchesCurrentPlan(
   return false;
 }
 
+function statusBadgeLabel(status: string): string {
+  switch (status) {
+    case "trial":
+      return "Trial";
+    case "active":
+      return "Active";
+    case "canceled":
+      return "Canceled";
+    case "expired":
+      return "Expired";
+    default:
+      return "No plan";
+  }
+}
+
 export function BillingPage() {
   const { user } = useAuth();
+  const { subscription: contextSubscription, refresh: refreshContext } = useSubscription();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [subscription, setSubscription] =
+  const [localSubscription, setLocalSubscription] =
     useState<SubscriptionStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutBanner, setCheckoutBanner] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
 
+  // Use context subscription if available; fall back to local fetch during initial load.
+  const subscription = localSubscription ?? contextSubscription;
+
   const reloadSubscription = useCallback(async () => {
     const status = await api.getSubscriptionStatus();
-    setSubscription(status);
-  }, []);
+    setLocalSubscription(status);
+    void refreshContext();
+  }, [refreshContext]);
 
   const onCheckoutDone = useCallback(() => {
     setCheckoutBanner(true);
@@ -105,13 +126,15 @@ export function BillingPage() {
   }
 
   const status = subscription?.status ?? "none";
-  const planName = getPlanDisplayName(subscription?.planType ?? 0);
-  const isActive = status === "active" || status === "trial";
+  const isActive = status === "active";
+  const isTrial = status === "trial";
+  const planName = isActive
+    ? getPlanDisplayName(subscription?.planType ?? 0)
+    : isTrial
+      ? "Trial — Full Access"
+      : getPlanDisplayName(subscription?.planType ?? 0);
 
-  const canPortal =
-    isActive &&
-    status !== "trial" &&
-    subscription?.planType !== PlanType.FreeBYOK;
+  const canPortal = isActive;
 
   return (
     <div className="billing-page">
@@ -144,19 +167,15 @@ export function BillingPage() {
           <div className="plan-header">
             <div className="plan-info">
               <h2 className="plan-name">{planName}</h2>
-              <span className={`plan-badge ${isActive ? "active" : "inactive"}`}>
-                {status === "trial"
-                  ? "Trial"
-                  : status === "active"
-                    ? "Active"
-                    : status === "canceled"
-                      ? "Canceled"
-                      : "Free"}
+              <span
+                className={`plan-badge ${isActive || isTrial ? "active" : "inactive"}`}
+              >
+                {statusBadgeLabel(status)}
               </span>
             </div>
           </div>
 
-          {status === "trial" && subscription?.trialEndsAt ? (
+          {isTrial && subscription?.trialEndsAt ? (
             <p className="plan-detail">
               Trial ends:{" "}
               {new Date(subscription.trialEndsAt).toLocaleString("en-US", {
@@ -166,7 +185,13 @@ export function BillingPage() {
             </p>
           ) : null}
 
-          {status === "active" && subscription?.currentPeriodEndsAt ? (
+          {isTrial ? (
+            <p className="plan-detail plan-detail-hint">
+              Choose a plan below before your trial ends to keep your data synced.
+            </p>
+          ) : null}
+
+          {isActive && subscription?.currentPeriodEndsAt ? (
             <p className="plan-detail">
               Current period ends:{" "}
               {new Date(subscription.currentPeriodEndsAt).toLocaleString("en-US", {
@@ -201,20 +226,6 @@ export function BillingPage() {
       <section className="billing-section">
         <h2 className="section-title">Plans</h2>
         <div className="plans-grid">
-          <PlanCard
-            name="Free (BYOK)"
-            price="$0"
-            features={[
-              "Bring your own API key",
-              "Local analytics in desktop app",
-              "Browser extension support",
-            ]}
-            current={
-              subscription?.planType === PlanType.FreeBYOK &&
-              status !== "active" &&
-              status !== "trial"
-            }
-          />
           {sortedPaidPlans.map((plan) => (
             <PlanCard
               key={plan.priceId}

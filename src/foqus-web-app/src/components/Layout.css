@@ -1,6 +1,44 @@
 .layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+}
+
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  background: rgba(139, 92, 246, 0.15);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 8px var(--spacing-md);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.trial-banner-text {
+  color: var(--color-text-secondary);
+}
+
+.trial-banner-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.trial-banner-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.layout-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .sidebar {

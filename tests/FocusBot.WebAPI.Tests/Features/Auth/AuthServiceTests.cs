@@ -27,7 +27,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task GetOrProvisionUserAsync_CreatesNewUser_WhenNotExists()
+    public async Task GetOrProvisionUserAsync_CreatesNewUserAndTrial_WhenNotExists()
     {
         await using var db = CreateInMemoryDb();
         var service = new AuthService(db);
@@ -38,6 +38,12 @@ public class AuthServiceTests
         user.Id.Should().Be(userId);
         user.Email.Should().Be("test@example.com");
         (await db.Users.CountAsync()).Should().Be(1);
+
+        var subscription = await db.Subscriptions.SingleAsync();
+        subscription.UserId.Should().Be(userId);
+        subscription.Status.Should().Be(SubscriptionStatus.Trial);
+        subscription.PlanType.Should().Be(PlanType.TrialFullAccess);
+        subscription.TrialEndsAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -46,6 +52,13 @@ public class AuthServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         db.Users.Add(new User { Id = userId, Email = "existing@example.com" });
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            Status = SubscriptionStatus.Trial,
+            PlanType = PlanType.TrialFullAccess,
+            TrialEndsAtUtc = DateTime.UtcNow.AddHours(20)
+        });
         await db.SaveChangesAsync();
 
         var service = new AuthService(db);
@@ -53,6 +66,7 @@ public class AuthServiceTests
 
         user.Id.Should().Be(userId);
         (await db.Users.CountAsync()).Should().Be(1);
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
     }
 
     [Fact]

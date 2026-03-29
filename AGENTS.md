@@ -40,7 +40,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 
   `dotnet user-secrets set "Paddle:ClientToken" "<client-side-token>" --project src/FocusBot.WebAPI` (from Paddle Dashboard → Developer tools → Authentication; required for Paddle.js on `/billing`)
 
-- **Trial activation**: `POST /subscriptions/trial` accepts `{ "planType": 1 }` (CloudBYOK) or `{ "planType": 2 }` (CloudManaged). Server manages a 24-hour no-credit-card trial. **Remove the 1-day trial from Paddle Dashboard prices**.
+- **Trial activation**: **Auto-created** on first `GET /subscriptions/status` call when no subscription row exists. The API creates a `Trial` row with `PlanType.TrialFullAccess` (= 3) and `TrialEndsAtUtc = UtcNow + 24h`. No client needs to call `POST /subscriptions/trial`. The explicit `POST` endpoint still exists (accepts `planType` 1, 2, or 3) but returns 409 if a row already exists. **Remove the 1-day trial from Paddle Dashboard prices**. There is no free plan — users are on trial or paid.
 - **Subscription status**: Uses `SubscriptionStatus` enum (`None`, `Trial`, `Active`, `Expired`, `Canceled`). Serialized as camelCase strings in JSON responses (e.g., `"active"`, `"trial"`). `past_due` status maps to `Expired` (no access).
 - **Webhook idempotency**: All events are deduplicated by `event_id` via the `ProcessedWebhookEvent` table. Duplicate Paddle retries are safely ignored.
 - **Webhook security**: `PaddleWebhookVerifier` rejects all requests when `Paddle:WebhookSecret` is not configured or empty. No dev bypass.
