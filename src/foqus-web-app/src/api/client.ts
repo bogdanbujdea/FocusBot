@@ -148,9 +148,10 @@ export const api = {
   createCustomerPortalSession: () =>
     apiMutate<CustomerPortalResponse>("/subscriptions/portal", { method: "POST" }),
 
-  activateTrial: () =>
-    apiFetch<{ status: string; trialEndsAt: string }>("/subscriptions/trial", {
+  activateTrial: (planType: number) =>
+    apiMutate<{ status: string; trialEndsAt: string }>("/subscriptions/trial", {
       method: "POST",
+      body: JSON.stringify({ planType }),
     }),
 
   getActiveSession: () => apiFetch<SessionResponse>("/sessions/active"),

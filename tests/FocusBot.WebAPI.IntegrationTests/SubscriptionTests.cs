@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Subscriptions;
 
 namespace FocusBot.WebAPI.IntegrationTests;
@@ -37,12 +38,17 @@ public class SubscriptionTests(CustomWebApplicationFactory factory)
         meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         // Activate trial
-        var trialResponse = await client.PostAsync("/subscriptions/trial", null);
+        var trialRequest = new StringContent(
+            """{"planType":1}""",
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+        var trialResponse = await client.PostAsync("/subscriptions/trial", trialRequest);
         trialResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var trial = await trialResponse.Content.ReadFromJsonAsync<ActivateTrialResponse>();
         trial.Should().NotBeNull();
-        trial!.Status.Should().Be("trial");
+        trial!.Status.Should().Be(SubscriptionStatus.Trial);
         trial.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(10));
 
         // Verify status reflects the trial
@@ -51,10 +57,10 @@ public class SubscriptionTests(CustomWebApplicationFactory factory)
 
         var status = await statusResponse.Content.ReadFromJsonAsync<SubscriptionStatusResponse>();
         status.Should().NotBeNull();
-        status!.Status.Should().Be("trial");
+        status!.Status.Should().Be(SubscriptionStatus.Trial);
 
         // Second trial activation should conflict
-        var conflictResponse = await client.PostAsync("/subscriptions/trial", null);
+        var conflictResponse = await client.PostAsync("/subscriptions/trial", trialRequest);
         conflictResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

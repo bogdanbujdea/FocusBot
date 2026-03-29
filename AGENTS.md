@@ -40,14 +40,18 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 
   `dotnet user-secrets set "Paddle:ClientToken" "<client-side-token>" --project src/FocusBot.WebAPI` (from Paddle Dashboard → Developer tools → Authentication; required for Paddle.js on `/billing`)
 
+- **Trial activation**: `POST /subscriptions/trial` accepts `{ "planType": 1 }` (CloudBYOK) or `{ "planType": 2 }` (CloudManaged). Server manages a 24-hour no-credit-card trial. **Remove the 1-day trial from Paddle Dashboard prices**.
+- **Subscription status**: Uses `SubscriptionStatus` enum (`None`, `Trial`, `Active`, `Expired`, `Canceled`). Serialized as camelCase strings in JSON responses (e.g., `"active"`, `"trial"`). `past_due` status maps to `Expired` (no access).
+- **Webhook idempotency**: All events are deduplicated by `event_id` via the `ProcessedWebhookEvent` table. Duplicate Paddle retries are safely ignored.
+- **Webhook security**: `PaddleWebhookVerifier` rejects all requests when `Paddle:WebhookSecret` is not configured or empty. No dev bypass.
 - **Webhook URL** (local tunnel or deployed): `POST {apiBase}/subscriptions/paddle-webhook` — must receive the **raw** body for signature verification.
 - **Realtime plan updates**: After webhook processing, the API emits **`PlanChanged`** on the same SignalR hub as focus sessions (`/hubs/focus`); desktop `FocusPageViewModel` and web clients can refresh subscription/plan state immediately.
-- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes). Legacy Windows Store pricing notes are under `pricing/archive/`.
+- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes), `docs/paddle-implementation-summary.md` (detailed implementation). Legacy Windows Store pricing notes are under `pricing/archive/`.
 
 ### Running tests
 
 - **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj`
-- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (62 tests, InMemory EF Core)
+- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (72 tests, includes comprehensive webhook idempotency, race condition, and security coverage)
 - **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (28 tests, WebApplicationFactory + InMemory DB)
 - **ViewModel tests**: `dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj`
 - **Infrastructure tests**: `dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj`

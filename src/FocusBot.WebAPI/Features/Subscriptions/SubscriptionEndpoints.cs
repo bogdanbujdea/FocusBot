@@ -2,8 +2,10 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using FocusBot.WebAPI;
+using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Pricing;
 using Microsoft.Extensions.Options;
+using JsonException = System.Text.Json.JsonException;
 
 namespace FocusBot.WebAPI.Features.Subscriptions;
 
@@ -12,6 +14,14 @@ namespace FocusBot.WebAPI.Features.Subscriptions;
 /// </summary>
 public static class SubscriptionEndpoints
 {
+    private static class PaddleWebhookEventTypes
+    {
+        public const string SubscriptionCreated = "subscription.created";
+        public const string SubscriptionUpdated = "subscription.updated";
+        public const string SubscriptionCanceled = "subscription.canceled";
+        public const string TransactionCompleted = "transaction.completed";
+    }
+
     public static void MapSubscriptionEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/subscriptions")
@@ -31,12 +41,16 @@ public static class SubscriptionEndpoints
         .WithSummary("Get current subscription status for the authenticated user");
 
         group.MapPost("/trial", async (
+            ActivateTrialRequest request,
             SubscriptionService service,
             HttpContext ctx,
             CancellationToken ct) =>
         {
+            if (request.PlanType is not (PlanType.CloudBYOK or PlanType.CloudManaged))
+                return Results.BadRequest(new { error = "Trial is only available for paid plans." });
+
             var userId = GetUserId(ctx);
-            var result = await service.ActivateTrialAsync(userId, ct);
+            var result = await service.ActivateTrialAsync(userId, request.PlanType, ct);
 
             return result is null
                 ? Results.Conflict(new { error = "Trial already activated or subscription exists." })
@@ -93,8 +107,55 @@ public static class SubscriptionEndpoints
         if (!string.IsNullOrEmpty(verifyMessage))
             log.LogInformation("{Message}", verifyMessage);
 
-        using var doc = JsonDocument.Parse(rawBody);
-        await service.HandlePaddleWebhookAsync(doc.RootElement, ct);
+        PaddleWebhookPayload? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<PaddleWebhookPayload>(rawBody);
+        }
+        catch (JsonException ex)
+        {
+            log.LogWarning(ex, "Failed to deserialize Paddle webhook envelope");
+            return Results.Ok();
+        }
+
+        if (envelope is null || string.IsNullOrEmpty(envelope.EventType))
+            return Results.Ok();
+
+        switch (envelope.EventType)
+        {
+            case PaddleWebhookEventTypes.SubscriptionCreated:
+                {
+                    var sub = envelope.Data.Deserialize<PaddleSubscription>();
+                    if (sub is not null)
+                        await service.HandleSubscriptionCreatedAsync(sub, envelope.EventId, envelope.OccurredAt, ct);
+                }
+                break;
+
+            case PaddleWebhookEventTypes.SubscriptionUpdated:
+                {
+                    var sub = envelope.Data.Deserialize<PaddleSubscription>();
+                    if (sub is not null)
+                        await service.HandleSubscriptionUpdatedAsync(sub, envelope.EventId, ct);
+                }
+                break;
+
+            case PaddleWebhookEventTypes.SubscriptionCanceled:
+                {
+                    var sub = envelope.Data.Deserialize<PaddleSubscription>();
+                    if (sub is not null)
+                        await service.HandleSubscriptionCanceledAsync(sub, envelope.EventId, ct);
+                }
+                break;
+
+            case PaddleWebhookEventTypes.TransactionCompleted:
+                {
+                    var txn = envelope.Data.Deserialize<PaddleTransaction>();
+                    if (txn is not null)
+                        await service.HandleTransactionCompletedAsync(txn, envelope.EventId, ct);
+                }
+                break;
+        }
+
         return Results.Ok();
     }
 

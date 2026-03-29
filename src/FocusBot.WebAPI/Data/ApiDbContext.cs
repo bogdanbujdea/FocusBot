@@ -13,6 +13,7 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
     public DbSet<ClassificationCache> ClassificationCaches => Set<ClassificationCache>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Client> Clients => Set<Client>();
+    public DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents => Set<ProcessedWebhookEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,7 +62,9 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.HasIndex(s => s.UserId).IsUnique();
             entity.Property(s => s.PaddleSubscriptionId).HasMaxLength(100);
             entity.Property(s => s.PaddleCustomerId).HasMaxLength(100);
-            entity.Property(s => s.Status).HasMaxLength(32);
+            entity.Property(s => s.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20);
             entity.Property(s => s.PaddlePriceId).HasMaxLength(100);
             entity.Property(s => s.PaddleProductId).HasMaxLength(100);
             entity.Property(s => s.PaddleTransactionId).HasMaxLength(100);
@@ -84,6 +87,13 @@ public class ApiDbContext(DbContextOptions<ApiDbContext> options) : DbContext(op
             entity.Property(c => c.AppVersion).HasMaxLength(50);
             entity.Property(c => c.Platform).HasMaxLength(500);
             entity.Property(c => c.IpAddress).HasMaxLength(45);
+        });
+
+        modelBuilder.Entity<ProcessedWebhookEvent>(entity =>
+        {
+            entity.HasKey(e => e.EventId);
+            entity.Property(e => e.EventId).HasMaxLength(100);
+            entity.Property(e => e.EventType).HasMaxLength(100);
         });
     }
 }

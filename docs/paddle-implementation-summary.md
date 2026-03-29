@@ -51,31 +51,34 @@ This document summarizes the complete Paddle Billing integration across all Foqu
 |--------|------|---------|
 | GET | `/pricing` | Proxies active prices for CatalogProductId; 10-min cache |
 | GET | `/subscriptions/status` | User's current plan and billing dates |
-| POST | `/subscriptions/trial` | Activates 24h trial |
+| POST | `/subscriptions/trial` | Activates 24h trial (accepts `{ "planType": 1 or 2 }` in body) |
 | POST | `/subscriptions/portal` | Creates Paddle customer portal session URL |
 | POST | `/subscriptions/paddle-webhook` | Webhook receiver with signature verification |
 
 #### Webhook Processing (`SubscriptionService.cs` + `PaddleWebhookModels.cs`)
 
-**Strongly-typed C# models** for Paddle payloads:
+**Strongly-typed C# models** for Paddle payloads (no `JsonElement` in service layer):
 - `PaddleWebhookPayload` — envelope
 - `PaddleSubscription`, `PaddleTransaction` — event data
 - `PaddlePrice`, `PaddleCustomData`, `PaddlePayment`, `PaddleCardDetails`, etc.
 
-**Events handled:**
-- `subscription.created` — Creates/updates subscription with status mapping
-- `subscription.updated` — Updates plan, status, dates
-- `subscription.canceled` — Marks canceled, records cancellation date/reason
-- `transaction.completed` — Records transaction id, billing period, payment method
+**Idempotency** (`ProcessedWebhookEvent` table):
+Every webhook event is checked by `event_id` before processing. If already processed, the handler returns early without re-processing. After successful handling, the event_id is recorded. This prevents duplicate subscription creation on Paddle retries.
 
-**Status mapping:**
+**Events handled:**
+- `subscription.created` — Creates/updates subscription with status mapping, requires plan type resolution, skips if unresolvable
+- `subscription.updated` — Updates plan, status, dates
+- `subscription.canceled` — Marks canceled, records `CanceledAt` timestamp and reason
+- `transaction.completed` — Records transaction id, billing period, payment method; creates subscription row if race condition (arrived before `subscription.created`)
+
+**Status mapping** (using `SubscriptionStatus` enum):
 ```
-Paddle           → App
-"trialing"       → "trial"
-"active"         → "active"
-"past_due"       → "active"
-"paused"         → "expired"
-"canceled"       → "canceled"
+Paddle           → App (SubscriptionStatus enum)
+"trialing"       → Trial
+"active"         → Active
+"past_due"       → Expired (with warning log)
+"paused"         → Expired
+"canceled"       → Canceled
 ```
 
 **Plan type mapping:**
@@ -90,10 +93,26 @@ Paddle           → App
 - After DB updates, emits `PlanChanged` event to `/hubs/focus`
 - Desktop and web clients refresh immediately
 
+**Plan type mapping:**
+- Reads `custom_data.plan_type`: `"cloud-byok"` → `CloudBYOK`, `"cloud-managed"` → `CloudManaged`
+- Fallback: `custom_data.license`: `"byok"` → `CloudBYOK`, `"premium"` → `CloudManaged`
+- **If unresolvable:** logs error and skips (no default `CloudBYOK` fallback)
+
+**Payment details:**
+- Extracts from `method_details.card.last4` (nested path)
+- Populates `PaymentMethodType` (e.g. `"card"`) and `CardLastFour`
+
+**SignalR notification:**
+- After DB updates, emits `PlanChanged` event to `/hubs/focus`
+- Desktop and web clients refresh immediately
+
+**Security:**
+- `PaddleWebhookVerifier` rejects all requests when `Paddle:WebhookSecret` is not configured (no dev bypass)
+
 #### Database (`Subscription` entity)
 
 **Core fields:**
-- `UserId`, `Status`, `PlanType`, `TrialEndsAtUtc`
+- `UserId`, `Status` (enum: `None`, `Trial`, `Active`, `Expired`, `Canceled`), `PlanType`, `TrialEndsAtUtc`
 
 **Paddle identifiers:**
 - `PaddleSubscriptionId`, `PaddleCustomerId`, `PaddlePriceId`, `PaddleProductId`, `PaddleTransactionId`
@@ -233,7 +252,7 @@ Two recurring prices (monthly billing):
 | Foqus BYOK | $1.99 | month | `{ "plan_type": "cloud-byok" }` |
 | Foqus Premium | $4.99 | month | `{ "plan_type": "cloud-managed" }` |
 
-**Trial period** (optional): 1 day, requires payment method.
+**Trial period** (optional): Removed from Paddle Dashboard prices. Server manages a 24-hour no-credit-card trial via `POST /subscriptions/trial`.
 
 ### Webhooks (Notifications)
 Destination URL: `https://<your-domain>/subscriptions/paddle-webhook`
@@ -292,7 +311,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
    SELECT "UserId", "Status", "PlanType", "PaddleSubscriptionId", "CardLastFour"
    FROM "Subscriptions";
    ```
-   Should show `Status = "trial"`, `PlanType = 1` (CloudBYOK), `CardLastFour = "4242"`
+   Should show `Status = Trial` (enum), `PlanType = 1` (CloudBYOK), `CardLastFour = "4242"`
 
 8. **Refresh billing page** — should show "Trial" badge, trial end date
 
@@ -308,7 +327,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
   "event_type": "subscription.created",
   "data": {
     "id": "sub_...",
-    "status": "trialing",  // ✅ Now mapped to "trial"
+    "status": "trialing",  // ✅ Now mapped to Trial (enum)
     "customer_id": "ctm_...",
     "custom_data": {
       "user_id": "a44677aa-...",
@@ -328,7 +347,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
 }
 ```
 
-**Result:** Subscription row created with `Status = "trial"`, `PlanType = CloudBYOK`, all enrichment fields populated.
+**Result:** Subscription row created with `Status = Trial` (enum), `PlanType = CloudBYOK`, all enrichment fields populated. Event is recorded by `event_id` for idempotency.
 
 ### transaction.completed
 ```json
@@ -405,7 +424,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
 
 ## Test Results
 
-✅ **FocusBot.WebAPI.Tests**: 62 tests passed  
+✅ **FocusBot.WebAPI.Tests**: 72 tests passed (includes 10+ new webhook tests covering idempotency, race conditions, plan type resolution, past_due mapping, and webhook secret rejection)
 ✅ **FocusBot.WebAPI.IntegrationTests**: 28 tests passed  
 ✅ **FocusBot.App.ViewModels.Tests**: 35 tests passed  
 ✅ **FocusBot.Core.Tests**: 25 tests passed  
@@ -442,11 +461,17 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
 
 1. **Web app is checkout hub** — Desktop and extension redirect, no embedded checkout
 2. **Paddle.js overlay** — No separate checkout pages, inline overlay UX
-3. **Strongly-typed models** — Replaced manual JSON parsing with C# classes
-4. **Status mapping** — `"trialing"` → `"trial"` for app convention consistency
-5. **Product filtering** — `/pricing` only returns prices for `CatalogProductId` (no cross-product pollution)
-6. **License fallback** — Supports both `plan_type` and `license` in custom data for flexibility
-7. **Enriched subscription table** — Single-query troubleshooting view (no Paddle API calls for support)
+3. **Strongly-typed models + no JsonElement in service layer** — Replaced manual JSON parsing with C# classes
+4. **Status as SubscriptionStatus enum** — Strongly-typed (`None`, `Trial`, `Active`, `Expired`, `Canceled`), serialized as camelCase strings for frontend compatibility
+5. **past_due → Expired** — Inactive payment means no access
+6. **Webhook idempotency via ProcessedWebhookEvent** — Prevents duplicate subscription creation on Paddle retries
+7. **Transaction.completed race condition handling** — Can create subscription if arrived before subscription.created
+8. **Plan type resolution failure** — Logs error and skips (no default `CloudBYOK` fallback)
+9. **Trial activation accepts PlanType** — Server manages 24h trial without Paddle trial (Paddle trial removed from Dashboard)
+10. **Webhook secret rejection** — No dev bypass; empty secret = request denied with error log
+11. **Product filtering** — `/pricing` only returns prices for `CatalogProductId` (no cross-product pollution)
+12. **License fallback** — Supports both `plan_type` and `license` in custom data for flexibility
+13. **Enriched subscription table** — Single-query troubleshooting view (no Paddle API calls for support)
 
 ---
 

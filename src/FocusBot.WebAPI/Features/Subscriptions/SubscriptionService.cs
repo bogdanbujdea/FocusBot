@@ -32,7 +32,7 @@ public class SubscriptionService(
             .FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (subscription is null)
-            return new SubscriptionStatusResponse("none", PlanType.FreeBYOK, null, null, null);
+            return new SubscriptionStatusResponse(SubscriptionStatus.None, PlanType.FreeBYOK, null, null, null);
 
         return new SubscriptionStatusResponse(
             subscription.Status,
@@ -43,11 +43,12 @@ public class SubscriptionService(
     }
 
     /// <summary>
-    /// Activates a 24-hour trial for a user. Returns null if the user already has a subscription record
+    /// Activates a 24-hour trial for a user with the specified plan type. Returns null if the user already has a subscription record
     /// (trial already used or subscription exists).
     /// </summary>
     public async Task<ActivateTrialResponse?> ActivateTrialAsync(
         Guid userId,
+        PlanType planType,
         CancellationToken ct = default
     )
     {
@@ -60,7 +61,8 @@ public class SubscriptionService(
         var subscription = new Subscription
         {
             UserId = userId,
-            Status = "trial",
+            Status = SubscriptionStatus.Trial,
+            PlanType = planType,
             TrialEndsAtUtc = trialEnd,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow,
@@ -69,7 +71,7 @@ public class SubscriptionService(
         db.Subscriptions.Add(subscription);
         await db.SaveChangesAsync(ct);
 
-        return new ActivateTrialResponse("trial", trialEnd);
+        return new ActivateTrialResponse(SubscriptionStatus.Trial, trialEnd);
     }
 
     /// <summary>
@@ -89,8 +91,8 @@ public class SubscriptionService(
 
         return subscription.Status switch
         {
-            "active" => true,
-            "trial" => subscription.TrialEndsAtUtc > DateTime.UtcNow,
+            SubscriptionStatus.Active => true,
+            SubscriptionStatus.Trial => subscription.TrialEndsAtUtc > DateTime.UtcNow,
             _ => false,
         };
     }
@@ -114,155 +116,178 @@ public class SubscriptionService(
     }
 
     /// <summary>
-    /// Processes verified Paddle webhook events.
+    /// Processes a subscription.created webhook event.
     /// </summary>
-    public async Task HandlePaddleWebhookAsync(JsonElement payload, CancellationToken ct = default)
+    public async Task HandleSubscriptionCreatedAsync(
+        PaddleSubscription sub,
+        string eventId,
+        DateTime? occurredAt,
+        CancellationToken ct = default)
     {
-        PaddleWebhookPayload? envelope;
-        try
-        {
-            envelope = JsonSerializer.Deserialize<PaddleWebhookPayload>(payload.GetRawText());
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Failed to deserialize Paddle webhook envelope");
-            return;
-        }
-
-        if (envelope?.EventType is null || envelope.Data is null)
-            return;
-
-        switch (envelope.EventType)
-        {
-            case "subscription.created":
-            case "subscription.updated":
-            case "subscription.canceled":
-                await HandleSubscriptionEvent(envelope, ct);
-                break;
-            case "transaction.completed":
-                await HandleTransactionCompleted(envelope, ct);
-                break;
-        }
-    }
-
-    private async Task HandleSubscriptionEvent(PaddleWebhookPayload envelope, CancellationToken ct)
-    {
-        PaddleSubscription? sub;
-        try
-        {
-            var dataJson = JsonSerializer.Serialize(envelope.Data);
-            sub = JsonSerializer.Deserialize<PaddleSubscription>(dataJson);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Failed to deserialize Paddle subscription data");
-            return;
-        }
+        logger.LogInformation("Processing Paddle subscription.created event {EventId}", eventId);
 
         if (sub?.Id is null)
             return;
 
-        var eventType = envelope.EventType;
-
-        if (eventType == "subscription.created")
+        if (await IsEventAlreadyProcessed(eventId, ct))
         {
-            if (!TryResolveUserId(sub.CustomData, out var userId))
-                return;
-
-            var mappedPlan = MapPlanType(sub.CustomData, sub.Items);
-            var mappedStatus = MapSubscriptionStatus(sub.Status);
-
-            var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
-
-            if (existing is not null)
-            {
-                existing.PaddleSubscriptionId = sub.Id;
-                existing.PaddleCustomerId = sub.CustomerId;
-                existing.Status = mappedStatus;
-                if (mappedPlan.HasValue)
-                    existing.PlanType = mappedPlan.Value;
-                existing.UpdatedAtUtc = DateTime.UtcNow;
-                ApplySubscriptionEnrichment(existing, sub);
-            }
-            else
-            {
-                var planType = mappedPlan ?? PlanType.CloudBYOK;
-                var created = new Subscription
-                {
-                    UserId = userId,
-                    PaddleSubscriptionId = sub.Id,
-                    PaddleCustomerId = sub.CustomerId,
-                    Status = mappedStatus,
-                    PlanType = planType,
-                    CreatedAtUtc = DateTime.UtcNow,
-                    UpdatedAtUtc = DateTime.UtcNow,
-                };
-                ApplySubscriptionEnrichment(created, sub);
-                db.Subscriptions.Add(created);
-            }
-
-            await db.SaveChangesAsync(ct);
-            await NotifyPlanChangedAsync(userId, ct);
-        }
-        else if (eventType == "subscription.updated")
-        {
-            var subscription = await db.Subscriptions.FirstOrDefaultAsync(
-                s => s.PaddleSubscriptionId == sub.Id,
-                ct);
-
-            if (subscription is null)
-                return;
-
-            subscription.Status = MapSubscriptionStatus(sub.Status);
-
-            var mapped = MapPlanType(sub.CustomData, sub.Items);
-            if (mapped.HasValue)
-                subscription.PlanType = mapped.Value;
-
-            ApplySubscriptionEnrichment(subscription, sub);
-            subscription.UpdatedAtUtc = DateTime.UtcNow;
-            await db.SaveChangesAsync(ct);
-            await NotifyPlanChangedAsync(subscription.UserId, ct);
-        }
-        else if (eventType == "subscription.canceled")
-        {
-            var subscription = await db.Subscriptions.FirstOrDefaultAsync(
-                s => s.PaddleSubscriptionId == sub.Id,
-                ct);
-
-            if (subscription is null)
-                return;
-
-            subscription.Status = "canceled";
-            subscription.UpdatedAtUtc = DateTime.UtcNow;
-
-            if (envelope.OccurredAt.HasValue)
-                subscription.CancelledAtUtc = envelope.OccurredAt.Value.ToUniversalTime();
-
-            if (sub.ScheduledChange?.Action is not null)
-                subscription.CancellationReason = sub.ScheduledChange.Action;
-
-            await db.SaveChangesAsync(ct);
-            await NotifyPlanChangedAsync(subscription.UserId, ct);
-        }
-    }
-
-    private async Task HandleTransactionCompleted(PaddleWebhookPayload envelope, CancellationToken ct)
-    {
-        PaddleTransaction? txn;
-        try
-        {
-            var dataJson = JsonSerializer.Serialize(envelope.Data);
-            txn = JsonSerializer.Deserialize<PaddleTransaction>(dataJson);
-        }
-        catch (JsonException ex)
-        {
-            logger.LogWarning(ex, "Failed to deserialize Paddle transaction data");
+            logger.LogDebug("Event {EventId} already processed; skipping", eventId);
             return;
         }
+
+        if (!TryResolveUserId(sub.CustomData, out var userId))
+        {
+            logger.LogError("subscription.created event {EventId}: Failed to resolve user_id from custom_data", eventId);
+            await RecordProcessedEvent(eventId, "subscription.created", ct);
+            return;
+        }
+
+        var mappedPlan = MapPlanType(sub.CustomData, sub.Items);
+        if (!mappedPlan.HasValue)
+        {
+            logger.LogError("subscription.created event {EventId}: Failed to resolve plan_type for subscription {SubId}", eventId, sub.Id);
+            await RecordProcessedEvent(eventId, "subscription.created", ct);
+            return;
+        }
+
+        var mappedStatus = MapSubscriptionStatus(sub.Status);
+
+        var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+
+        if (existing is not null)
+        {
+            existing.PaddleSubscriptionId = sub.Id;
+            existing.PaddleCustomerId = sub.CustomerId;
+            existing.Status = mappedStatus;
+            existing.PlanType = mappedPlan.Value;
+            existing.UpdatedAtUtc = DateTime.UtcNow;
+            ApplySubscriptionEnrichment(existing, sub);
+        }
+        else
+        {
+            var created = new Subscription
+            {
+                UserId = userId,
+                PaddleSubscriptionId = sub.Id,
+                PaddleCustomerId = sub.CustomerId,
+                Status = mappedStatus,
+                PlanType = mappedPlan.Value,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow,
+            };
+            ApplySubscriptionEnrichment(created, sub);
+            db.Subscriptions.Add(created);
+        }
+
+        await db.SaveChangesAsync(ct);
+        await RecordProcessedEvent(eventId, "subscription.created", ct);
+        logger.LogInformation("Completed Paddle event {EventId}", eventId);
+        await NotifyPlanChangedAsync(userId, ct);
+    }
+
+    /// <summary>
+    /// Processes a subscription.updated webhook event.
+    /// </summary>
+    public async Task HandleSubscriptionUpdatedAsync(
+        PaddleSubscription sub,
+        string eventId,
+        CancellationToken ct = default)
+    {
+        logger.LogInformation("Processing Paddle subscription.updated event {EventId}", eventId);
+
+        if (sub?.Id is null)
+            return;
+
+        if (await IsEventAlreadyProcessed(eventId, ct))
+        {
+            logger.LogDebug("Event {EventId} already processed; skipping", eventId);
+            return;
+        }
+
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == sub.Id,
+            ct);
+
+        if (subscription is null)
+        {
+            await RecordProcessedEvent(eventId, "subscription.updated", ct);
+            return;
+        }
+
+        subscription.Status = MapSubscriptionStatus(sub.Status);
+
+        var mapped = MapPlanType(sub.CustomData, sub.Items);
+        if (mapped.HasValue)
+            subscription.PlanType = mapped.Value;
+
+        ApplySubscriptionEnrichment(subscription, sub);
+        subscription.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await RecordProcessedEvent(eventId, "subscription.updated", ct);
+        logger.LogInformation("Completed Paddle event {EventId}", eventId);
+        await NotifyPlanChangedAsync(subscription.UserId, ct);
+    }
+
+    /// <summary>
+    /// Processes a subscription.canceled webhook event.
+    /// </summary>
+    public async Task HandleSubscriptionCanceledAsync(
+        PaddleSubscription sub,
+        string eventId,
+        CancellationToken ct = default)
+    {
+        logger.LogInformation("Processing Paddle subscription.canceled event {EventId}", eventId);
+
+        if (sub?.Id is null)
+            return;
+
+        if (await IsEventAlreadyProcessed(eventId, ct))
+        {
+            logger.LogDebug("Event {EventId} already processed; skipping", eventId);
+            return;
+        }
+
+        var subscription = await db.Subscriptions.FirstOrDefaultAsync(
+            s => s.PaddleSubscriptionId == sub.Id,
+            ct);
+
+        if (subscription is null)
+        {
+            await RecordProcessedEvent(eventId, "subscription.canceled", ct);
+            return;
+        }
+
+        subscription.Status = SubscriptionStatus.Canceled;
+        subscription.UpdatedAtUtc = DateTime.UtcNow;
+        subscription.CancelledAtUtc = sub.CanceledAt?.ToUniversalTime();
+
+        if (sub.ScheduledChange?.Action is not null)
+            subscription.CancellationReason = sub.ScheduledChange.Action;
+
+        await db.SaveChangesAsync(ct);
+        await RecordProcessedEvent(eventId, "subscription.canceled", ct);
+        logger.LogInformation("Completed Paddle event {EventId}", eventId);
+        await NotifyPlanChangedAsync(subscription.UserId, ct);
+    }
+
+    /// <summary>
+    /// Processes a transaction.completed webhook event.
+    /// </summary>
+    public async Task HandleTransactionCompletedAsync(
+        PaddleTransaction txn,
+        string eventId,
+        CancellationToken ct = default)
+    {
+        logger.LogInformation("Processing Paddle transaction.completed event {EventId}", eventId);
 
         if (txn?.SubscriptionId is null)
             return;
+
+        if (await IsEventAlreadyProcessed(eventId, ct))
+        {
+            logger.LogDebug("Event {EventId} already processed; skipping", eventId);
+            return;
+        }
 
         var subscription = await db.Subscriptions.FirstOrDefaultAsync(
             s => s.PaddleSubscriptionId == txn.SubscriptionId,
@@ -270,10 +295,27 @@ public class SubscriptionService(
 
         if (subscription is null)
         {
-            logger.LogInformation(
-                "Transaction {TxnId} references subscription {SubId} not yet in DB; likely race with subscription.created",
-                txn.Id, txn.SubscriptionId);
-            return;
+            var userId = ResolveUserIdFromTransaction(txn);
+            if (userId is null)
+            {
+                logger.LogError("transaction.completed event {EventId}: no subscription row found for {SubId} and no user_id in custom_data", eventId, txn.SubscriptionId);
+                await RecordProcessedEvent(eventId, "transaction.completed", ct);
+                return;
+            }
+
+            logger.LogWarning("transaction.completed event {EventId}: arrived before subscription.created for {SubId}; creating row from transaction data", eventId, txn.SubscriptionId);
+
+            subscription = new Subscription
+            {
+                UserId = userId.Value,
+                PaddleSubscriptionId = txn.SubscriptionId,
+                PaddleCustomerId = txn.CustomerId,
+                Status = SubscriptionStatus.Active,
+                PlanType = PlanType.CloudBYOK,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow,
+            };
+            db.Subscriptions.Add(subscription);
         }
 
         if (!string.IsNullOrEmpty(txn.Id))
@@ -285,6 +327,8 @@ public class SubscriptionService(
         ApplyPaymentDetails(subscription, txn.Payments);
         subscription.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await RecordProcessedEvent(eventId, "transaction.completed", ct);
+        logger.LogInformation("Completed Paddle event {EventId}", eventId);
         await NotifyPlanChangedAsync(subscription.UserId, ct);
     }
 
@@ -312,16 +356,16 @@ public class SubscriptionService(
         return Guid.TryParse(customData.UserId, out userId);
     }
 
-    private static string MapSubscriptionStatus(string? paddleStatus)
+    private static SubscriptionStatus MapSubscriptionStatus(string? paddleStatus)
     {
         return paddleStatus switch
         {
-            "active" => "active",
-            "trialing" => "trial",
-            "past_due" => "active",
-            "paused" => "expired",
-            "canceled" => "canceled",
-            _ => paddleStatus ?? "none",
+            "active" => SubscriptionStatus.Active,
+            "trialing" => SubscriptionStatus.Trial,
+            "past_due" => SubscriptionStatus.Expired,
+            "paused" => SubscriptionStatus.Expired,
+            "canceled" => SubscriptionStatus.Canceled,
+            _ => SubscriptionStatus.None,
         };
     }
 
@@ -404,5 +448,32 @@ public class SubscriptionService(
         {
             logger.LogWarning(ex, "Failed to push PlanChanged for user {UserId}", userId);
         }
+    }
+
+    private async Task<bool> IsEventAlreadyProcessed(string eventId, CancellationToken ct)
+    {
+        return await db.ProcessedWebhookEvents.AnyAsync(e => e.EventId == eventId, ct);
+    }
+
+    private async Task RecordProcessedEvent(string eventId, string eventType, CancellationToken ct)
+    {
+        db.ProcessedWebhookEvents.Add(new ProcessedWebhookEvent
+        {
+            EventId = eventId,
+            EventType = eventType,
+            ProcessedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static Guid? ResolveUserIdFromTransaction(PaddleTransaction txn)
+    {
+        if (txn.CustomData?.UserId is null)
+            return null;
+
+        if (Guid.TryParse(txn.CustomData.UserId, out var userId))
+            return userId;
+
+        return null;
     }
 }

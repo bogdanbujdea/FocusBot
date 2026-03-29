@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace FocusBot.WebAPI.Data.Entities;
 
 /// <summary>
@@ -10,8 +13,8 @@ public class Subscription
     public string? PaddleSubscriptionId { get; set; }
     public string? PaddleCustomerId { get; set; }
 
-    /// <summary>Billing/trial lifecycle status: none, trial, active, expired, canceled.</summary>
-    public string Status { get; set; } = "none";
+    /// <summary>Billing/trial lifecycle status: None, Trial, Active, Expired, Canceled.</summary>
+    public SubscriptionStatus Status { get; set; } = SubscriptionStatus.None;
 
     /// <summary>The subscription tier the user is on.</summary>
     public PlanType PlanType { get; set; } = PlanType.FreeBYOK;
@@ -42,4 +45,32 @@ public enum PlanType
     FreeBYOK = 0,
     CloudBYOK = 1,
     CloudManaged = 2,
+}
+
+/// <summary>Subscription lifecycle status.</summary>
+[JsonConverter(typeof(CamelCaseEnumConverter<SubscriptionStatus>))]
+public enum SubscriptionStatus
+{
+    None,
+    Trial,
+    Active,
+    Expired,
+    Canceled,
+}
+
+/// <summary>Custom JSON converter for enums that serializes as camelCase strings.</summary>
+public sealed class CamelCaseEnumConverter<T> : JsonStringEnumConverter<T>
+    where T : struct, Enum
+{
+    public CamelCaseEnumConverter() : base(JsonNamingPolicy.CamelCase)
+    {
+    }
+}
+
+/// <summary>Tracks processed webhook events for idempotency.</summary>
+public class ProcessedWebhookEvent
+{
+    public string EventId { get; set; } = "";
+    public string EventType { get; set; } = "";
+    public DateTime ProcessedAtUtc { get; set; }
 }

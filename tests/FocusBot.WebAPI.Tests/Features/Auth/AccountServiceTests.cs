@@ -23,7 +23,7 @@ public class AccountServiceTests
 
         db.Users.Add(new User { Id = userId, Email = "test@foqus.me" });
         db.Sessions.Add(new Session { UserId = userId, SessionTitle = "Test session" });
-        db.Subscriptions.Add(new Subscription { UserId = userId, Status = "active" });
+        db.Subscriptions.Add(new Subscription { UserId = userId, Status = SubscriptionStatus.Active });
         db.Clients.Add(new Client
         {
             UserId = userId, Name = "Desktop", Fingerprint = "fp",

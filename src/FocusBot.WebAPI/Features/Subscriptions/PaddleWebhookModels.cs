@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FocusBot.WebAPI.Features.Subscriptions;
@@ -20,7 +21,7 @@ public sealed class PaddleWebhookPayload
     public string? NotificationId { get; set; }
 
     [JsonPropertyName("data")]
-    public object? Data { get; set; }
+    public JsonElement Data { get; set; }
 }
 
 /// <summary>

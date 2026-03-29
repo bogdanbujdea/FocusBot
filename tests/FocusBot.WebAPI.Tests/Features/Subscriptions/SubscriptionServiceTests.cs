@@ -45,12 +45,15 @@ public class SubscriptionServiceTests
         var service = CreateService(db);
         var userId = Guid.NewGuid();
 
-        var result = await service.ActivateTrialAsync(userId);
+        var result = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
 
         result.Should().NotBeNull();
-        result!.Status.Should().Be("trial");
+        result!.Status.Should().Be(SubscriptionStatus.Trial);
         result.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
         (await db.Subscriptions.CountAsync()).Should().Be(1);
+
+        var row = await db.Subscriptions.SingleAsync();
+        row.PlanType.Should().Be(PlanType.CloudBYOK);
     }
 
     [Fact]
@@ -61,13 +64,13 @@ public class SubscriptionServiceTests
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
-            Status = "trial",
+            Status = SubscriptionStatus.Trial,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(24)
         });
         await db.SaveChangesAsync();
 
         var service = CreateService(db);
-        var result = await service.ActivateTrialAsync(userId);
+        var result = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
 
         result.Should().BeNull();
         (await db.Subscriptions.CountAsync()).Should().Be(1);
@@ -81,7 +84,7 @@ public class SubscriptionServiceTests
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
-            Status = "active",
+            Status = SubscriptionStatus.Active,
             PaddleSubscriptionId = "sub_123"
         });
         await db.SaveChangesAsync();
@@ -100,7 +103,7 @@ public class SubscriptionServiceTests
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
-            Status = "trial",
+            Status = SubscriptionStatus.Trial,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(12)
         });
         await db.SaveChangesAsync();
@@ -119,7 +122,7 @@ public class SubscriptionServiceTests
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
-            Status = "trial",
+            Status = SubscriptionStatus.Trial,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(-1)
         });
         await db.SaveChangesAsync();
@@ -131,40 +134,40 @@ public class SubscriptionServiceTests
     }
 
     [Fact]
-    public async Task HandlePaddleWebhookAsync_SubscriptionCreated_SetsPlanTypeAndEnrichment()
+    public async Task HandleSubscriptionCreatedAsync_SetsPlanTypeAndEnrichment()
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var service = CreateService(db);
 
-        var json = $$"""
+        var sub = new PaddleSubscription
         {
-          "event_type": "subscription.created",
-          "data": {
-            "id": "sub_test_1",
-            "status": "active",
-            "customer_id": "ctm_test",
-            "custom_data": { "user_id": "{{userId}}", "plan_type": "cloud-managed" },
-            "items": [{
-              "price": {
-                "id": "pri_1",
-                "product_id": "pro_1",
-                "unit_price": { "amount": "499", "currency_code": "USD" },
-                "billing_cycle": { "interval": "month", "frequency": 1 },
-                "custom_data": { "plan_type": "cloud-managed" }
-              }
-            }],
-            "current_billing_period": { "ends_at": "2030-01-01T00:00:00Z" },
-            "next_billed_at": "2030-01-01T00:00:00Z"
-          }
-        }
-        """;
+            Id = "sub_test_1",
+            Status = "active",
+            CustomerId = "ctm_test",
+            CustomData = new PaddleCustomData { UserId = userId.ToString(), PlanType = "cloud-managed" },
+            Items = new List<PaddleSubscriptionItem>
+            {
+                new PaddleSubscriptionItem
+                {
+                    Price = new PaddlePrice
+                    {
+                        Id = "pri_1",
+                        ProductId = "pro_1",
+                        UnitPrice = new PaddleUnitPrice { Amount = "499", CurrencyCode = "USD" },
+                        BillingCycle = new PaddleBillingCycle { Interval = "month", Frequency = 1 },
+                        CustomData = new PaddlePriceCustomData { PlanType = "cloud-managed" }
+                    }
+                }
+            },
+            CurrentBillingPeriod = new PaddleBillingPeriod { EndsAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            NextBilledAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
 
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        await service.HandlePaddleWebhookAsync(doc.RootElement);
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_test_1", DateTime.UtcNow);
 
         var row = await db.Subscriptions.SingleAsync(s => s.UserId == userId);
-        row.Status.Should().Be("active");
+        row.Status.Should().Be(SubscriptionStatus.Active);
         row.PlanType.Should().Be(PlanType.CloudManaged);
         row.PaddleSubscriptionId.Should().Be("sub_test_1");
         row.PaddleCustomerId.Should().Be("ctm_test");
@@ -186,7 +189,7 @@ public class SubscriptionServiceTests
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
-            Status = "active",
+            Status = SubscriptionStatus.Active,
             PlanType = PlanType.CloudBYOK,
             NextBilledAtUtc = next,
             PaddleSubscriptionId = "sub_x"
@@ -197,5 +200,230 @@ public class SubscriptionServiceTests
         var status = await service.GetStatusAsync(userId);
 
         status.NextBilledAtUtc.Should().Be(next);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCreatedAsync_IsIdempotent()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        var sub = BuildTestSubscription(userId, "sub_idempotent_1", "cloud-byok");
+
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_idempotent_1", DateTime.UtcNow);
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_idempotent_1", DateTime.UtcNow);
+
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
+        (await db.Set<ProcessedWebhookEvent>().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCreatedAsync_UpgradesTrialToActive()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            Status = SubscriptionStatus.Trial,
+            PlanType = PlanType.FreeBYOK,
+            TrialEndsAtUtc = DateTime.UtcNow.AddHours(12)
+        });
+        await db.SaveChangesAsync();
+
+        var sub = BuildTestSubscription(userId, "sub_upgrade_1", "cloud-managed");
+
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_upgrade_1", DateTime.UtcNow);
+
+        var row = await db.Subscriptions.SingleAsync(s => s.UserId == userId);
+        row.Status.Should().Be(SubscriptionStatus.Active);
+        row.PlanType.Should().Be(PlanType.CloudManaged);
+        row.PaddleSubscriptionId.Should().Be("sub_upgrade_1");
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCreatedAsync_SkipsWhenPlanTypeUnresolvable()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        var sub = new PaddleSubscription
+        {
+            Id = "sub_no_plan",
+            Status = "active",
+            CustomerId = "ctm_test",
+            CustomData = new PaddleCustomData { UserId = userId.ToString() },
+            Items = new List<PaddleSubscriptionItem>()
+        };
+
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_no_plan", DateTime.UtcNow);
+
+        (await db.Subscriptions.CountAsync()).Should().Be(0);
+        (await db.ProcessedWebhookEvents.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCanceledAsync_SetsCanceledStatusAndTimestamp()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            PaddleSubscriptionId = "sub_cancel_1",
+            Status = SubscriptionStatus.Active,
+            PlanType = PlanType.CloudBYOK
+        });
+        await db.SaveChangesAsync();
+
+        var canceledAt = DateTime.UtcNow.AddHours(-1);
+        var sub = new PaddleSubscription
+        {
+            Id = "sub_cancel_1",
+            Status = "canceled",
+            CustomerId = "ctm_test",
+            CanceledAt = canceledAt,
+            ScheduledChange = new PaddleScheduledChange { Action = "cancel" }
+        };
+
+        await service.HandleSubscriptionCanceledAsync(sub, "evt_cancel_1");
+
+        var row = await db.Subscriptions.SingleAsync(s => s.UserId == userId);
+        row.Status.Should().Be(SubscriptionStatus.Canceled);
+        row.CancelledAtUtc.Should().Be(canceledAt.ToUniversalTime());
+        row.CancellationReason.Should().Be("cancel");
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCanceledAsync_IsIdempotent()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        db.Subscriptions.Add(new Subscription
+        {
+            UserId = userId,
+            PaddleSubscriptionId = "sub_cancel_idempotent",
+            Status = SubscriptionStatus.Active
+        });
+        await db.SaveChangesAsync();
+
+        var sub = new PaddleSubscription
+        {
+            Id = "sub_cancel_idempotent",
+            Status = "canceled",
+            CanceledAt = DateTime.UtcNow
+        };
+
+        await service.HandleSubscriptionCanceledAsync(sub, "evt_cancel_idempotent");
+        await service.HandleSubscriptionCanceledAsync(sub, "evt_cancel_idempotent");
+
+        (await db.ProcessedWebhookEvents.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task MapSubscriptionStatus_PastDueMapToExpired()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        var sub = new PaddleSubscription
+        {
+            Id = "sub_past_due",
+            Status = "past_due",
+            CustomerId = "ctm_test",
+            CustomData = new PaddleCustomData { UserId = userId.ToString(), PlanType = "cloud-byok" },
+            Items = new List<PaddleSubscriptionItem>
+            {
+                new PaddleSubscriptionItem
+                {
+                    Price = new PaddlePrice
+                    {
+                        Id = "pri_1",
+                        ProductId = "pro_1",
+                        UnitPrice = new PaddleUnitPrice { Amount = "199", CurrencyCode = "USD" },
+                        BillingCycle = new PaddleBillingCycle { Interval = "month", Frequency = 1 }
+                    }
+                }
+            }
+        };
+
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_past_due", DateTime.UtcNow);
+
+        var row = await db.Subscriptions.SingleAsync(s => s.UserId == userId);
+        row.Status.Should().Be(SubscriptionStatus.Expired);
+    }
+
+    [Fact]
+    public async Task ActivateTrialAsync_WithDifferentPlanTypes()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = CreateService(db);
+
+        var userId1 = Guid.NewGuid();
+        var userId2 = Guid.NewGuid();
+
+        var result1 = await service.ActivateTrialAsync(userId1, PlanType.CloudBYOK);
+        var result2 = await service.ActivateTrialAsync(userId2, PlanType.CloudManaged);
+
+        result1.Should().NotBeNull();
+        result2.Should().NotBeNull();
+
+        var row1 = await db.Subscriptions.SingleAsync(s => s.UserId == userId1);
+        var row2 = await db.Subscriptions.SingleAsync(s => s.UserId == userId2);
+
+        row1.PlanType.Should().Be(PlanType.CloudBYOK);
+        row2.PlanType.Should().Be(PlanType.CloudManaged);
+    }
+
+    [Fact]
+    public void PaddleWebhookVerifier_ReturnsFalse_WhenWebhookSecretIsEmpty()
+    {
+        var ok = PaddleWebhookVerifier.TryVerify("{}", null, "", out var err);
+        ok.Should().BeFalse();
+        err.Should().Contain("not configured");
+    }
+
+    [Fact]
+    public void PaddleWebhookVerifier_ReturnsFalse_WhenWebhookSecretIsNull()
+    {
+        var ok = PaddleWebhookVerifier.TryVerify("{}", null, null, out var err);
+        ok.Should().BeFalse();
+        err.Should().Contain("not configured");
+    }
+
+    private static PaddleSubscription BuildTestSubscription(Guid userId, string subscriptionId, string planType)
+    {
+        return new PaddleSubscription
+        {
+            Id = subscriptionId,
+            Status = "active",
+            CustomerId = "ctm_test",
+            CustomData = new PaddleCustomData { UserId = userId.ToString(), PlanType = planType },
+            Items = new List<PaddleSubscriptionItem>
+            {
+                new PaddleSubscriptionItem
+                {
+                    Price = new PaddlePrice
+                    {
+                        Id = "pri_1",
+                        ProductId = "pro_1",
+                        UnitPrice = new PaddleUnitPrice { Amount = "199", CurrencyCode = "USD" },
+                        BillingCycle = new PaddleBillingCycle { Interval = "month", Frequency = 1 },
+                        CustomData = new PaddlePriceCustomData { PlanType = planType }
+                    }
+                }
+            },
+            CurrentBillingPeriod = new PaddleBillingPeriod { EndsAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            NextBilledAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
     }
 }

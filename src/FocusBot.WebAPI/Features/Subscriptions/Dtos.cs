@@ -4,7 +4,7 @@ namespace FocusBot.WebAPI.Features.Subscriptions;
 
 /// <summary>Response for the current subscription status.</summary>
 public sealed record SubscriptionStatusResponse(
-    string Status,
+    SubscriptionStatus Status,
     PlanType PlanType,
     DateTime? TrialEndsAt,
     DateTime? CurrentPeriodEndsAt,
@@ -14,4 +14,7 @@ public sealed record SubscriptionStatusResponse(
 public sealed record CustomerPortalResponse(string Url);
 
 /// <summary>Response after activating a 24-hour trial.</summary>
-public sealed record ActivateTrialResponse(string Status, DateTime TrialEndsAt);
+public sealed record ActivateTrialResponse(SubscriptionStatus Status, DateTime TrialEndsAt);
+
+/// <summary>Request to activate a trial.</summary>
+public sealed record ActivateTrialRequest(PlanType PlanType);

@@ -7,11 +7,19 @@ namespace FocusBot.WebAPI.Tests.Features.Subscriptions;
 public class PaddleWebhookVerifierTests
 {
     [Fact]
-    public void TryVerify_ReturnsTrue_WhenSecretEmpty()
+    public void TryVerify_ReturnsFalse_WhenSecretEmpty()
     {
         var ok = PaddleWebhookVerifier.TryVerify("{}", null, "", out var err);
-        ok.Should().BeTrue();
-        err.Should().NotBeNullOrEmpty();
+        ok.Should().BeFalse();
+        err.Should().Contain("not configured");
+    }
+
+    [Fact]
+    public void TryVerify_ReturnsFalse_WhenSecretNull()
+    {
+        var ok = PaddleWebhookVerifier.TryVerify("{}", null, null, out var err);
+        ok.Should().BeFalse();
+        err.Should().Contain("not configured");
     }
 
     [Fact]

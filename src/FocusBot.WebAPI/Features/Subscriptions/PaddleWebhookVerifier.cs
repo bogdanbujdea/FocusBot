@@ -25,8 +25,8 @@ public static class PaddleWebhookVerifier
 
         if (string.IsNullOrEmpty(webhookSecret))
         {
-            error = "Webhook secret is not configured; signature verification skipped.";
-            return true;
+            error = "Webhook secret is not configured; rejecting request.";
+            return false;
         }
 
         if (string.IsNullOrEmpty(signatureHeader))
