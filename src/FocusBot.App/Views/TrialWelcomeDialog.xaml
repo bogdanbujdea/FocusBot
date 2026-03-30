@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="FocusBot.App.Views.TrialWelcomeDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Welcome to Foqus"
+    PrimaryButtonText="Got it"
+    SecondaryButtonText="View plans"
+    DefaultButton="Primary"
+    Background="{StaticResource FbCardBackgroundBrush}"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    automation:AutomationProperties.Name="Welcome to Foqus trial">
+
+    <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+            <TextBlock Text="Your trial"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="Foqus helps you stay on task by monitoring your active window and scoring how aligned you are with your current goal."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="24 hours full access"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You have 24 hours of full access to all features. After the trial, choose a plan on the billing page to continue using cloud sync and analytics."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You can review plans and subscribe anytime from Settings or the billing page on the web."/>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

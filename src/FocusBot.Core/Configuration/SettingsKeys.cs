@@ -9,4 +9,9 @@ public static class SettingsKeys
     /// Boolean flag indicating whether the user has seen the "How it works" guide.
     /// </summary>
     public const string HasSeenHowItWorksGuide = "HasSeenHowItWorksGuide";
+
+    /// <summary>
+    /// Boolean flag indicating whether the user has seen the trial welcome dialog (desktop).
+    /// </summary>
+    public const string TrialWelcomeSeen = "TrialWelcomeSeen";
 }

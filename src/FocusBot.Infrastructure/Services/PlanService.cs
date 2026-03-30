@@ -5,8 +5,7 @@ namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// Manages the user's current subscription plan. Fetches from the backend and caches locally.
-/// The cache is considered stale after <see cref="CacheDuration"/>; stale reads trigger a
-/// background refresh so callers always get a fast response.
+/// The cache is considered stale after <see cref="CacheDuration"/>.
 /// </summary>
 public class PlanService(
     IFocusBotApiClient apiClient,
@@ -16,9 +15,15 @@ public class PlanService(
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private const string PlanTypeKey = "Plan_Type";
     private const string PlanCachedAtKey = "Plan_CachedAt";
+    private const string PlanStatusKey = "Plan_SubscriptionStatus";
+    private const string PlanTrialEndsAtKey = "Plan_TrialEndsAtUtc";
+    private const string PlanCurrentPeriodEndsAtKey = "Plan_CurrentPeriodEndsAtUtc";
 
     private ClientPlanType? _memoryCached;
     private DateTime _memoryFetchedAt = DateTime.MinValue;
+    private ClientSubscriptionStatus _memoryStatus = ClientSubscriptionStatus.None;
+    private DateTime? _memoryTrialEndsAt;
+    private DateTime? _memoryCurrentPeriodEndsAt;
 
     public event EventHandler<ClientPlanType>? PlanChanged;
 
@@ -37,7 +42,11 @@ public class PlanService(
         var cached = await TryLoadFromSettingsAsync();
         if (cached.HasValue && IsFresh(cached.Value.fetchedAt))
         {
-            UpdateMemoryCache(cached.Value.plan);
+            UpdateMemoryCache(
+                cached.Value.plan,
+                cached.Value.status,
+                cached.Value.trialEndsAt,
+                cached.Value.currentPeriodEndsAt);
             return _memoryCached!.Value;
         }
 
@@ -52,21 +61,99 @@ public class PlanService(
     public bool IsCloudPlan(ClientPlanType plan) =>
         plan is ClientPlanType.CloudBYOK or ClientPlanType.CloudManaged;
 
+    public async Task<ClientSubscriptionStatus> GetStatusAsync(CancellationToken ct = default)
+    {
+        if (!apiClient.IsConfigured)
+            return ClientSubscriptionStatus.None;
+
+        if (IsMemoryCacheFresh())
+            return _memoryStatus;
+
+        var cached = await TryLoadFromSettingsAsync();
+        if (cached.HasValue && IsFresh(cached.Value.fetchedAt))
+        {
+            UpdateMemoryCache(
+                cached.Value.plan,
+                cached.Value.status,
+                cached.Value.trialEndsAt,
+                cached.Value.currentPeriodEndsAt);
+            return _memoryStatus;
+        }
+
+        await FetchAndCacheAsync(ct);
+        return _memoryStatus;
+    }
+
+    public async Task<DateTime?> GetTrialEndsAtAsync(CancellationToken ct = default)
+    {
+        if (!apiClient.IsConfigured)
+            return null;
+
+        if (IsMemoryCacheFresh())
+            return _memoryTrialEndsAt;
+
+        var cached = await TryLoadFromSettingsAsync();
+        if (cached.HasValue && IsFresh(cached.Value.fetchedAt))
+        {
+            UpdateMemoryCache(
+                cached.Value.plan,
+                cached.Value.status,
+                cached.Value.trialEndsAt,
+                cached.Value.currentPeriodEndsAt);
+            return _memoryTrialEndsAt;
+        }
+
+        await FetchAndCacheAsync(ct);
+        return _memoryTrialEndsAt;
+    }
+
+    public async Task<DateTime?> GetCurrentPeriodEndsAtAsync(CancellationToken ct = default)
+    {
+        if (!apiClient.IsConfigured)
+            return null;
+
+        if (IsMemoryCacheFresh())
+            return _memoryCurrentPeriodEndsAt;
+
+        var cached = await TryLoadFromSettingsAsync();
+        if (cached.HasValue && IsFresh(cached.Value.fetchedAt))
+        {
+            UpdateMemoryCache(
+                cached.Value.plan,
+                cached.Value.status,
+                cached.Value.trialEndsAt,
+                cached.Value.currentPeriodEndsAt);
+            return _memoryCurrentPeriodEndsAt;
+        }
+
+        await FetchAndCacheAsync(ct);
+        return _memoryCurrentPeriodEndsAt;
+    }
+
     private bool IsMemoryCacheFresh() =>
         _memoryCached.HasValue && IsFresh(_memoryFetchedAt);
 
     private static bool IsFresh(DateTime fetchedAt) =>
         DateTime.UtcNow - fetchedAt < CacheDuration;
 
-    private async Task<(ClientPlanType plan, DateTime fetchedAt)?> TryLoadFromSettingsAsync()
+    private async Task<(ClientPlanType plan, ClientSubscriptionStatus status, DateTime? trialEndsAt, DateTime? currentPeriodEndsAt, DateTime fetchedAt)?>
+        TryLoadFromSettingsAsync()
     {
         try
         {
             var planRaw = await settings.GetSettingAsync<int?>(PlanTypeKey);
             var fetchedAtRaw = await settings.GetSettingAsync<DateTime?>(PlanCachedAtKey);
+            var statusRaw = await settings.GetSettingAsync<int?>(PlanStatusKey);
+            var trialEndsRaw = await settings.GetSettingAsync<DateTime?>(PlanTrialEndsAtKey);
+            var currentPeriodEndsRaw = await settings.GetSettingAsync<DateTime?>(PlanCurrentPeriodEndsAtKey);
 
             if (planRaw.HasValue && fetchedAtRaw.HasValue)
-                return ((ClientPlanType)planRaw.Value, fetchedAtRaw.Value);
+            {
+                var status = statusRaw.HasValue
+                    ? (ClientSubscriptionStatus)statusRaw.Value
+                    : ClientSubscriptionStatus.None;
+                return ((ClientPlanType)planRaw.Value, status, trialEndsRaw, currentPeriodEndsRaw, fetchedAtRaw.Value);
+            }
         }
         catch (Exception ex)
         {
@@ -95,10 +182,13 @@ public class PlanService(
             }
 
             var newPlan = (ClientPlanType)status.PlanType;
+            var newSubStatus = ParseSubscriptionStatus(status.Status);
+            var trialEnds = status.TrialEndsAt;
+            var currentPeriodEnds = status.CurrentPeriodEndsAt;
             var previous = _memoryCached;
 
-            UpdateMemoryCache(newPlan);
-            await PersistPlanAsync(newPlan);
+            UpdateMemoryCache(newPlan, newSubStatus, trialEnds, currentPeriodEnds);
+            await PersistPlanAsync(newPlan, newSubStatus, trialEnds, currentPeriodEnds);
 
             if (previous.HasValue && previous.Value != newPlan)
             {
@@ -115,24 +205,51 @@ public class PlanService(
         }
     }
 
-    private void UpdateMemoryCache(ClientPlanType plan)
+    internal static ClientSubscriptionStatus ParseSubscriptionStatus(string? status) =>
+        status?.Trim().ToLowerInvariant() switch
+        {
+            "trial" => ClientSubscriptionStatus.Trial,
+            "active" => ClientSubscriptionStatus.Active,
+            "expired" => ClientSubscriptionStatus.Expired,
+            "canceled" => ClientSubscriptionStatus.Canceled,
+            _ => ClientSubscriptionStatus.None,
+        };
+
+    private void UpdateMemoryCache(
+        ClientPlanType plan,
+        ClientSubscriptionStatus subscriptionStatus,
+        DateTime? trialEndsAt,
+        DateTime? currentPeriodEndsAt)
     {
         _memoryCached = plan;
         _memoryFetchedAt = DateTime.UtcNow;
+        _memoryStatus = subscriptionStatus;
+        _memoryTrialEndsAt = trialEndsAt;
+        _memoryCurrentPeriodEndsAt = currentPeriodEndsAt;
     }
 
     private void ClearMemoryCache()
     {
         _memoryCached = null;
         _memoryFetchedAt = DateTime.MinValue;
+        _memoryStatus = ClientSubscriptionStatus.None;
+        _memoryTrialEndsAt = null;
+        _memoryCurrentPeriodEndsAt = null;
     }
 
-    private async Task PersistPlanAsync(ClientPlanType plan)
+    private async Task PersistPlanAsync(
+        ClientPlanType plan,
+        ClientSubscriptionStatus subscriptionStatus,
+        DateTime? trialEndsAt,
+        DateTime? currentPeriodEndsAt)
     {
         try
         {
             await settings.SetSettingAsync(PlanTypeKey, (int)plan);
             await settings.SetSettingAsync(PlanCachedAtKey, DateTime.UtcNow);
+            await settings.SetSettingAsync(PlanStatusKey, (int)subscriptionStatus);
+            await settings.SetSettingAsync(PlanTrialEndsAtKey, trialEndsAt);
+            await settings.SetSettingAsync(PlanCurrentPeriodEndsAtKey, currentPeriodEndsAt);
         }
         catch (Exception ex)
         {

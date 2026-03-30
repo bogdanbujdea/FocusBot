@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { PricingPlanDto, SubscriptionStatusResponse } from "../api/types";
@@ -6,6 +6,7 @@ import { getPlanDisplayName, PlanType } from "../api/types";
 import { useAuth } from "../auth/useAuth";
 import { useSubscription } from "../contexts/SubscriptionContext";
 import { usePaddle } from "../hooks/usePaddle";
+import { BYOKSetupModal } from "../components/BYOKSetupModal";
 import "./BillingPage.css";
 
 function formatMinorAmount(minor: number, currency: string): string {
@@ -55,7 +56,9 @@ export function BillingPage() {
   } = useSubscription();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutBanner, setCheckoutBanner] = useState(false);
+  const [showByokSetupModal, setShowByokSetupModal] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const lastCheckoutPlanSlugRef = useRef<string | null>(null);
 
   const reloadSubscription = useCallback(async () => {
     await refreshContext();
@@ -63,6 +66,10 @@ export function BillingPage() {
 
   const onCheckoutDone = useCallback(() => {
     setCheckoutBanner(true);
+    if (lastCheckoutPlanSlugRef.current === "cloud-byok") {
+      setShowByokSetupModal(true);
+    }
+    lastCheckoutPlanSlugRef.current = null;
     void reloadSubscription();
   }, [reloadSubscription]);
 
@@ -90,6 +97,7 @@ export function BillingPage() {
     if (!user?.id) return;
     const email =
       typeof user.email === "string" ? user.email : user.email ?? undefined;
+    lastCheckoutPlanSlugRef.current = plan.planType;
     openCheckout(plan.priceId, plan.planType, email, user.id);
   };
 
@@ -127,6 +135,10 @@ export function BillingPage() {
 
   return (
     <div className="billing-page">
+      <BYOKSetupModal
+        open={showByokSetupModal}
+        onDismiss={() => setShowByokSetupModal(false)}
+      />
       <header className="page-header">
         <h1 className="page-title">Billing</h1>
         <p className="page-subtitle">Manage your subscription</p>

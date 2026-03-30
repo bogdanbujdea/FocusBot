@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="FocusBot.App.Views.BYOKKeyPromptDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Cloud BYOK"
+    PrimaryButtonText="Open Settings"
+    SecondaryButtonText="Later"
+    DefaultButton="Primary"
+    Background="{StaticResource FbCardBackgroundBrush}"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    automation:AutomationProperties.Name="Cloud BYOK API key prompt">
+
+    <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You are on the Cloud BYOK plan. Enter your API key in Settings to use Foqus with your own provider."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Security"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="Your API key is encrypted on this device using Windows Data Protection (DPAPI). It never leaves your machine unencrypted. It is sent to the AI provider over HTTPS with each classification request and is not stored on our servers."/>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

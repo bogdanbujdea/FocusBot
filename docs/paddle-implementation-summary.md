@@ -167,6 +167,7 @@ Single-query troubleshooting: all subscription/billing/payment data in one row.
 - Subscribe buttons open Paddle.js overlay checkout
 - "Manage Subscription" button (active subscribers only) opens Paddle customer portal
 - Success banner on `checkout.completed` or `?checkout=success` query param
+- **Cloud BYOK setup modal** (`components/BYOKSetupModal.tsx`): After `checkout.completed`, if the subscribed price slug was **cloud-byok** (tracked when **Subscribe** is clicked), shows steps to open the Windows app or browser extension, go to Settings, and paste the OpenAI (or provider) API key. Dismiss with **Got it**.
 - Error handling for missing `clientToken` or pricing failures
 
 **Custom data sent to Paddle:**
@@ -195,8 +196,13 @@ customData: {
 
 **Checkout redirect:**
 - `PlanSelectionViewModel.cs` — `SelectPlan` command opens web app billing URL in browser
-- `FocusPageViewModel.cs` — Subscribes to SignalR `PlanChanged` event, calls `IPlanService.RefreshAsync()`
-- `PlanService` — 5-minute cache, instant refresh on SignalR notification
+- `FocusPageViewModel.cs` — Subscribes to SignalR `PlanChanged` and `IPlanService.PlanChanged`, calls `IPlanService.RefreshAsync()` and updates trial / BYOK UI
+- `PlanService` — Caches plan type, subscription status string (mapped to `ClientSubscriptionStatus`), and `TrialEndsAt` from `GET /subscriptions/status`; 5-minute TTL; instant refresh on SignalR notification
+
+**Trial UX (Focus page):**
+- **`TrialWelcomeDialog`** — One-time welcome after first-run **How it works** (or when the user signs in later), gated by `SettingsKeys.TrialWelcomeSeen`, for Foqus trial users. **View plans** opens `https://app.foqus.me/billing`.
+- **Trial `InfoBar`** — Countdown to `trialEndsAt` and **Manage plan** link when the Foqus trial is active (`ClientPlanType.FreeBYOK` / server `TrialFullAccess`, status trial, future end). Separate **Subscription required** banner after local trial expiry with **View plans**.
+- **`BYOKKeyPromptDialog`** — When the plan becomes **Cloud BYOK** and no API key is stored locally, prompts once per session to open **Settings** (includes DPAPI / HTTPS security copy).
 
 **No local checkout** — user completes payment in browser, webhook updates DB, SignalR notifies desktop immediately.
 

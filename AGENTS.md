@@ -73,6 +73,14 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - `FocusBotApiClient` wraps session start/end calls with **Polly** retries: 3 attempts, 2 second delay between attempts, on transient HTTP failures (5xx, 408, `HttpRequestException`).
 - **Cross-device session sync (desktop ↔ web)**: After sign-in, the desktop app connects to the same SignalR hub as the web dashboard (`IFocusHubClient` / `FocusHubClientService` → `{apiBaseUrl}/hubs/focus`, JWT via `access_token`). `FocusPageViewModel` reloads the active session from the API on `SessionStarted` / `SessionEnded` and mirrors pause/resume via `SessionPaused` / `SessionResumed` when the event matches the current session. The hub is disconnected on sign-out and on `ReAuthRequired`. Connection is established after `FocusPageViewModel` is created on cold start (so event handlers are subscribed before the first connect).
 
+### Desktop app: trial UX and Cloud BYOK
+
+- **`IPlanService`** (`FocusBot.Infrastructure` / `PlanService`) caches `GET /subscriptions/status` fields: `ClientPlanType`, `ClientSubscriptionStatus`, and `TrialEndsAt`. Use `GetStatusAsync()` / `GetTrialEndsAtAsync()` for UI that depends on trial end time, not only `GetCurrentPlanAsync()`.
+- **Trial welcome** (`TrialWelcomeDialog`): After the first-run **How it works** dialog, signed-in users on the Foqus trial (`PlanType` trial tier + `status` trial) see a one-time welcome dialog unless `SettingsKeys.TrialWelcomeSeen` is set. **View plans** opens `https://app.foqus.me/billing`. Also shown when the user signs in after launch (via `AccountSection.PropertyChanged`).
+- **Trial banner** (`FocusPage`): `InfoBar` with countdown and **Manage plan** (billing URL). Shown when the Foqus trial is active (`ClientPlanType.FreeBYOK` / server `TrialFullAccess`, `status` trial, future `trialEndsAt`). A separate **Subscription required** banner appears when the trial has ended locally (same tier, expired or past `trialEndsAt`) with **View plans**.
+- **Cloud BYOK key prompt** (`BYOKKeyPromptDialog`): After `PlanChanged` / hub refresh, if the plan is `CloudBYOK` and no API key is stored in settings, the app prompts once per session to open **Settings** (DPAPI encryption copy in the dialog). **Later** dismisses for that session.
+- **Web app post-checkout (Cloud BYOK)**: After Paddle `checkout.completed` for price `planType` **cloud-byok**, `/billing` shows `BYOKSetupModal` with steps to open the Windows app or extension and paste the API key in Settings.
+
 ### Client registration (API)
 
 - The API treats a **client** as one registered **software install** (WinUI app, Chrome extension, Edge extension, etc.), not necessarily one physical machine. Each install has a stable **fingerprint** and a server-assigned **client id** (`POST /clients`, `PUT /clients/{id}/heartbeat`, `DELETE /clients/{id}`).

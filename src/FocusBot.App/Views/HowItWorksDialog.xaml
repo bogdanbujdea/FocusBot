@@ -19,29 +19,40 @@
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="You start a task and Foqus monitors which app and window you're using. An AI classifies whether you're focused, unclear, or distracted and shows a live Focus Score (0–100%) for that session. When you end the task, it appears in History."/>
+                <Run Text="Start a focus session and Foqus monitors your active app and window context in real time. AI classifies whether you're aligned with your task and updates a live Focus Score (0-100%). When you end the session, your results are available across your signed-in Foqus clients."/>
             </TextBlock>
 
             <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
 
-            <TextBlock Text="Your data stays local"
+            <TextBlock Text="Your data storage"
                        Style="{StaticResource FbColumnHeaderStyle}"
                        FontSize="14"/>
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="All tasks, focus scores, and history are stored in a local SQLite database on your device. No cloud sync, no telemetry. Only the current window context (app name, window title, and your task description) is sent to the AI provider to get the alignment label. Results are cached so revisiting the same window does not send new requests."/>
+                <Run Text="Foqus stores your focus sessions and analytics in your cloud account so your progress syncs across devices. Based on user feedback, we may introduce a local-only option in the future."/>
             </TextBlock>
 
             <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
 
-            <TextBlock Text="Bring your own key or subscribe"
+            <TextBlock Text="Trial and pricing"
                        Style="{StaticResource FbColumnHeaderStyle}"
                        FontSize="14"/>
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="You can use your own API key (OpenAI, Anthropic, or Google) or subscribe to Foqus Premium so we manage the key for you. If you bring your own key, we recommend a cheap model such as gpt-4o-mini: it works great for this task and keeps cost low. More expensive models add cost per request without a real benefit for alignment classification."/>
+                <Run Text="New accounts start with 24 hours of full access. Foqus relies on AI tokens and cloud infrastructure, so we cannot sustainably offer a fully free tier. After the trial, choose a plan on the billing page to continue."/>
+            </TextBlock>
+
+            <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
+
+            <TextBlock Text="BYOK discount and AI provider"
+                       Style="{StaticResource FbColumnHeaderStyle}"
+                       FontSize="14"/>
+            <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="22">
+                <Run Text="You can lower your subscription cost with Cloud BYOK by using your own OpenAI API key. We use OpenAI because their lower-cost models perform very well for focus-alignment classification. If you choose BYOK, your key is encrypted on your device and used only for classification requests."/>
             </TextBlock>
 
             <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>
@@ -52,7 +63,7 @@
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="Web page focus accuracy is improved when you use the Foqus browser extension."/>
+                <Run Text="For the best web-page focus accuracy, install the Foqus browser extension for Chrome or Edge. The desktop app cannot directly read the URL of pages open in your browser, so the extension provides page context that improves classification quality."/>
             </TextBlock>
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <HyperlinkButton x:Name="ExtensionStoreEdgeLink"

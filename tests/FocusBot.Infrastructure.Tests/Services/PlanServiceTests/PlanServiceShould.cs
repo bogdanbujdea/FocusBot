@@ -132,4 +132,52 @@ public class PlanServiceShould
         sut.IsCloudPlan(ClientPlanType.CloudManaged).Should().BeTrue();
         sut.IsCloudPlan(ClientPlanType.FreeBYOK).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetStatusAsync_ReturnsTrial_WhenApiReturnsTrial()
+    {
+        var trialEnd = DateTime.UtcNow.AddHours(20);
+        var apiClient = new Mock<IFocusBotApiClient>();
+        apiClient.Setup(a => a.IsConfigured).Returns(true);
+        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(new ApiSubscriptionStatus("trial", (int)ClientPlanType.FreeBYOK, trialEnd, null));
+
+        var settings = new Mock<ISettingsService>();
+        settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
+        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+
+        var sut = BuildService(apiClient, settings);
+
+        var status = await sut.GetStatusAsync();
+        status.Should().Be(ClientSubscriptionStatus.Trial);
+
+        var ends = await sut.GetTrialEndsAtAsync();
+        ends.Should().Be(trialEnd);
+    }
+
+    [Fact]
+    public async Task GetTrialEndsAtAsync_ReturnsCachedValue_FromSecondCall()
+    {
+        var trialEnd = DateTime.UtcNow.AddHours(10);
+        var apiClient = new Mock<IFocusBotApiClient>();
+        apiClient.Setup(a => a.IsConfigured).Returns(true);
+        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(new ApiSubscriptionStatus("trial", (int)ClientPlanType.FreeBYOK, trialEnd, null));
+
+        var settings = new Mock<ISettingsService>();
+        settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
+        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+
+        var sut = BuildService(apiClient, settings);
+
+        await sut.GetCurrentPlanAsync();
+        apiClient.Verify(a => a.GetSubscriptionStatusAsync(), Times.Once);
+
+        var ends = await sut.GetTrialEndsAtAsync();
+        ends.Should().Be(trialEnd);
+
+        var ends2 = await sut.GetTrialEndsAtAsync();
+        ends2.Should().Be(trialEnd);
+        apiClient.Verify(a => a.GetSubscriptionStatusAsync(), Times.Once);
+    }
 }

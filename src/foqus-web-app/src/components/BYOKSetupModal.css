@@ -1,0 +1,59 @@
+.byok-setup-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.byok-setup-modal {
+  max-width: 420px;
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--fb-card-bg, #fff);
+  color: var(--fb-text, #111);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.byok-setup-modal-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.byok-setup-modal-lead {
+  margin: 0 0 0.75rem;
+}
+
+.byok-setup-modal-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.byok-setup-modal-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.byok-setup-modal-note {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.byok-setup-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.byok-setup-modal-primary {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  background: var(--fb-accent, #2563eb);
+  color: #fff;
+}

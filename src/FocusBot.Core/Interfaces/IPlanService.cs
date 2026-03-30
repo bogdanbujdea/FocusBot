@@ -6,7 +6,7 @@ namespace FocusBot.Core.Interfaces;
 /// </summary>
 public enum ClientPlanType
 {
-    /// <summary>User provides their own API key. Local basic analytics only. No cloud sync.</summary>
+    /// <summary>Trial full access (maps to server <c>PlanType.TrialFullAccess</c>).</summary>
     FreeBYOK = 0,
 
     /// <summary>User provides their own API key plus gets cloud analytics and cross-device sync.</summary>
@@ -14,6 +14,18 @@ public enum ClientPlanType
 
     /// <summary>Platform provides the API key. Full cloud analytics and cross-device sync.</summary>
     CloudManaged = 2,
+}
+
+/// <summary>
+/// Subscription lifecycle status from <c>GET /subscriptions/status</c> (camelCase JSON).
+/// </summary>
+public enum ClientSubscriptionStatus
+{
+    None = 0,
+    Trial = 1,
+    Active = 2,
+    Expired = 3,
+    Canceled = 4,
 }
 
 /// <summary>
@@ -32,6 +44,21 @@ public interface IPlanService
 
     /// <summary>Returns true if the user is on a cloud plan (CloudBYOK or CloudManaged).</summary>
     bool IsCloudPlan(ClientPlanType plan);
+
+    /// <summary>
+    /// Cached subscription status from the last successful fetch.
+    /// </summary>
+    Task<ClientSubscriptionStatus> GetStatusAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Trial end time from the last successful fetch, when applicable.
+    /// </summary>
+    Task<DateTime?> GetTrialEndsAtAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Current billing period end time from the last successful fetch, when available.
+    /// </summary>
+    Task<DateTime?> GetCurrentPeriodEndsAtAsync(CancellationToken ct = default);
 
     /// <summary>Raised when the plan changes after a refresh.</summary>
     event EventHandler<ClientPlanType>? PlanChanged;

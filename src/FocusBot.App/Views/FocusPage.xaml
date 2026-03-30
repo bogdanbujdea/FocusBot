@@ -19,6 +19,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="250"/>
         </Grid.RowDefinitions>
 
@@ -31,15 +33,45 @@
             IsClosable="True"
             automation:AutomationProperties.Name="Session API sync error"/>
 
+        <InfoBar
+            Grid.Row="1"
+            Severity="Informational"
+            Title="Trial active"
+            Message="{x:Bind ViewModel.TrialCountdownMessage, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.IsTrialBannerVisible, Mode=OneWay}"
+            IsClosable="False"
+            automation:AutomationProperties.Name="Foqus trial countdown">
+            <InfoBar.ActionButton>
+                <HyperlinkButton Content="Manage plan"
+                                 NavigateUri="https://app.foqus.me/billing"
+                                 automation:AutomationProperties.Name="Manage plan billing"/>
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <InfoBar
+            Grid.Row="2"
+            Severity="Warning"
+            Title="Subscription required"
+            Message="Your trial has ended. Choose a plan on the billing page to continue with cloud features."
+            IsOpen="{x:Bind ViewModel.ShowPostTrialUpgradeBanner, Mode=OneWay}"
+            IsClosable="False"
+            automation:AutomationProperties.Name="Post trial upgrade prompt">
+            <InfoBar.ActionButton>
+                <HyperlinkButton Content="View plans"
+                                 NavigateUri="https://app.foqus.me/billing"
+                                 automation:AutomationProperties.Name="View subscription plans"/>
+            </InfoBar.ActionButton>
+        </InfoBar>
+
         <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
         <controls:FocusStatusControl
-            Grid.Row="1"
+            Grid.Row="3"
             DataContext="{x:Bind ViewModel.Status}"
             Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
             Margin="0,4,0,8"/>
 
         <!-- Header with Settings -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -111,7 +143,7 @@
 
 
         <!-- Main Content: Start Form or Active Session Card -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="5">
             <!-- Start Session Form (visible when no active session) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"

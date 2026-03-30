@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core;
@@ -30,6 +32,11 @@ public partial class FocusPageViewModel : ObservableObject
     /// Raised when the user requests to open the How it works guide (e.g. Help button). The view shows the dialog.
     /// </summary>
     public event EventHandler? ShowHowItWorksRequested;
+
+    /// <summary>
+    /// Raised when the user should see the Cloud BYOK API key prompt (desktop). The view shows the dialog.
+    /// </summary>
+    public event EventHandler? ShowBYOKKeyPromptRequested;
 
     /// <summary>
     /// Raised when focus overlay state changes (score, status, or active session).
@@ -114,6 +121,18 @@ public partial class FocusPageViewModel : ObservableObject
     private bool _isApiErrorVisible;
 
     [ObservableProperty]
+    private bool _isTrialBannerVisible;
+
+    [ObservableProperty]
+    private string _trialCountdownMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _showPostTrialUpgradeBanner;
+
+    private Timer? _trialCountdownTimer;
+    private bool _byokPromptShownThisSession;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSessionCommand))]
     [NotifyCanExecuteChangedFor(nameof(EndSessionCommand))]
     [NotifyPropertyChangedFor(nameof(IsSessionOperationEnabled))]
@@ -183,6 +202,10 @@ public partial class FocusPageViewModel : ObservableObject
         _focusHubClient.SessionResumed += OnFocusHubSessionResumed;
         _focusHubClient.PlanChanged += OnFocusHubPlanChanged;
 
+        _planService.PlanChanged += OnPlanServicePlanChanged;
+
+        AccountSection.PropertyChanged += OnAccountSectionPropertyChanged;
+
         if (_integrationService != null)
         {
             _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
@@ -191,9 +214,162 @@ public partial class FocusPageViewModel : ObservableObject
         _ = LoadBoardAsync();
     }
 
-    private void OnFocusHubPlanChanged(PlanChangedEvent e)
+    private void OnAccountSectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _ = _planService.RefreshAsync();
+        if (e.PropertyName == nameof(AccountSettingsViewModel.IsAuthenticated))
+            _ = UpdateTrialStateAsync();
+    }
+
+    private async void OnPlanServicePlanChanged(object? sender, ClientPlanType plan)
+    {
+        await UpdateTrialStateAsync();
+        await TryRaiseByokPromptAsync();
+    }
+
+    private async void OnFocusHubPlanChanged(PlanChangedEvent e)
+    {
+        await _planService.RefreshAsync();
+        await UpdateTrialStateAsync();
+        await TryRaiseByokPromptAsync();
+    }
+
+    private async Task TryRaiseByokPromptAsync()
+    {
+        if (!AccountSection.IsAuthenticated)
+            return;
+
+        var plan = await _planService.GetCurrentPlanAsync();
+        if (plan != ClientPlanType.CloudBYOK)
+            return;
+
+        if (_byokPromptShownThisSession)
+            return;
+
+        var key = await _settingsService.GetApiKeyAsync();
+        if (!string.IsNullOrWhiteSpace(key))
+            return;
+
+        _byokPromptShownThisSession = true;
+        void Raise()
+        {
+            ShowBYOKKeyPromptRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (_uiDispatcher != null)
+            await _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Raise();
+                return Task.CompletedTask;
+            });
+        else
+            Raise();
+    }
+
+    private void StartTrialCountdownTimer()
+    {
+        if (_trialCountdownTimer != null)
+            return;
+
+        _trialCountdownTimer = new Timer(
+            _ => _ = UpdateTrialStateAsync(),
+            null,
+            TimeSpan.FromSeconds(15),
+            TimeSpan.FromSeconds(15));
+    }
+
+    private void StopTrialCountdownTimer()
+    {
+        _trialCountdownTimer?.Dispose();
+        _trialCountdownTimer = null;
+    }
+
+    private async Task UpdateTrialStateAsync()
+    {
+        if (!AccountSection.IsAuthenticated)
+        {
+            void ClearUi()
+            {
+                IsTrialBannerVisible = false;
+                ShowPostTrialUpgradeBanner = false;
+                TrialCountdownMessage = string.Empty;
+                StopTrialCountdownTimer();
+            }
+
+            if (_uiDispatcher != null)
+                await _uiDispatcher.RunOnUIThreadAsync(() =>
+                {
+                    ClearUi();
+                    return Task.CompletedTask;
+                });
+            else
+                ClearUi();
+            return;
+        }
+
+        var plan = await _planService.GetCurrentPlanAsync();
+        var status = await _planService.GetStatusAsync();
+        var endsAt = await _planService.GetTrialEndsAtAsync();
+        var endsUtc = endsAt?.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(endsAt.Value, DateTimeKind.Utc)
+            : endsAt?.ToUniversalTime();
+
+        var isFoqusTrialWindow =
+            plan == ClientPlanType.FreeBYOK
+            && status == ClientSubscriptionStatus.Trial
+            && endsUtc.HasValue;
+
+        var trialStillActive =
+            isFoqusTrialWindow && endsUtc!.Value > DateTime.UtcNow;
+
+        void ApplyUi()
+        {
+            IsTrialBannerVisible = trialStillActive;
+            TrialCountdownMessage = FormatTrialCountdown(endsUtc, trialStillActive);
+
+            ShowPostTrialUpgradeBanner =
+                plan == ClientPlanType.FreeBYOK
+                && (status == ClientSubscriptionStatus.Expired
+                    || (status == ClientSubscriptionStatus.Trial
+                        && endsUtc.HasValue
+                        && endsUtc.Value <= DateTime.UtcNow));
+
+            if (trialStillActive)
+                StartTrialCountdownTimer();
+            else
+                StopTrialCountdownTimer();
+        }
+
+        if (_uiDispatcher != null)
+            await _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                ApplyUi();
+                return Task.CompletedTask;
+            });
+        else
+            ApplyUi();
+    }
+
+    private static string FormatTrialCountdown(DateTime? trialEndsAtUtc, bool trialStillActive)
+    {
+        if (!trialEndsAtUtc.HasValue)
+            return string.Empty;
+
+        var local = trialEndsAtUtc.Value.ToLocalTime();
+        if (!trialStillActive)
+            return string.Empty;
+
+        var remaining = trialEndsAtUtc.Value - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+            return string.Empty;
+
+        return $"Trial ends {local:MMM d, h:mm tt} ({FormatRemaining(remaining)} left)";
+    }
+
+    private static string FormatRemaining(TimeSpan t)
+    {
+        if (t.TotalHours >= 1)
+            return $"{(int)t.TotalHours}h {t.Minutes}m";
+        return $"{t.Minutes}m {t.Seconds}s";
     }
 
     private void OnOrchestratorStateChanged(object? sender, FocusSessionStateChangedEventArgs e)
@@ -259,6 +435,7 @@ public partial class FocusPageViewModel : ObservableObject
             }
 
             UpdateMonitoringState();
+            await UpdateTrialStateAsync();
         }
         finally
         {
@@ -525,6 +702,38 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public Task SetHasSeenHowItWorksGuideAsync() =>
         _settingsService.SetSettingAsync(SettingsKeys.HasSeenHowItWorksGuide, true);
+
+    /// <summary>
+    /// Returns true if the user has already dismissed the trial welcome dialog.
+    /// </summary>
+    public async Task<bool> GetHasSeenTrialWelcomeAsync()
+    {
+        var value = await _settingsService.GetSettingAsync<bool>(SettingsKeys.TrialWelcomeSeen);
+        return value == true;
+    }
+
+    /// <summary>
+    /// Marks the trial welcome dialog as seen.
+    /// </summary>
+    public Task SetHasSeenTrialWelcomeAsync() =>
+        _settingsService.SetSettingAsync(SettingsKeys.TrialWelcomeSeen, true);
+
+    /// <summary>
+    /// Returns true when the Foqus trial welcome should be shown (authenticated, trial tier, not yet seen).
+    /// </summary>
+    public async Task<bool> ShouldShowTrialWelcomeAsync()
+    {
+        if (!AccountSection.IsAuthenticated)
+            return false;
+
+        if (await GetHasSeenTrialWelcomeAsync())
+            return false;
+
+        await _planService.RefreshAsync();
+        var plan = await _planService.GetCurrentPlanAsync();
+        var status = await _planService.GetStatusAsync();
+        return plan == ClientPlanType.FreeBYOK && status == ClientSubscriptionStatus.Trial;
+    }
 
     private bool HasActiveSession() => ActiveSession != null;
 
