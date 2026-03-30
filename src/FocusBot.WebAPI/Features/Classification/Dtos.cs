@@ -11,7 +11,8 @@ public sealed record ClassifyRequest(
     string? Url,
     string? PageTitle,
     string? ProviderId,
-    string? ModelId);
+    string? ModelId,
+    Guid? ClientId);
 
 /// <summary>
 /// Response body returned by the POST /classify endpoint.

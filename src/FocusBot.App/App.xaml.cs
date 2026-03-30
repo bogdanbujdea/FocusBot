@@ -23,7 +23,6 @@ namespace FocusBot.App
         private readonly IServiceProvider? _services;
         private FocusPageViewModel? _viewModel;
         private IIntegrationService? _integrationService;
-        private Timer? _heartbeatTimer;
 
         public App()
         {
@@ -240,7 +239,6 @@ namespace FocusBot.App
         /// </summary>
         private void OnReAuthRequired()
         {
-            StopHeartbeat();
             _ = DisconnectFocusHubAsync();
 
             if (_services is null)
@@ -282,7 +280,6 @@ namespace FocusBot.App
             var auth = _services.GetRequiredService<IAuthService>();
             if (!auth.IsAuthenticated)
             {
-                StopHeartbeat();
                 await DisconnectFocusHubAsync().ConfigureAwait(false);
                 return;
             }
@@ -307,8 +304,6 @@ namespace FocusBot.App
             if (clientService.GetClientId() is null)
                 await clientService.RegisterAsync();
 
-            StartHeartbeat(clientService);
-
             await ReloadFocusBoardIfReadyAsync();
 
             if (_viewModel is not null)
@@ -321,55 +316,6 @@ namespace FocusBot.App
                 return;
 
             await _viewModel.ReloadBoardAsync().ConfigureAwait(false);
-        }
-
-        private void StartHeartbeat(IClientService clientService)
-        {
-            if (_heartbeatTimer is not null)
-                return;
-
-            var logger = _services!.GetRequiredService<ILogger<App>>();
-            var semaphore = new SemaphoreSlim(1, 1);
-
-            _heartbeatTimer = new Timer(
-                callback: _ =>
-                {
-                    // Skip this tick if the previous heartbeat is still in flight.
-                    if (!semaphore.Wait(0))
-                        return;
-
-                    _ = SendHeartbeatSafeAsync(clientService, semaphore, logger);
-                },
-                state: null,
-                dueTime: TimeSpan.FromSeconds(60),
-                period: TimeSpan.FromSeconds(60)
-            );
-        }
-
-        private static async Task SendHeartbeatSafeAsync(
-            IClientService clientService,
-            SemaphoreSlim semaphore,
-            ILogger<App> logger
-        )
-        {
-            try
-            {
-                await clientService.SendHeartbeatAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "An error occurred while sending the client heartbeat.");
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        }
-
-        private void StopHeartbeat()
-        {
-            _heartbeatTimer?.Dispose();
-            _heartbeatTimer = null;
         }
 
         private async Task ConnectFocusHubAsync()

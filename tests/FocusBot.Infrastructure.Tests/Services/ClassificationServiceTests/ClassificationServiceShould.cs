@@ -1,3 +1,4 @@
+using System.Threading;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Services;
@@ -15,15 +16,27 @@ public class ClassificationServiceShould
     private static IClassificationService BuildService(
         Mock<IAlignmentCacheRepository> cache,
         Mock<IFocusBotApiClient> apiClient,
+        Mock<IClientService> clientService,
         Mock<ISettingsService> settings
     )
     {
         return new AlignmentClassificationService(
             cache.Object,
             apiClient.Object,
+            clientService.Object,
             settings.Object,
             NullLogger<AlignmentClassificationService>.Instance
         );
+    }
+
+    private static Mock<IClientService> DefaultClientService()
+    {
+        var clientService = new Mock<IClientService>();
+        clientService
+            .Setup(c => c.EnsureClientIdLoadedAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        clientService.Setup(c => c.GetClientId()).Returns((Guid?)null);
+        return clientService;
     }
 
     [Fact]
@@ -41,7 +54,8 @@ public class ClassificationServiceShould
         apiClient.Setup(a => a.IsConfigured).Returns(true);
 
         var settings = new Mock<ISettingsService>();
-        var sut = BuildService(cache, apiClient, settings);
+        var clientService = DefaultClientService();
+        var sut = BuildService(cache, apiClient, clientService, settings);
 
         // Act
         var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
@@ -75,7 +89,8 @@ public class ClassificationServiceShould
         settings.Setup(s => s.GetProviderAsync()).ReturnsAsync((string?)null);
         settings.Setup(s => s.GetModelAsync()).ReturnsAsync((string?)null);
 
-        var sut = BuildService(cache, apiClient, settings);
+        var clientService = DefaultClientService();
+        var sut = BuildService(cache, apiClient, clientService, settings);
 
         // Act
         var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
@@ -95,8 +110,9 @@ public class ClassificationServiceShould
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(false);
         var settings = new Mock<ISettingsService>();
+        var clientService = DefaultClientService();
 
-        var sut = BuildService(cache, apiClient, settings);
+        var sut = BuildService(cache, apiClient, clientService, settings);
 
         // Act
         var result = await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
@@ -129,7 +145,8 @@ public class ClassificationServiceShould
         settings.Setup(s => s.GetProviderAsync()).ReturnsAsync("openai");
         settings.Setup(s => s.GetModelAsync()).ReturnsAsync("gpt-4o-mini");
 
-        var sut = BuildService(cache, apiClient, settings);
+        var clientService = DefaultClientService();
+        var sut = BuildService(cache, apiClient, clientService, settings);
 
         // Act
         await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);
@@ -158,7 +175,8 @@ public class ClassificationServiceShould
         settings.Setup(s => s.GetProviderAsync()).ReturnsAsync((string?)null);
         settings.Setup(s => s.GetModelAsync()).ReturnsAsync((string?)null);
 
-        var sut = BuildService(cache, apiClient, settings);
+        var clientService = DefaultClientService();
+        var sut = BuildService(cache, apiClient, clientService, settings);
 
         // Act
         await sut.ClassifyAsync(ProcessName, WindowTitle, SessionTitle, null);

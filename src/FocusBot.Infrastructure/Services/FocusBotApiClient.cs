@@ -1,7 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Net;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -351,45 +350,6 @@ public class FocusBotApiClient : IFocusBotApiClient
             return null;
         }
     }
-
-    public async Task<HttpStatusCode?> SendHeartbeatAsync(Guid clientId)
-    {
-        try
-        {
-            var statusCode = await SendHeartbeatRequestAsync(clientId);
-
-            if (statusCode == HttpStatusCode.Unauthorized)
-            {
-                var refreshed = await _authService.RefreshTokenAsync();
-                if (refreshed)
-                    statusCode = await SendHeartbeatRequestAsync(clientId);
-            }
-
-            return statusCode;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "SendHeartbeat request failed");
-            return null;
-        }
-    }
-
-    private async Task<HttpStatusCode> SendHeartbeatRequestAsync(Guid clientId)
-    {
-        using var request = await CreateAuthorizedRequestAsync(HttpMethod.Put, $"/clients/{clientId}/heartbeat");
-        if (request is null)
-            return HttpStatusCode.Unauthorized;
-
-        request.Content = JsonContent.Create(new
-        {
-            appVersion = GetAppVersion(),
-            platform = "Windows"
-        }, options: JsonOptions);
-
-        var response = await _httpClient.SendAsync(request);
-        return response.StatusCode;
-    }
-
 
     public async Task<bool> DeregisterClientAsync(Guid clientId)
     {

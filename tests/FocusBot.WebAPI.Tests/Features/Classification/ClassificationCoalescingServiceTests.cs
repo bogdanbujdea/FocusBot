@@ -1,6 +1,7 @@
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Classification;
+using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -29,12 +30,14 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             desktop,
             "byok",
+            null,
             CancellationToken.None
         );
         var second = harness.CoalescingService.EnqueueAndWaitAsync(
             TestUserId,
             extension,
             "byok",
+            null,
             CancellationToken.None
         );
 
@@ -56,12 +59,14 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             extension,
             "byok",
+            null,
             CancellationToken.None
         );
         var second = harness.CoalescingService.EnqueueAndWaitAsync(
             TestUserId,
             desktopNonBrowser,
             "byok",
+            null,
             CancellationToken.None
         );
 
@@ -83,12 +88,14 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             desktopBrowser,
             "byok",
+            null,
             CancellationToken.None
         );
         var second = harness.CoalescingService.EnqueueAndWaitAsync(
             TestUserId,
             extension,
             "byok",
+            null,
             CancellationToken.None
         );
 
@@ -107,12 +114,14 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             ExtensionRequest("user-a"),
             "byok",
+            null,
             CancellationToken.None
         );
         var second = harness.CoalescingService.EnqueueAndWaitAsync(
             OtherUserId,
             ExtensionRequest("user-b"),
             "byok",
+            null,
             CancellationToken.None
         );
 
@@ -133,6 +142,7 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             ExtensionRequest("cancel"),
             "byok",
+            null,
             cts.Token
         );
 
@@ -151,12 +161,14 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             DesktopBrowserRequest("one"),
             "byok",
+            null,
             CancellationToken.None
         );
         var second = harness.CoalescingService.EnqueueAndWaitAsync(
             TestUserId,
             ExtensionRequest("two"),
             "byok",
+            null,
             CancellationToken.None
         );
 
@@ -176,6 +188,7 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             ExtensionRequest("broadcast-test"),
             "byok",
+            null,
             CancellationToken.None);
 
         harness.HubClientMock.Verify(
@@ -192,6 +205,7 @@ public class ClassificationCoalescingServiceTests
             TestUserId,
             ExtensionRequest("fail-broadcast"),
             "byok",
+            null,
             CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => first);
@@ -238,6 +252,7 @@ public class ClassificationCoalescingServiceTests
                 sp.GetRequiredService<ClassificationProbe>()
             )
         );
+        services.AddScoped<ClientService>();
         var provider = services.BuildServiceProvider();
         var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
@@ -270,6 +285,7 @@ public class ClassificationCoalescingServiceTests
             $"https://example.com/{marker}",
             $"Page {marker}",
             null,
+            null,
             null
         );
 
@@ -282,6 +298,7 @@ public class ClassificationCoalescingServiceTests
             null,
             null,
             null,
+            null,
             null
         );
 
@@ -291,6 +308,7 @@ public class ClassificationCoalescingServiceTests
             "Context",
             "Docker Desktop",
             $"Docker {marker}",
+            null,
             null,
             null,
             null,

@@ -15,6 +15,7 @@ namespace FocusBot.Infrastructure.Services;
 public class AlignmentClassificationService(
     IAlignmentCacheRepository cache,
     IFocusBotApiClient apiClient,
+    IClientService clientService,
     ISettingsService settings,
     ILogger<AlignmentClassificationService> logger
 ) : IClassificationService
@@ -83,13 +84,17 @@ public class AlignmentClassificationService(
         var providerId = await settings.GetProviderAsync();
         var modelId = await settings.GetModelAsync();
 
+        await clientService.EnsureClientIdLoadedAsync(ct);
+        var clientId = clientService.GetClientId();
+
         var payload = new ClassifyPayload(
             sessionTitle,
             sessionContext,
             processName,
             windowTitle,
             providerId,
-            modelId
+            modelId,
+            clientId
         );
         var response = await apiClient.ClassifyAsync(payload, byokKey);
 

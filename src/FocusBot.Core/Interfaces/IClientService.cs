@@ -3,7 +3,7 @@ using CSharpFunctionalExtensions;
 namespace FocusBot.Core.Interfaces;
 
 /// <summary>
-/// Manages client registration and heartbeat for cloud plan users.
+/// Manages client registration for cloud plan users.
 /// </summary>
 public interface IClientService
 {
@@ -14,16 +14,9 @@ public interface IClientService
 
     /// <summary>
     /// Registers this client with the backend (or updates the registration if already registered).
-    /// Stores the returned client ID locally for use in session attribution and heartbeats.
+    /// Stores the returned client ID locally for use in session attribution and classification.
     /// </summary>
     Task<Result> RegisterAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Sends a heartbeat to the backend to mark the client as online.
-    /// On 401, the HTTP client retries once after refreshing the access token.
-    /// On 404, the client is re-registered automatically.
-    /// </summary>
-    Task SendHeartbeatAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Removes the client registration from the backend (called on explicit logout).

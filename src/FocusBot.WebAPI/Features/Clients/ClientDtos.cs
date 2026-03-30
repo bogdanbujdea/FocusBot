@@ -11,9 +11,6 @@ public sealed record RegisterClientRequest(
     string? AppVersion,
     string? Platform);
 
-/// <summary>Request body for sending a heartbeat from a client.</summary>
-public sealed record HeartbeatRequest(string? AppVersion, string? Platform);
-
 /// <summary>Response DTO for a registered client.</summary>
 public sealed record ClientResponse(
     Guid Id,

@@ -50,7 +50,6 @@ import {
   pauseCloudSession,
   resumeCloudSession,
   getSubscriptionStatus,
-  sendHeartbeat,
   deregisterClient,
   registerClient,
   getClientHostFromUserAgent,
@@ -109,7 +108,6 @@ const openSidePanelForAuthWindow = async (sender: chrome.runtime.MessageSender):
 // Client helpers
 // ---------------------------------------------------------------------------
 
-const HEARTBEAT_ALARM_NAME = "focusbot-heartbeat";
 const SIGNALR_RECONNECT_ALARM_NAME = "focusbot-signalr-reconnect";
 
 const getStoredClientId = async (): Promise<string | null> => {
@@ -417,7 +415,6 @@ const ensureClientRegistered = async (): Promise<void> => {
       [APP_KEYS.clientId]: result.id,
       [APP_KEYS.deviceId]: result.id
     });
-    await chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
   }
 };
 
@@ -1398,7 +1395,6 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       await patchSettings({
         focusbotEmail: undefined
       });
-      await chrome.alarms.clear(HEARTBEAT_ALARM_NAME);
       await chrome.alarms.clear(SIGNALR_RECONNECT_ALARM_NAME);
       await broadcastStateUpdate();
       return { ok: true };
@@ -1577,15 +1573,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await updateIconState();
     await startBadgeInterval();
   }
-  if (alarm.name === HEARTBEAT_ALARM_NAME) {
-    const clientId = await getStoredClientId();
-    if (!clientId) return;
-    const sent = await sendHeartbeat(clientId);
-    if (!sent) {
-      // 404 means device was removed — re-register on next startup.
-      await chrome.storage.local.remove([APP_KEYS.clientId, APP_KEYS.deviceId]);
-    }
-  }
   if (alarm.name === SIGNALR_RECONNECT_ALARM_NAME) {
     await ensureFocusHubConnected();
   }
@@ -1598,7 +1585,6 @@ chrome.runtime.onStartup.addListener(async () => {
   const session = await loadFocusbotAuthSession();
   if (session) {
     void ensureClientRegistered();
-    void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
     void ensureFocusHubConnected();
     void reconcileActiveSessionFromCloud();
     void chrome.alarms.create(SIGNALR_RECONNECT_ALARM_NAME, { periodInMinutes: 1 });
@@ -1638,7 +1624,6 @@ chrome.runtime.onInstalled.addListener(async () => {
   const session = await loadFocusbotAuthSession();
   if (session) {
     void ensureClientRegistered();
-    void chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 1 });
     void ensureFocusHubConnected();
     void reconcileActiveSessionFromCloud();
     void chrome.alarms.create(SIGNALR_RECONNECT_ALARM_NAME, { periodInMinutes: 1 });

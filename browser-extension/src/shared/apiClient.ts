@@ -1,4 +1,5 @@
 import { loadFocusbotAuthSession, refreshFocusbotAuthToken } from "./focusbotAuth";
+import { APP_KEYS } from "./utils";
 
 const getWebApiBaseUrl = (): string => {
   const configured = (import.meta as unknown as { env?: { VITE_FOQUS_API_BASE_URL?: string } }).env
@@ -85,10 +86,29 @@ export type WebApiClassifyResponse = {
   cached: boolean;
 };
 
+const tryGetStoredClientId = async (): Promise<string | undefined> => {
+  const r = await chrome.storage.local.get(APP_KEYS.clientId);
+  const v = r[APP_KEYS.clientId];
+  return typeof v === "string" && v.trim() ? v : undefined;
+};
+
 export const classifyViaWebApi = async (request: WebApiClassifyRequest): Promise<WebApiClassifyResponse> => {
+  const clientId = await tryGetStoredClientId();
+  const body = {
+    sessionTitle: request.taskText,
+    sessionContext: request.taskHints ?? null,
+    processName: request.processName ?? null,
+    windowTitle: request.windowTitle ?? null,
+    url: request.url ?? null,
+    pageTitle: request.pageTitle ?? null,
+    providerId: request.providerId ?? null,
+    modelId: request.modelId ?? null,
+    ...(clientId ? { clientId } : {})
+  };
+
   const result = await apiFetch<WebApiClassifyResponse>("/classify", {
     method: "POST",
-    body: JSON.stringify(request)
+    body: JSON.stringify(body)
   });
 
   if (!result) {
@@ -265,13 +285,6 @@ export const registerClient = async (
       platform: request.platform
     })
   });
-};
-
-export const sendHeartbeat = async (clientId: string): Promise<boolean> => {
-  const result = await apiFetch<unknown>(`/clients/${clientId}/heartbeat`, {
-    method: "PUT"
-  });
-  return result !== null;
 };
 
 export const deregisterClient = async (clientId: string): Promise<boolean> => {

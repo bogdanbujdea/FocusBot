@@ -26,7 +26,7 @@ public class Client
     public string? AppVersion { get; set; }
     public string? Platform { get; set; }
 
-    /// <summary>Observed IP from the last register or heartbeat (server-derived).</summary>
+    /// <summary>Observed IP from the last register or activity (e.g. classification; server-derived).</summary>
     public string? IpAddress { get; set; }
 
     public DateTime LastSeenAtUtc { get; set; } = DateTime.UtcNow;

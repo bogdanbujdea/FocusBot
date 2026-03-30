@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -20,10 +21,11 @@ public sealed class ClassificationCoalescingService(
         Guid userId,
         ClassifyRequest request,
         string? byokApiKey,
+        string? remoteIp,
         CancellationToken ct)
     {
         var queue = _queues.GetOrAdd(userId, _ => new UserQueueState());
-        var pending = new PendingRequest(request, byokApiKey);
+        var pending = new PendingRequest(request, byokApiKey, remoteIp);
 
         lock (queue.Gate)
         {
@@ -79,6 +81,8 @@ public sealed class ClassificationCoalescingService(
             var selected = PickBestRequest(active);
             var result = await ClassifyAsync(userId, selected.Request, selected.ByokApiKey).ConfigureAwait(false);
 
+            await TouchClientsLastSeenAsync(userId, active).ConfigureAwait(false);
+
             await BroadcastClassificationAsync(userId, selected.Request, result).ConfigureAwait(false);
 
             foreach (var pending in active)
@@ -109,6 +113,32 @@ public sealed class ClassificationCoalescingService(
         using var scope = scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ClassificationService>();
         return await service.ClassifyAsync(userId, request, byokApiKey).ConfigureAwait(false);
+    }
+
+    private async Task TouchClientsLastSeenAsync(Guid userId, IReadOnlyList<PendingRequest> active)
+    {
+        foreach (var pending in active)
+        {
+            var clientId = pending.Request.ClientId;
+            if (clientId is null)
+                continue;
+
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var clients = scope.ServiceProvider.GetRequiredService<ClientService>();
+                await clients
+                    .TouchLastSeenAsync(userId, clientId.Value, pending.RemoteIp, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Failed to touch last seen for client {ClientId}",
+                    clientId);
+            }
+        }
     }
 
     private async Task BroadcastClassificationAsync(
@@ -196,16 +226,18 @@ public sealed class ClassificationCoalescingService(
 
     private sealed class PendingRequest
     {
-        public PendingRequest(ClassifyRequest request, string? byokApiKey)
+        public PendingRequest(ClassifyRequest request, string? byokApiKey, string? remoteIp)
         {
             Request = request;
             ByokApiKey = byokApiKey;
+            RemoteIp = remoteIp;
             Completion = new TaskCompletionSource<ClassifyResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
             ReceivedAtUtc = DateTime.UtcNow;
         }
 
         public ClassifyRequest Request { get; }
         public string? ByokApiKey { get; }
+        public string? RemoteIp { get; }
         public TaskCompletionSource<ClassifyResponse> Completion { get; }
         public DateTime ReceivedAtUtc { get; }
     }

@@ -4,7 +4,7 @@ using System.Security.Claims;
 namespace FocusBot.WebAPI.Features.Clients;
 
 /// <summary>
-/// Minimal API endpoints for client registration, heartbeat, and management.
+/// Minimal API endpoints for client registration and management.
 /// </summary>
 public static class ClientsEndpoints
 {
@@ -46,22 +46,6 @@ public static class ClientsEndpoints
         })
         .WithName("GetClients")
         .WithSummary("List all registered clients for the current user");
-
-        group.MapPut("/{id:guid}/heartbeat", async (
-            Guid id,
-            HeartbeatRequest request,
-            ClientService service,
-            HttpContext ctx,
-            CancellationToken ct) =>
-        {
-            var userId = GetUserId(ctx);
-            var remoteIp = GetRemoteIpAddress(ctx);
-            var client = await service.HeartbeatAsync(userId, id, request, remoteIp, ct);
-
-            return client is not null ? Results.Ok(client) : Results.NotFound();
-        })
-        .WithName("ClientHeartbeat")
-        .WithSummary("Send a heartbeat to mark the client as online and update version info");
 
         group.MapDelete("/{id:guid}", async (
             Guid id,

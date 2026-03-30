@@ -2,12 +2,11 @@ using CSharpFunctionalExtensions;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Net;
 
 namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
-/// Manages client registration and heartbeat for cloud plan users.
+/// Manages client registration for cloud plan users.
 /// Generates a stable client fingerprint on first run and persists the tenant-assigned
 /// client ID in local settings.
 /// </summary>
@@ -62,41 +61,6 @@ public class DesktopClientService(
         {
             _registerLock.Release();
         }
-    }
-
-    public async Task SendHeartbeatAsync(CancellationToken ct = default)
-    {
-        var clientId = await GetOrLoadClientIdAsync();
-        if (clientId is null)
-        {
-            logger.LogDebug("No client ID available; skipping heartbeat");
-            return;
-        }
-
-        var statusCode = await apiClient.SendHeartbeatAsync(clientId.Value);
-
-        if (statusCode == HttpStatusCode.OK)
-            return;
-
-        if (statusCode == HttpStatusCode.NotFound)
-        {
-            logger.LogWarning("Client {ClientId} not found on server; clearing registration and re-registering", clientId);
-            _cachedClientId = null;
-            await settings.SetSettingAsync<string?>(ClientIdKey, null);
-            await RegisterAsync(ct);
-            return;
-        }
-
-        if (statusCode == HttpStatusCode.Unauthorized)
-        {
-            logger.LogWarning("Heartbeat for client {ClientId} was unauthorized after token refresh attempt", clientId);
-            return;
-        }
-
-        logger.LogWarning(
-            "Heartbeat failed for client {ClientId} with status {StatusCode}",
-            clientId,
-            statusCode?.ToString() ?? "network error");
     }
 
     public async Task DeregisterAsync(CancellationToken ct = default)

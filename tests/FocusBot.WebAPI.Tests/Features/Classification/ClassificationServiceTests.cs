@@ -102,6 +102,7 @@ public class ClassificationServiceTests
             null,
             null,
             null,
+            null,
             null
         );
 
@@ -254,7 +255,8 @@ public class ClassificationServiceTests
             null,
             null,
             "Anthropic",
-            "claude-3-5-sonnet"
+            "claude-3-5-sonnet",
+            null
         );
         var (_, service) = CreateService();
 

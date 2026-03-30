@@ -1,6 +1,4 @@
 using FocusBot.Core.Entities;
-using System.Net;
-
 
 namespace FocusBot.Core.Interfaces;
 
@@ -34,11 +32,6 @@ public interface IFocusBotApiClient
         string fingerprint,
         ClientType clientType = ClientType.Desktop,
         ClientHost host = ClientHost.Windows);
-    /// <summary>
-    /// Sends a heartbeat PUT. Returns the HTTP status code, or null on a network/exception failure.
-    /// Automatically retries once after a token refresh on 401.
-    /// </summary>
-    Task<HttpStatusCode?> SendHeartbeatAsync(Guid clientId);
     Task<bool> DeregisterClientAsync(Guid clientId);
 
     // Account

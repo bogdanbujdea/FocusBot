@@ -6,7 +6,7 @@ using Npgsql;
 namespace FocusBot.WebAPI.Features.Clients;
 
 /// <summary>
-/// Business logic for client registration, heartbeat, and lifecycle management.
+/// Business logic for client registration and lifecycle management.
 /// A client is considered online if its LastSeenAtUtc is within the online threshold.
 /// </summary>
 public class ClientService(ApiDbContext db)
@@ -105,13 +105,12 @@ public class ClientService(ApiDbContext db)
     }
 
     /// <summary>
-    /// Updates LastSeenAtUtc and optional version/platform fields.
-    /// Returns null if the client is not found or does not belong to the user.
+    /// Updates LastSeenAtUtc and observed IP (e.g. after a successful POST /classify).
+    /// No-op if the client is not found or does not belong to the user.
     /// </summary>
-    public async Task<ClientResponse?> HeartbeatAsync(
+    public async Task TouchLastSeenAsync(
         Guid userId,
         Guid clientId,
-        HeartbeatRequest request,
         string? remoteIpAddress,
         CancellationToken ct = default
     )
@@ -122,20 +121,12 @@ public class ClientService(ApiDbContext db)
         );
 
         if (client is null)
-            return null;
+            return;
 
         client.LastSeenAtUtc = DateTime.UtcNow;
         client.IpAddress = remoteIpAddress;
 
-        if (request.AppVersion is not null)
-            client.AppVersion = request.AppVersion;
-
-        if (request.Platform is not null)
-            client.Platform = request.Platform;
-
         await db.SaveChangesAsync(ct);
-
-        return ToResponse(client);
     }
 
     /// <summary>

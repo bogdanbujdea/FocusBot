@@ -47,10 +47,12 @@ public static class ClassificationEndpoints
 
                     try
                     {
+                        var remoteIp = GetRemoteIpAddress(ctx);
                         var result = await coalescingService.EnqueueAndWaitAsync(
                             userId,
                             request,
                             byokApiKey,
+                            remoteIp,
                             ct
                         );
                         return Results.Ok(result);
@@ -114,5 +116,20 @@ public static class ClassificationEndpoints
             );
 
         return group;
+    }
+
+    private static string? GetRemoteIpAddress(HttpContext ctx)
+    {
+        var ip = ctx.Connection.RemoteIpAddress;
+        if (ip is null)
+            return null;
+
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+            && ip.IsIPv4MappedToIPv6)
+        {
+            return ip.MapToIPv4().ToString();
+        }
+
+        return ip.ToString();
     }
 }

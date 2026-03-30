@@ -26,7 +26,8 @@ public sealed record ClassifyPayload(
     string? ProcessName,
     string? WindowTitle,
     string? ProviderId,
-    string? ModelId
+    string? ModelId,
+    Guid? ClientId
 );
 
 /// <summary>Payload sent to POST /classify/validate-key.</summary>
@@ -62,7 +63,7 @@ public sealed record RegisterClientRequest(
     string? AppVersion,
     string? Platform);
 
-/// <summary>Response from POST /clients and PUT /clients/{id}/heartbeat.</summary>
+/// <summary>Response from POST /clients.</summary>
 /// <remarks>ClientType and Host are integer enums serialized as numbers by the API.</remarks>
 public sealed record ApiClientResponse(
     Guid Id,
