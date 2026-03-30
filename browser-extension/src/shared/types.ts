@@ -20,9 +20,6 @@ export type PlanType = "trial" | "cloud-byok" | "cloud-managed";
 /** Returns true when the plan uses a user-supplied OpenAI API key. */
 export const planRequiresApiKey = (plan: PlanType): boolean => plan !== "cloud-managed";
 
-/** Returns true when classification routes directly to the LLM provider (not via POST /classify). */
-export const planUsesDirectClassification = (plan: PlanType): boolean => plan !== "cloud-managed";
-
 export interface Settings {
   /** Active plan tier. Requires a signed-in account for all values. */
   plan: PlanType;
@@ -77,6 +74,15 @@ export interface CompletedSession {
   summary: SessionSummary;
 }
 
+/** Latest cross-device alignment from SignalR ClassificationChanged (e.g. Windows app classified desktop). */
+export interface HubClassificationSnapshot {
+  score: number;
+  reason: string;
+  activityName: string;
+  source: string;
+  classifiedAtUtc: string;
+}
+
 export interface FocusSession {
   sessionId: string;
   taskText: string;
@@ -86,6 +92,8 @@ export interface FocusSession {
   visits: PageVisit[];
   summary?: SessionSummary;
   currentVisit?: InProgressVisit;
+  /** Set when the hub reports alignment from another client or when there is no browser visit to attach to. */
+  lastHubClassification?: HubClassificationSnapshot;
   /** When set, session is paused; no classification, overlay hidden, elapsed frozen. */
   pausedAt?: string;
   /** Cumulative seconds the session has been paused (supports multiple pause/resume cycles). */

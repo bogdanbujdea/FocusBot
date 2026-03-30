@@ -20,8 +20,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     private readonly IClassificationService _classificationService;
     private readonly IFocusBotApiClient _apiClient;
     private readonly IAlignmentCacheRepository _alignmentCacheRepository;
-    private readonly IIntegrationService? _integrationService;
     private readonly IClientService? _clientService;
+    private readonly IExtensionPresenceService? _extensionPresence;
 
     private readonly object _lock = new();
 
@@ -62,8 +62,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         IClassificationService classificationService,
         IFocusBotApiClient apiClient,
         IAlignmentCacheRepository alignmentCacheRepository,
-        IIntegrationService? integrationService = null,
-        IClientService? clientService = null
+        IClientService? clientService = null,
+        IExtensionPresenceService? extensionPresence = null
     )
     {
         _sessionTracker = sessionTracker;
@@ -71,8 +71,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         _classificationService = classificationService;
         _apiClient = apiClient;
         _alignmentCacheRepository = alignmentCacheRepository;
-        _integrationService = integrationService;
         _clientService = clientService;
+        _extensionPresence = extensionPresence;
 
         _windowMonitor.Tick += OnTick;
         _windowMonitor.UserBecameIdle += OnUserBecameIdle;
@@ -498,14 +498,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
             if (session == null)
             {
-                if (_integrationService is { IsExtensionConnected: true })
-                {
-                    _ = _integrationService.SendDesktopForegroundAsync(
-                        e.ProcessName,
-                        e.WindowTitle
-                    );
-                }
-
                 _focusScore = 0;
                 _focusReason = string.Empty;
                 _isClassifying = false;
@@ -527,6 +519,16 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 return;
             }
 
+            if (IsBrowserProcess(e.ProcessName) && _extensionPresence?.IsExtensionOnline == true)
+            {
+                _focusScore = 5;
+                _focusReason = "Browser activity tracked by extension";
+                _isClassifying = false;
+                _hasCurrentFocusResult = true;
+                RaiseStateChanged();
+                return;
+            }
+
             _focusScore = 0;
             _focusReason = string.Empty;
             _isClassifying = false;
@@ -535,32 +537,12 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
 
         RaiseStateChanged();
 
-        if (_integrationService is { IsExtensionConnected: true })
-        {
-            _ = _integrationService.SendDesktopForegroundAsync(e.ProcessName, e.WindowTitle);
-        }
-
-        if (
-            BrowserProcessNames.IsBrowser(e.ProcessName)
-            && _integrationService is { IsExtensionConnected: true }
-        )
-        {
-            _ = ClassifyWithBrowserContextAsync(
-                sessionTitle,
-                sessionContext,
-                e.ProcessName,
-                e.WindowTitle
-            );
-        }
-        else
-        {
-            _ = ClassifyAndUpdateFocusAsync(
-                sessionTitle,
-                sessionContext,
-                e.ProcessName,
-                e.WindowTitle
-            );
-        }
+        _ = ClassifyAndUpdateFocusAsync(
+            sessionTitle,
+            sessionContext,
+            e.ProcessName,
+            e.WindowTitle
+        );
     }
 
     private async Task ClassifyAndUpdateFocusAsync(
@@ -613,57 +595,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         }
     }
 
-    private async Task ClassifyWithBrowserContextAsync(
-        string sessionTitle,
-        string? sessionContext,
-        string processName,
-        string windowTitle
-    )
-    {
-        if (_integrationService is not { IsExtensionConnected: true })
-        {
-            await ClassifyAndUpdateFocusAsync(
-                sessionTitle,
-                sessionContext,
-                processName,
-                windowTitle
-            );
-            return;
-        }
-
-        var browserContext = _integrationService.LastBrowserContext;
-        if (browserContext != null && !string.IsNullOrEmpty(browserContext.Url))
-        {
-            var domain =
-                Uri.TryCreate(browserContext.Url, UriKind.Absolute, out var uri)
-                && uri.IsAbsoluteUri
-                    ? uri.Host
-                    : browserContext.Url;
-
-            lock (_lock)
-            {
-                _currentWindowTitle = $"Browser: {domain}";
-            }
-
-            var combinedTitle = $"{browserContext.Title} ({browserContext.Url})";
-            await ClassifyAndUpdateFocusAsync(
-                sessionTitle,
-                sessionContext,
-                processName,
-                combinedTitle
-            );
-        }
-        else
-        {
-            await ClassifyAndUpdateFocusAsync(
-                sessionTitle,
-                sessionContext,
-                processName,
-                windowTitle
-            );
-        }
-    }
-
     private static bool IsNeutralApp(string processName)
     {
         return processName == "Foqus"
@@ -672,6 +603,15 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             || processName == "StartMenuExperienceHost"
             || processName == "ApplicationFrameHost"
             || processName == "ShellExperienceHost";
+    }
+
+    private static bool IsBrowserProcess(string processName)
+    {
+        return processName.Equals("msedge", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("chrome", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("firefox", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("brave", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("opera", StringComparison.OrdinalIgnoreCase);
     }
 
     private void RaiseStateChanged()

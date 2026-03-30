@@ -78,21 +78,6 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0"
-                    Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                    CornerRadius="12"
-                    Padding="10,4"
-                    VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Extension connected indicator">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon Glyph="&#xE703;" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Text="Extension Connected"
-                               FontSize="12" FontWeight="SemiBold"
-                               Foreground="{StaticResource FbTextPrimaryBrush}"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-            <Border Grid.Column="0"
                     Background="{StaticResource FbCardBackgroundBrush}"
                     BorderBrush="{StaticResource FbCardBorderBrush}"
                     BorderThickness="1"
@@ -116,6 +101,23 @@
                                          FontSize="12"
                                          automation:AutomationProperties.Name="Get extension for Chrome"/>
                     </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="0"
+                    Background="{StaticResource FbCardBackgroundBrush}"
+                    BorderBrush="{StaticResource FbCardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="10,6"
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Extension connected status">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{StaticResource FbAlignedBrush}"/>
+                    <TextBlock Text="Extension connected"
+                               FontSize="12"
+                               Foreground="{StaticResource FbTextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">

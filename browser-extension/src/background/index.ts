@@ -1,5 +1,5 @@
 import { calculateAnalytics } from "../shared/analytics";
-import { classifyPage, classifyDesktopApp, mapApiScoreToClassification } from "../shared/classifier";
+import { classifyPage, mapApiScoreToClassification } from "../shared/classifier";
 import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
@@ -56,30 +56,8 @@ import {
   fetchCurrentUser
 } from "../shared/apiClient";
 import { mapBackendPlanType } from "../shared/subscription";
-import {
-  stopIntegration,
-  setMessageHandler,
-  setHandshakeProvider,
-  sendHandshake,
-  sendTaskStarted,
-  sendTaskEnded,
-  sendFocusStatus,
-  sendBrowserContext,
-  getIntegrationState,
-  updateLeaderTask,
-  clearLeaderTask,
-  updateLastFocusStatus,
-  updateDesktopContext,
-  updateBrowserForeground,
-  isConnected
-} from "../shared/integration";
-import type {
-  IntegrationEnvelope,
-  TaskStartedPayload,
-  FocusStatusPayload,
-  DesktopForegroundPayload
-} from "../shared/integrationTypes";
-import { MESSAGE_TYPES } from "../shared/integrationTypes";
+import type { IntegrationState } from "../shared/integrationTypes";
+import { startExtensionPresence } from "../shared/extensionPresence";
 
 // Chrome persists openPanelOnActionClick across extension reloads; force popup as the toolbar action.
 void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch((error) => {
@@ -109,6 +87,14 @@ const openSidePanelForAuthWindow = async (sender: chrome.runtime.MessageSender):
 // ---------------------------------------------------------------------------
 
 const SIGNALR_RECONNECT_ALARM_NAME = "focusbot-signalr-reconnect";
+
+/** True when a browser window is focused (vs another app). Used to avoid clobbering desktop visit state from background tab events. */
+let browserWindowInForeground = true;
+
+const getStaticIntegrationState = (): IntegrationState => ({
+  connected: false,
+  browserInForeground: browserWindowInForeground
+});
 
 const getStoredClientId = async (): Promise<string | null> => {
   const result = await chrome.storage.local.get([APP_KEYS.clientId, APP_KEYS.deviceId]);
@@ -296,9 +282,19 @@ const handleSignalRClassificationChanged = async (event: ClassificationChangedEv
     return;
   }
 
+  if (event.source === "desktop") {
+    console.info("[Foqus] Windows app foreground classification (SignalR):", {
+      score: event.score,
+      reason: event.reason,
+      activityName: event.activityName,
+      classifiedAtUtc: event.classifiedAtUtc,
+      cached: event.cached
+    });
+  }
+
   await runExclusive(async () => {
     const session = await loadActiveSession();
-    if (!session || session.pausedAt || !session.currentVisit) {
+    if (!session || session.pausedAt) {
       return;
     }
 
@@ -308,6 +304,21 @@ const handleSignalRClassificationChanged = async (event: ClassificationChangedEv
       event.activityName.trim().length > 0
         ? `[${event.activityName}] ${event.reason}`
         : event.reason;
+
+    session.lastHubClassification = {
+      score: event.score,
+      reason: reasonWithActivity,
+      activityName: event.activityName,
+      source: event.source,
+      classifiedAtUtc: event.classifiedAtUtc
+    };
+
+    if (!session.currentVisit) {
+      await saveActiveSession(session);
+      await broadcastStateUpdate();
+      await updateIconState();
+      return;
+    }
 
     if (session.currentVisit.tabId !== undefined && session.currentVisit.tabId >= 0) {
       await sendDistractionAlert(session.currentVisit.tabId, { show: false });
@@ -451,10 +462,9 @@ const toRuntimeState = async () => ({
 const broadcastStateUpdate = async (): Promise<void> => {
   try {
     const state = await toRuntimeState();
-    console.log("Broadcasting state update:", state);
     await chrome.runtime.sendMessage({ type: "STATE_UPDATED", data: state });
-  } catch (error) {
-    console.log("Broadcast error (expected if no UI open):", error);
+  } catch {
+    // Expected when no UI (popup/sidepanel) is open. UI will fetch state when it opens.
   }
   
   try {
@@ -463,217 +473,6 @@ const broadcastStateUpdate = async (): Promise<void> => {
     console.error("Icon state update error:", error);
   }
 };
-
-const handleIntegrationMessage = async (envelope: IntegrationEnvelope): Promise<void> => {
-  const integrationState = getIntegrationState();
-
-  switch (envelope.type) {
-    case MESSAGE_TYPES.HANDSHAKE: {
-      const payload = envelope.payload as { source: string; hasActiveTask: boolean; taskId?: string; taskText?: string; taskHints?: string } | undefined;
-      if (!payload) break;
-
-      const session = await loadActiveSession();
-      sendHandshake(
-        session !== null,
-        session?.sessionId,
-        session?.taskText,
-        undefined,
-        session?.startedAt
-      );
-
-      if (payload.hasActiveTask && payload.taskText) {
-        if (session) {
-          const endedAt = nowIso();
-          if (session.currentVisit?.tabId !== undefined) {
-            await sendDistractionAlert(session.currentVisit.tabId, { show: false });
-          }
-          if (session.pausedAt) {
-            session.totalPausedSeconds =
-              (session.totalPausedSeconds ?? 0) + secondsBetween(session.pausedAt, endedAt);
-          }
-          finalizeCurrentVisit(session, endedAt);
-          session.endedAt = endedAt;
-          const totalPaused = session.totalPausedSeconds ?? 0;
-          session.summary = calculateSessionSummary(
-            session.taskText,
-            session.startedAt,
-            endedAt,
-            session.visits,
-            totalPaused
-          );
-          const sessionForHistory = stripActiveSessionForHistory(session);
-          await saveSession(sessionForHistory);
-          await saveActiveSession(null);
-          stopBadgeInterval();
-        }
-        updateLeaderTask(payload.taskId ?? "", payload.taskText);
-      }
-      await pushBrowserContextToApp();
-      await broadcastStateUpdate();
-      break;
-    }
-
-    case MESSAGE_TYPES.TASK_STARTED: {
-      const payload = envelope.payload as TaskStartedPayload | undefined;
-      if (!payload) break;
-
-      const sessionForStarted = await loadActiveSession();
-      if (sessionForStarted) {
-        const endedAt = nowIso();
-        if (sessionForStarted.currentVisit?.tabId !== undefined) {
-          await sendDistractionAlert(sessionForStarted.currentVisit.tabId, { show: false });
-        }
-        if (sessionForStarted.pausedAt) {
-          sessionForStarted.totalPausedSeconds =
-            (sessionForStarted.totalPausedSeconds ?? 0) + secondsBetween(sessionForStarted.pausedAt, endedAt);
-        }
-        finalizeCurrentVisit(sessionForStarted, endedAt);
-        sessionForStarted.endedAt = endedAt;
-        const totalPaused = sessionForStarted.totalPausedSeconds ?? 0;
-        sessionForStarted.summary = calculateSessionSummary(
-          sessionForStarted.taskText,
-          sessionForStarted.startedAt,
-          endedAt,
-          sessionForStarted.visits,
-          totalPaused
-        );
-        const sessionForHistory = stripActiveSessionForHistory(sessionForStarted);
-        await saveSession(sessionForHistory);
-        await saveActiveSession(null);
-        stopBadgeInterval();
-      }
-      updateLeaderTask(payload.taskId, payload.taskText);
-      await broadcastStateUpdate();
-      break;
-    }
-
-    case MESSAGE_TYPES.TASK_ENDED: {
-      clearLeaderTask();
-      await broadcastStateUpdate();
-      break;
-    }
-
-    case MESSAGE_TYPES.FOCUS_STATUS: {
-      const payload = envelope.payload as FocusStatusPayload | undefined;
-      if (!payload) break;
-
-      if (getIntegrationState().leaderTaskId) {
-        updateLastFocusStatus(payload);
-      }
-      await broadcastStateUpdate();
-      break;
-    }
-
-    case MESSAGE_TYPES.DESKTOP_FOREGROUND: {
-      const payload = envelope.payload as DesktopForegroundPayload | undefined;
-      if (!payload) break;
-
-      const desktopDomain = payload.processName || "desktop-app";
-      const desktopTitle = payload.windowTitle || payload.processName;
-      const visitToken = createId();
-
-      // Phase 1: Immediately finalize current visit and create a "classifying" desktop
-      // visit so metrics stop accumulating aligned time during the API call.
-      let taskText = "";
-      let taskHints: string | undefined;
-
-      await runExclusive(async () => {
-        updateBrowserForeground(false);
-        const session = await loadActiveSession();
-        if (!session || session.pausedAt) return;
-
-        taskText = session.taskText;
-        taskHints = session.taskHints;
-
-        const transitionAt = nowIso();
-        if (session.currentVisit?.tabId !== undefined && session.currentVisit.tabId >= 0) {
-          await sendDistractionAlert(session.currentVisit.tabId, { show: false });
-        }
-        finalizeCurrentVisit(session, transitionAt);
-
-        session.currentVisit = {
-          visitToken,
-          tabId: -1,
-          url: `desktop://${desktopDomain}`,
-          domain: desktopDomain,
-          title: desktopTitle,
-          enteredAt: transitionAt,
-          visitState: "classifying",
-          classification: undefined,
-          confidence: undefined,
-          reason: ""
-        };
-        await saveActiveSession(session);
-        await broadcastStateUpdate();
-      });
-
-      if (!taskText) break;
-
-      // Phase 2: Classify the desktop app and update the visit with the result.
-      try {
-        const settings = await loadSettings();
-        const result = await classifyDesktopApp(settings, taskText, payload.processName, payload.windowTitle, taskHints);
-
-        await runExclusive(async () => {
-          const session = await loadActiveSession();
-          if (!session || session.pausedAt) return;
-          if (session.currentVisit?.visitToken !== visitToken) return;
-
-          session.currentVisit = {
-            ...session.currentVisit,
-            visitState: "classified",
-            classification: result.classification,
-            confidence: result.confidence ?? 0.8,
-            reason: result.reason ?? ""
-          };
-          await saveActiveSession(session);
-
-          updateDesktopContext({
-            processName: payload.processName,
-            windowTitle: payload.windowTitle,
-            classification: result.classification,
-            reason: result.reason ?? "",
-            timestamp: Date.now()
-          });
-
-          sendFocusStatus({
-            taskId: session.sessionId,
-            classification: result.classification,
-            reason: result.reason ?? "",
-            score: result.classification === "aligned" ? 8 : 2,
-            focusScorePercent: calculateLiveSummary(session).focusPercentage,
-            contextType: "desktop",
-            contextTitle: `${payload.processName} - ${payload.windowTitle}`
-          });
-
-          await broadcastStateUpdate();
-        });
-      } catch (err) {
-        console.error("[Integration] Desktop classification failed:", err);
-      }
-      break;
-    }
-
-  }
-};
-
-setMessageHandler(handleIntegrationMessage);
-setHandshakeProvider(async () => {
-  const session = await loadActiveSession();
-  return {
-    hasActiveTask: session !== null,
-    taskId: session?.sessionId,
-    taskText: session?.taskText,
-    startedAt: session?.startedAt
-  };
-});
-
-const syncDesktopIntegrationFromSettings = async (): Promise<void> => {
-  // WebSocket desktop integration is deprecated; extension now uses API/SignalR only.
-  stopIntegration();
-};
-
-void syncDesktopIntegrationFromSettings();
 
 const BADGE_ALARM_NAME = "focusbot-badge-tick";
 const BADGE_UPDATE_INTERVAL_MS = 5000;
@@ -700,10 +499,7 @@ const stopBadgeInterval = (): void => {
 };
 
 const getIconStateFromSession = (session: FocusSession | null): IconState => {
-  console.log("getIconStateFromSession called with:", { session: session ? { sessionId: session.sessionId, currentVisit: session.currentVisit } : null });
-  
   if (!session) {
-    console.log("No session, returning default");
     return "default";
   }
 
@@ -712,22 +508,29 @@ const getIconStateFromSession = (session: FocusSession | null): IconState => {
   }
 
   if (!session.currentVisit) {
-    console.log("No currentVisit, returning default");
+    const hub = session.lastHubClassification;
+    if (hub) {
+      const c = mapApiScoreToClassification(hub.score);
+      if (c === "aligned") {
+        return "aligned";
+      }
+      if (c === "neutral") {
+        return "neutral";
+      }
+      return "distracting";
+    }
     return "default";
   }
 
   if (session.currentVisit.visitState === "classifying") {
-    console.log("Visit state is classifying, returning analyzing");
     return "analyzing";
   }
 
   if (session.currentVisit.visitState === "error") {
-    console.log("Visit state is error, returning error");
     return "error";
   }
 
   if (session.currentVisit.classification === "aligned") {
-    console.log("Classification is aligned, returning aligned");
     return "aligned";
   }
 
@@ -736,11 +539,9 @@ const getIconStateFromSession = (session: FocusSession | null): IconState => {
   }
 
   if (session.currentVisit.classification === "distracting") {
-    console.log("Classification is distracting, returning distracting");
     return "distracting";
   }
 
-  console.log("No match, returning default");
   return "default";
 };
 
@@ -779,23 +580,6 @@ const updateIconState = async (): Promise<void> => {
     const title =
       session?.pausedAt != null ? "Foqus - Paused" : stateLabels[iconState];
     await chrome.action.setTitle({ title });
-
-    if (session && isConnected()) {
-      const summary = calculateLiveSummary(session);
-      const state = getIntegrationState();
-      const desktopCtx = state.currentDesktopContext;
-      const cv = session.currentVisit;
-      const onDesktop = Boolean(desktopCtx);
-      sendFocusStatus({
-        taskId: session.sessionId,
-        classification: onDesktop ? desktopCtx!.classification : (cv?.classification ?? ""),
-        reason: onDesktop ? desktopCtx!.reason : (cv?.reason ?? ""),
-        score: onDesktop ? (desktopCtx!.classification === "aligned" ? 8 : 2) : (cv?.classification === "aligned" ? 8 : cv?.classification === "distracting" ? 2 : 0),
-        focusScorePercent: summary.focusPercentage,
-        contextType: onDesktop ? "desktop" : (cv ? "browser" : ""),
-        contextTitle: onDesktop ? `${desktopCtx!.processName} - ${desktopCtx!.windowTitle}` : (cv?.domain ?? "")
-      });
-    }
   } catch (error) {
     console.error("Failed to update icon:", error);
   }
@@ -944,6 +728,15 @@ const classifyAndApplyVisit = async (
     }
 
     if (outcome.ok) {
+      console.info("[Foqus] Classification complete:", {
+        classification: outcome.result.classification,
+        score: outcome.result.score,
+        url: latest.currentVisit.url,
+        title: latest.currentVisit.title,
+        domain: latest.currentVisit.domain,
+        reason: outcome.result.reason
+      });
+
       latest.currentVisit = {
         ...latest.currentVisit,
         visitState: "classified",
@@ -955,19 +748,6 @@ const classifyAndApplyVisit = async (
       await saveLastError(null);
       await saveActiveSession(latest);
       await broadcastStateUpdate();
-
-      if (isConnected()) {
-        updateDesktopContext(undefined);
-        sendFocusStatus({
-          taskId: latest.sessionId,
-          classification: outcome.result.classification,
-          reason: outcome.result.reason ?? "",
-          score: outcome.result.classification === "aligned" ? 8 : 2,
-          focusScorePercent: calculateLiveSummary(latest).focusPercentage,
-          contextType: "browser",
-          contextTitle: latest.currentVisit.domain
-        });
-      }
 
       const showDistraction =
         !latest.pausedAt && outcome.result.classification === "distracting";
@@ -1007,20 +787,26 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
 
     // Don't replace a desktop visit when the browser is not the focused window.
     // Tab events (onUpdated, onActivated) can fire for background tabs.
-    if (session.currentVisit?.tabId === -1 && !getIntegrationState().browserInForeground) {
+    if (session.currentVisit?.tabId === -1 && !browserWindowInForeground) {
       return;
     }
 
     const title = tab.title ?? getDomain(tab.url);
     const domain = getDomain(tab.url);
     const current = session.currentVisit;
-    const isSamePage =
+
+    // If the page hasn't changed and we already have a classified result (not from hub mirroring),
+    // skip re-classification. This prevents spam when the 5s badge interval triggers updateIconState.
+    const isSamePageWithValidClassification =
       current &&
       current.tabId === tab.id &&
       current.url === tab.url &&
       current.title === title &&
-      current.domain === domain;
-    if (isSamePage) {
+      current.domain === domain &&
+      current.visitState === "classified" &&
+      !current.reusedClassification;
+
+    if (isSamePageWithValidClassification) {
       return;
     }
 
@@ -1030,7 +816,8 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
       current.tabId === tab.id &&
       current.domain === domain &&
       current.visitState === "classified" &&
-      current.classification === "distracting";
+      current.classification === "distracting" &&
+      !current.reusedClassification;
 
     if (current?.tabId !== undefined) {
       await sendDistractionAlert(current.tabId, { show: false });
@@ -1082,20 +869,6 @@ const captureCurrentActiveTab = async (): Promise<void> => {
   }
 };
 
-const pushBrowserContextToApp = async (): Promise<void> => {
-  if (!isConnected()) return;
-  try {
-    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (activeTab?.url != null) {
-      sendBrowserContext(activeTab.url, activeTab.title ?? "");
-    } else {
-      sendBrowserContext("", "");
-    }
-  } catch {
-    sendBrowserContext("", "");
-  }
-};
-
 const startSession = async (taskText: string, taskHints?: string): Promise<RuntimeResponse<FocusSession>> =>
   runExclusive(async () => {
     const trimmedTask = taskText.trim();
@@ -1106,11 +879,6 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
     const currentSession = await loadActiveSession();
     if (currentSession) {
       return { ok: false, error: "Only one active session is allowed." };
-    }
-
-    const integrationState = getIntegrationState();
-    if (integrationState.leaderTaskId && integrationState.connected) {
-      return { ok: false, error: "A task is already in progress on the desktop app. End it there first." };
     }
 
     const settings = await loadSettings();
@@ -1154,20 +922,6 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
 
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
-
-    if (isConnected()) {
-      sendTaskStarted(session.sessionId, session.taskText, session.taskHints, session.startedAt);
-      const summary = calculateLiveSummary(latest ?? session);
-      sendFocusStatus({
-        taskId: (latest ?? session).sessionId,
-        classification: "",
-        reason: "",
-        score: 0,
-        focusScorePercent: summary.focusPercentage,
-        contextType: "",
-        contextTitle: ""
-      });
-    }
 
     return { ok: true, data: latest ?? session };
   });
@@ -1332,10 +1086,6 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
 
     await broadcastStateUpdate();
 
-    if (isConnected()) {
-      sendTaskEnded(session.sessionId);
-    }
-
     return { ok: true, data: completedSession };
   });
 
@@ -1363,7 +1113,6 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
         classifierModel: request.payload.classifierModel ?? current.classifierModel
       });
       await broadcastStateUpdate();
-      void syncDesktopIntegrationFromSettings();
       return { ok: true, data: updated };
     }
     case "CLEAR_ERROR":
@@ -1384,7 +1133,7 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       return { ok: true };
     }
     case "GET_INTEGRATION_STATE":
-      return { ok: true, data: getIntegrationState() };
+      return { ok: true, data: getStaticIntegrationState() };
     case "SIGN_OUT": {
       const clientIdToDeregister = await getStoredClientId();
       if (clientIdToDeregister) {
@@ -1541,7 +1290,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   const tab = await chrome.tabs.get(tabId);
   await updateVisitFromTab(tab);
-  await pushBrowserContextToApp();
 });
 
 chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
@@ -1549,22 +1297,19 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
     return;
   }
   await updateVisitFromTab(tab);
-  await pushBrowserContextToApp();
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    updateBrowserForeground(false);
+    browserWindowInForeground = false;
     return;
   }
 
-  updateBrowserForeground(true);
-  updateDesktopContext(undefined);
+  browserWindowInForeground = true;
 
   const [tab] = await chrome.tabs.query({ active: true, windowId });
   if (tab) {
     await updateVisitFromTab(tab);
-    await pushBrowserContextToApp();
   }
 });
 
@@ -1582,6 +1327,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  startExtensionPresence();
   const session = await loadFocusbotAuthSession();
   if (session) {
     void ensureClientRegistered();
@@ -1621,6 +1367,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await migrateSessionsToCompletedSessions();
   await startBadgeInterval();
   await captureCurrentActiveTab();
+  startExtensionPresence();
   const session = await loadFocusbotAuthSession();
   if (session) {
     void ensureClientRegistered();

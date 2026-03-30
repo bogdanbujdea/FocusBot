@@ -13,7 +13,7 @@ export default defineManifest({
     96: "icons/icon-default-96.png"
   },
   permissions: ["storage", "tabs", "sidePanel", "alarms", "idle"],
-  host_permissions: ["https://api.openai.com/*", "<all_urls>"],
+  host_permissions: ["<all_urls>"],
   action: {
     default_title: "Foqus",
     default_popup: "src/popup/index.html",

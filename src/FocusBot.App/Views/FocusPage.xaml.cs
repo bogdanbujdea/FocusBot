@@ -20,7 +20,6 @@ public sealed partial class FocusPage : Page
     {
         if (DataContext is not FocusPageViewModel vm)
             return;
-        vm.RefreshExtensionConnectionState();
         vm.ShowHowItWorksRequested += OnShowHowItWorksRequested;
         vm.ShowBYOKKeyPromptRequested += OnShowBYOKKeyPromptRequested;
         vm.AccountSection.PropertyChanged += OnAccountSectionPropertyChanged;

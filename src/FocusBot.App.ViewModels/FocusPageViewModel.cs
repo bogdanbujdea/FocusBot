@@ -18,6 +18,7 @@ public partial class FocusPageViewModel : ObservableObject
     private readonly IFocusSessionOrchestrator _sessionOrchestrator;
     private readonly IFocusHubClient _focusHubClient;
     private readonly IPlanService _planService;
+    private readonly IExtensionPresenceService? _extensionPresence;
     public AccountSettingsViewModel AccountSection { get; }
 
     /// <summary>
@@ -25,7 +26,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public FocusStatusViewModel Status { get; }
 
-    private readonly IIntegrationService? _integrationService;
     private readonly IUIThreadDispatcher? _uiDispatcher;
 
     /// <summary>
@@ -141,16 +141,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// <summary>False while a session API call (start, end, or loading board) is in progress.</summary>
     public bool IsSessionOperationEnabled => !IsSessionBusy;
 
-    public bool IsExtensionConnected
-    {
-        get;
-        private set
-        {
-            if (SetProperty(ref field, value))
-                OnPropertyChanged(nameof(ShowExtensionPromo));
-        }
-    }
-
     /// <summary>
     /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
     /// </summary>
@@ -158,9 +148,14 @@ public partial class FocusPageViewModel : ObservableObject
         BrowserProcessNames.IsExtensionSupported(Status.CurrentProcessName);
 
     /// <summary>
-    /// True when we should show the "install extension" promo: extension not connected and foreground app is Edge or Chrome.
+    /// True when the browser extension is connected via WebSocket.
     /// </summary>
-    public bool ShowExtensionPromo => !IsExtensionConnected && IsForegroundBrowserEdgeOrChrome;
+    public bool IsExtensionConnected => _extensionPresence?.IsExtensionOnline ?? false;
+
+    /// <summary>
+    /// True when we should show the "install extension" promo (foreground app is Edge or Chrome AND extension not connected).
+    /// </summary>
+    public bool ShowExtensionPromo => IsForegroundBrowserEdgeOrChrome && !IsExtensionConnected;
 
     /// <summary>
     /// Microsoft Edge Add-ons store URL for the FocusBot extension.
@@ -180,8 +175,8 @@ public partial class FocusPageViewModel : ObservableObject
         IPlanService planService,
         AccountSettingsViewModel accountSection,
         FocusStatusViewModel status,
-        IIntegrationService? integrationService = null,
-        IUIThreadDispatcher? uiDispatcher = null
+        IUIThreadDispatcher? uiDispatcher = null,
+        IExtensionPresenceService? extensionPresence = null
     )
     {
         _navigationService = navigationService;
@@ -189,12 +184,15 @@ public partial class FocusPageViewModel : ObservableObject
         _sessionOrchestrator = sessionOrchestrator;
         _focusHubClient = focusHubClient;
         _planService = planService;
+        _extensionPresence = extensionPresence;
         AccountSection = accountSection;
         Status = status;
-        _integrationService = integrationService;
         _uiDispatcher = uiDispatcher;
 
         _sessionOrchestrator.StateChanged += OnOrchestratorStateChanged;
+
+        if (_extensionPresence != null)
+            _extensionPresence.ConnectionStateChanged += OnExtensionPresenceChanged;
 
         _focusHubClient.SessionStarted += OnFocusHubSessionStarted;
         _focusHubClient.SessionEnded += OnFocusHubSessionEnded;
@@ -206,11 +204,6 @@ public partial class FocusPageViewModel : ObservableObject
         _planService.PlanChanged += OnPlanServicePlanChanged;
 
         AccountSection.PropertyChanged += OnAccountSectionPropertyChanged;
-
-        if (_integrationService != null)
-        {
-            _integrationService.ExtensionConnectionChanged += OnExtensionConnectionChanged;
-        }
 
         _ = LoadBoardAsync();
     }
@@ -257,6 +250,24 @@ public partial class FocusPageViewModel : ObservableObject
         {
             Apply();
         }
+    }
+
+    private void OnExtensionPresenceChanged(object? sender, EventArgs e)
+    {
+        void UpdateExtensionState()
+        {
+            OnPropertyChanged(nameof(IsExtensionConnected));
+            OnPropertyChanged(nameof(ShowExtensionPromo));
+        }
+
+        if (_uiDispatcher != null)
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                UpdateExtensionState();
+                return Task.CompletedTask;
+            });
+        else
+            UpdateExtensionState();
     }
 
     private async Task TryRaiseByokPromptAsync()
@@ -415,6 +426,7 @@ public partial class FocusPageViewModel : ObservableObject
             OnPropertyChanged(nameof(IsFocusResultVisible));
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
             OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+            OnPropertyChanged(nameof(IsExtensionConnected));
             OnPropertyChanged(nameof(ShowExtensionPromo));
 
             RaiseFocusOverlayStateChanged();
@@ -771,6 +783,7 @@ public partial class FocusPageViewModel : ObservableObject
         DistractionCount = 0;
         Status.Reset();
         OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(IsExtensionConnected));
         OnPropertyChanged(nameof(ShowExtensionPromo));
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         RaiseFocusOverlayStateChanged();
@@ -833,27 +846,6 @@ public partial class FocusPageViewModel : ObservableObject
         return $"Foqus — {label} ({CurrentFocusScorePercent}%)";
     }
 
-    private void OnExtensionConnectionChanged(object? sender, bool connected)
-    {
-        void UpdateConnectionState()
-        {
-            IsExtensionConnected = connected;
-        }
-
-        if (_uiDispatcher != null)
-        {
-            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
-            {
-                UpdateConnectionState();
-                return Task.CompletedTask;
-            });
-        }
-        else
-        {
-            UpdateConnectionState();
-        }
-    }
-
     private void UpdateMonitoringState()
     {
         Status.IsMonitoring = ActiveSession != null;
@@ -863,17 +855,8 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
         OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
+        OnPropertyChanged(nameof(IsExtensionConnected));
         OnPropertyChanged(nameof(ShowExtensionPromo));
     }
 
-    /// <summary>
-    /// Refreshes IsExtensionConnected from the integration service. Call when the Focus page is shown
-    /// so the UI reflects the current connection state even if the connection event was missed or delivered on a background thread.
-    /// </summary>
-    public void RefreshExtensionConnectionState()
-    {
-        var connected = _integrationService?.IsExtensionConnected ?? false;
-        if (IsExtensionConnected != connected)
-            IsExtensionConnected = connected;
-    }
 }

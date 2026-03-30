@@ -22,7 +22,6 @@ namespace FocusBot.App
         private FocusOverlayWindow? _overlayWindow;
         private readonly IServiceProvider? _services;
         private FocusPageViewModel? _viewModel;
-        private IIntegrationService? _integrationService;
 
         public App()
         {
@@ -75,7 +74,7 @@ namespace FocusBot.App
             services.AddSingleton<IClientService, DesktopClientService>();
             services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
-            services.AddSingleton<IIntegrationService, WebSocketIntegrationService>();
+            services.AddSingleton<IExtensionPresenceService, ExtensionPresenceService>();
             services.AddSingleton<IFocusSessionOrchestrator, FocusSessionOrchestrator>();
             services.AddSingleton<IFocusHubClient>(sp =>
             {
@@ -141,9 +140,11 @@ namespace FocusBot.App
 
             await OnAuthStateChangedAsync();
 
+            var extensionPresence = _services!.GetRequiredService<IExtensionPresenceService>();
+            await extensionPresence.StartAsync();
+
             _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
             var navigationService = _services!.GetRequiredService<INavigationService>();
-            _integrationService = _services!.GetRequiredService<IIntegrationService>();
 
             _window = new MainWindow(_viewModel);
             if (navigationService is MainWindowNavigationService mainNav)
@@ -163,8 +164,6 @@ namespace FocusBot.App
                 // in the taskbar.
                 await ConnectFocusHubAsync();
             }
-
-            _ = _integrationService.StartAsync();
 
             await ActivateAndShowChromeAsync();
 

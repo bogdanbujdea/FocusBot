@@ -92,7 +92,10 @@ const tryGetStoredClientId = async (): Promise<string | undefined> => {
   return typeof v === "string" && v.trim() ? v : undefined;
 };
 
-export const classifyViaWebApi = async (request: WebApiClassifyRequest): Promise<WebApiClassifyResponse> => {
+export const classifyViaWebApi = async (
+  request: WebApiClassifyRequest,
+  options?: { byokApiKey?: string }
+): Promise<WebApiClassifyResponse> => {
   const clientId = await tryGetStoredClientId();
   const body = {
     sessionTitle: request.taskText,
@@ -106,9 +109,16 @@ export const classifyViaWebApi = async (request: WebApiClassifyRequest): Promise
     ...(clientId ? { clientId } : {})
   };
 
+  const byok = options?.byokApiKey?.trim();
+  const extraHeaders: Record<string, string> = {};
+  if (byok) {
+    extraHeaders["X-Api-Key"] = byok;
+  }
+
   const result = await apiFetch<WebApiClassifyResponse>("/classify", {
     method: "POST",
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    headers: extraHeaders
   });
 
   if (!result) {

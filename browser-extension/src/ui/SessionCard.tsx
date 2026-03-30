@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
+import { mapApiScoreToClassification } from "../shared/classifier";
 import { calculateLiveSummary } from "../shared/metrics";
 import { formatSeconds } from "../shared/utils";
 
@@ -120,20 +121,37 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
     return calculateLiveSummary(active);
   }, [active, tick]);
 
+  const effectiveClassification = useMemo(() => {
+    if (!active) return undefined;
+    if (active.currentVisit?.classification) {
+      return active.currentVisit.classification;
+    }
+    if (active.lastHubClassification) {
+      return mapApiScoreToClassification(active.lastHubClassification.score);
+    }
+    return undefined;
+  }, [active]);
+
+  const effectiveScore = active?.currentVisit?.score ?? active?.lastHubClassification?.score;
+
+  const effectiveVisitState =
+    active?.currentVisit?.visitState ??
+    (active?.lastHubClassification ? ("classified" as const) : undefined);
+
   const currentState = classificationToLabel(
-    active?.currentVisit?.visitState,
-    active?.currentVisit?.classification,
-    active?.currentVisit?.score
+    effectiveVisitState,
+    effectiveClassification,
+    effectiveScore
   );
   const isPaused = Boolean(active?.pausedAt);
   const statusClass =
     isPaused
       ? "neutral"
-      : active?.currentVisit?.visitState === "classifying"
+      : effectiveVisitState === "classifying"
           ? "neutral"
-          : active?.currentVisit?.visitState === "error"
+          : effectiveVisitState === "error"
             ? "distracting"
-            : (active?.currentVisit?.classification ?? "neutral");
+            : (effectiveClassification ?? "neutral");
   const displayStatus = active
     ? (isPaused ? (active.pausedBy === "idle" ? "Paused (idle)" : "Paused") : currentState)
     : "Starting...";
@@ -160,12 +178,17 @@ export const SessionCard = ({ state, compact = false, onChanged }: SessionCardPr
 
   const aiReasonText =
     active && !isPaused
-      ? active.currentVisit?.reason ??
-        ""
+      ? active.currentVisit?.reason ?? active.lastHubClassification?.reason ?? ""
       : "";
 
-  const currentLocationLabel = "Current website";
-  const currentLocationValue = active?.currentVisit?.domain ?? "Unknown";
+  const currentLocationLabel =
+    active?.lastHubClassification && !active?.currentVisit
+      ? "Current activity"
+      : "Current website";
+  const currentLocationValue =
+    active?.currentVisit?.domain ??
+    active?.lastHubClassification?.activityName ??
+    "Unknown";
 
   const liveAlignedSeconds = liveSummary?.alignedSeconds ?? 0;
   const liveDistractingSeconds = liveSummary?.distractingSeconds ?? 0;

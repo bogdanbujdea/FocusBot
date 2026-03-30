@@ -11,6 +11,9 @@ import { loadFocusbotAuthSession } from "./focusbotAuth";
 const logPrefix = "[SignalR][focus][extension]";
 let connection: HubConnection | null = null;
 
+/** Latest callbacks so reconnecting is not required when handlers are updated. */
+let hubCallbacks: FocusHubCallbacks = {};
+
 const signalRLogger: ILogger = {
   log(level: LogLevel, message: string): void {
     if (level >= LogLevel.Warning) {
@@ -63,6 +66,8 @@ export type FocusHubCallbacks = {
 };
 
 export const connectFocusHub = async (callbacks: FocusHubCallbacks): Promise<void> => {
+  hubCallbacks = callbacks;
+
   if (connection && connection.state === HubConnectionState.Connected) {
     return;
   }
@@ -93,28 +98,28 @@ export const connectFocusHub = async (callbacks: FocusHubCallbacks): Promise<voi
 
   connection.onreconnected((connectionId) => {
     console.info(`${logPrefix} reconnected (connectionId=${connectionId ?? "none"})`);
-    callbacks.onReconnected?.();
+    hubCallbacks.onReconnected?.();
   });
 
   connection.onclose((error) => {
     console.warn(`${logPrefix} connection closed`, error);
   });
 
-  if (callbacks.onSessionStarted) {
-    connection.on("SessionStarted", callbacks.onSessionStarted);
-  }
-  if (callbacks.onSessionEnded) {
-    connection.on("SessionEnded", callbacks.onSessionEnded);
-  }
-  if (callbacks.onSessionPaused) {
-    connection.on("SessionPaused", callbacks.onSessionPaused);
-  }
-  if (callbacks.onSessionResumed) {
-    connection.on("SessionResumed", callbacks.onSessionResumed);
-  }
-  if (callbacks.onClassificationChanged) {
-    connection.on("ClassificationChanged", callbacks.onClassificationChanged);
-  }
+  connection.on("SessionStarted", (e) => {
+    hubCallbacks.onSessionStarted?.(e);
+  });
+  connection.on("SessionEnded", (e) => {
+    hubCallbacks.onSessionEnded?.(e);
+  });
+  connection.on("SessionPaused", (e) => {
+    hubCallbacks.onSessionPaused?.(e);
+  });
+  connection.on("SessionResumed", (e) => {
+    hubCallbacks.onSessionResumed?.(e);
+  });
+  connection.on("ClassificationChanged", (e) => {
+    hubCallbacks.onClassificationChanged?.(e);
+  });
 
   try {
     await connection.start();

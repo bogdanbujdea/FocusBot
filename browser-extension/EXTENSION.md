@@ -70,11 +70,23 @@ The Foqus Browser Extension is a standalone Chrome/Edge extension that enables *
 
 ### Desktop app integration (Windows)
 
-The extension no longer connects to the Windows app over a local WebSocket. Browser and desktop coordination uses the Foqus API and SignalR events.
+The extension coordinates with the Windows desktop app using two mechanisms:
 
-- There is no **Connect to Foqus for Windows** toggle in settings anymore.
-- Local WebSocket (`ws://localhost:9876/focusbot`) behavior is deprecated and not part of the supported setup.
-- After each successful `POST /classify`, the API broadcasts **`ClassificationChanged`** on the SignalR focus hub so every signed-in client (extension, Windows app, web) can mirror the same alignment state. The extension applies hub events whose `source` is not `extension` (e.g. desktop-only classifications) to the active session UI.
+**1. Local WebSocket Presence (Lightweight)**
+- **Purpose:** Desktop app detects if extension is running to avoid duplicate browser classifications
+- **Protocol:** Extension connects to `ws://localhost:9876/foqus-presence` (backup port 9877)
+- **Messages:** Extension sends `{"type":"ping"}` every 30 seconds
+- **Behavior:** 
+  - If extension is online (ping received in last 60s): Desktop app skips browser process classification
+  - If extension is offline or WebSocket fails: Desktop app classifies browser processes normally
+- **Automatic:** Starts when extension loads, reconnects every 5 seconds if disconnected
+- **No UI:** Runs silently in background, no user configuration needed
+
+**2. SignalR for Cross-Device Sync (Cloud)**
+- After each successful `POST /classify`, the API broadcasts **`ClassificationChanged`** on `/hubs/focus`
+- Desktop app emits non-browser classifications (Visual Studio Code, Docker, etc.)
+- Extension applies these to show unified status across devices
+- Requires authentication and active Foqus account
 
 ---
 
@@ -193,9 +205,10 @@ The URL must be "trackable" (see `url.ts` for domain whitelist).
         └───────┬──────────────────┘
                  │
         ┌───────▼──────────────────────────────────────────────┐
-        │ Call classifier (with retries)                        │
-        │ - trial/cloud-byok: direct call to OpenAI             │
-        │ - cloud-managed: call Foqus WebAPI POST /classify     │
+        │ Call Foqus WebAPI POST /classify (with retries)       │
+        │ - Auth: Bearer Supabase token                         │
+        │ - trial/cloud-byok: also send X-Api-Key (BYOK)        │
+        │ - cloud-managed: platform key on server               │
         │ - 3 attempts                                          │
         │ - 300-600ms backoff                                   │
         │ - 8 second timeout                                    │
@@ -224,34 +237,13 @@ Excluded domains are no longer supported. All trackable pages are classified aga
 
 ## AI Classification
 
-### OpenAI API Call
+### Foqus WebAPI (all plans)
 
-```javascript
-POST https://api.openai.com/v1/chat/completions
-
-{
-  "model": "gpt-4o-mini",  // configurable
-  "temperature": 0.1,      // low variance
-  "response_format": { "type": "json_object" },
-  "messages": [
-    {
-      "role": "system",
-      "content": "You decide whether the current page matches the user's stated task..."
-    },
-    {
-      "role": "user",
-      "content": "Task: Learn how GitHub works\nURL: https://github.com/...\nTitle: GitHub: Where the world builds software"
-    }
-  ]
-}
-```
-
-### Foqus WebAPI Classification (cloud-managed mode)
-
-When the plan resolves to `cloud-managed`, the extension sends classification requests to the Foqus WebAPI instead of calling OpenAI directly. The WebAPI uses a managed provider key and returns a **score (1–10)**:
+The extension does **not** call the OpenAI API directly for focus alignment. It always calls the Foqus WebAPI, which runs the LLM and can broadcast results to all clients via SignalR.
 
 - **Endpoint:** `POST /classify` (auth required)
 - **Auth:** `Authorization: Bearer <Supabase access token>`
+- **BYOK (trial / cloud-byok):** `X-Api-Key: <OpenAI key>` (same key as in extension settings; not sent to Foqus for cloud-managed)
 - **Response:** `{ score: 1-10, reason: string, cached: boolean }`
 
 The extension maps the score into the UI status:
@@ -270,34 +262,34 @@ The extension maps the score into the UI status:
 }
 ```
 
-### Parsing & Fallback
-
-If the API returns malformed JSON:
-- Fallback parser checks if response contains "distracting" (case-insensitive)
-- Defaults to "aligned" if neither keyword found
-- Sets confidence to 0.5 and reason to "Fallback parser used..."
-
 ---
 
 ## Performance Optimizations
 
 ### 1. Classification Cache
 
-**Cache Key:** `SHA256(taskText.toLowerCase() + "::" + url.toLowerCase())`
+**API-level cache (server-side only):**
+- **Cache Key:** `(userId, contextHash, taskContentHash)` where contextHash = SHA-256 of `processName|windowTitle|url|pageTitle` and taskContentHash = SHA-256 of `sessionTitle|sessionContext`
+- **Storage:** In-memory (will be Redis in the future)
+- **TTL:** 24 hours
+- **Cache Hit:** Instant in-memory lookup, no LLM call, response includes `cached: true`
 
-**Storage:** IndexedDB (persistent across sessions)
+**Request behavior:**
+- Extension makes `POST /classify` when:
+  - User navigates to a new page
+  - Page title changes
+  - Browser window regains focus AND current classification was from hub mirroring (desktop app)
+- Extension **skips** classification when:
+  - Same page, same tab, already classified by the extension (not hub-mirrored)
+  - This prevents redundant API calls while still allowing re-classification after window focus changes
+- API cache serves instantly if available (no LLM call, ~50ms round trip)
+- Only calls LLM if cache misses (~1-2 seconds)
 
-**Cache Hit Behavior:** 
-- Instant return, no API call
-- Eliminates latency when revisiting same URL
-
-**Example:**
-```
-Cache Miss (first visit to github.com): ~1-2 seconds API latency
-Cache Hit (return to github.com): instant
-```
-
-**Cache Invalidation:** Manual only (no TTL). User must clear extension data to reset. After changing classifier prompt logic, clear extension data (or the classification cache) so existing cached results are replaced with new classifications.
+**Why no client-side cache:**
+- Server cache is fast enough (in-memory, will be Redis)
+- Client caches can go stale when task context changes
+- Simpler architecture with single source of truth
+- Easier cache invalidation (only on server)
 
 ### 2. Request Batching
 
@@ -646,9 +638,9 @@ In the background service worker DevTools (chrome://extensions → Service Worke
 
 1. Open **Network** tab
 2. Navigate to a new page during a session
-3. Look for requests to `https://api.openai.com/v1/chat/completions`
+3. Look for `POST` requests to your Foqus API base URL (e.g. `http://localhost:5251/classify` or `https://api.foqus.me/classify`)
 4. Check response time and status code
-5. Inspect response body for errors
+5. Inspect JSON body for `score`, `reason`, and `cached`
 
 ---
 

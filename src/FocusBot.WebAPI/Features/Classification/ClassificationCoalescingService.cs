@@ -24,6 +24,18 @@ public sealed class ClassificationCoalescingService(
         string? remoteIp,
         CancellationToken ct)
     {
+        var source = !string.IsNullOrWhiteSpace(request.Url) ? "extension" : "desktop";
+        var activity = !string.IsNullOrWhiteSpace(request.Url)
+            ? request.Url
+            : !string.IsNullOrWhiteSpace(request.ProcessName)
+                ? $"{request.ProcessName} - {request.WindowTitle}"
+                : request.WindowTitle ?? "Unknown";
+
+        logger.LogInformation(
+            "Received classification request from {Source} | Activity: {Activity}",
+            source,
+            activity);
+
         var queue = _queues.GetOrAdd(userId, _ => new UserQueueState());
         var pending = new PendingRequest(request, byokApiKey, remoteIp);
 
@@ -83,6 +95,7 @@ public sealed class ClassificationCoalescingService(
 
             await TouchClientsLastSeenAsync(userId, active).ConfigureAwait(false);
 
+            // Always broadcast, even for cached results, so all clients stay in sync
             await BroadcastClassificationAsync(userId, selected.Request, result).ConfigureAwait(false);
 
             foreach (var pending in active)
@@ -153,6 +166,15 @@ public sealed class ClassificationCoalescingService(
             source,
             activityName,
             DateTime.UtcNow,
+            result.Cached);
+
+        var classification = result.Score > 5 ? "Aligned" : result.Score < 5 ? "Distracting" : "Neutral";
+        logger.LogInformation(
+            "Broadcasting classification: {Classification} (score={Score}) from {Source} | Activity: {Activity} | Cached: {Cached}",
+            classification,
+            result.Score,
+            source,
+            activityName,
             result.Cached);
 
         try
