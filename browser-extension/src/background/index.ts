@@ -15,8 +15,7 @@ import {
   saveLastError,
   saveLastSummary,
   saveSession,
-  setCompletedSessions,
-  enqueueOfflineItem
+  setCompletedSessions
 } from "../shared/storage";
 import type {
   ClassificationResult,
@@ -105,36 +104,6 @@ const getStoredClientId = async (): Promise<string | null> => {
   return id;
 };
 
-const getStoredServerSessionId = async (): Promise<string | null> => {
-  const result = await chrome.storage.local.get(APP_KEYS.serverSessionId);
-  return (result[APP_KEYS.serverSessionId] as string) ?? null;
-};
-
-const resolveServerSessionIdForSync = async (localSessionId: string): Promise<string | null> => {
-  const stored = await getStoredServerSessionId();
-  if (stored) {
-    return stored;
-  }
-
-  const auth = await loadFocusbotAuthSession();
-  if (!auth?.accessToken) {
-    return null;
-  }
-
-  const remote = await getActiveCloudSession();
-  if (!remote?.id) {
-    return null;
-  }
-
-  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: remote.id });
-  if (remote.id !== localSessionId) {
-    await saveActiveSession(buildLocalSessionFromServer(remote));
-    await startBadgeInterval();
-  }
-
-  return remote.id;
-};
-
 const buildLocalSessionFromServer = (session: {
   id: string;
   sessionTitle: string;
@@ -169,15 +138,16 @@ const reconcileActiveSessionFromCloud = async (): Promise<void> => {
 
   const remote = await getActiveCloudSession();
   if (!remote) {
+    const local = await loadActiveSession();
+    if (local) {
+      await endLocalSessionFromRemoteEvent(nowIso());
+      await broadcastStateUpdate();
+    }
     return;
   }
 
   const local = await loadActiveSession();
-  const localServerSessionId = await getStoredServerSessionId();
-  const shouldReplaceLocal =
-    !local || local.sessionId !== remote.id || localServerSessionId !== remote.id;
-
-  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: remote.id });
+  const shouldReplaceLocal = !local || local.sessionId !== remote.id;
 
   if (shouldReplaceLocal) {
     await saveActiveSession(buildLocalSessionFromServer(remote));
@@ -228,7 +198,6 @@ const endLocalSessionFromRemoteEvent = async (endedAtUtc: string): Promise<void>
 };
 
 const handleSignalRSessionStarted = async (event: SessionStartedEvent): Promise<void> => {
-  await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: event.sessionId });
   const local = await loadActiveSession();
   if (!local || local.sessionId !== event.sessionId) {
     await saveActiveSession(
@@ -245,11 +214,10 @@ const handleSignalRSessionStarted = async (event: SessionStartedEvent): Promise<
 };
 
 const handleSignalRSessionEnded = async (event: SessionEndedEvent): Promise<void> => {
-  const storedServerSessionId = await getStoredServerSessionId();
-  if (storedServerSessionId === event.sessionId) {
+  const local = await loadActiveSession();
+  if (local && local.sessionId === event.sessionId) {
     await endLocalSessionFromRemoteEvent(event.endedAtUtc);
   }
-  await chrome.storage.local.remove(APP_KEYS.serverSessionId);
   await broadcastStateUpdate();
 };
 
@@ -896,35 +864,24 @@ const startSession = async (taskText: string, taskHints?: string): Promise<Runti
       return { ok: false, error: "OpenAI API key is required for your plan. Add it in Settings first." };
     }
 
-    const session: FocusSession = {
-      sessionId: createId(),
-      taskText: trimmedTask,
-      taskHints: taskHints?.trim() || undefined,
-      startedAt: nowIso(),
-      visits: []
-    };
     await saveLastError(null);
+
+    const clientId = await getStoredClientId();
+    const cloudSession = await startCloudSession(trimmedTask, clientId, taskHints?.trim() || undefined);
+    if (!cloudSession?.id) {
+      return { ok: false, error: "Failed to start session on server. Please try again." };
+    }
+
+    const session: FocusSession = buildLocalSessionFromServer({
+      id: cloudSession.id,
+      sessionTitle: cloudSession.sessionTitle,
+      sessionContext: cloudSession.sessionContext,
+      startedAtUtc: cloudSession.startedAtUtc
+    });
+
     await saveActiveSession(session);
     await startBadgeInterval();
     void captureCurrentActiveTab();
-
-    // Submit cloud session start for all signed-in users.
-    const clientId = await getStoredClientId();
-    void startCloudSession(session.taskText, clientId, session.taskHints)
-      .then(async (cloudSession) => {
-        if (cloudSession?.id) {
-          await chrome.storage.local.set({ [APP_KEYS.serverSessionId]: cloudSession.id });
-        }
-      })
-      .catch(async () => {
-        await enqueueOfflineItem({
-          id: createId(),
-          type: "session-start",
-          payload: { taskText: session.taskText, taskHints: session.taskHints, clientId, localSessionId: session.sessionId },
-          createdAt: nowIso(),
-          retryCount: 0
-        });
-      });
 
     const latest = await loadActiveSession();
     await broadcastStateUpdate();
@@ -947,45 +904,21 @@ const pauseSession = async (
       return { ok: false, error: "Session is already paused." };
     }
 
-    const serverSessionId = await resolveServerSessionIdForSync(session.sessionId);
-    const targetSession = (await loadActiveSession()) ?? session;
-    if (serverSessionId) {
-      const remote = await pauseCloudSession(serverSessionId);
-      if (!remote) {
-        return { ok: false, error: "Could not pause session on server." };
-      }
-      targetSession.pausedAt = remote.pausedAtUtc ?? nowIso();
-      targetSession.pausedBy = reason;
-      targetSession.totalPausedSeconds = remote.totalPausedSeconds;
-      const tabIdToHide = targetSession.currentVisit?.tabId;
-      finalizeCurrentVisit(targetSession, targetSession.pausedAt);
-      if (tabIdToHide !== undefined) {
-        await sendDistractionAlert(tabIdToHide, { show: false });
-      }
-      await saveActiveSession(targetSession);
-      await broadcastStateUpdate();
-      return { ok: true, data: targetSession };
+    const remote = await pauseCloudSession(session.sessionId);
+    if (!remote) {
+      return { ok: false, error: "Could not pause session on server." };
     }
 
-    let pausedAt: string;
-    if (reason === "idle" && effectivePausedAt) {
-      const enteredAt = session.currentVisit?.enteredAt;
-      pausedAt =
-        enteredAt && effectivePausedAt < enteredAt ? enteredAt : effectivePausedAt;
-    } else {
-      pausedAt = nowIso();
-    }
-
-    session.pausedAt = pausedAt;
+    session.pausedAt = remote.pausedAtUtc ?? nowIso();
     session.pausedBy = reason;
+    session.totalPausedSeconds = remote.totalPausedSeconds;
     const tabIdToHide = session.currentVisit?.tabId;
-    finalizeCurrentVisit(session, pausedAt);
+    finalizeCurrentVisit(session, session.pausedAt);
     if (tabIdToHide !== undefined) {
       await sendDistractionAlert(tabIdToHide, { show: false });
     }
     await saveActiveSession(session);
     await broadcastStateUpdate();
-
     return { ok: true, data: session };
   });
 
@@ -999,35 +932,18 @@ const resumeSession = async (): Promise<RuntimeResponse<FocusSession>> =>
       return { ok: false, error: "Session is not paused." };
     }
 
-    const serverSessionId = await resolveServerSessionIdForSync(session.sessionId);
-    const targetSession = (await loadActiveSession()) ?? session;
-    if (serverSessionId) {
-      const remote = await resumeCloudSession(serverSessionId);
-      if (!remote) {
-        return { ok: false, error: "Could not resume session on server." };
-      }
-      targetSession.totalPausedSeconds = remote.totalPausedSeconds;
-      delete targetSession.pausedAt;
-      delete targetSession.pausedBy;
-      await saveActiveSession(targetSession);
-      await broadcastStateUpdate();
-      await startBadgeInterval();
-      void captureCurrentActiveTab();
-      const latest = await loadActiveSession();
-      return { ok: true, data: latest ?? targetSession };
+    const remote = await resumeCloudSession(session.sessionId);
+    if (!remote) {
+      return { ok: false, error: "Could not resume session on server." };
     }
 
-    const now = nowIso();
-    const currentPauseSeconds = secondsBetween(session.pausedAt, now);
-    session.totalPausedSeconds = (session.totalPausedSeconds ?? 0) + currentPauseSeconds;
+    session.totalPausedSeconds = remote.totalPausedSeconds;
     delete session.pausedAt;
     delete session.pausedBy;
     await saveActiveSession(session);
     await broadcastStateUpdate();
     await startBadgeInterval();
-
     void captureCurrentActiveTab();
-
     const latest = await loadActiveSession();
     return { ok: true, data: latest ?? session };
   });
@@ -1058,6 +974,14 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
       totalPaused
     );
 
+    const summaryPayload = session.summary as unknown as Record<string, unknown>;
+    const clientId = await getStoredClientId();
+
+    const endResult = await endCloudSession(session.sessionId, summaryPayload, clientId);
+    if (!endResult) {
+      return { ok: false, error: "Failed to end session on server. Please try again." };
+    }
+
     const completedSession: CompletedSession = {
       sessionId: session.sessionId,
       taskText: session.taskText,
@@ -1071,24 +995,6 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
     await saveLastSummary(session.summary);
     await saveActiveSession(null);
     stopBadgeInterval();
-
-    // Submit cloud session end for all signed-in users.
-    const serverSessionId = await getStoredServerSessionId();
-    const clientId = await getStoredClientId();
-    if (serverSessionId) {
-      const summaryPayload = session.summary as unknown as Record<string, unknown>;
-      void endCloudSession(serverSessionId, summaryPayload, clientId)
-        .catch(async () => {
-          await enqueueOfflineItem({
-            id: createId(),
-            type: "session-end",
-            payload: { serverSessionId, summary: summaryPayload, clientId },
-            createdAt: nowIso(),
-            retryCount: 0
-          });
-        });
-      await chrome.storage.local.remove(APP_KEYS.serverSessionId);
-    }
 
     await broadcastStateUpdate();
 

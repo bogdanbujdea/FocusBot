@@ -14,8 +14,6 @@ export const APP_KEYS = {
   deviceFingerprint: "focusbot.deviceFingerprint",
   /** @deprecated Use clientId; migrated on read. */
   deviceId: "focusbot.deviceId",
-  /** Server-assigned session ID for the currently active cloud session. */
-  serverSessionId: "focusbot.serverSessionId",
   /** Pending operations to retry when network is restored. */
   offlineQueue: "focusbot.offlineQueue"
 } as const;

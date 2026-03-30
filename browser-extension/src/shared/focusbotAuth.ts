@@ -49,8 +49,7 @@ export const clearFocusbotAuthSession = async (): Promise<void> => {
     APP_KEYS.clientId,
     APP_KEYS.clientFingerprint,
     APP_KEYS.deviceId,
-    APP_KEYS.deviceFingerprint,
-    APP_KEYS.serverSessionId
+    APP_KEYS.deviceFingerprint
   ]);
 };
 
