@@ -211,29 +211,43 @@ public sealed class PaddleBillingApiClient(
             return null;
         }
 
-        using var doc = JsonDocument.Parse(raw);
-        if (!doc.RootElement.TryGetProperty("data", out var data))
+        PaddlePortalSessionResponse? portalResponse;
+        try
+        {
+            portalResponse = JsonSerializer.Deserialize<PaddlePortalSessionResponse>(
+                raw,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to parse Paddle portal session response.");
             return null;
-
-        if (
-            data.TryGetProperty("urls", out var urls)
-            && urls.TryGetProperty("general", out var general)
-        )
-        {
-            var u = general.GetString();
-            if (!string.IsNullOrEmpty(u))
-                return u;
         }
 
-        if (data.TryGetProperty("url", out var urlEl))
-        {
-            var u = urlEl.GetString();
-            if (!string.IsNullOrEmpty(u))
-                return u;
-        }
-
-        return null;
+        return portalResponse?.Data?.Urls?.General?.Overview ?? portalResponse?.Data?.Url;
     }
+}
+
+public sealed class PaddlePortalSessionResponse
+{
+    public PaddlePortalSessionData? Data { get; set; }
+}
+
+public sealed class PaddlePortalSessionData
+{
+    public PaddlePortalSessionUrls? Urls { get; set; }
+    public string? Url { get; set; }
+}
+
+public sealed class PaddlePortalSessionUrls
+{
+    public PaddlePortalSessionGeneralUrls? General { get; set; }
+}
+
+public sealed class PaddlePortalSessionGeneralUrls
+{
+    public string? Overview { get; set; }
 }
 
 public sealed record PricingPlanDto(

@@ -448,6 +448,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
 - `src/FocusBot.WebAPI/Features/Subscriptions/SubscriptionService.cs` — Model-based webhook handlers ⭐
 - `src/FocusBot.WebAPI/Features/Subscriptions/SubscriptionEndpoints.cs` — Signature verification, portal endpoint
 - `src/FocusBot.WebAPI/Features/Subscriptions/Dtos.cs` — `NextBilledAtUtc`, portal response
+- `src/FocusBot.WebAPI/Features/Pricing/PaddleBillingApiClient.cs` — Typed customer portal session response parsing (`data.urls.general.overview` with `data.url` fallback)
 - `src/FocusBot.WebAPI/Hubs/FocusHub.cs` — `PlanChanged` event
 - `src/FocusBot.Core/Interfaces/IFocusHubClient.cs` — `PlanChanged` + `PlanChangedEvent`
 - `src/FocusBot.Core/Entities/ApiModels.cs` — `NextBilledAtUtc` on `ApiSubscriptionStatus`
@@ -460,6 +461,7 @@ Copy the **webhook signing secret** to `Paddle:WebhookSecret` in your API config
 - `src/foqus-web-app/src/api/types.ts` — Pricing DTOs
 - `browser-extension/src/options/main.tsx` — Link to web billing
 - `AGENTS.md` — Paddle setup instructions
+- `tests/FocusBot.WebAPI.Tests/Features/Pricing/PaddleBillingApiClientTests.cs` — Covers nested portal URL object, fallback URL, and invalid JSON handling
 - All test files — Updated for new webhook/pricing behavior
 
 ---
