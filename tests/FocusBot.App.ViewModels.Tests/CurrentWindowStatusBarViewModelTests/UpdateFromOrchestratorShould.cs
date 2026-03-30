@@ -81,34 +81,6 @@ public class UpdateFromOrchestratorShould
     }
 
     [Fact]
-    public void SetMarkOverrideButtonText_ToMarkAsDistracting_WhenFocused()
-    {
-        // Arrange
-        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        var vm = new FocusStatusViewModel(orchestratorMock.Object);
-
-        // Act
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateArgs(focusScore: 8));
-
-        // Assert
-        vm.MarkOverrideButtonText.Should().Be("Mark as distracting");
-    }
-
-    [Fact]
-    public void SetMarkOverrideButtonText_ToMarkAsFocused_WhenDistracted()
-    {
-        // Arrange
-        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        var vm = new FocusStatusViewModel(orchestratorMock.Object);
-
-        // Act
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, CreateArgs(focusScore: 2));
-
-        // Assert
-        vm.MarkOverrideButtonText.Should().Be("Mark as focused");
-    }
-
-    [Fact]
     public void ShowCheckingMessage_WhenMonitoring_AndNoResult()
     {
         // Arrange
@@ -138,51 +110,6 @@ public class UpdateFromOrchestratorShould
 
         // Assert
         vm.ShowCheckingMessage.Should().BeFalse();
-    }
-
-    [Fact]
-    public void ShowMarkOverrideButton_WhenResultExists_AndNotClassifying_AndNotNeutral()
-    {
-        // Arrange
-        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        var vm = new FocusStatusViewModel(orchestratorMock.Object);
-
-        // Act
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object,
-            CreateArgs(hasCurrentFocusResult: true, isClassifying: false, focusScore: 8, focusReason: "Working on code"));
-
-        // Assert
-        vm.ShowMarkOverrideButton.Should().BeTrue();
-    }
-
-    [Fact]
-    public void HideMarkOverrideButton_WhenClassifying()
-    {
-        // Arrange
-        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        var vm = new FocusStatusViewModel(orchestratorMock.Object);
-
-        // Act
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object,
-            CreateArgs(hasCurrentFocusResult: true, isClassifying: true, focusScore: 8));
-
-        // Assert
-        vm.ShowMarkOverrideButton.Should().BeFalse();
-    }
-
-    [Fact]
-    public void HideMarkOverrideButton_WhenNeutralApp()
-    {
-        // Arrange
-        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        var vm = new FocusStatusViewModel(orchestratorMock.Object);
-
-        // Act
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object,
-            CreateArgs(hasCurrentFocusResult: true, isClassifying: false, focusScore: 5, focusReason: "Neutral app"));
-
-        // Assert
-        vm.ShowMarkOverrideButton.Should().BeFalse();
     }
 
     private static FocusSessionStateChangedEventArgs CreateArgs(

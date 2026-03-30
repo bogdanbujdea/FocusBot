@@ -2,7 +2,6 @@ using System.Net;
 using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
-using FocusBot.Core.Helpers;
 using FocusBot.Core.Interfaces;
 
 namespace FocusBot.Infrastructure.Services;
@@ -19,7 +18,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     private readonly IWindowMonitorService _windowMonitor;
     private readonly IClassificationService _classificationService;
     private readonly IFocusBotApiClient _apiClient;
-    private readonly IAlignmentCacheRepository _alignmentCacheRepository;
     private readonly IClientService? _clientService;
     private readonly IExtensionPresenceService? _extensionPresence;
 
@@ -61,7 +59,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         IWindowMonitorService windowMonitor,
         IClassificationService classificationService,
         IFocusBotApiClient apiClient,
-        IAlignmentCacheRepository alignmentCacheRepository,
         IClientService? clientService = null,
         IExtensionPresenceService? extensionPresence = null
     )
@@ -70,7 +67,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         _windowMonitor = windowMonitor;
         _classificationService = classificationService;
         _apiClient = apiClient;
-        _alignmentCacheRepository = alignmentCacheRepository;
         _clientService = clientService;
         _extensionPresence = extensionPresence;
 
@@ -350,53 +346,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             _isSessionPaused = false;
             _sessionTracker.HandleIdle(false);
             _windowMonitor.Start();
-        }
-
-        RaiseStateChanged();
-    }
-
-    /// <inheritdoc />
-    public async Task RecordManualOverrideAsync(int newScore, string newReason)
-    {
-        UserSession? session;
-        string processName;
-        string windowTitle;
-
-        lock (_lock)
-        {
-            session = _activeSession;
-            if (session == null)
-                return;
-
-            processName = _currentProcessName;
-            windowTitle = _currentWindowTitle;
-        }
-
-        var contextHash = HashHelper.ComputeWindowContextHash(processName, windowTitle);
-        var sessionContentHash = HashHelper.ComputeSessionContentHash(
-            session.SessionTitle,
-            session.Context
-        );
-
-        var entry = new AlignmentCacheEntry
-        {
-            ContextHash = contextHash,
-            TaskContentHash = sessionContentHash,
-            Score = newScore,
-            Reason = newReason,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        await _alignmentCacheRepository.SaveAsync(entry);
-
-        lock (_lock)
-        {
-            _focusScore = newScore;
-            _focusReason = newReason;
-            _sessionTracker.RecordClassification(
-                processName,
-                new AlignmentResult { Score = newScore, Reason = newReason }
-            );
         }
 
         RaiseStateChanged();

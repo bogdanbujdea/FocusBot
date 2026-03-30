@@ -74,13 +74,6 @@ public interface IFocusSessionOrchestrator
     void ApplyRemoteClassificationFromHub(string source, int score, string reason, string activityName);
 
     /// <summary>
-    /// Records a manual focus override (user marks current window as focused/distracting).
-    /// </summary>
-    /// <param name="newScore">The override score (e.g., 9 for focused, 2 for distracting).</param>
-    /// <param name="newReason">The override reason text.</param>
-    Task RecordManualOverrideAsync(int newScore, string newReason);
-
-    /// <summary>
     /// Whether there is currently an active session being tracked.
     /// </summary>
     bool HasActiveSession { get; }

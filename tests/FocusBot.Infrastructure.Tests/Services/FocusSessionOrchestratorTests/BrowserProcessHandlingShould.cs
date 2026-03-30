@@ -28,7 +28,6 @@ public class BrowserProcessHandlingShould
         var classificationService = new Mock<IClassificationService>();
         var apiClient = new Mock<IFocusBotApiClient>();
         var sessionTracker = new Mock<ILocalSessionTracker>();
-        var cacheRepo = new Mock<IAlignmentCacheRepository>();
         var extensionPresence = new Mock<IExtensionPresenceService>();
         
         extensionPresence.Setup(e => e.IsExtensionOnline).Returns(true);
@@ -38,7 +37,6 @@ public class BrowserProcessHandlingShould
             windowMonitor.Object,
             classificationService.Object,
             apiClient.Object,
-            cacheRepo.Object,
             null,
             extensionPresence.Object
         );
@@ -78,7 +76,6 @@ public class BrowserProcessHandlingShould
         var classificationService = new Mock<IClassificationService>();
         var apiClient = new Mock<IFocusBotApiClient>();
         var sessionTracker = new Mock<ILocalSessionTracker>();
-        var cacheRepo = new Mock<IAlignmentCacheRepository>();
         var extensionPresence = new Mock<IExtensionPresenceService>();
         
         extensionPresence.Setup(e => e.IsExtensionOnline).Returns(false);
@@ -88,7 +85,6 @@ public class BrowserProcessHandlingShould
             windowMonitor.Object,
             classificationService.Object,
             apiClient.Object,
-            cacheRepo.Object,
             null,
             extensionPresence.Object
         );
@@ -117,14 +113,12 @@ public class BrowserProcessHandlingShould
         var classificationService = new Mock<IClassificationService>();
         var apiClient = new Mock<IFocusBotApiClient>();
         var sessionTracker = new Mock<ILocalSessionTracker>();
-        var cacheRepo = new Mock<IAlignmentCacheRepository>();
 
         var orchestrator = new FocusSessionOrchestrator(
             sessionTracker.Object,
             windowMonitor.Object,
             classificationService.Object,
             apiClient.Object,
-            cacheRepo.Object,
             null,
             null
         );
@@ -153,7 +147,6 @@ public class BrowserProcessHandlingShould
         var classificationService = new Mock<IClassificationService>();
         var apiClient = new Mock<IFocusBotApiClient>();
         var sessionTracker = new Mock<ILocalSessionTracker>();
-        var cacheRepo = new Mock<IAlignmentCacheRepository>();
         var extensionPresence = new Mock<IExtensionPresenceService>();
         
         extensionPresence.Setup(e => e.IsExtensionOnline).Returns(true);
@@ -163,7 +156,6 @@ public class BrowserProcessHandlingShould
             windowMonitor.Object,
             classificationService.Object,
             apiClient.Object,
-            cacheRepo.Object,
             null,
             extensionPresence.Object
         );

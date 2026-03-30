@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 
@@ -7,7 +6,7 @@ namespace FocusBot.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the current foreground window status bar shown during an active focus session.
-/// Displays process name, window title, focus score, classification status, and manual override controls.
+/// Displays process name, window title, focus score, and classification status.
 /// </summary>
 public partial class FocusStatusViewModel : ObservableObject
 {
@@ -52,7 +51,6 @@ public partial class FocusStatusViewModel : ObservableObject
             if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(ShowCheckingMessage));
-                OnPropertyChanged(nameof(ShowMarkOverrideButton));
             }
         }
     }
@@ -65,7 +63,6 @@ public partial class FocusStatusViewModel : ObservableObject
             if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(ShowCheckingMessage));
-                OnPropertyChanged(nameof(ShowMarkOverrideButton));
             }
         }
     }
@@ -95,20 +92,6 @@ public partial class FocusStatusViewModel : ObservableObject
 
     public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
-    public bool ShowMarkOverrideButton => HasCurrentFocusResult && !IsClassifying && !IsNeutralApp;
-
-    /// <summary>
-    /// True when the current foreground app is considered neutral (not subject to focus classification).
-    /// </summary>
-    private bool IsNeutralApp =>
-        FocusReason.Contains("neutral", StringComparison.OrdinalIgnoreCase);
-
-    public string MarkOverrideButtonText
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "Mark as distracting";
-
     public FocusStatusViewModel(
         IFocusSessionOrchestrator sessionOrchestrator,
         IUIThreadDispatcher? uiDispatcher = null)
@@ -129,7 +112,6 @@ public partial class FocusStatusViewModel : ObservableObject
             HasCurrentFocusResult = e.HasCurrentFocusResult;
             CurrentProcessName = e.CurrentProcessName;
             CurrentWindowTitle = e.CurrentWindowTitle;
-            MarkOverrideButtonText = e.FocusScore >= 6 ? "Mark as distracting" : "Mark as focused";
 
             OnPropertyChanged(nameof(FocusScoreCategory));
             OnPropertyChanged(nameof(FocusStatusIcon));
@@ -150,16 +132,6 @@ public partial class FocusStatusViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    private async Task MarkFocusOverrideAsync()
-    {
-        int newScore = FocusScore >= 6 ? 2 : 9;
-        string newReason =
-            FocusScore >= 6 ? "Manually marked as Distracting" : "Manually marked as Focused";
-
-        await _sessionOrchestrator.RecordManualOverrideAsync(newScore, newReason);
-    }
-
     /// <summary>
     /// Resets all display state. Called by the parent when a session ends.
     /// </summary>
@@ -176,6 +148,5 @@ public partial class FocusStatusViewModel : ObservableObject
         OnPropertyChanged(nameof(FocusStatusIcon));
         OnPropertyChanged(nameof(FocusAccentBrushKey));
         OnPropertyChanged(nameof(ShowCheckingMessage));
-        OnPropertyChanged(nameof(ShowMarkOverrideButton));
     }
 }

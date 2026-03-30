@@ -34,6 +34,5 @@ public class ResetShould
         vm.IsMonitoring.Should().BeFalse();
         vm.FocusScoreCategory.Should().Be("Distracted");
         vm.ShowCheckingMessage.Should().BeFalse();
-        vm.ShowMarkOverrideButton.Should().BeFalse();
     }
 }
