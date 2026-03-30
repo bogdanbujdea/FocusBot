@@ -48,21 +48,17 @@ function statusBadgeLabel(status: string): string {
 
 export function BillingPage() {
   const { user } = useAuth();
-  const { subscription: contextSubscription, refresh: refreshContext } = useSubscription();
+  const {
+    subscription,
+    loading: subscriptionLoading,
+    refresh: refreshContext,
+  } = useSubscription();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [localSubscription, setLocalSubscription] =
-    useState<SubscriptionStatusResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [checkoutBanner, setCheckoutBanner] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
 
-  // Use context subscription if available; fall back to local fetch during initial load.
-  const subscription = localSubscription ?? contextSubscription;
-
   const reloadSubscription = useCallback(async () => {
-    const status = await api.getSubscriptionStatus();
-    setLocalSubscription(status);
-    void refreshContext();
+    await refreshContext();
   }, [refreshContext]);
 
   const onCheckoutDone = useCallback(() => {
@@ -71,13 +67,6 @@ export function BillingPage() {
   }, [reloadSubscription]);
 
   const { pricing, loadError, ready, openCheckout } = usePaddle(onCheckoutDone);
-
-  useEffect(() => {
-    void (async () => {
-      await reloadSubscription();
-      setLoading(false);
-    })();
-  }, [reloadSubscription]);
 
   useEffect(() => {
     if (searchParams.get("checkout") === "success") {
@@ -114,7 +103,7 @@ export function BillingPage() {
     window.open(result.data.url, "_blank", "noopener,noreferrer");
   };
 
-  if (loading) {
+  if (subscriptionLoading) {
     return (
       <div className="billing-page">
         <header className="page-header">

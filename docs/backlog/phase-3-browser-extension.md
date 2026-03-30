@@ -1,6 +1,6 @@
 # Phase 3: Browser Extension — Trial Banner, Welcome, and BYOK Prompt
 
-**Depends on:** Phase 1 (API auto-trial + `TrialFullAccess` plan type).
+**Depends on:** Phase 1 — **complete** (API + web app; see [phase-1-web-app-and-api.md](phase-1-web-app-and-api.md), [web-app-sign-in-and-trials.md](../web-app-sign-in-and-trials.md)).
 
 **Goal:** When a user signs in via the browser extension, they see a welcome message explaining the 24h trial and a countdown banner in the popup/sidepanel. After subscribing to Cloud BYOK, the options page highlights the API key field if empty and displays security messaging about how the key is stored.
 
@@ -82,7 +82,7 @@ No changes to the classification flow are needed. The BYOK prompt just ensures u
 ### In [`options/main.tsx`](../browser-extension/src/options/main.tsx)
 
 - Remove or rename the "Free (BYOK)" plan card to match the Phase 1 changes (no free tier).
-- Update plan labels: show `TrialFullAccess` (plan type 3) as "Trial" in `PLAN_LABELS`.
+- Update plan labels: show `TrialFullAccess` (plan type **0**) as "Trial" in `PLAN_LABELS`.
 - After trial expiry with no subscription: show "No active plan" with a link to the web billing page.
 
 ---
@@ -94,7 +94,7 @@ No changes to the classification flow are needed. The BYOK prompt just ensures u
 - **AppShell trial banner:** renders when status is `trial` with future `trialEndsAt`; hidden when status is `active`.
 - **Options welcome section:** visible on trial when not dismissed; hidden after dismiss; localStorage flag persisted.
 - **BYOK prompt:** shown when plan is `cloud-byok` and key is empty; hidden when key is present.
-- **Plan labels:** `TrialFullAccess` (3) maps to "Trial" display name.
+- **Plan labels:** `TrialFullAccess` (0) maps to "Trial" display name.
 
 ---
 

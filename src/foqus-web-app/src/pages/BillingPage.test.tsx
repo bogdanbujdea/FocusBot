@@ -2,16 +2,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import type { SubscriptionStatusResponse } from "../api/types";
 import { BillingPage } from "./BillingPage";
 
-const { mockApi, mockOpenCheckout, mockRefreshContext } = vi.hoisted(() => ({
-  mockApi: {
-    getSubscriptionStatus: vi.fn(),
-    createCustomerPortalSession: vi.fn(),
-  },
-  mockOpenCheckout: vi.fn(),
-  mockRefreshContext: vi.fn().mockResolvedValue(undefined),
-}));
+const { mockApi, mockOpenCheckout, mockRefreshContext, subscriptionMock } =
+  vi.hoisted(() => ({
+    mockApi: {
+      createCustomerPortalSession: vi.fn(),
+    },
+    mockOpenCheckout: vi.fn(),
+    mockRefreshContext: vi.fn().mockResolvedValue(undefined),
+    subscriptionMock: {
+      subscription: null as SubscriptionStatusResponse | null,
+      loading: false,
+    },
+  }));
 
 vi.mock("../api/client", () => ({
   api: mockApi,
@@ -25,8 +30,8 @@ vi.mock("../auth/useAuth", () => ({
 
 vi.mock("../contexts/SubscriptionContext", () => ({
   useSubscription: () => ({
-    subscription: null,
-    loading: false,
+    subscription: subscriptionMock.subscription,
+    loading: subscriptionMock.loading,
     error: null,
     refresh: mockRefreshContext,
   }),
@@ -57,10 +62,11 @@ vi.mock("../hooks/usePaddle", () => ({
 
 describe("BillingPage", () => {
   it("loads subscription and shows plans", async () => {
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "none",
       planType: 0,
-    });
+    };
+    subscriptionMock.loading = false;
 
     render(
       <MemoryRouter>
@@ -77,10 +83,11 @@ describe("BillingPage", () => {
   });
 
   it("does not show a Free (BYOK) static plan card", async () => {
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "none",
       planType: 0,
-    });
+    };
+    subscriptionMock.loading = false;
 
     render(
       <MemoryRouter>
@@ -97,11 +104,12 @@ describe("BillingPage", () => {
 
   it("shows generic trial header and hint when status is trial", async () => {
     const trialEndsAt = new Date(Date.now() + 20 * 3_600_000).toISOString();
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "trial",
       planType: 3,
       trialEndsAt,
-    });
+    };
+    subscriptionMock.loading = false;
 
     render(
       <MemoryRouter>
@@ -118,10 +126,11 @@ describe("BillingPage", () => {
   });
 
   it("opens checkout when Subscribe is clicked", async () => {
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "none",
       planType: 0,
-    });
+    };
+    subscriptionMock.loading = false;
     const user = userEvent.setup();
 
     render(
@@ -145,11 +154,12 @@ describe("BillingPage", () => {
   });
 
   it("shows current plan label for active cloud-byok subscription", async () => {
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "active",
       planType: 1,
       currentPeriodEndsAt: "2030-01-01T00:00:00Z",
-    });
+    };
+    subscriptionMock.loading = false;
 
     render(
       <MemoryRouter>
@@ -163,11 +173,12 @@ describe("BillingPage", () => {
   });
 
   it("opens portal when Manage subscription is clicked", async () => {
-    mockApi.getSubscriptionStatus.mockResolvedValue({
+    subscriptionMock.subscription = {
       status: "active",
       planType: 1,
       currentPeriodEndsAt: "2030-01-01T00:00:00Z",
-    });
+    };
+    subscriptionMock.loading = false;
     mockApi.createCustomerPortalSession.mockResolvedValue({
       ok: true,
       data: { url: "https://example.com/portal" },

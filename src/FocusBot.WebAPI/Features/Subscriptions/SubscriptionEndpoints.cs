@@ -24,58 +24,94 @@ public static class SubscriptionEndpoints
 
     public static void MapSubscriptionEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/subscriptions")
-            .WithTags("Subscriptions");
+        var group = app.MapGroup("/subscriptions").WithTags("Subscriptions");
 
-        group.MapGet("/status", async (
-            SubscriptionService service,
-            HttpContext ctx,
-            CancellationToken ct) =>
-        {
-            var userId = GetUserId(ctx);
-            var status = await service.GetStatusAsync(userId, ct);
-            return Results.Ok(status);
-        })
-        .RequireAuthorization()
-        .WithName("GetSubscriptionStatus")
-        .WithSummary("Get current subscription status for the authenticated user");
+        group
+            .MapGet(
+                "/status",
+                async (SubscriptionService service, HttpContext ctx, CancellationToken ct) =>
+                {
+                    var userId = GetUserId(ctx);
+                    if (userId == Guid.Empty)
+                        return Results.Forbid();
+                    var status = await service.GetStatusAsync(userId, ct);
+                    return status is null
+                        ? Results.Json(
+                            new { error = "User not provisioned. Call /auth/me first." },
+                            statusCode: StatusCodes.Status403Forbidden
+                        )
+                        : Results.Ok(status);
+                }
+            )
+            .RequireAuthorization()
+            .WithName("GetSubscriptionStatus")
+            .WithSummary("Get current subscription status for the authenticated user");
 
-        group.MapPost("/trial", async (
-            ActivateTrialRequest request,
-            SubscriptionService service,
-            HttpContext ctx,
-            CancellationToken ct) =>
-        {
-            if (request.PlanType is not (PlanType.CloudBYOK or PlanType.CloudManaged or PlanType.TrialFullAccess))
-                return Results.BadRequest(new { error = "Invalid plan type for trial activation." });
+        group
+            .MapPost(
+                "/trial",
+                async (
+                    ActivateTrialRequest request,
+                    SubscriptionService service,
+                    HttpContext ctx,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (
+                        request.PlanType
+                        is not (
+                            PlanType.CloudBYOK
+                            or PlanType.CloudManaged
+                            or PlanType.TrialFullAccess
+                        )
+                    )
+                        return Results.BadRequest(
+                            new { error = "Invalid plan type for trial activation." }
+                        );
 
-            var userId = GetUserId(ctx);
-            var result = await service.ActivateTrialAsync(userId, request.PlanType, ct);
+                    var userId = GetUserId(ctx);
+                    var outcome = await service.ActivateTrialAsync(userId, request.PlanType, ct);
 
-            return result is null
-                ? Results.Conflict(new { error = "Trial already activated or subscription exists." })
-                : Results.Ok(result);
-        })
-        .RequireAuthorization()
-        .WithName("ActivateTrial")
-        .WithSummary("Activate a 24-hour free trial");
+                    return outcome.Kind switch
+                    {
+                        ActivateTrialResultKind.UserNotProvisioned => Results.Json(
+                            new { error = "User not provisioned. Call /auth/me first." },
+                            statusCode: StatusCodes.Status403Forbidden
+                        ),
+                        ActivateTrialResultKind.AlreadyExists => Results.Conflict(
+                            new { error = "Trial already activated or subscription exists." }
+                        ),
+                        ActivateTrialResultKind.Created => Results.Ok(outcome.Response!),
+                        _ => throw new InvalidOperationException(
+                            $"Unexpected {nameof(ActivateTrialResultKind)}: {outcome.Kind}"
+                        ),
+                    };
+                }
+            )
+            .RequireAuthorization()
+            .WithName("ActivateTrial")
+            .WithSummary("Activate a 24-hour free trial");
 
-        group.MapPost("/portal", async (
-            SubscriptionService service,
-            HttpContext ctx,
-            CancellationToken ct) =>
-        {
-            var userId = GetUserId(ctx);
-            var url = await service.CreateCustomerPortalUrlAsync(userId, ct);
-            return url is null
-                ? Results.BadRequest(new { error = "No Paddle customer linked to this account." })
-                : Results.Ok(new CustomerPortalResponse(url));
-        })
-        .RequireAuthorization()
-        .WithName("CreateCustomerPortalSession")
-        .WithSummary("Create a Paddle customer portal session URL");
+        group
+            .MapPost(
+                "/portal",
+                async (SubscriptionService service, HttpContext ctx, CancellationToken ct) =>
+                {
+                    var userId = GetUserId(ctx);
+                    var url = await service.CreateCustomerPortalUrlAsync(userId, ct);
+                    return url is null
+                        ? Results.BadRequest(
+                            new { error = "No Paddle customer linked to this account." }
+                        )
+                        : Results.Ok(new CustomerPortalResponse(url));
+                }
+            )
+            .RequireAuthorization()
+            .WithName("CreateCustomerPortalSession")
+            .WithSummary("Create a Paddle customer portal session URL");
 
-        group.MapPost("/paddle-webhook", HandlePaddleWebhook)
+        group
+            .MapPost("/paddle-webhook", HandlePaddleWebhook)
             .AllowAnonymous()
             .WithName("PaddleWebhook")
             .WithSummary("Receive Paddle billing webhook events");
@@ -86,7 +122,8 @@ public static class SubscriptionEndpoints
         IOptions<PaddleSettings> paddleSettings,
         SubscriptionService service,
         ILoggerFactory loggerFactory,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         http.Request.EnableBuffering();
         string rawBody;
@@ -127,7 +164,12 @@ public static class SubscriptionEndpoints
                 {
                     var sub = envelope.Data.Deserialize<PaddleSubscription>();
                     if (sub is not null)
-                        await service.HandleSubscriptionCreatedAsync(sub, envelope.EventId, envelope.OccurredAt, ct);
+                        await service.HandleSubscriptionCreatedAsync(
+                            sub,
+                            envelope.EventId,
+                            envelope.OccurredAt,
+                            ct
+                        );
                 }
                 break;
 
@@ -161,9 +203,10 @@ public static class SubscriptionEndpoints
 
     private static Guid GetUserId(HttpContext ctx)
     {
-        var sub = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                  ?? ctx.User.FindFirstValue("sub")
-                  ?? throw new InvalidOperationException("JWT missing sub claim");
+        var sub =
+            ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? ctx.User.FindFirstValue("sub")
+            ?? throw new InvalidOperationException("JWT missing sub claim");
         return Guid.Parse(sub);
     }
 }

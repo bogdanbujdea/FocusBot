@@ -2,6 +2,8 @@
 
 This document summarizes the complete Paddle Billing integration across all Foqus platforms (API, web app, browser extension, desktop app).
 
+For **web app sign-in, user provisioning, and trial vs Paddle `trialing`**, see [web-app-sign-in-and-trials.md](web-app-sign-in-and-trials.md).
+
 ## Architecture
 
 ```
@@ -50,7 +52,7 @@ This document summarizes the complete Paddle Billing integration across all Foqu
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/pricing` | Proxies active prices for CatalogProductId; 10-min cache |
-| GET | `/subscriptions/status` | User's current plan and billing dates. **Auto-creates a 24h `TrialFullAccess` trial on first call if no row exists.** |
+| GET | `/subscriptions/status` | User's current plan and billing dates. May create a 24h `TrialFullAccess` trial **only if** a `Users` row already exists and no subscription row exists (call **`GET /auth/me`** first to provision). |
 | POST | `/subscriptions/trial` | Explicit trial activation (accepts `{ "planType": 1, 2, or 3 }`). Returns 409 if a row already exists (auto-trial already created). |
 | POST | `/subscriptions/portal` | Creates Paddle customer portal session URL |
 | POST | `/subscriptions/paddle-webhook` | Webhook receiver with signature verification |

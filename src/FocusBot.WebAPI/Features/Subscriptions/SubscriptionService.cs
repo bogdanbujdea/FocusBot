@@ -17,14 +17,19 @@ public class SubscriptionService(
     ApiDbContext db,
     IHubContext<FocusHub, IFocusHubClient> hub,
     IPaddleBillingApi paddleBilling,
-    ILogger<SubscriptionService> logger)
+    ILogger<SubscriptionService> logger
+)
 {
+    private Task<bool> UserExistsAsync(Guid userId, CancellationToken ct) =>
+        db.Users.AnyAsync(u => u.Id == userId, ct);
+
     /// <summary>
     /// Returns the current subscription status for a user. A trial row is normally created
     /// at account provisioning time (GET /auth/me). If no row exists here, it means the user
-    /// bypassed provisioning, so we create the trial defensively.
+    /// bypassed provisioning, so we create the trial defensively when the user row exists.
     /// </summary>
-    public async Task<SubscriptionStatusResponse> GetStatusAsync(
+    /// <returns>Null when the user is not provisioned in the database (call GET /auth/me first).</returns>
+    public async Task<SubscriptionStatusResponse?> GetStatusAsync(
         Guid userId,
         CancellationToken ct = default
     )
@@ -35,9 +40,19 @@ public class SubscriptionService(
 
         if (subscription is null)
         {
+            if (!await UserExistsAsync(userId, ct))
+            {
+                logger.LogWarning(
+                    "GetStatusAsync: user {UserId} has no Users row; refusing to create subscription.",
+                    userId
+                );
+                return null;
+            }
+
             logger.LogWarning(
                 "No subscription row found for user {UserId} during GetStatusAsync — creating trial defensively. User may not have called /auth/me first.",
-                userId);
+                userId
+            );
 
             var trialEnd = DateTime.UtcNow.AddHours(24);
             var trial = new Subscription
@@ -52,7 +67,13 @@ public class SubscriptionService(
             db.Subscriptions.Add(trial);
             await db.SaveChangesAsync(ct);
 
-            return new SubscriptionStatusResponse(SubscriptionStatus.Trial, PlanType.TrialFullAccess, trialEnd, null, null);
+            return new SubscriptionStatusResponse(
+                SubscriptionStatus.Trial,
+                PlanType.TrialFullAccess,
+                trialEnd,
+                null,
+                null
+            );
         }
 
         return new SubscriptionStatusResponse(
@@ -60,23 +81,32 @@ public class SubscriptionService(
             subscription.PlanType,
             subscription.TrialEndsAtUtc,
             subscription.CurrentPeriodEndsAtUtc,
-            subscription.NextBilledAtUtc);
+            subscription.NextBilledAtUtc
+        );
     }
 
     /// <summary>
-    /// Activates a 24-hour trial for a user with the specified plan type. Returns null if the user already has a subscription record
-    /// (trial already used or subscription exists).
+    /// Activates a 24-hour trial for a user with the specified plan type.
     /// </summary>
-    public async Task<ActivateTrialResponse?> ActivateTrialAsync(
+    public async Task<ActivateTrialOutcome> ActivateTrialAsync(
         Guid userId,
         PlanType planType,
         CancellationToken ct = default
     )
     {
+        if (!await UserExistsAsync(userId, ct))
+        {
+            logger.LogWarning(
+                "ActivateTrialAsync: user {UserId} has no Users row.",
+                userId
+            );
+            return new ActivateTrialOutcome(ActivateTrialResultKind.UserNotProvisioned);
+        }
+
         var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
 
         if (existing is not null)
-            return null;
+            return new ActivateTrialOutcome(ActivateTrialResultKind.AlreadyExists);
 
         var trialEnd = DateTime.UtcNow.AddHours(24);
         var subscription = new Subscription
@@ -92,7 +122,10 @@ public class SubscriptionService(
         db.Subscriptions.Add(subscription);
         await db.SaveChangesAsync(ct);
 
-        return new ActivateTrialResponse(SubscriptionStatus.Trial, trialEnd);
+        return new ActivateTrialOutcome(
+            ActivateTrialResultKind.Created,
+            new ActivateTrialResponse(SubscriptionStatus.Trial, trialEnd)
+        );
     }
 
     /// <summary>
@@ -121,7 +154,10 @@ public class SubscriptionService(
     /// <summary>
     /// Opens a Paddle customer portal session for the authenticated user.
     /// </summary>
-    public async Task<string?> CreateCustomerPortalUrlAsync(Guid userId, CancellationToken ct = default)
+    public async Task<string?> CreateCustomerPortalUrlAsync(
+        Guid userId,
+        CancellationToken ct = default
+    )
     {
         var subscription = await db
             .Subscriptions.AsNoTracking()
@@ -133,7 +169,8 @@ public class SubscriptionService(
         return await paddleBilling.CreateCustomerPortalSessionAsync(
             subscription.PaddleCustomerId,
             subscription.PaddleSubscriptionId,
-            ct);
+            ct
+        );
     }
 
     /// <summary>
@@ -143,7 +180,8 @@ public class SubscriptionService(
         PaddleSubscription sub,
         string eventId,
         DateTime? occurredAt,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         logger.LogInformation("Processing Paddle subscription.created event {EventId}", eventId);
 
@@ -158,7 +196,21 @@ public class SubscriptionService(
 
         if (!TryResolveUserId(sub.CustomData, out var userId))
         {
-            logger.LogError("subscription.created event {EventId}: Failed to resolve user_id from custom_data", eventId);
+            logger.LogError(
+                "subscription.created event {EventId}: Failed to resolve user_id from custom_data",
+                eventId
+            );
+            await RecordProcessedEvent(eventId, "subscription.created", ct);
+            return;
+        }
+
+        if (!await UserExistsAsync(userId, ct))
+        {
+            logger.LogError(
+                "subscription.created event {EventId}: User {UserId} not provisioned in database",
+                eventId,
+                userId
+            );
             await RecordProcessedEvent(eventId, "subscription.created", ct);
             return;
         }
@@ -166,7 +218,11 @@ public class SubscriptionService(
         var mappedPlan = MapPlanType(sub.CustomData, sub.Items);
         if (!mappedPlan.HasValue)
         {
-            logger.LogError("subscription.created event {EventId}: Failed to resolve plan_type for subscription {SubId}", eventId, sub.Id);
+            logger.LogError(
+                "subscription.created event {EventId}: Failed to resolve plan_type for subscription {SubId}",
+                eventId,
+                sub.Id
+            );
             await RecordProcessedEvent(eventId, "subscription.created", ct);
             return;
         }
@@ -212,7 +268,8 @@ public class SubscriptionService(
     public async Task HandleSubscriptionUpdatedAsync(
         PaddleSubscription sub,
         string eventId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         logger.LogInformation("Processing Paddle subscription.updated event {EventId}", eventId);
 
@@ -227,7 +284,8 @@ public class SubscriptionService(
 
         var subscription = await db.Subscriptions.FirstOrDefaultAsync(
             s => s.PaddleSubscriptionId == sub.Id,
-            ct);
+            ct
+        );
 
         if (subscription is null)
         {
@@ -255,7 +313,8 @@ public class SubscriptionService(
     public async Task HandleSubscriptionCanceledAsync(
         PaddleSubscription sub,
         string eventId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         logger.LogInformation("Processing Paddle subscription.canceled event {EventId}", eventId);
 
@@ -270,7 +329,8 @@ public class SubscriptionService(
 
         var subscription = await db.Subscriptions.FirstOrDefaultAsync(
             s => s.PaddleSubscriptionId == sub.Id,
-            ct);
+            ct
+        );
 
         if (subscription is null)
         {
@@ -297,7 +357,8 @@ public class SubscriptionService(
     public async Task HandleTransactionCompletedAsync(
         PaddleTransaction txn,
         string eventId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         logger.LogInformation("Processing Paddle transaction.completed event {EventId}", eventId);
 
@@ -312,31 +373,74 @@ public class SubscriptionService(
 
         var subscription = await db.Subscriptions.FirstOrDefaultAsync(
             s => s.PaddleSubscriptionId == txn.SubscriptionId,
-            ct);
+            ct
+        );
 
         if (subscription is null)
         {
             var userId = ResolveUserIdFromTransaction(txn);
             if (userId is null)
             {
-                logger.LogError("transaction.completed event {EventId}: no subscription row found for {SubId} and no user_id in custom_data", eventId, txn.SubscriptionId);
+                logger.LogError(
+                    "transaction.completed event {EventId}: no subscription row found for {SubId} and no user_id in custom_data",
+                    eventId,
+                    txn.SubscriptionId
+                );
                 await RecordProcessedEvent(eventId, "transaction.completed", ct);
                 return;
             }
 
-            logger.LogWarning("transaction.completed event {EventId}: arrived before subscription.created for {SubId}; creating row from transaction data", eventId, txn.SubscriptionId);
-
-            subscription = new Subscription
+            if (!await UserExistsAsync(userId.Value, ct))
             {
-                UserId = userId.Value,
-                PaddleSubscriptionId = txn.SubscriptionId,
-                PaddleCustomerId = txn.CustomerId,
-                Status = SubscriptionStatus.Active,
-                PlanType = PlanType.CloudBYOK,
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow,
-            };
-            db.Subscriptions.Add(subscription);
+                logger.LogError(
+                    "transaction.completed event {EventId}: User {UserId} not provisioned in database",
+                    eventId,
+                    userId.Value
+                );
+                await RecordProcessedEvent(eventId, "transaction.completed", ct);
+                return;
+            }
+
+            subscription = await db.Subscriptions.FirstOrDefaultAsync(
+                s => s.UserId == userId.Value,
+                ct
+            );
+
+            if (subscription is not null)
+            {
+                logger.LogWarning(
+                    "transaction.completed event {EventId}: merging into existing subscription row for user {UserId} (paddle subscription {SubId})",
+                    eventId,
+                    userId.Value,
+                    txn.SubscriptionId
+                );
+                subscription.PaddleSubscriptionId = txn.SubscriptionId;
+                subscription.PaddleCustomerId = txn.CustomerId;
+                subscription.Status = SubscriptionStatus.Active;
+                var mergedPlan = MapPlanTypeFromTransaction(txn);
+                subscription.PlanType = mergedPlan ?? PlanType.CloudBYOK;
+            }
+            else
+            {
+                logger.LogWarning(
+                    "transaction.completed event {EventId}: arrived before subscription.created for {SubId}; creating row from transaction data",
+                    eventId,
+                    txn.SubscriptionId
+                );
+
+                var newPlan = MapPlanTypeFromTransaction(txn);
+                subscription = new Subscription
+                {
+                    UserId = userId.Value,
+                    PaddleSubscriptionId = txn.SubscriptionId,
+                    PaddleCustomerId = txn.CustomerId,
+                    Status = SubscriptionStatus.Active,
+                    PlanType = newPlan ?? PlanType.CloudBYOK,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    UpdatedAtUtc = DateTime.UtcNow,
+                };
+                db.Subscriptions.Add(subscription);
+            }
         }
 
         if (!string.IsNullOrEmpty(txn.Id))
@@ -353,7 +457,10 @@ public class SubscriptionService(
         await NotifyPlanChangedAsync(subscription.UserId, ct);
     }
 
-    private static void ApplyPaymentDetails(Subscription subscription, List<PaddlePayment>? payments)
+    private static void ApplyPaymentDetails(
+        Subscription subscription,
+        List<PaddlePayment>? payments
+    )
     {
         if (payments is null || payments.Count == 0)
             return;
@@ -390,7 +497,10 @@ public class SubscriptionService(
         };
     }
 
-    private static PlanType? MapPlanType(PaddleCustomData? customData, List<PaddleSubscriptionItem>? items)
+    private static PlanType? MapPlanType(
+        PaddleCustomData? customData,
+        List<PaddleSubscriptionItem>? items
+    )
     {
         if (customData?.PlanType is not null)
         {
@@ -431,7 +541,21 @@ public class SubscriptionService(
         return null;
     }
 
-    private static void ApplySubscriptionEnrichment(Subscription subscription, PaddleSubscription sub)
+    private static PlanType? MapPlanTypeFromTransaction(PaddleTransaction txn)
+    {
+        if (txn.Items is null || txn.Items.Count == 0)
+            return MapPlanType(txn.CustomData, null);
+
+        var mappedItems = txn
+            .Items.Select(i => new PaddleSubscriptionItem { Price = i.Price })
+            .ToList();
+        return MapPlanType(txn.CustomData, mappedItems);
+    }
+
+    private static void ApplySubscriptionEnrichment(
+        Subscription subscription,
+        PaddleSubscription sub
+    )
     {
         var firstPrice = sub.Items?.FirstOrDefault()?.Price;
 
@@ -442,7 +566,13 @@ public class SubscriptionService(
 
             if (firstPrice.UnitPrice is not null)
             {
-                if (long.TryParse(firstPrice.UnitPrice.Amount, CultureInfo.InvariantCulture, out var minor))
+                if (
+                    long.TryParse(
+                        firstPrice.UnitPrice.Amount,
+                        CultureInfo.InvariantCulture,
+                        out var minor
+                    )
+                )
                     subscription.UnitAmountMinor = minor;
 
                 subscription.CurrencyCode = firstPrice.UnitPrice.CurrencyCode;
@@ -453,7 +583,8 @@ public class SubscriptionService(
         }
 
         if (sub.CurrentBillingPeriod?.EndsAt.HasValue == true)
-            subscription.CurrentPeriodEndsAtUtc = sub.CurrentBillingPeriod.EndsAt.Value.ToUniversalTime();
+            subscription.CurrentPeriodEndsAtUtc =
+                sub.CurrentBillingPeriod.EndsAt.Value.ToUniversalTime();
 
         if (sub.NextBilledAt.HasValue)
             subscription.NextBilledAtUtc = sub.NextBilledAt.Value.ToUniversalTime();
@@ -478,12 +609,14 @@ public class SubscriptionService(
 
     private async Task RecordProcessedEvent(string eventId, string eventType, CancellationToken ct)
     {
-        db.ProcessedWebhookEvents.Add(new ProcessedWebhookEvent
-        {
-            EventId = eventId,
-            EventType = eventType,
-            ProcessedAtUtc = DateTime.UtcNow,
-        });
+        db.ProcessedWebhookEvents.Add(
+            new ProcessedWebhookEvent
+            {
+                EventId = eventId,
+                EventType = eventType,
+                ProcessedAtUtc = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync(ct);
     }
 

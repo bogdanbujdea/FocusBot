@@ -1,6 +1,6 @@
 # Phase 2: Desktop App (WinUI 3) — Trial Dialog, Banner, and BYOK Prompt
 
-**Depends on:** Phase 1 (API auto-trial + `TrialFullAccess` plan type).
+**Depends on:** Phase 1 — **complete** (API + web app; see [phase-1-web-app-and-api.md](phase-1-web-app-and-api.md), [web-app-sign-in-and-trials.md](../web-app-sign-in-and-trials.md)).
 
 **Goal:** When a user signs in on the Windows desktop app, they see a welcome dialog explaining the 24h trial and what to expect. A persistent trial banner with a countdown appears at the top of the focus page. After the trial expires (or after subscribing to Cloud BYOK), the user is prompted to enter their API key.
 

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { PlanType } from "../api/types";
 import { SubscriptionProvider, useSubscription } from "../contexts/SubscriptionContext";
 import { TrialWelcomeModal, trialWelcomeSeenKey } from "./TrialWelcomeModal";
 import "./Layout.css";
+
+/** Foqus 24h full-access trial (not Paddle billing `trialing` on a paid plan). */
+function isFoqusTrialOnly(subscription: { status: string; planType: number } | null): boolean {
+  return (
+    subscription?.status === "trial" && subscription.planType === PlanType.TrialFullAccess
+  );
+}
 
 function TrialBanner() {
   const { subscription } = useSubscription();
@@ -17,7 +25,7 @@ function TrialBanner() {
     return hours > 0 ? `${hours}h ${minutes}m remaining` : `${minutes}m remaining`;
   }, [subscription?.trialEndsAt]);
 
-  if (subscription?.status !== "trial" || !timeLeft) return null;
+  if (!isFoqusTrialOnly(subscription) || !timeLeft) return null;
 
   return (
     <div className="trial-banner" role="status">
@@ -45,10 +53,10 @@ function LayoutContent() {
   }, [location.pathname, closeSidebar]);
 
   useEffect(() => {
-    if (!user?.id || subscription?.status !== "trial") return;
+    if (!user?.id || !isFoqusTrialOnly(subscription)) return;
     const seen = localStorage.getItem(trialWelcomeSeenKey(user.id));
     setModalDismissed(seen === "true");
-  }, [user?.id, subscription?.status]);
+  }, [user?.id, subscription?.status, subscription?.planType]);
 
   const handleModalDismiss = useCallback(() => {
     if (user?.id) {
@@ -59,7 +67,7 @@ function LayoutContent() {
 
   const showModal =
     !modalDismissed &&
-    subscription?.status === "trial" &&
+    isFoqusTrialOnly(subscription) &&
     !!subscription.trialEndsAt;
 
   return (

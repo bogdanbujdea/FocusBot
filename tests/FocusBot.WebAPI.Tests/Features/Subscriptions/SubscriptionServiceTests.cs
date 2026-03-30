@@ -28,6 +28,18 @@ public class SubscriptionServiceTests
         return new SubscriptionService(db, hub.Object, paddle, logger);
     }
 
+    private static void SeedUser(ApiDbContext db, Guid userId, string email = "test@example.com")
+    {
+        db.Users.Add(
+            new User
+            {
+                Id = userId,
+                Email = email,
+                CreatedAtUtc = DateTime.UtcNow,
+            }
+        );
+    }
+
     private static Mock<IHubContext<FocusHub, IFocusHubClient>> CreateHubMock()
     {
         var clients = new Mock<IHubClients<IFocusHubClient>>();
@@ -44,13 +56,29 @@ public class SubscriptionServiceTests
         await using var db = CreateInMemoryDb();
         var service = CreateService(db);
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
 
         var result = await service.GetStatusAsync(userId);
 
-        result.Status.Should().Be(SubscriptionStatus.Trial);
+        result.Should().NotBeNull();
+        result!.Status.Should().Be(SubscriptionStatus.Trial);
         result.PlanType.Should().Be(PlanType.TrialFullAccess);
         result.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
         (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetStatusAsync_ReturnsNull_WhenUserNotProvisioned()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = CreateService(db);
+        var userId = Guid.NewGuid();
+
+        var result = await service.GetStatusAsync(userId);
+
+        result.Should().BeNull();
+        (await db.Subscriptions.CountAsync()).Should().Be(0);
     }
 
     [Fact]
@@ -59,6 +87,8 @@ public class SubscriptionServiceTests
         await using var db = CreateInMemoryDb();
         var service = CreateService(db);
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
 
         await service.GetStatusAsync(userId);
         await service.GetStatusAsync(userId);
@@ -71,6 +101,7 @@ public class SubscriptionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
@@ -83,7 +114,8 @@ public class SubscriptionServiceTests
         var service = CreateService(db);
         var result = await service.GetStatusAsync(userId);
 
-        result.Status.Should().Be(SubscriptionStatus.Active);
+        result.Should().NotBeNull();
+        result!.Status.Should().Be(SubscriptionStatus.Active);
         result.PlanType.Should().Be(PlanType.CloudManaged);
         (await db.Subscriptions.CountAsync()).Should().Be(1);
     }
@@ -94,12 +126,15 @@ public class SubscriptionServiceTests
         await using var db = CreateInMemoryDb();
         var service = CreateService(db);
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
 
-        var result = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
+        var outcome = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
 
-        result.Should().NotBeNull();
-        result!.Status.Should().Be(SubscriptionStatus.Trial);
-        result.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
+        outcome.Kind.Should().Be(ActivateTrialResultKind.Created);
+        outcome.Response.Should().NotBeNull();
+        outcome.Response!.Status.Should().Be(SubscriptionStatus.Trial);
+        outcome.Response.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
         (await db.Subscriptions.CountAsync()).Should().Be(1);
 
         var row = await db.Subscriptions.SingleAsync();
@@ -107,10 +142,25 @@ public class SubscriptionServiceTests
     }
 
     [Fact]
-    public async Task ActivateTrialAsync_ReturnsNull_WhenTrialAlreadyActivated()
+    public async Task ActivateTrialAsync_ReturnsUserNotProvisioned_WhenUserMissing()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = CreateService(db);
+        var userId = Guid.NewGuid();
+
+        var outcome = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
+
+        outcome.Kind.Should().Be(ActivateTrialResultKind.UserNotProvisioned);
+        outcome.Response.Should().BeNull();
+        (await db.Subscriptions.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ActivateTrialAsync_ReturnsAlreadyExists_WhenTrialAlreadyActivated()
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
@@ -120,9 +170,10 @@ public class SubscriptionServiceTests
         await db.SaveChangesAsync();
 
         var service = CreateService(db);
-        var result = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
+        var outcome = await service.ActivateTrialAsync(userId, PlanType.CloudBYOK);
 
-        result.Should().BeNull();
+        outcome.Kind.Should().Be(ActivateTrialResultKind.AlreadyExists);
+        outcome.Response.Should().BeNull();
         (await db.Subscriptions.CountAsync()).Should().Be(1);
     }
 
@@ -208,6 +259,8 @@ public class SubscriptionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
         var service = CreateService(db);
 
         var sub = new PaddleSubscription
@@ -256,6 +309,7 @@ public class SubscriptionServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         var next = DateTime.UtcNow.AddDays(30);
+        SeedUser(db, userId);
         db.Subscriptions.Add(new Subscription
         {
             UserId = userId,
@@ -269,7 +323,8 @@ public class SubscriptionServiceTests
         var service = CreateService(db);
         var status = await service.GetStatusAsync(userId);
 
-        status.NextBilledAtUtc.Should().Be(next);
+        status.Should().NotBeNull();
+        status!.NextBilledAtUtc.Should().Be(next);
     }
 
     [Fact]
@@ -277,6 +332,8 @@ public class SubscriptionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
         var service = CreateService(db);
 
         var sub = BuildTestSubscription(userId, "sub_idempotent_1", "cloud-byok");
@@ -293,6 +350,7 @@ public class SubscriptionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
         var service = CreateService(db);
 
         db.Subscriptions.Add(new Subscription
@@ -315,6 +373,53 @@ public class SubscriptionServiceTests
     }
 
     [Fact]
+    public async Task HandleTransactionCompletedAsync_MergesIntoExistingRow_WhenTrialExistsWithoutPaddleId()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        db.Subscriptions.Add(
+            new Subscription
+            {
+                UserId = userId,
+                Status = SubscriptionStatus.Trial,
+                PlanType = PlanType.TrialFullAccess,
+                TrialEndsAtUtc = DateTime.UtcNow.AddHours(12),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var txn = new PaddleTransaction
+        {
+            Id = "txn_merge_1",
+            SubscriptionId = "sub_from_txn",
+            CustomerId = "ctm_merge",
+            CustomData = new PaddleCustomData
+            {
+                UserId = userId.ToString(),
+                PlanType = "cloud-byok",
+            },
+            Items =
+            [
+                new PaddleTransactionItem
+                {
+                    Price = new PaddlePrice { Id = "pri_1", ProductId = "pro_1" },
+                },
+            ],
+        };
+
+        await service.HandleTransactionCompletedAsync(txn, "evt_txn_merge_1");
+
+        (await db.Subscriptions.CountAsync()).Should().Be(1);
+        var row = await db.Subscriptions.SingleAsync();
+        row.PaddleSubscriptionId.Should().Be("sub_from_txn");
+        row.PaddleCustomerId.Should().Be("ctm_merge");
+        row.Status.Should().Be(SubscriptionStatus.Active);
+        row.PlanType.Should().Be(PlanType.CloudBYOK);
+    }
+
+    [Fact]
     public async Task HandleSubscriptionCreatedAsync_SkipsWhenPlanTypeUnresolvable()
     {
         await using var db = CreateInMemoryDb();
@@ -331,6 +436,21 @@ public class SubscriptionServiceTests
         };
 
         await service.HandleSubscriptionCreatedAsync(sub, "evt_no_plan", DateTime.UtcNow);
+
+        (await db.Subscriptions.CountAsync()).Should().Be(0);
+        (await db.ProcessedWebhookEvents.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionCreatedAsync_SkipsWhenUserNotProvisioned()
+    {
+        await using var db = CreateInMemoryDb();
+        var userId = Guid.NewGuid();
+        var service = CreateService(db);
+
+        var sub = BuildTestSubscription(userId, "sub_no_user", "cloud-byok");
+
+        await service.HandleSubscriptionCreatedAsync(sub, "evt_no_user", DateTime.UtcNow);
 
         (await db.Subscriptions.CountAsync()).Should().Be(0);
         (await db.ProcessedWebhookEvents.CountAsync()).Should().Be(1);
@@ -403,6 +523,8 @@ public class SubscriptionServiceTests
     {
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
+        SeedUser(db, userId);
+        await db.SaveChangesAsync();
         var service = CreateService(db);
 
         var sub = new PaddleSubscription
@@ -440,12 +562,15 @@ public class SubscriptionServiceTests
 
         var userId1 = Guid.NewGuid();
         var userId2 = Guid.NewGuid();
+        SeedUser(db, userId1);
+        SeedUser(db, userId2, "other@example.com");
+        await db.SaveChangesAsync();
 
-        var result1 = await service.ActivateTrialAsync(userId1, PlanType.CloudBYOK);
-        var result2 = await service.ActivateTrialAsync(userId2, PlanType.CloudManaged);
+        var outcome1 = await service.ActivateTrialAsync(userId1, PlanType.CloudBYOK);
+        var outcome2 = await service.ActivateTrialAsync(userId2, PlanType.CloudManaged);
 
-        result1.Should().NotBeNull();
-        result2.Should().NotBeNull();
+        outcome1.Kind.Should().Be(ActivateTrialResultKind.Created);
+        outcome2.Kind.Should().Be(ActivateTrialResultKind.Created);
 
         var row1 = await db.Subscriptions.SingleAsync(s => s.UserId == userId1);
         var row2 = await db.Subscriptions.SingleAsync(s => s.UserId == userId2);

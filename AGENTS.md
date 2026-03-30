@@ -40,13 +40,13 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 
   `dotnet user-secrets set "Paddle:ClientToken" "<client-side-token>" --project src/FocusBot.WebAPI` (from Paddle Dashboard → Developer tools → Authentication; required for Paddle.js on `/billing`)
 
-- **Trial activation**: **Auto-created** on first `GET /subscriptions/status` call when no subscription row exists. The API creates a `Trial` row with `PlanType.TrialFullAccess` (= 3) and `TrialEndsAtUtc = UtcNow + 24h`. No client needs to call `POST /subscriptions/trial`. The explicit `POST` endpoint still exists (accepts `planType` 1, 2, or 3) but returns 409 if a row already exists. **Remove the 1-day trial from Paddle Dashboard prices**. There is no free plan — users are on trial or paid.
+- **Trial activation**: The **Foqus 24h trial** is created when the user is provisioned via **`GET /auth/me`** (`AuthService`), or defensively on `GET /subscriptions/status` if a `Users` row exists and no subscription row exists. The row uses `PlanType.TrialFullAccess` (= 0) and `TrialEndsAtUtc = UtcNow + 24h`. The web app calls **`GET /auth/me`** before **`GET /subscriptions/status`** (see `docs/web-app-sign-in-and-trials.md`). The explicit `POST /subscriptions/trial` still exists (accepts `planType` 0, 1, or 2 per API) but returns 409 if a row already exists. **Do not add a duplicate trial period on Paddle prices** if you use this app trial. There is no free plan — users are on trial or paid.
 - **Subscription status**: Uses `SubscriptionStatus` enum (`None`, `Trial`, `Active`, `Expired`, `Canceled`). Serialized as camelCase strings in JSON responses (e.g., `"active"`, `"trial"`). `past_due` status maps to `Expired` (no access).
 - **Webhook idempotency**: All events are deduplicated by `event_id` via the `ProcessedWebhookEvent` table. Duplicate Paddle retries are safely ignored.
 - **Webhook security**: `PaddleWebhookVerifier` rejects all requests when `Paddle:WebhookSecret` is not configured or empty. No dev bypass.
 - **Webhook URL** (local tunnel or deployed): `POST {apiBase}/subscriptions/paddle-webhook` — must receive the **raw** body for signature verification.
 - **Realtime plan updates**: After webhook processing, the API emits **`PlanChanged`** on the same SignalR hub as focus sessions (`/hubs/focus`); desktop `FocusPageViewModel` and web clients can refresh subscription/plan state immediately.
-- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes), `docs/paddle-implementation-summary.md` (detailed implementation). Legacy Windows Store pricing notes are under `pricing/archive/`.
+- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes), `docs/paddle-implementation-summary.md` (detailed implementation), `docs/web-app-sign-in-and-trials.md` (sign-in, provisioning, trial vs Paddle `trialing`). Legacy Windows Store pricing notes are under `pricing/archive/`.
 
 ### Running tests
 

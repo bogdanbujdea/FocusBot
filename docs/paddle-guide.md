@@ -15,7 +15,8 @@ These endpoints and shapes are implemented in **FocusBot.WebAPI** and consumed b
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | GET | `/pricing` | None | Proxies **active** Paddle prices for **`Paddle:CatalogProductId`** only (`pro_...`); returns `plans`, `clientToken`, `isSandbox` (10-minute server cache). |
-| GET | `/subscriptions/status` | Bearer | Current plan and billing dates for the signed-in user. |
+| GET | `/auth/me` | Bearer | Provisions **`Users`** (and initial subscription/trial if needed). Clients should call this before **`/subscriptions/status`**. See [web-app-sign-in-and-trials.md](web-app-sign-in-and-trials.md). |
+| GET | `/subscriptions/status` | Bearer | Current plan and billing dates. Returns **403** if the user JWT is valid but no **`Users`** row exists (call **`/auth/me`** first). |
 | POST | `/subscriptions/trial` | Bearer | Starts the app’s 24h trial (Paddle-independent). |
 | POST | `/subscriptions/portal` | Bearer | Creates a Paddle customer portal session; response includes URL to open in browser. |
 | POST | `/subscriptions/paddle-webhook` | Paddle signature | Webhook receiver; verifies `Paddle-Signature` (HMAC-SHA256 over `{ts}:{raw_body}`). |
@@ -36,10 +37,10 @@ Pass from **Paddle.js** when opening checkout so webhooks can correlate the subs
 - `subscription.canceled` — Sets status to `"canceled"`, records `CancelledAtUtc`
 - `transaction.completed` — Records transaction id, billing period, payment method (card type + last 4)
 
-**Status mapping** (`MapSubscriptionStatus`):
-- `"trialing"` → `"trial"` (app convention for trial period)
+**Status mapping** (`MapSubscriptionStatus` in `SubscriptionService.cs`):
+- `"trialing"` → `"trial"` (stored as `SubscriptionStatus.Trial`; same JSON `status` as the Foqus app trial—disambiguate with `planType`; see [web-app-sign-in-and-trials.md](web-app-sign-in-and-trials.md))
 - `"active"` → `"active"`
-- `"past_due"` → `"active"` (treat as active with payment issue)
+- `"past_due"` → `"expired"`
 - `"paused"` → `"expired"`
 - `"canceled"` → `"canceled"`
 
