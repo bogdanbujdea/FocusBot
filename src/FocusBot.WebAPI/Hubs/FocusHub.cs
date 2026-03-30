@@ -43,6 +43,7 @@ public interface IFocusHubClient
     Task SessionPaused(SessionPausedEvent e);
     Task SessionResumed(SessionResumedEvent e);
     Task PlanChanged(PlanChangedEvent e);
+    Task ClassificationChanged(ClassificationChangedEvent e);
 }
 
 public sealed record SessionStartedEvent(
@@ -72,3 +73,18 @@ public sealed record SessionResumedEvent(
 
 /// <summary>Raised when the user's subscription or plan changed (e.g. Paddle webhook).</summary>
 public sealed record PlanChangedEvent();
+
+/// <summary>
+/// Raised after a successful POST /classify (including coalesced batches) so all connected
+/// clients can mirror the same alignment state across devices.
+/// </summary>
+/// <param name="Source">"extension" when the classified request carried a URL; otherwise "desktop".</param>
+/// <param name="ActivityName">URL for extension requests, or process/window context for desktop.</param>
+public sealed record ClassificationChangedEvent(
+    int Score,
+    string Reason,
+    string Source,
+    string ActivityName,
+    DateTime ClassifiedAtUtc,
+    bool Cached
+);

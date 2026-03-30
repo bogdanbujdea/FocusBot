@@ -29,11 +29,10 @@ Each request may wait up to 1 second before classification starts. This is expec
 
 ## Client impact
 
-No client API contract changes are required.
-
 - Clients continue calling `POST /classify` as before.
 - Responses keep the same shape: `{ score, reason, cached }`.
 - Multiple callers in the same coalescing window can receive the same response payload.
+- After each successful classification (including the single call selected for a batch), the API broadcasts `ClassificationChanged` on the SignalR focus hub (`/hubs/focus`) to every connection in the user group. Payload includes `score`, `reason`, `source` (`extension` when the winning request had a URL, otherwise `desktop`), `activityName` (URL or process/window context), `classifiedAtUtc`, and `cached`. Connected Windows app and browser extension clients mirror this state so UI stays aligned when only one client triggered `POST /classify`.
 
 ## Error handling
 

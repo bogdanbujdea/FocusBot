@@ -201,6 +201,7 @@ public partial class FocusPageViewModel : ObservableObject
         _focusHubClient.SessionPaused += OnFocusHubSessionPaused;
         _focusHubClient.SessionResumed += OnFocusHubSessionResumed;
         _focusHubClient.PlanChanged += OnFocusHubPlanChanged;
+        _focusHubClient.ClassificationChanged += OnFocusHubClassificationChanged;
 
         _planService.PlanChanged += OnPlanServicePlanChanged;
 
@@ -231,6 +232,31 @@ public partial class FocusPageViewModel : ObservableObject
         await _planService.RefreshAsync();
         await UpdateTrialStateAsync();
         await TryRaiseByokPromptAsync();
+    }
+
+    private void OnFocusHubClassificationChanged(ClassificationChangedEvent e)
+    {
+        void Apply()
+        {
+            _sessionOrchestrator.ApplyRemoteClassificationFromHub(
+                e.Source,
+                e.Score,
+                e.Reason,
+                e.ActivityName);
+        }
+
+        if (_uiDispatcher != null)
+        {
+            _ = _uiDispatcher.RunOnUIThreadAsync(() =>
+            {
+                Apply();
+                return Task.CompletedTask;
+            });
+        }
+        else
+        {
+            Apply();
+        }
     }
 
     private async Task TryRaiseByokPromptAsync()

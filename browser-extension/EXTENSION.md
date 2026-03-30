@@ -74,6 +74,7 @@ The extension no longer connects to the Windows app over a local WebSocket. Brow
 
 - There is no **Connect to Foqus for Windows** toggle in settings anymore.
 - Local WebSocket (`ws://localhost:9876/focusbot`) behavior is deprecated and not part of the supported setup.
+- After each successful `POST /classify`, the API broadcasts **`ClassificationChanged`** on the SignalR focus hub so every signed-in client (extension, Windows app, web) can mirror the same alignment state. The extension applies hub events whose `source` is not `extension` (e.g. desktop-only classifications) to the active session UI.
 
 ---
 

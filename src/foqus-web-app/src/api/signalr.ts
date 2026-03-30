@@ -52,11 +52,21 @@ export interface SessionResumedEvent {
   source: string;
 }
 
+export interface ClassificationChangedEvent {
+  score: number;
+  reason: string;
+  source: string;
+  activityName: string;
+  classifiedAtUtc: string;
+  cached: boolean;
+}
+
 export type FocusHubCallbacks = {
   onSessionStarted?: (e: SessionStartedEvent) => void;
   onSessionEnded?: (e: SessionEndedEvent) => void;
   onSessionPaused?: (e: SessionPausedEvent) => void;
   onSessionResumed?: (e: SessionResumedEvent) => void;
+  onClassificationChanged?: (e: ClassificationChangedEvent) => void;
 };
 
 export async function connectFocusHub(
@@ -105,6 +115,9 @@ export async function connectFocusHub(
   }
   if (callbacks.onSessionResumed) {
     connection.on("SessionResumed", callbacks.onSessionResumed);
+  }
+  if (callbacks.onClassificationChanged) {
+    connection.on("ClassificationChanged", callbacks.onClassificationChanged);
   }
 
   try {

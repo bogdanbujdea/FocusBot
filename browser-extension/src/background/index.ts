@@ -1,5 +1,5 @@
 import { calculateAnalytics } from "../shared/analytics";
-import { classifyPage, classifyDesktopApp } from "../shared/classifier";
+import { classifyPage, classifyDesktopApp, mapApiScoreToClassification } from "../shared/classifier";
 import { calculateLiveSummary, calculateSessionSummary, stripActiveSessionForHistory } from "../shared/metrics";
 import {
   loadActiveSession,
@@ -37,6 +37,7 @@ import {
 import {
   connectFocusHub,
   disconnectFocusHub,
+  type ClassificationChangedEvent,
   type SessionEndedEvent,
   type SessionPausedEvent,
   type SessionResumedEvent,
@@ -292,6 +293,44 @@ const handleSignalRSessionResumed = async (_event: SessionResumedEvent): Promise
   await broadcastStateUpdate();
 };
 
+const handleSignalRClassificationChanged = async (event: ClassificationChangedEvent): Promise<void> => {
+  if (event.source === "extension") {
+    return;
+  }
+
+  await runExclusive(async () => {
+    const session = await loadActiveSession();
+    if (!session || session.pausedAt || !session.currentVisit) {
+      return;
+    }
+
+    const classification = mapApiScoreToClassification(event.score);
+    const confidence = Math.min(1, Math.max(0, event.score / 10));
+    const reasonWithActivity =
+      event.activityName.trim().length > 0
+        ? `[${event.activityName}] ${event.reason}`
+        : event.reason;
+
+    if (session.currentVisit.tabId !== undefined && session.currentVisit.tabId >= 0) {
+      await sendDistractionAlert(session.currentVisit.tabId, { show: false });
+    }
+
+    session.currentVisit = {
+      ...session.currentVisit,
+      visitState: "classified",
+      classification,
+      confidence,
+      reason: reasonWithActivity,
+      score: event.score,
+      reusedClassification: true
+    };
+
+    await saveActiveSession(session);
+    await broadcastStateUpdate();
+    await updateIconState();
+  });
+};
+
 const ensureFocusHubConnected = async (): Promise<void> => {
   const auth = await loadFocusbotAuthSession();
   if (!auth?.accessToken) {
@@ -319,6 +358,9 @@ const ensureFocusHubConnected = async (): Promise<void> => {
       void runExclusive(async () => {
         await handleSignalRSessionResumed(event);
       });
+    },
+    onClassificationChanged: (event) => {
+      void handleSignalRClassificationChanged(event);
     },
     onReconnected: () => {
       void runExclusive(async () => {

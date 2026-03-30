@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import {
+  type ClassificationChangedEvent,
   connectFocusHub,
   disconnectFocusHub,
   type SessionStartedEvent,
@@ -37,6 +38,8 @@ export function DashboardPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [liveClassification, setLiveClassification] =
+    useState<ClassificationChangedEvent | null>(null);
 
   const loadTodayData = useCallback(async () => {
     const from = startOfLocalDayIso();
@@ -112,6 +115,9 @@ export function DashboardPage() {
       },
       onSessionResumed: () => {
         void refreshActive();
+      },
+      onClassificationChanged: (event) => {
+        setLiveClassification(event);
       },
     });
     return () => {
@@ -252,6 +258,33 @@ export function DashboardPage() {
                 Started {formatDateTime(activeSession.startedAtUtc)}
                 {activeSession.isPaused ? " · Paused" : ""}
               </div>
+              {liveClassification && (
+                <div
+                  className={`dashboard-live-classification dashboard-live-classification-${
+                    liveClassification.score > 5
+                      ? "aligned"
+                      : liveClassification.score < 5
+                        ? "distracting"
+                        : "neutral"
+                  }`}
+                >
+                  <span className="dashboard-live-classification-label">
+                    Live status
+                  </span>
+                  <span>
+                    {liveClassification.score > 5
+                      ? "Aligned"
+                      : liveClassification.score < 5
+                        ? "Distracting"
+                        : "Neutral"}
+                    {" · "}
+                    {liveClassification.activityName || "Unknown activity"}
+                  </span>
+                  <span className="dashboard-live-classification-reason">
+                    {liveClassification.reason}
+                  </span>
+                </div>
+              )}
             </div>
             <SessionTimer
               startedAtUtc={activeSession.startedAtUtc}

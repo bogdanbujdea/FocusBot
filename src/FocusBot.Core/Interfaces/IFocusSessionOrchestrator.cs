@@ -67,6 +67,13 @@ public interface IFocusSessionOrchestrator
     void ApplyRemoteResume();
 
     /// <summary>
+    /// Applies a classification result from the Web API SignalR <c>ClassificationChanged</c> event.
+    /// Does not call the API. When <paramref name="source"/> is <c>desktop</c>, this client
+    /// originated the classification via HTTP and local state is already updated; the call is ignored.
+    /// </summary>
+    void ApplyRemoteClassificationFromHub(string source, int score, string reason, string activityName);
+
+    /// <summary>
     /// Records a manual focus override (user marks current window as focused/distracting).
     /// </summary>
     /// <param name="newScore">The override score (e.g., 9 for focused, 2 for distracting).</param>

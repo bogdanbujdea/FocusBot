@@ -303,6 +303,43 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     }
 
     /// <inheritdoc />
+    public void ApplyRemoteClassificationFromHub(
+        string source,
+        int score,
+        string reason,
+        string activityName)
+    {
+        if (string.Equals(source, "desktop", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        lock (_lock)
+        {
+            if (_activeSession == null || _isSessionPaused)
+                return;
+
+            _focusScore = score;
+            _focusReason = reason;
+            _hasCurrentFocusResult = true;
+            _isClassifying = false;
+            _aiRequestError = null;
+
+            if (!string.IsNullOrWhiteSpace(activityName))
+                _currentWindowTitle = activityName;
+
+            var processKey = string.IsNullOrWhiteSpace(_currentProcessName)
+                ? "browser"
+                : _currentProcessName;
+
+            _sessionTracker.RecordClassification(
+                processKey,
+                new AlignmentResult { Score = score, Reason = reason });
+            _currentFocusScorePercent = _sessionTracker.GetFocusScore();
+        }
+
+        RaiseStateChanged();
+    }
+
+    /// <inheritdoc />
     public void ApplyRemoteResume()
     {
         lock (_lock)

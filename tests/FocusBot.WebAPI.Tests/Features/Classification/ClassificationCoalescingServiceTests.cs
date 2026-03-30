@@ -1,11 +1,14 @@
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Classification;
+using FocusBot.WebAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace FocusBot.WebAPI.Tests.Features.Classification;
 
@@ -164,6 +167,40 @@ public class ClassificationCoalescingServiceTests
         harness.ClassificationService.LlmCallCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task BroadcastsClassificationChangedAfterSuccessfulClassification()
+    {
+        var harness = CreateHarness();
+
+        await harness.CoalescingService.EnqueueAndWaitAsync(
+            TestUserId,
+            ExtensionRequest("broadcast-test"),
+            "byok",
+            CancellationToken.None);
+
+        harness.HubClientMock.Verify(
+            c => c.ClassificationChanged(It.Is<ClassificationChangedEvent>(e => e.Source == "extension" && e.Score == 7)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task DoesNotBroadcastClassificationChangedWhenClassificationFails()
+    {
+        var harness = CreateHarness(failClassification: true);
+
+        var first = harness.CoalescingService.EnqueueAndWaitAsync(
+            TestUserId,
+            ExtensionRequest("fail-broadcast"),
+            "byok",
+            CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+
+        harness.HubClientMock.Verify(
+            c => c.ClassificationChanged(It.IsAny<ClassificationChangedEvent>()),
+            Times.Never);
+    }
+
     private static TestHarness CreateHarness(bool failClassification = false)
     {
         var options = new DbContextOptionsBuilder<ApiDbContext>()
@@ -204,12 +241,24 @@ public class ClassificationCoalescingServiceTests
         var provider = services.BuildServiceProvider();
         var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
+        var hubClientMock = new Mock<IFocusHubClient>();
+        hubClientMock
+            .Setup(c => c.ClassificationChanged(It.IsAny<ClassificationChangedEvent>()))
+            .Returns(Task.CompletedTask);
+
+        var hubClients = new Mock<IHubClients<IFocusHubClient>>();
+        hubClients.Setup(x => x.Group(It.IsAny<string>())).Returns(hubClientMock.Object);
+
+        var hubContext = new Mock<IHubContext<FocusHub, IFocusHubClient>>();
+        hubContext.Setup(h => h.Clients).Returns(hubClients.Object);
+
         var coalescingService = new ClassificationCoalescingService(
             scopeFactory,
+            hubContext.Object,
             NullLogger<ClassificationCoalescingService>.Instance
         );
 
-        return new TestHarness(coalescingService, probe);
+        return new TestHarness(coalescingService, probe, hubClientMock);
     }
 
     private static ClassifyRequest ExtensionRequest(string marker) =>
@@ -250,7 +299,8 @@ public class ClassificationCoalescingServiceTests
 
     private sealed record TestHarness(
         ClassificationCoalescingService CoalescingService,
-        ClassificationProbe ClassificationService);
+        ClassificationProbe ClassificationService,
+        Mock<IFocusHubClient> HubClientMock);
 }
 
 internal sealed class ObservingClassificationService : ClassificationService

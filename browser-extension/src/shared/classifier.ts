@@ -56,7 +56,8 @@ const parseClassification = (raw: string): ClassificationResult => {
   };
 };
 
-const mapScoreToClassification = (score: number): "aligned" | "neutral" | "distracting" => {
+/** Maps Web API /classify score (1–10) to UI classification. */
+export const mapApiScoreToClassification = (score: number): "aligned" | "neutral" | "distracting" => {
   if (score > 5) return "aligned";
   if (score < 5) return "distracting";
   return "neutral";
@@ -103,7 +104,7 @@ export const classifyDesktopApp = async (
       windowTitle
     });
     return {
-      classification: mapScoreToClassification(web.score),
+      classification: mapApiScoreToClassification(web.score),
       confidence: Math.max(0, Math.min(1, web.score / 10)),
       reason: web.reason,
       score: web.score
@@ -200,7 +201,7 @@ export const classifyPage = async (
       pageTitle: title
     });
     return {
-      classification: mapScoreToClassification(web.score),
+      classification: mapApiScoreToClassification(web.score),
       confidence: Math.max(0, Math.min(1, web.score / 10)),
       reason: web.reason,
       score: web.score

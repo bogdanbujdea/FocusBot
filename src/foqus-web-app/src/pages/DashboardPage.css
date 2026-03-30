@@ -75,6 +75,43 @@
   color: var(--color-text-muted);
 }
 
+.dashboard-live-classification {
+  margin-top: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-medium);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.dashboard-live-classification-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.dashboard-live-classification-reason {
+  color: var(--color-text-secondary);
+}
+
+.dashboard-live-classification-aligned {
+  border-color: rgba(45, 184, 113, 0.45);
+  background: rgba(45, 184, 113, 0.1);
+}
+
+.dashboard-live-classification-neutral {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.dashboard-live-classification-distracting {
+  border-color: rgba(255, 102, 102, 0.45);
+  background: rgba(255, 102, 102, 0.1);
+}
+
 .dashboard-session-actions {
   display: flex;
   flex-wrap: wrap;

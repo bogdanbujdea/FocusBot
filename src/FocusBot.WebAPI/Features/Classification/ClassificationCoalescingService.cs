@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using FocusBot.WebAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace FocusBot.WebAPI.Features.Classification;
 
@@ -8,6 +10,7 @@ namespace FocusBot.WebAPI.Features.Classification;
 /// </summary>
 public sealed class ClassificationCoalescingService(
     IServiceScopeFactory scopeFactory,
+    IHubContext<FocusHub, IFocusHubClient> hubContext,
     ILogger<ClassificationCoalescingService> logger)
 {
     private static readonly TimeSpan CoalescingWindow = TimeSpan.FromSeconds(1);
@@ -76,6 +79,8 @@ public sealed class ClassificationCoalescingService(
             var selected = PickBestRequest(active);
             var result = await ClassifyAsync(userId, selected.Request, selected.ByokApiKey).ConfigureAwait(false);
 
+            await BroadcastClassificationAsync(userId, selected.Request, result).ConfigureAwait(false);
+
             foreach (var pending in active)
             {
                 pending.Completion.TrySetResult(result);
@@ -104,6 +109,36 @@ public sealed class ClassificationCoalescingService(
         using var scope = scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ClassificationService>();
         return await service.ClassifyAsync(userId, request, byokApiKey).ConfigureAwait(false);
+    }
+
+    private async Task BroadcastClassificationAsync(
+        Guid userId,
+        ClassifyRequest selectedRequest,
+        ClassifyResponse result)
+    {
+        var (source, activityName) = ClassificationBroadcastHelper.Describe(selectedRequest);
+        var evt = new ClassificationChangedEvent(
+            result.Score,
+            result.Reason,
+            source,
+            activityName,
+            DateTime.UtcNow,
+            result.Cached);
+
+        try
+        {
+            await hubContext
+                .Clients.Group(userId.ToString())
+                .ClassificationChanged(evt)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to broadcast ClassificationChanged for user {UserId}",
+                userId);
+        }
     }
 
     private static PendingRequest PickBestRequest(IReadOnlyList<PendingRequest> pending)

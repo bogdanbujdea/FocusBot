@@ -12,6 +12,7 @@ public interface IFocusHubClient
     event Action<SessionPausedEvent>? SessionPaused;
     event Action<SessionResumedEvent>? SessionResumed;
     event Action<PlanChangedEvent>? PlanChanged;
+    event Action<ClassificationChangedEvent>? ClassificationChanged;
 
     Task ConnectAsync(CancellationToken ct = default);
     Task DisconnectAsync();
@@ -33,3 +34,15 @@ public sealed record SessionPausedEvent(Guid SessionId, DateTime PausedAtUtc, st
 public sealed record SessionResumedEvent(Guid SessionId, string Source);
 
 public sealed record PlanChangedEvent();
+
+/// <summary>
+/// Payload for hub event ClassificationChanged; mirrors WebAPI FocusHub classification broadcast.
+/// </summary>
+public sealed record ClassificationChangedEvent(
+    int Score,
+    string Reason,
+    string Source,
+    string ActivityName,
+    DateTime ClassifiedAtUtc,
+    bool Cached
+);
