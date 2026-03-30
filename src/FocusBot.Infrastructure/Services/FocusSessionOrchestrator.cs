@@ -39,6 +39,12 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     private string? _aiRequestError;
     private int _currentFocusScorePercent;
 
+    /// <summary>Last extension-originated hub classification for restoring UI when refocusing the browser (extension does not re-classify on OS focus).</summary>
+    private int? _lastExtensionHubScore;
+
+    private string? _lastExtensionHubReason;
+    private string? _lastExtensionHubOsWindowTitle;
+
     /// <inheritdoc />
     public event EventHandler<FocusSessionStateChangedEventArgs>? StateChanged;
 
@@ -115,6 +121,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             _isClassifying = false;
             _hasCurrentFocusResult = false;
             _aiRequestError = null;
+            _lastExtensionHubScore = null;
+            _lastExtensionHubReason = null;
+            _lastExtensionHubOsWindowTitle = null;
 
             _sessionTracker.Start(session.SessionTitle);
             _windowMonitor.Start();
@@ -157,6 +166,9 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             _isClassifying = false;
             _hasCurrentFocusResult = false;
             _aiRequestError = null;
+            _lastExtensionHubScore = null;
+            _lastExtensionHubReason = null;
+            _lastExtensionHubOsWindowTitle = null;
         }
 
         RaiseStateChanged();
@@ -313,14 +325,23 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             if (_activeSession == null || _isSessionPaused)
                 return;
 
+            // Keep _currentWindowTitle as the OS foreground title only (from OnForegroundWindowChanged).
+            // Do not replace it with activityName (URL for extension); otherwise the next hub snapshot
+            // is a URL and never matches e.WindowTitle when refocusing the browser.
+            var osWindowTitleSnapshot = _currentWindowTitle;
+
             _focusScore = score;
             _focusReason = reason;
             _hasCurrentFocusResult = true;
             _isClassifying = false;
             _aiRequestError = null;
 
-            if (!string.IsNullOrWhiteSpace(activityName))
-                _currentWindowTitle = activityName;
+            if (string.Equals(source, "extension", StringComparison.OrdinalIgnoreCase))
+            {
+                _lastExtensionHubScore = score;
+                _lastExtensionHubReason = reason;
+                _lastExtensionHubOsWindowTitle = osWindowTitleSnapshot;
+            }
 
             var processKey = string.IsNullOrWhiteSpace(_currentProcessName)
                 ? "browser"
@@ -468,10 +489,18 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 return;
             }
 
+            // Extension classifies on URL/title change, not on OS focus return. Restore the last
+            // extension hub result when the window title still matches; otherwise neutral Unclear.
             if (IsBrowserProcess(e.ProcessName) && _extensionPresence?.IsExtensionOnline == true)
             {
+                if (TryApplyCachedExtensionHubClassification(e.WindowTitle))
+                {
+                    RaiseStateChanged();
+                    return;
+                }
+
                 _focusScore = 5;
-                _focusReason = "Browser activity tracked by extension";
+                _focusReason = string.Empty;
                 _isClassifying = false;
                 _hasCurrentFocusResult = true;
                 RaiseStateChanged();
@@ -562,6 +591,33 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             || processName.Equals("brave", StringComparison.OrdinalIgnoreCase)
             || processName.Equals("opera", StringComparison.OrdinalIgnoreCase);
     }
+
+    private bool TryApplyCachedExtensionHubClassification(string foregroundWindowTitle)
+    {
+        if (!_lastExtensionHubScore.HasValue)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(_lastExtensionHubOsWindowTitle))
+        {
+            _focusScore = _lastExtensionHubScore.Value;
+            _focusReason = _lastExtensionHubReason ?? string.Empty;
+            _isClassifying = false;
+            _hasCurrentFocusResult = true;
+            return true;
+        }
+
+        if (!WindowTitlesMatch(foregroundWindowTitle, _lastExtensionHubOsWindowTitle))
+            return false;
+
+        _focusScore = _lastExtensionHubScore.Value;
+        _focusReason = _lastExtensionHubReason ?? string.Empty;
+        _isClassifying = false;
+        _hasCurrentFocusResult = true;
+        return true;
+    }
+
+    private static bool WindowTitlesMatch(string a, string b) =>
+        string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private void RaiseStateChanged()
     {

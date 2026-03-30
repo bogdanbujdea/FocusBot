@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core;
@@ -235,7 +234,8 @@ public partial class FocusPageViewModel : ObservableObject
                 e.Source,
                 e.Score,
                 e.Reason,
-                e.ActivityName);
+                e.ActivityName
+            );
         }
 
         if (_uiDispatcher != null)
@@ -311,7 +311,8 @@ public partial class FocusPageViewModel : ObservableObject
             _ => _ = UpdateTrialStateAsync(),
             null,
             TimeSpan.FromSeconds(15),
-            TimeSpan.FromSeconds(15));
+            TimeSpan.FromSeconds(15)
+        );
     }
 
     private void StopTrialCountdownTimer()
@@ -346,17 +347,17 @@ public partial class FocusPageViewModel : ObservableObject
         var plan = await _planService.GetCurrentPlanAsync();
         var status = await _planService.GetStatusAsync();
         var endsAt = await _planService.GetTrialEndsAtAsync();
-        var endsUtc = endsAt?.Kind == DateTimeKind.Unspecified
-            ? DateTime.SpecifyKind(endsAt.Value, DateTimeKind.Utc)
-            : endsAt?.ToUniversalTime();
+        var endsUtc =
+            endsAt?.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(endsAt.Value, DateTimeKind.Utc)
+                : endsAt?.ToUniversalTime();
 
         var isFoqusTrialWindow =
             plan == ClientPlanType.FreeBYOK
             && status == ClientSubscriptionStatus.Trial
             && endsUtc.HasValue;
 
-        var trialStillActive =
-            isFoqusTrialWindow && endsUtc!.Value > DateTime.UtcNow;
+        var trialStillActive = isFoqusTrialWindow && endsUtc!.Value > DateTime.UtcNow;
 
         void ApplyUi()
         {
@@ -365,10 +366,14 @@ public partial class FocusPageViewModel : ObservableObject
 
             ShowPostTrialUpgradeBanner =
                 plan == ClientPlanType.FreeBYOK
-                && (status == ClientSubscriptionStatus.Expired
-                    || (status == ClientSubscriptionStatus.Trial
+                && (
+                    status == ClientSubscriptionStatus.Expired
+                    || (
+                        status == ClientSubscriptionStatus.Trial
                         && endsUtc.HasValue
-                        && endsUtc.Value <= DateTime.UtcNow));
+                        && endsUtc.Value <= DateTime.UtcNow
+                    )
+                );
 
             if (trialStillActive)
                 StartTrialCountdownTimer();
@@ -464,7 +469,10 @@ public partial class FocusPageViewModel : ObservableObject
                 DistractedTime = "00:00:00";
                 DistractionCount = 0;
                 OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-                _sessionOrchestrator.BeginLocalSessionTracking(session, session.TotalElapsedSeconds);
+                _sessionOrchestrator.BeginLocalSessionTracking(
+                    session,
+                    session.TotalElapsedSeconds
+                );
             }
             else
             {
@@ -600,7 +608,10 @@ public partial class FocusPageViewModel : ObservableObject
         IsSessionBusy = true;
         try
         {
-            var result = await _sessionOrchestrator.StartSessionAsync(StartSessionTitle.Trim(), context);
+            var result = await _sessionOrchestrator.StartSessionAsync(
+                StartSessionTitle.Trim(),
+                context
+            );
             if (!result.IsSuccess || result.Value is null)
             {
                 ApiErrorMessage = result.ErrorMessage ?? "Something went wrong, please try again.";
@@ -858,5 +869,4 @@ public partial class FocusPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsExtensionConnected));
         OnPropertyChanged(nameof(ShowExtensionPromo));
     }
-
 }

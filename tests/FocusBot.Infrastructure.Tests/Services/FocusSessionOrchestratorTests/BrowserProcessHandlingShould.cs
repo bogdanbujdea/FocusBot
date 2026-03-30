@@ -61,9 +61,10 @@ public class BrowserProcessHandlingShould
         );
 
         capturedState.Should().NotBeNull();
-        capturedState!.FocusScore.Should().Be(5, "Browser with extension online should show neutral score");
-        capturedState.FocusReason.Should().Be("Browser activity tracked by extension");
-        capturedState.HasCurrentFocusResult.Should().BeTrue("Should have a result to prevent 'Checking...' status");
+        capturedState!.FocusScore.Should().Be(5, "Neutral until hub updates; extension may not re-classify on focus alone");
+        capturedState.FocusReason.Should().BeEmpty();
+        capturedState.HasCurrentFocusResult.Should().BeTrue("Avoid infinite Checking; extension classifies on nav/title not OS focus");
+        capturedState.IsClassifying.Should().BeFalse();
     }
 
     [Theory]

@@ -46,7 +46,10 @@ Lightweight local WebSocket connection between the Windows desktop app and brows
 ```csharp
 if (IsBrowserProcess(processName) && extensionPresence.IsExtensionOnline)
 {
-    // Skip classification - extension will handle it
+    // Skip desktop classification - extension POSTs /classify on URL/title change.
+    // If the last ClassificationChanged (SignalR) was from the extension, restore that
+    // score/reason when the OS window title still matches the snapshot taken at hub delivery.
+    // Otherwise show neutral Unclear until the next hub update (refocus alone may not classify).
     return;
 }
 
@@ -54,7 +57,8 @@ if (IsBrowserProcess(processName) && extensionPresence.IsExtensionOnline)
 await ClassifyAsync(processName, windowTitle, ...);
 ```
 
-**Extension online:** Desktop app skips msedge, chrome, firefox, brave, opera
+**Extension online:** Desktop app skips msedge, chrome, firefox, brave, opera (no duplicate classify from Windows). The focus bar replays the last extension hub classification when the foreground window title matches; otherwise it shows neutral Unclear until the next hub broadcast.
+
 **Extension offline:** Desktop app classifies all foreground windows including browsers
 
 ---
