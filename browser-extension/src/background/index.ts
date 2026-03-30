@@ -775,7 +775,10 @@ const classifyAndApplyVisit = async (
   });
 };
 
-const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
+const updateVisitFromTab = async (
+  tab: chrome.tabs.Tab,
+  options?: { forceClassify?: boolean }
+): Promise<void> =>
   runExclusive(async () => {
     const session = await loadActiveSession();
     if (!session || tab.id === undefined || !tab.url || !isTrackableUrl(tab.url)) {
@@ -791,12 +794,15 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
       return;
     }
 
+    const forceClassify = options?.forceClassify === true;
+
     const title = tab.title ?? getDomain(tab.url);
     const domain = getDomain(tab.url);
     const current = session.currentVisit;
 
     // If the page hasn't changed and we already have a classified result (not from hub mirroring),
     // skip re-classification. This prevents spam when the 5s badge interval triggers updateIconState.
+    // When the user returns OS focus to the browser window, always POST /classify again (API cache absorbs duplicates).
     const isSamePageWithValidClassification =
       current &&
       current.tabId === tab.id &&
@@ -806,7 +812,7 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
       current.visitState === "classified" &&
       !current.reusedClassification;
 
-    if (isSamePageWithValidClassification) {
+    if (isSamePageWithValidClassification && !forceClassify) {
       return;
     }
 
@@ -825,7 +831,7 @@ const updateVisitFromTab = async (tab: chrome.tabs.Tab): Promise<void> =>
     finalizeCurrentVisit(session, transitionAt);
 
     const visitToken = createId();
-    if (sameTabSameDomainDistracting) {
+    if (sameTabSameDomainDistracting && !forceClassify) {
       const nextVisit: InProgressVisit = {
         visitToken,
         tabId: tab.id,
@@ -1309,7 +1315,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 
   const [tab] = await chrome.tabs.query({ active: true, windowId });
   if (tab) {
-    await updateVisitFromTab(tab);
+    await updateVisitFromTab(tab, { forceClassify: true });
   }
 });
 

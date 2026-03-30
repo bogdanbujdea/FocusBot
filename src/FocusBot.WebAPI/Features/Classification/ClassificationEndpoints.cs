@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using FocusBot.WebAPI.Features.Clients;
 using FocusBot.WebAPI.Features.Subscriptions;
-using Microsoft.Extensions.Logging;
+using FocusBot.WebAPI.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace FocusBot.WebAPI.Features.Classification;
 
@@ -18,8 +20,10 @@ public static class ClassificationEndpoints
                 "/",
                 async (
                     ClassifyRequest request,
-                    ClassificationCoalescingService coalescingService,
+                    ClassificationService classificationService,
+                    ClientService clientService,
                     SubscriptionService subscriptionService,
+                    IHubContext<FocusHub, IFocusHubClient> hubContext,
                     HttpContext ctx,
                     ILoggerFactory loggerFactory,
                     CancellationToken ct
@@ -51,13 +55,13 @@ public static class ClassificationEndpoints
                     try
                     {
                         var remoteIp = GetRemoteIpAddress(ctx);
-                        var result = await coalescingService.EnqueueAndWaitAsync(
+                        var result = await classificationService.ClassifyAsync(
                             userId,
                             request,
                             byokApiKey,
-                            remoteIp,
                             ct
                         );
+
                         logger.LogInformation(
                             "Classification response: UserId={UserId} Score={Score} Cached={Cached} Url={Url} WindowTitle={WindowTitle} PageTitle={PageTitle} Reason={Reason}",
                             userId,
@@ -67,6 +71,10 @@ public static class ClassificationEndpoints
                             request.WindowTitle,
                             request.PageTitle,
                             result.Reason);
+
+                        await TouchClientLastSeenAsync(clientService, userId, request, remoteIp, logger);
+                        await BroadcastClassificationAsync(hubContext, userId, request, result, logger);
+
                         return Results.Ok(result);
                     }
                     catch (ClassificationProviderException ex)
@@ -128,6 +136,68 @@ public static class ClassificationEndpoints
             );
 
         return group;
+    }
+
+    private static async Task TouchClientLastSeenAsync(
+        ClientService clientService,
+        Guid userId,
+        ClassifyRequest request,
+        string? remoteIp,
+        ILogger logger)
+    {
+        if (request.ClientId is null)
+            return;
+
+        try
+        {
+            await clientService.TouchLastSeenAsync(
+                userId,
+                request.ClientId.Value,
+                remoteIp,
+                CancellationToken.None
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to touch last seen for client {ClientId}", request.ClientId);
+        }
+    }
+
+    private static async Task BroadcastClassificationAsync(
+        IHubContext<FocusHub, IFocusHubClient> hubContext,
+        Guid userId,
+        ClassifyRequest request,
+        ClassifyResponse result,
+        ILogger logger)
+    {
+        var (source, activityName) = ClassificationBroadcastHelper.Describe(request);
+        var evt = new ClassificationChangedEvent(
+            result.Score,
+            result.Reason,
+            source,
+            activityName,
+            DateTime.UtcNow,
+            result.Cached);
+
+        var classification = result.Score > 5 ? "Aligned" : result.Score < 5 ? "Distracting" : "Neutral";
+        logger.LogInformation(
+            "Broadcasting classification: {Classification} (score={Score}) from {Source} | Activity: {Activity} | Cached: {Cached}",
+            classification,
+            result.Score,
+            source,
+            activityName,
+            result.Cached);
+
+        try
+        {
+            await hubContext
+                .Clients.Group(userId.ToString())
+                .ClassificationChanged(evt);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to broadcast ClassificationChanged for user {UserId}", userId);
+        }
     }
 
     private static string? GetRemoteIpAddress(HttpContext ctx)

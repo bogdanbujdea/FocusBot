@@ -220,6 +220,12 @@ public partial class FocusPageViewModel : ObservableObject
     private Timer? _trialCountdownTimer;
     private bool _byokPromptShownThisSession;
 
+    /// <summary>Used to drop stale extension hub explanation text when the OS foreground window changes.</summary>
+    private string _lastForegroundKeyForHubReason = string.Empty;
+
+    /// <summary>True while applying a hub classification so we do not clear SignalR text raised in the same stack.</summary>
+    private bool _applyingHubClassification;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSessionCommand))]
     [NotifyCanExecuteChangedFor(nameof(EndSessionCommand))]
@@ -298,16 +304,25 @@ public partial class FocusPageViewModel : ObservableObject
     {
         void Apply()
         {
-            SignalRClassificationMessage = e.Reason ?? string.Empty;
-            IsClassificationRunning = false;
-            HasCurrentClassificationResult = true;
-            CurrentClassificationScore = e.Score;
-            _sessionOrchestrator.ApplyRemoteClassificationFromHub(
-                e.Source,
-                e.Score,
-                e.Reason ?? string.Empty,
-                e.ActivityName
-            );
+            _applyingHubClassification = true;
+            try
+            {
+                SignalRClassificationMessage = e.Reason ?? string.Empty;
+                IsClassificationRunning = false;
+                HasCurrentClassificationResult = true;
+                CurrentClassificationScore = e.Score;
+                _sessionOrchestrator.ApplyRemoteClassificationFromHub(
+                    e.Source,
+                    e.Score,
+                    e.Reason ?? string.Empty,
+                    e.ActivityName
+                );
+            }
+            finally
+            {
+                _applyingHubClassification = false;
+            }
+
             RaiseClassificationDisplayChanged();
         }
 
@@ -490,6 +505,14 @@ public partial class FocusPageViewModel : ObservableObject
     {
         void UpdateState()
         {
+            var fgKey = $"{e.CurrentProcessName}\0{e.CurrentWindowTitle}";
+            if (fgKey != _lastForegroundKeyForHubReason)
+            {
+                if (!_applyingHubClassification && !string.IsNullOrEmpty(SignalRClassificationMessage))
+                    SignalRClassificationMessage = string.Empty;
+                _lastForegroundKeyForHubReason = fgKey;
+            }
+
             _sessionElapsedSeconds = e.SessionElapsedSeconds;
             SessionElapsedTime = TimeFormatHelper.FormatElapsed(e.SessionElapsedSeconds);
             CurrentFocusScorePercent = e.FocusScorePercent;
@@ -871,6 +894,7 @@ public partial class FocusPageViewModel : ObservableObject
         HasCurrentClassificationResult = false;
         CurrentClassificationScore = 0;
         SignalRClassificationMessage = string.Empty;
+        _lastForegroundKeyForHubReason = string.Empty;
         Status.Reset();
         OnPropertyChanged(nameof(IsExtensionConnected));
         RaiseClassificationDisplayChanged();

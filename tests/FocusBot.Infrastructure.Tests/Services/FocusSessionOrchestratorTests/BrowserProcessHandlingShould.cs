@@ -61,9 +61,9 @@ public class BrowserProcessHandlingShould
         );
 
         capturedState.Should().NotBeNull();
-        capturedState!.FocusScore.Should().Be(5, "Neutral until hub updates; extension may not re-classify on focus alone");
+        capturedState!.FocusScore.Should().Be(0, "No invented neutral score; wait for extension POST /classify + hub");
         capturedState.FocusReason.Should().BeEmpty();
-        capturedState.HasCurrentFocusResult.Should().BeTrue("Avoid infinite Checking; extension classifies on nav/title not OS focus");
+        capturedState.HasCurrentFocusResult.Should().BeFalse();
         capturedState.IsClassifying.Should().BeFalse();
     }
 

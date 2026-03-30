@@ -106,7 +106,54 @@ public class ExtensionHubClassificationCacheShould
     }
 
     [Fact]
-    public void DoesNotRestore_WhenForegroundTitleDiffersFromHubSnapshot()
+    public void DesktopClassifies_WhenForegroundTitleDiffersFromHubSnapshot_AfterExtensionHubHadData()
+    {
+        var windowMonitor = new Mock<IWindowMonitorService>();
+        var classificationService = new Mock<IClassificationService>();
+        var apiClient = new Mock<IFocusBotApiClient>();
+        var sessionTracker = new Mock<ILocalSessionTracker>();
+        var extensionPresence = new Mock<IExtensionPresenceService>();
+        extensionPresence.Setup(e => e.IsExtensionOnline).Returns(true);
+
+        classificationService
+            .Setup(c => c.ClassifyAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new AlignmentResult { Score = 4, Reason = "Desktop fallback" }));
+
+        var orchestrator = new FocusSessionOrchestrator(
+            sessionTracker.Object,
+            windowMonitor.Object,
+            classificationService.Object,
+            apiClient.Object,
+            null,
+            extensionPresence.Object);
+
+        FocusSessionStateChangedEventArgs? last = null;
+        orchestrator.StateChanged += (_, e) => last = e;
+
+        orchestrator.BeginLocalSessionTracking(CreateTestSession());
+
+        RaiseForeground(windowMonitor, "msedge", "Tab A - Edge");
+        orchestrator.ApplyRemoteClassificationFromHub("extension", 7, "Reason A", "https://a.example/");
+
+        RaiseForeground(windowMonitor, "msedge", "Tab B - Edge");
+        Thread.Sleep(200);
+
+        last.Should().NotBeNull();
+        last!.FocusScore.Should().Be(4);
+        last.FocusReason.Should().Be("Desktop fallback");
+        last.HasCurrentFocusResult.Should().BeTrue();
+        classificationService.Verify(
+            c => c.ClassifyAsync("msedge", "Tab B - Edge", It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Restores_WhenEdgeTabCountDrifts_ButSamePageOtherwise()
     {
         var windowMonitor = new Mock<IWindowMonitorService>();
         var classificationService = new Mock<IClassificationService>();
@@ -128,15 +175,21 @@ public class ExtensionHubClassificationCacheShould
 
         orchestrator.BeginLocalSessionTracking(CreateTestSession());
 
-        RaiseForeground(windowMonitor, "msedge", "Tab A - Edge");
-        orchestrator.ApplyRemoteClassificationFromHub("extension", 7, "Reason A", "https://a.example/");
+        RaiseForeground(windowMonitor, "msedge", "TeacherSeat - Materials and 14 more pages - Personal - Microsoft Edge");
+        orchestrator.ApplyRemoteClassificationFromHub(
+            "extension",
+            10,
+            "Aligned",
+            "https://app.teacherseat.com/materials");
 
-        RaiseForeground(windowMonitor, "msedge", "Tab B - Edge");
+        RaiseForeground(windowMonitor, "msedge", "TeacherSeat - Materials and 15 more pages - Personal - Microsoft Edge");
 
         last.Should().NotBeNull();
-        last!.FocusScore.Should().Be(5, "Different tab title → neutral until next hub classify");
-        last.FocusReason.Should().BeEmpty();
-        last.HasCurrentFocusResult.Should().BeTrue();
+        last!.FocusScore.Should().Be(10);
+        last.FocusReason.Should().Be("Aligned");
+        classificationService.Verify(
+            c => c.ClassifyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -213,8 +266,9 @@ public class ExtensionHubClassificationCacheShould
         RaiseForeground(windowMonitor, "msedge", "Page");
 
         last.Should().NotBeNull();
-        last!.FocusScore.Should().Be(5);
+        last!.FocusScore.Should().Be(0);
         last.FocusReason.Should().BeEmpty();
+        last.HasCurrentFocusResult.Should().BeFalse();
     }
 
     [Fact]
@@ -247,8 +301,9 @@ public class ExtensionHubClassificationCacheShould
         RaiseForeground(windowMonitor, "msedge", "Page");
 
         last.Should().NotBeNull();
-        last!.FocusScore.Should().Be(5);
+        last!.FocusScore.Should().Be(0);
         last.FocusReason.Should().BeEmpty();
+        last.HasCurrentFocusResult.Should().BeFalse();
     }
 
     [Fact]
@@ -285,6 +340,43 @@ public class ExtensionHubClassificationCacheShould
     }
 
     [Fact]
+    public void ExtensionHub_WhileNonBrowser_PreservesOsTitleSnapshot_ForLaterBrowserRefocus()
+    {
+        var windowMonitor = new Mock<IWindowMonitorService>();
+        var classificationService = new Mock<IClassificationService>();
+        var apiClient = new Mock<IFocusBotApiClient>();
+        var sessionTracker = new Mock<ILocalSessionTracker>();
+        var extensionPresence = new Mock<IExtensionPresenceService>();
+        extensionPresence.Setup(e => e.IsExtensionOnline).Returns(true);
+
+        var orchestrator = new FocusSessionOrchestrator(
+            sessionTracker.Object,
+            windowMonitor.Object,
+            classificationService.Object,
+            apiClient.Object,
+            null,
+            extensionPresence.Object);
+
+        FocusSessionStateChangedEventArgs? last = null;
+        orchestrator.StateChanged += (_, e) => last = e;
+
+        orchestrator.BeginLocalSessionTracking(CreateTestSession());
+
+        RaiseForeground(windowMonitor, "msedge", "TeacherSeat - Materials - Edge");
+        orchestrator.ApplyRemoteClassificationFromHub("extension", 10, "Aligned", "https://exam.example/lesson");
+
+        RaiseForeground(windowMonitor, "Code", "app.cs - Visual Studio Code");
+        orchestrator.ApplyRemoteClassificationFromHub("extension", 10, "Still aligned (hub echo)", "https://exam.example/lesson");
+
+        RaiseForeground(windowMonitor, "msedge", "TeacherSeat - Materials - Edge");
+
+        last.Should().NotBeNull();
+        last!.FocusScore.Should().Be(10);
+        last.HasCurrentFocusResult.Should().BeTrue();
+        last.FocusReason.Should().Contain("Still aligned");
+    }
+
+    [Fact]
     public void ApplyRemoteClassificationFromHub_DesktopSource_DoesNotPopulateExtensionCache()
     {
         var windowMonitor = new Mock<IWindowMonitorService>();
@@ -313,7 +405,8 @@ public class ExtensionHubClassificationCacheShould
         RaiseForeground(windowMonitor, "msedge", "Page");
 
         last.Should().NotBeNull();
-        last!.FocusScore.Should().Be(5, "Desktop hub is ignored; cache not filled");
+        last!.FocusScore.Should().Be(0, "Desktop hub is ignored; cache not filled — wait for extension");
         last.FocusReason.Should().BeEmpty();
+        last.HasCurrentFocusResult.Should().BeFalse();
     }
 }

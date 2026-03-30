@@ -3,7 +3,7 @@ namespace FocusBot.WebAPI.Features.Classification;
 /// <summary>
 /// Derives hub broadcast fields from the coalescing winner request.
 /// </summary>
-internal static class ClassificationBroadcastHelper
+public static class ClassificationBroadcastHelper
 {
     public static (string Source, string ActivityName) Describe(ClassifyRequest request)
     {

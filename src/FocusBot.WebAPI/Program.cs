@@ -170,7 +170,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<ClassificationService>();
-builder.Services.AddSingleton<ClassificationCoalescingService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<WaitlistService>();
 builder.Services.AddScoped<ClientService>();

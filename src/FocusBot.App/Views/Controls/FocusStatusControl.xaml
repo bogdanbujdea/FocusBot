@@ -14,11 +14,7 @@
         <TextBlock
                    Style="{StaticResource FbWindowInfoTextStyle}"
                    MaxLines="1"
-                   Margin="0,0,0,2">
-            <Run Text="App: " FontWeight="Bold"/>
-            <Run Text="{x:Bind ViewModel.CurrentProcessName, Mode=OneWay}" FontWeight="SemiBold"/>
-            <Run Text=" | Window Title: " FontWeight="Bold"/>
-            <Run Text="{x:Bind ViewModel.CurrentWindowTitle, Mode=OneWay}" FontWeight="SemiBold"/>
-        </TextBlock>
+                   Margin="0,0,0,2"
+                   Text="{x:Bind ViewModel.DisplayWindowCaption, Mode=OneWay}"/>
     </Grid>
 </UserControl>

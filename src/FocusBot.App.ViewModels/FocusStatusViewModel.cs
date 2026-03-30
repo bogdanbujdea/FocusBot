@@ -16,14 +16,30 @@ public partial class FocusStatusViewModel : ObservableObject
     public string CurrentProcessName
     {
         get;
-        private set => SetProperty(ref field, value);
+        private set
+        {
+            if (SetProperty(ref field, value))
+                OnPropertyChanged(nameof(DisplayWindowCaption));
+        }
     } = string.Empty;
 
     public string CurrentWindowTitle
     {
         get;
-        private set => SetProperty(ref field, value);
+        private set
+        {
+            if (SetProperty(ref field, value))
+                OnPropertyChanged(nameof(DisplayWindowCaption));
+        }
     } = string.Empty;
+
+    /// <summary>
+    /// Single line for the header (bound as plain Text; Run+x:Bind does not update reliably in WinUI).
+    /// </summary>
+    public string DisplayWindowCaption =>
+        string.IsNullOrEmpty(CurrentProcessName) && string.IsNullOrEmpty(CurrentWindowTitle)
+            ? string.Empty
+            : $"App: {CurrentProcessName} | Window Title: {CurrentWindowTitle}";
 
     public bool IsMonitoring
     {

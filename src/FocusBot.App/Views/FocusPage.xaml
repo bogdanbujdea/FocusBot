@@ -6,11 +6,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:entities="using:FocusBot.Core.Entities"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     xmlns:converters="using:FocusBot.App.Converters"
-    xmlns:controls="using:FocusBot.App.Views.Controls"
-    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     mc:Ignorable="d"
     Background="Transparent">
 
@@ -69,385 +66,390 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*" MinHeight="250"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <InfoBar
-            Grid.Row="0"
-            Severity="Error"
-            Title="Session error"
-            Message="{x:Bind ViewModel.ApiErrorMessage, Mode=OneWay}"
-            IsOpen="{x:Bind ViewModel.IsApiErrorVisible, Mode=TwoWay}"
-            IsClosable="True"
-            automation:AutomationProperties.Name="Session API sync error"/>
+                Grid.Row="0"
+                Severity="Error"
+                Title="Session error"
+                Message="{x:Bind ViewModel.ApiErrorMessage, Mode=OneWay}"
+                IsOpen="{x:Bind ViewModel.IsApiErrorVisible, Mode=TwoWay}"
+                IsClosable="True"
+                automation:AutomationProperties.Name="Session API sync error"/>
 
             <InfoBar
-            Grid.Row="1"
-            Severity="Informational"
-            Title="Trial active"
-            Message="{x:Bind ViewModel.TrialCountdownMessage, Mode=OneWay}"
-            IsOpen="{x:Bind ViewModel.IsTrialBannerVisible, Mode=OneWay}"
-            IsClosable="False"
-            automation:AutomationProperties.Name="Foqus trial countdown">
-            <InfoBar.ActionButton>
-                <HyperlinkButton Content="Manage plan"
-                                 NavigateUri="https://app.foqus.me/billing"
-                                 automation:AutomationProperties.Name="Manage plan billing"/>
-            </InfoBar.ActionButton>
-        </InfoBar>
+                Grid.Row="1"
+                Severity="Informational"
+                Title="Trial active"
+                Message="{x:Bind ViewModel.TrialCountdownMessage, Mode=OneWay}"
+                IsOpen="{x:Bind ViewModel.IsTrialBannerVisible, Mode=OneWay}"
+                IsClosable="False"
+                automation:AutomationProperties.Name="Foqus trial countdown">
+                <InfoBar.ActionButton>
+                    <HyperlinkButton Content="Manage plan"
+                                     NavigateUri="https://app.foqus.me/billing"
+                                     automation:AutomationProperties.Name="Manage plan billing"/>
+                </InfoBar.ActionButton>
+            </InfoBar>
 
             <InfoBar
-            Grid.Row="2"
-            Severity="Warning"
-            Title="Subscription required"
-            Message="Your trial has ended. Choose a plan on the billing page to continue with cloud features."
-            IsOpen="{x:Bind ViewModel.ShowPostTrialUpgradeBanner, Mode=OneWay}"
-            IsClosable="False"
-            automation:AutomationProperties.Name="Post trial upgrade prompt">
-            <InfoBar.ActionButton>
-                <HyperlinkButton Content="View plans"
-                                 NavigateUri="https://app.foqus.me/billing"
-                                 automation:AutomationProperties.Name="View subscription plans"/>
-            </InfoBar.ActionButton>
-        </InfoBar>
+                Grid.Row="2"
+                Severity="Warning"
+                Title="Subscription required"
+                Message="Your trial has ended. Choose a plan on the billing page to continue with cloud features."
+                IsOpen="{x:Bind ViewModel.ShowPostTrialUpgradeBanner, Mode=OneWay}"
+                IsClosable="False"
+                automation:AutomationProperties.Name="Post trial upgrade prompt">
+                <InfoBar.ActionButton>
+                    <HyperlinkButton Content="View plans"
+                                     NavigateUri="https://app.foqus.me/billing"
+                                     automation:AutomationProperties.Name="View subscription plans"/>
+                </InfoBar.ActionButton>
+            </InfoBar>
 
-            <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
-            <controls:FocusStatusControl
-            Grid.Row="3"
-            DataContext="{x:Bind ViewModel.Status}"
-            Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-            Margin="0,4,0,8"/>
+            <!-- Header: live window title + settings -->
+            <Grid Grid.Row="3" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- Header with Settings -->
+                <Grid Grid.Column="0"
+                      MinHeight="28"
+                      VerticalAlignment="Center"
+                      Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                      automation:AutomationProperties.Name="Current foreground window">
+                    <TextBlock FontSize="16"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               MaxLines="1"
+                               Text="{x:Bind ViewModel.Status.DisplayWindowCaption, Mode=OneWay}"
+                               Foreground="{StaticResource FbAlignedAccentBrush}"
+                               Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock FontSize="16"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               MaxLines="1"
+                               Text="{x:Bind ViewModel.Status.DisplayWindowCaption, Mode=OneWay}"
+                               Foreground="{StaticResource FbMisalignedAccentBrush}"
+                               Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock FontSize="16"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               MaxLines="1"
+                               Text="{x:Bind ViewModel.Status.DisplayWindowCaption, Mode=OneWay}"
+                               Foreground="{StaticResource FbNeutralAccentBrush}"
+                               Visibility="{x:Bind ViewModel.IsClassificationNeutral, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                </Grid>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <ProgressRing
+                        Width="24"
+                        Height="24"
+                        IsActive="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                        automation:AutomationProperties.Name="Session operation in progress"/>
+                    <Button Content="Sign in"
+                            Style="{StaticResource FbAccentButtonStyle}"
+                            automation:AutomationProperties.Name="Sign in with magic link"
+                            Command="{x:Bind ViewModel.OpenSettingsCommand}"
+                            Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                    <Button Content="?"
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            automation:AutomationProperties.Name="How it works"
+                            Command="{x:Bind ViewModel.OpenHowItWorksCommand}"/>
+                    <Button Content="Settings"
+                            Style="{StaticResource FbOutlineButtonStyle}"
+                            automation:AutomationProperties.Name="Settings"
+                            Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Main content: start form or active session -->
             <Grid Grid.Row="4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Border Grid.Column="0"
-                    Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="12"
-                    Padding="10,6"
-                    VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Extension disconnected status">
-                <StackPanel Spacing="6" MaxWidth="380">
+                <!-- Start Session Form -->
+                <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                        Padding="40"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Top"
+                        Margin="0,8,0,0"
+                        automation:AutomationProperties.Name="Start session form">
+                    <StackPanel Spacing="24">
+                        <TextBlock Text="Start a Focus Session"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FbTextPrimaryBrush}"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBox x:Name="StartSessionTitleBox"
+                                 Text="{x:Bind ViewModel.StartSessionTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="What are you working on?"
+                                 MaxLength="200"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                 automation:AutomationProperties.Name="Session title"/>
+
+                        <TextBox Text="{x:Bind ViewModel.StartSessionContext, Mode=TwoWay}"
+                                 PlaceholderText="Context hints for AI (optional)"
+                                 MaxLength="200"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 Height="72"
+                                 CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                                 IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                 automation:AutomationProperties.Name="Session context"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                            <Button Content="Start Session"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    MinWidth="160"
+                                    Command="{x:Bind ViewModel.StartSessionCommand}"
+                                    IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                    automation:AutomationProperties.Name="Start session"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Active Session Card -->
+                <Border Visibility="{x:Bind ViewModel.IsActiveSessionVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Background="{StaticResource FbCardBackgroundBrush}"
+                        BorderBrush="{StaticResource FbCardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource FbCornerRadiusMedium}"
+                        Padding="40"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Top"
+                        Margin="0,8,0,0"
+                        automation:AutomationProperties.Name="Active session card">
+                    <StackPanel Spacing="32">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="{x:Bind ViewModel.ActiveSession.SessionTitle, Mode=OneWay}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource FbTextPrimaryBrush}"
+                                       TextWrapping="Wrap"
+                                       automation:AutomationProperties.Name="Session title"/>
+
+                            <TextBlock Text="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay}"
+                                       Style="{StaticResource FbSecondaryTextStyle}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
+                                       automation:AutomationProperties.Name="Session context"/>
+                        </StackPanel>
+
+                        <Grid Visibility="{x:Bind ViewModel.ShowClassificationMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              automation:AutomationProperties.Name="Classification message">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource FbAlignedAccentBrush}"
+                                    CornerRadius="2,0,0,2"
+                                    Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource FbMisalignedAccentBrush}"
+                                    CornerRadius="2,0,0,2"
+                                    Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource FbNeutralAccentBrush}"
+                                    CornerRadius="2,0,0,2"
+                                    Visibility="{x:Bind ViewModel.IsClassificationNeutral, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <StackPanel Grid.Column="1" Padding="12,8,12,8" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Background="{StaticResource FbAlignedAccentBrush}"
+                                            CornerRadius="8"
+                                            Padding="8,2"
+                                            Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                    </Border>
+                                    <Border Background="{StaticResource FbMisalignedAccentBrush}"
+                                            CornerRadius="8"
+                                            Padding="8,2"
+                                            Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                    </Border>
+                                    <Border Background="{StaticResource FbNeutralAccentBrush}"
+                                            CornerRadius="8"
+                                            Padding="8,2"
+                                            Visibility="{x:Bind ViewModel.IsClassificationNeutral, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{x:Bind ViewModel.ClassificationReasonText, Mode=OneWay}"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Visibility="{x:Bind ViewModel.ShowClassificationReason, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Spacing="20" Margin="0,8,0,8">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="{x:Bind ViewModel.SessionElapsedTime, Mode=OneWay}"
+                                           FontSize="40"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource FbTextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           automation:AutomationProperties.Name="Total elapsed time"/>
+                                <TextBlock Text="Total"
+                                           Style="{StaticResource FbSecondaryTextStyle}"
+                                           FontSize="12"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Spacing="8" HorizontalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ViewModel.FocusedTime, Mode=OneWay}"
+                                               FontSize="26"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource FbTextPrimaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               automation:AutomationProperties.Name="Focused time"/>
+                                    <TextBlock Text="Focused"
+                                               Style="{StaticResource FbSecondaryTextStyle}"
+                                               FontSize="12"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ViewModel.DistractedTime, Mode=OneWay}"
+                                               FontSize="26"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource FbTextPrimaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               automation:AutomationProperties.Name="Distracted time"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                                        <TextBlock Text="Distracted ("
+                                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind ViewModel.DistractionCount, Mode=OneWay}"
+                                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   automation:AutomationProperties.Name="Distraction count"/>
+                                        <TextBlock Text=")"
+                                                   Style="{StaticResource FbSecondaryTextStyle}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Spacing="8"
+                                        Visibility="{x:Bind ViewModel.IsFocusScorePercentVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid Height="12" HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{x:Bind ViewModel.CurrentFocusScorePercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                        <ColumnDefinition Width="{x:Bind ViewModel.DistractedBarStarWeight, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="{StaticResource FbAlignedAccentBrush}"
+                                            CornerRadius="6,0,0,6"
+                                            automation:AutomationProperties.Name="Focused segment"/>
+                                    <Border Grid.Column="1"
+                                            Background="{StaticResource FbMisalignedAccentBrush}"
+                                            CornerRadius="0,6,6,0"
+                                            automation:AutomationProperties.Name="Distracted segment"/>
+                                </Grid>
+                                <Grid HorizontalAlignment="Stretch">
+                                    <TextBlock Text="{x:Bind ViewModel.FocusedPercentLabel, Mode=OneWay}"
+                                               Style="{StaticResource FbSecondaryTextStyle}"
+                                               FontSize="12"
+                                               HorizontalAlignment="Left"
+                                               VerticalAlignment="Top"
+                                               automation:AutomationProperties.Name="Focused percent label"/>
+                                    <TextBlock Text="{x:Bind ViewModel.DistractedPercentLabel, Mode=OneWay}"
+                                               Style="{StaticResource FbSecondaryTextStyle}"
+                                               FontSize="12"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Top"
+                                               automation:AutomationProperties.Name="Distracted percent label"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Style="{StaticResource FbDividerStyle}"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
+                            <Button Content="Pause"
+                                    Style="{StaticResource FbOutlineButtonStyle}"
+                                    MinWidth="140"
+                                    Command="{x:Bind ViewModel.PauseSessionCommand}"
+                                    IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                    Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                    automation:AutomationProperties.Name="Pause session"/>
+                            <Button Content="Resume"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    MinWidth="140"
+                                    Command="{x:Bind ViewModel.ResumeSessionCommand}"
+                                    IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                    Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    automation:AutomationProperties.Name="Resume session"/>
+                            <Button Content="End Session"
+                                    Style="{StaticResource FbAccentButtonStyle}"
+                                    MinWidth="140"
+                                    Command="{x:Bind ViewModel.EndSessionCommand}"
+                                    IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
+                                    automation:AutomationProperties.Name="End session"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Extension status footer -->
+            <StackPanel Grid.Row="5" Spacing="8" Margin="0,4,0,0">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="12"
+                            Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            automation:AutomationProperties.Name="Extension disconnected status">
                     <TextBlock Text="Extension disconnected"
                                Style="{StaticResource FbSecondaryTextStyle}"
                                FontSize="12"
-                               TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <HyperlinkButton Content="Get it for Edge"
-                                         NavigateUri="https://microsoftedge.microsoft.com/addons/detail/focus-bot/ffngbgoccgekcchdfdehlgiplcajapgb"
-                                         FontSize="12"
-                                         automation:AutomationProperties.Name="Get extension for Edge"/>
-                        <HyperlinkButton Content="Get it for Chrome"
-                                         NavigateUri="https://chromewebstore.google.com/detail/focus-bot/iogcenocpodlomadmfnjdmobifpohmie"
-                                         FontSize="12"
-                                         automation:AutomationProperties.Name="Get extension for Chrome"/>
-                    </StackPanel>
+                               VerticalAlignment="Center"/>
+                    <HyperlinkButton Content="Get it for Edge"
+                                     NavigateUri="https://microsoftedge.microsoft.com/addons/detail/focus-bot/ffngbgoccgekcchdfdehlgiplcajapgb"
+                                     FontSize="12"
+                                     automation:AutomationProperties.Name="Get extension for Edge"/>
+                    <HyperlinkButton Content="Get it for Chrome"
+                                     NavigateUri="https://chromewebstore.google.com/detail/focus-bot/iogcenocpodlomadmfnjdmobifpohmie"
+                                     FontSize="12"
+                                     automation:AutomationProperties.Name="Get extension for Chrome"/>
                 </StackPanel>
-            </Border>
-            <Border Grid.Column="0"
-                    Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="12"
-                    Padding="10,6"
-                    VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Extension connected status">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8"
+                            Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            automation:AutomationProperties.Name="Extension connected status">
                     <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{StaticResource FbAlignedBrush}"/>
                     <TextBlock Text="Extension connected"
                                FontSize="12"
                                Foreground="{StaticResource FbTextPrimaryBrush}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
-            </Border>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                <ProgressRing
-                    Width="24"
-                    Height="24"
-                    IsActive="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay}"
-                    Visibility="{x:Bind ViewModel.IsSessionBusy, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Session operation in progress"/>
-                <Button Content="Sign in"
-                        Style="{StaticResource FbAccentButtonStyle}"
-                        automation:AutomationProperties.Name="Sign in with magic link"
-                        Command="{x:Bind ViewModel.OpenSettingsCommand}"
-                        Visibility="{x:Bind ViewModel.AccountSection.IsAuthenticated, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                <Button Content="?"
-                        Style="{StaticResource FbOutlineButtonStyle}"
-                        automation:AutomationProperties.Name="How it works"
-                        Command="{x:Bind ViewModel.OpenHowItWorksCommand}"/>
-                <Button Content="Settings"
-                        Style="{StaticResource FbOutlineButtonStyle}"
-                        automation:AutomationProperties.Name="Settings"
-                        Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
             </StackPanel>
-            </Grid>
-
-
-            <!-- Main Content: Start Form or Active Session Card -->
-            <Grid Grid.Row="5">
-            <!-- Start Session Form (visible when no active session) -->
-            <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="40"
-                    MinWidth="700"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Top"
-                    Margin="60,24,60,24"
-                    automation:AutomationProperties.Name="Start session form">
-                <StackPanel Spacing="24">
-                    <TextBlock Text="Start a Focus Session"
-                               FontSize="20"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource FbTextPrimaryBrush}"
-                               HorizontalAlignment="Center"/>
-                    
-                    <TextBox x:Name="StartSessionTitleBox"
-                             Text="{x:Bind ViewModel.StartSessionTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="What are you working on?"
-                             MaxLength="200"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                             IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                             automation:AutomationProperties.Name="Session title"/>
-                    
-                    <TextBox Text="{x:Bind ViewModel.StartSessionContext, Mode=TwoWay}"
-                             PlaceholderText="Context hints for AI (optional)"
-                             MaxLength="200"
-                             TextWrapping="Wrap"
-                             AcceptsReturn="True"
-                             Height="80"
-                             CornerRadius="{StaticResource FbCornerRadiusSmall}"
-                             IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                             automation:AutomationProperties.Name="Session context"/>
-                    
-                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-                        <Button Content="Start Session"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                Command="{x:Bind ViewModel.StartSessionCommand}"
-                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                                automation:AutomationProperties.Name="Start session"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Active Session Card (visible when session is in progress) -->
-            <Border Visibility="{x:Bind ViewModel.IsActiveSessionVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    Background="{StaticResource FbCardBackgroundBrush}"
-                    BorderBrush="{StaticResource FbCardBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource FbCornerRadiusMedium}"
-                    Padding="40"
-                    MinWidth="700"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Top"
-                    Margin="60,24,60,24"
-                    automation:AutomationProperties.Name="Active session card">
-                <StackPanel Spacing="32">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="{x:Bind ViewModel.ActiveSession.SessionTitle, Mode=OneWay}"
-                                   FontSize="22"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource FbTextPrimaryBrush}"
-                                   TextWrapping="Wrap"
-                                   automation:AutomationProperties.Name="Session title"/>
-                        
-                        <TextBlock Text="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay}"
-                                   Style="{StaticResource FbSecondaryTextStyle}"
-                                   TextWrapping="Wrap"
-                                   Visibility="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
-                                   automation:AutomationProperties.Name="Session context"/>
-                    </StackPanel>
-
-                    <Border Background="{StaticResource FbCardBackgroundBrush}"
-                            BorderBrush="{StaticResource FbCardBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="12,8"
-                            Visibility="{x:Bind ViewModel.ShowClassificationMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                            automation:AutomationProperties.Name="Classification message">
-                        <StackPanel Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Border Background="{StaticResource FbAlignedAccentBrush}"
-                                        CornerRadius="8"
-                                        Padding="8,2"
-                                        Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
-                                </Border>
-                                <Border Background="{StaticResource FbMisalignedAccentBrush}"
-                                        CornerRadius="8"
-                                        Padding="8,2"
-                                        Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
-                                </Border>
-                                <Border Background="{StaticResource FbNeutralAccentBrush}"
-                                        CornerRadius="8"
-                                        Padding="8,2"
-                                        Visibility="{x:Bind ViewModel.IsClassificationNeutral, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
-                                </Border>
-                            </StackPanel>
-                            <TextBlock Text="{x:Bind ViewModel.ClassificationReasonText, Mode=OneWay}"
-                                       Style="{StaticResource FbSecondaryTextStyle}"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FbTextPrimaryBrush}"
-                                       TextWrapping="Wrap"
-                                       Visibility="{x:Bind ViewModel.ShowClassificationReason, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                        </StackPanel>
-                    </Border>
-
-                    <StackPanel Spacing="16" Margin="0,8,0,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Focused time -->
-                            <StackPanel Grid.Column="0" Spacing="10" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE930;" FontSize="28" Foreground="{StaticResource FbAlignedAccentBrush}"/>
-                                <TextBlock Text="Focused"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{x:Bind ViewModel.FocusedTime, Mode=OneWay}"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource FbTextPrimaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           automation:AutomationProperties.Name="Focused time"/>
-                            </StackPanel>
-
-                            <!-- Total session elapsed (center) -->
-                            <StackPanel Grid.Column="1" Spacing="10" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE917;" FontSize="28" Foreground="{StaticResource FbNeutralAccentBrush}"/>
-                                <TextBlock Text="Total"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{x:Bind ViewModel.SessionElapsedTime, Mode=OneWay}"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource FbTextPrimaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           automation:AutomationProperties.Name="Total elapsed time"/>
-                            </StackPanel>
-
-                            <!-- Distracted time -->
-                            <StackPanel Grid.Column="2" Spacing="10" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE7BA;" FontSize="28" Foreground="{StaticResource FbMisalignedAccentBrush}"/>
-                                <TextBlock Text="Distracted"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{x:Bind ViewModel.DistractedTime, Mode=OneWay}"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource FbTextPrimaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           automation:AutomationProperties.Name="Distracted time"/>
-                            </StackPanel>
-
-                            <!-- Distraction count -->
-                            <StackPanel Grid.Column="3" Spacing="10" HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE8F1;" FontSize="28" Foreground="{StaticResource FbNeutralAccentBrush}"/>
-                                <TextBlock Text="Distractions"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{x:Bind ViewModel.DistractionCount, Mode=OneWay}"
-                                           FontSize="20"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource FbTextPrimaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           automation:AutomationProperties.Name="Distraction count"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Focus score bar (authenticated monitoring only); labels sit below the bar -->
-                        <StackPanel Spacing="8"
-                                    Visibility="{x:Bind ViewModel.IsFocusScorePercentVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <Grid Height="12" HorizontalAlignment="Stretch" MaxWidth="640">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{x:Bind ViewModel.CurrentFocusScorePercent, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
-                                    <ColumnDefinition Width="{x:Bind ViewModel.DistractedBarStarWeight, Mode=OneWay, Converter={StaticResource PercentToGridLengthConverter}}"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0"
-                                        Background="{StaticResource FbAlignedAccentBrush}"
-                                        CornerRadius="6,0,0,6"
-                                        automation:AutomationProperties.Name="Focused segment"/>
-                                <Border Grid.Column="1"
-                                        Background="{StaticResource FbMisalignedAccentBrush}"
-                                        CornerRadius="0,6,6,0"
-                                        automation:AutomationProperties.Name="Distracted segment"/>
-                            </Grid>
-                            <Grid MaxWidth="640" HorizontalAlignment="Stretch">
-                                <TextBlock Text="{x:Bind ViewModel.FocusedPercentLabel, Mode=OneWay}"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Top"
-                                           automation:AutomationProperties.Name="Focused percent label"/>
-                                <TextBlock Text="{x:Bind ViewModel.DistractedPercentLabel, Mode=OneWay}"
-                                           Style="{StaticResource FbSecondaryTextStyle}"
-                                           FontSize="12"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Top"
-                                           automation:AutomationProperties.Name="Distracted percent label"/>
-                            </Grid>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <Border Style="{StaticResource FbDividerStyle}"/>
-
-                    <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
-                        <Button Content="Pause"
-                                Style="{StaticResource FbOutlineButtonStyle}"
-                                MinWidth="100"
-                                Command="{x:Bind ViewModel.PauseSessionCommand}"
-                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                                Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                automation:AutomationProperties.Name="Pause session"/>
-                        <Button Content="Resume"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                MinWidth="100"
-                                Command="{x:Bind ViewModel.ResumeSessionCommand}"
-                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                                Visibility="{x:Bind ViewModel.IsSessionPaused, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                automation:AutomationProperties.Name="Resume session"/>
-                        <Button Content="End Session"
-                                Style="{StaticResource FbAccentButtonStyle}"
-                                MinWidth="100"
-                                Command="{x:Bind ViewModel.EndSessionCommand}"
-                                IsEnabled="{x:Bind ViewModel.IsSessionOperationEnabled, Mode=OneWay}"
-                                automation:AutomationProperties.Name="End session"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-            </Grid>
         </Grid>
     </Grid>
 </Page>

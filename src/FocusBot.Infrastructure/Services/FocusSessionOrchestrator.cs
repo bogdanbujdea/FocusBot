@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using FocusBot.Core.Configuration;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Events;
@@ -39,7 +40,7 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
     private string? _aiRequestError;
     private int _currentFocusScorePercent;
 
-    /// <summary>Last extension-originated hub classification for restoring UI when refocusing the browser (extension does not re-classify on OS focus).</summary>
+    /// <summary>Last extension-originated hub classification for restoring UI when the OS window title still matches the snapshot taken when that hub event was applied.</summary>
     private int? _lastExtensionHubScore;
 
     private string? _lastExtensionHubReason;
@@ -325,11 +326,6 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             if (_activeSession == null || _isSessionPaused)
                 return;
 
-            // Keep _currentWindowTitle as the OS foreground title only (from OnForegroundWindowChanged).
-            // Do not replace it with activityName (URL for extension); otherwise the next hub snapshot
-            // is a URL and never matches e.WindowTitle when refocusing the browser.
-            var osWindowTitleSnapshot = _currentWindowTitle;
-
             _focusScore = score;
             _focusReason = reason;
             _hasCurrentFocusResult = true;
@@ -340,7 +336,12 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
             {
                 _lastExtensionHubScore = score;
                 _lastExtensionHubReason = reason;
-                _lastExtensionHubOsWindowTitle = osWindowTitleSnapshot;
+                // Snapshot must be an OS browser title for refocus matching. If the hub event arrives
+                // while the user is still in a non-browser app (race: POST returns before foreground
+                // updates), do not overwrite the prior snapshot — otherwise refocusing the browser
+                // never matches and the desktop stays on "waiting for signal".
+                if (IsBrowserProcess(_currentProcessName) && !string.IsNullOrWhiteSpace(_currentWindowTitle))
+                    _lastExtensionHubOsWindowTitle = _currentWindowTitle;
             }
 
             var processKey = string.IsNullOrWhiteSpace(_currentProcessName)
@@ -489,8 +490,8 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                 return;
             }
 
-            // Extension classifies on URL/title change, not on OS focus return. Restore the last
-            // extension hub result when the window title still matches; otherwise neutral Unclear.
+            // Extension POST /classify (and hub broadcast) is authoritative for the browser when online.
+            // Restore the last extension hub result when the OS window title still matches the hub snapshot.
             if (IsBrowserProcess(e.ProcessName) && _extensionPresence?.IsExtensionOnline == true)
             {
                 if (TryApplyCachedExtensionHubClassification(e.WindowTitle))
@@ -499,12 +500,19 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
                     return;
                 }
 
-                _focusScore = 5;
-                _focusReason = string.Empty;
-                _isClassifying = false;
-                _hasCurrentFocusResult = true;
-                RaiseStateChanged();
-                return;
+                // No hub snapshot yet — wait for extension POST + hub (do not desktop-classify).
+                if (!_lastExtensionHubScore.HasValue)
+                {
+                    _focusScore = 0;
+                    _focusReason = string.Empty;
+                    _isClassifying = false;
+                    _hasCurrentFocusResult = false;
+                    RaiseStateChanged();
+                    return;
+                }
+
+                // Had extension hub data but restore failed (e.g. title drift). Fall back to desktop
+                // classify; server memory cache usually returns immediately without extra LLM cost.
             }
 
             _focusScore = 0;
@@ -616,8 +624,30 @@ public sealed class FocusSessionOrchestrator : IFocusSessionOrchestrator
         return true;
     }
 
+    /// <summary>
+    /// Edge/Chrome aggregate tab count in the window title ("and N more pages"); the number changes
+    /// when switching away and back. Normalize so refocus still matches the hub snapshot.
+    /// </summary>
+    private static string NormalizeBrowserWindowTitleForMatch(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return string.Empty;
+
+        var t = title.Trim();
+        t = EdgeMorePagesPattern.Replace(t, " and N more pages");
+        return t;
+    }
+
+    private static readonly Regex EdgeMorePagesPattern = new(
+        @"\s+and\s+\d+\s+more\s+pages",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(250));
+
     private static bool WindowTitlesMatch(string a, string b) =>
-        string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+        string.Equals(
+            NormalizeBrowserWindowTitleForMatch(a),
+            NormalizeBrowserWindowTitleForMatch(b),
+            StringComparison.OrdinalIgnoreCase);
 
     private void RaiseStateChanged()
     {
