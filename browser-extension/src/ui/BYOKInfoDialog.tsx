@@ -16,8 +16,8 @@ export const BYOKInfoDialog = ({ onClose }: BYOKInfoDialogProps): JSX.Element =>
         <div className="byok-info-section">
           <h3>What this plan means</h3>
           <p className="muted">
-            Cloud BYOK means you use your own OpenAI API key with Foqus. Your key in the Windows app is not shared with the browser extension,
-            so you need to add it separately in extension settings.
+            Cloud BYOK means you use your own OpenAI API key with Foqus. Each Foqus client (browser extension and Windows app) stores its own key
+            locally, because your key is not saved in your Foqus cloud account.
           </p>
         </div>
 
@@ -32,8 +32,8 @@ export const BYOKInfoDialog = ({ onClose }: BYOKInfoDialogProps): JSX.Element =>
         <div className="byok-info-section">
           <h3>Security</h3>
           <p className="muted">
-            Your API key is stored in Chrome&apos;s protected extension storage, isolated from other extensions and websites. It is sent directly to
-            the AI provider over HTTPS and is never transmitted to Foqus servers.
+            Your API key is stored in Chrome&apos;s protected extension storage, isolated from other extensions and websites. Classification requests
+            are sent to Foqus servers, then relayed to OpenAI over HTTPS. Foqus does not store your key and does not log it.
           </p>
         </div>
       </div>

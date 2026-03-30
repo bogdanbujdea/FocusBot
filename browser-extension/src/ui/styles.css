@@ -474,6 +474,41 @@ button:disabled {
   padding: 10px 12px;
 }
 
+.popup-settings-form {
+  gap: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 18px;
+}
+
+.popup-settings-form .settings-field {
+  display: grid;
+  gap: 10px;
+}
+
+.popup-settings-form .label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(231, 236, 255, 0.92);
+}
+
+.popup-settings-actions {
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.popup-settings-form .muted {
+  margin-top: 6px;
+}
+
+.popup-settings-form .password-field {
+  margin-top: 2px;
+}
+
+.popup-settings-form .settings-field + .settings-field {
+  margin-top: 4px;
+}
+
 .status {
   border-left: 4px solid #7f8aa3;
   padding-left: 8px;

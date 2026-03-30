@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import { getWebAppAnalyticsUrl } from "../shared/webAppUrl";
-import type { RuntimeState } from "../shared/types";
+import type { RuntimeState, Settings } from "../shared/types";
 import { getWebAppBillingUrl } from "../shared/webAppUrl";
 import { getPlanLabelFromServerPlanType, isByokKeyMissing, isExpiredTrial, isTrialBannerVisible } from "../shared/subscription";
 import { supabase } from "../shared/supabaseClient";
@@ -21,6 +21,14 @@ interface AppShellProps {
 
 type ShellStatus = "aligned" | "distracting" | null;
 const billingUrl = getWebAppBillingUrl();
+const CLASSIFIER_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"] as const;
+
+const maskLicenseKey = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return "Missing";
+  if (trimmed.length <= 8) return `${trimmed.slice(0, 2)}...${trimmed.slice(-2)}`;
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
+};
 
 const formatTrialRemaining = (trialEndsAt: string | undefined): string => {
   if (!trialEndsAt) return "";
@@ -63,6 +71,10 @@ export const AppShell = ({
   const [showByokInfoDialog, setShowByokInfoDialog] = useState(false);
   const [focusbotEmailInput, setFocusbotEmailInput] = useState("");
   const [focusbotStatus, setFocusbotStatus] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(state.settings.openAiApiKey);
+  const [modelInput, setModelInput] = useState(state.settings.classifierModel);
+  const [settingsStatus, setSettingsStatus] = useState("");
   const shellStatus = getShellStatus(state);
   const statusClass =
     shellStatus === "aligned" ? "ui-status-aligned" : shellStatus === "distracting" ? "ui-status-distracting" : "";
@@ -79,6 +91,12 @@ export const AppShell = ({
   const accountEmail = state.settings.focusbotEmail ?? "Not signed in";
   const isSignedIn = state.isAuthenticated;
   const showByokBanner = compact && isByokKeyMissing(state.settings, isSignedIn);
+  const isByokPlan = state.settings.serverPlanType === 1 || state.settings.plan === "cloud-byok";
+
+  useEffect(() => {
+    setApiKeyInput(state.settings.openAiApiKey);
+    setModelInput(state.settings.classifierModel);
+  }, [state.settings.openAiApiKey, state.settings.classifierModel]);
 
   const handleSignOut = async (): Promise<void> => {
     await sendRuntimeRequest({ type: "SIGN_OUT" });
@@ -105,6 +123,17 @@ export const AppShell = ({
       return;
     }
     setFocusbotStatus("Magic link sent. Open it on this browser profile to finish sign-in.");
+  };
+
+  const updatePopupSettings = async (payload: Partial<Settings>, successMessage: string): Promise<void> => {
+    setSettingsStatus("Saving settings...");
+    const response = await sendRuntimeRequest({ type: "UPDATE_SETTINGS", payload });
+    if (!response.ok) {
+      setSettingsStatus(response.error ?? "Unable to save settings.");
+      return;
+    }
+    await refreshState();
+    setSettingsStatus(successMessage);
   };
 
   return (
@@ -190,6 +219,66 @@ export const AppShell = ({
                   Sign out
                 </button>
               </div>
+              <div className="settings-form popup-settings-form">
+                {isByokPlan ? (
+                  <p className="muted">
+                    <strong>Current license key:</strong> {maskLicenseKey(apiKeyInput)}
+                  </p>
+                ) : null}
+                <div className="settings-field">
+                  <label className="label" htmlFor="popup-openai-api-key">License key (OpenAI API key)</label>
+                  <div className="password-field">
+                    <input
+                      id="popup-openai-api-key"
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKeyInput}
+                      onChange={(event) => setApiKeyInput(event.target.value)}
+                      placeholder="sk-..."
+                      autoComplete="off"
+                    />
+                    <button type="button" className="password-field-toggle" onClick={() => setShowApiKey((current) => !current)}>
+                      {showApiKey ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="label" htmlFor="popup-classifier-model">Classifier model</label>
+                  <select
+                    id="popup-classifier-model"
+                    value={modelInput}
+                    onChange={(event) => setModelInput(event.target.value)}
+                  >
+                    {!CLASSIFIER_MODELS.includes(modelInput as (typeof CLASSIFIER_MODELS)[number]) ? (
+                      <option value={modelInput}>{modelInput} (current)</option>
+                    ) : null}
+                    {CLASSIFIER_MODELS.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="actions-row popup-settings-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void updatePopupSettings(
+                        {
+                          openAiApiKey: apiKeyInput,
+                          classifierModel: modelInput
+                        },
+                        "Settings updated."
+                      )
+                    }
+                  >
+                    Update key and model
+                  </button>
+                  <button type="button" className="byok-banner-link" onClick={() => setShowByokInfoDialog(true)}>
+                    BYOK details
+                  </button>
+                </div>
+                {settingsStatus ? <p className="muted">{settingsStatus}</p> : null}
+              </div>
             </>
           ) : (
             <div className="settings-form popup-signin-form">
@@ -231,7 +320,7 @@ export const AppShell = ({
           <button type="button" className="byok-banner-link" onClick={() => setShowByokInfoDialog(true)}>
             Learn more
           </button>
-          <button type="button" className="byok-banner-link" onClick={() => void sendRuntimeRequest({ type: "OPEN_OPTIONS" })}>
+          <button type="button" className="byok-banner-link" onClick={() => setShowAccountPanel(true)}>
             Open settings
           </button>
         </div>
