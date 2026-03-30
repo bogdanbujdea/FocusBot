@@ -70,10 +70,10 @@ The Foqus Browser Extension is a standalone Chrome/Edge extension that enables *
 
 ### Desktop app integration (Windows)
 
-The extension can connect to the **Foqus Windows desktop app** over a local WebSocket (`ws://localhost:9876/focusbot`) so the browser and desktop share task state.
+The extension no longer connects to the Windows app over a local WebSocket. Browser and desktop coordination uses the Foqus API and SignalR events.
 
-- **Settings:** Under **Classifier behavior**, **Connect to Foqus for Windows on this computer** is **off by default**. Turn it on only when the desktop app is installed and running; otherwise the browser may log `ERR_CONNECTION_REFUSED` for that WebSocket (harmless but noisy in the extension error list).
-- **CSP messages:** If you see “Executing inline script violates Content Security Policy” in the extension or page console, they often come from **strict CSP on websites you visit** or from dev tooling, not from Foqus UI code (popup/options use external module scripts only). If a message points at a specific `chrome-extension://` asset and persists after a production build, capture the full URL and hash from the console for investigation.
+- There is no **Connect to Foqus for Windows** toggle in settings anymore.
+- Local WebSocket (`ws://localhost:9876/focusbot`) behavior is deprecated and not part of the supported setup.
 
 ---
 
@@ -85,7 +85,7 @@ All state is stored in chrome.storage.local and managed through `RuntimeState`:
 
 ```typescript
 interface RuntimeState {
-  settings: Settings;           // User config (API key, excluded domains)
+  settings: Settings;           // User config (plan + subscription metadata + API key)
   activeSession: FocusSession | null;  // Current session data
   lastSummary: SessionSummary | null;  // Summary from last completed session
   lastError: string | null;            // Last error message
@@ -186,15 +186,15 @@ The URL must be "trackable" (see `url.ts` for domain whitelist).
          └───────┬────────────────────┘
                  │
          ┌───────▼──────────────────┐
-         │ Policy checks            │
-         │ 1. Is domain excluded?   │
-         │ 2. Is known distraction? │
-         └───────┬──────────────────┘
+        │ Policy checks            │
+        │ 1. Is URL trackable?     │
+        │ 2. Session is active?    │
+        └───────┬──────────────────┘
                  │
         ┌───────▼──────────────────────────────────────────────┐
         │ Call classifier (with retries)                        │
-        │ - BYOK mode: direct call to OpenAI                    │
-        │ - Foqus account mode: call Foqus WebAPI POST /classify│
+        │ - trial/cloud-byok: direct call to OpenAI             │
+        │ - cloud-managed: call Foqus WebAPI POST /classify     │
         │ - 3 attempts                                          │
         │ - 300-600ms backoff                                   │
         │ - 8 second timeout                                    │
@@ -215,11 +215,9 @@ The URL must be "trackable" (see `url.ts` for domain whitelist).
 
 All pages are classified based on the user's specific task, not on a hardcoded list. This ensures that sites like Facebook, YouTube, or Reddit are classified as "aligned" if the user's task is explicitly to use them (e.g., "Review Facebook feed" or "Watch tutorial video"), and "distracting" if they visit them during unrelated tasks.
 
-### Excluded Domains (User Configuration)
+### Excluded Domains
 
-User can exclude domains from classification entirely. Excluded domains are automatically classified as "aligned" with confidence 1.0.
-
-**Example:** A developer might exclude `github.com` and `stackoverflow.com` if those are work-related.
+Excluded domains are no longer supported. All trackable pages are classified against the active task.
 
 ---
 
@@ -247,9 +245,9 @@ POST https://api.openai.com/v1/chat/completions
 }
 ```
 
-### Foqus WebAPI Classification (Foqus account mode)
+### Foqus WebAPI Classification (cloud-managed mode)
 
-When `authMode` is `"foqus-account"`, the extension sends classification requests to the Foqus WebAPI instead of calling OpenAI directly. The WebAPI uses a managed provider key and returns a **score (1–10)**:
+When the plan resolves to `cloud-managed`, the extension sends classification requests to the Foqus WebAPI instead of calling OpenAI directly. The WebAPI uses a managed provider key and returns a **score (1–10)**:
 
 - **Endpoint:** `POST /classify` (auth required)
 - **Auth:** `Authorization: Bearer <Supabase access token>`
@@ -477,22 +475,31 @@ Detailed analytics dashboard:
 ### SettingsPage
 
 Configuration:
-- **Account mode**
-  - **Bring your own key (BYOK)** – user pastes an OpenAI API key; all classification calls go directly to OpenAI from the extension. No Foqus backend is involved.
-  - **Foqus account** – user signs in with a Foqus account via Supabase magic link. The extension sends classification calls to the Foqus WebAPI (`POST /classify`) which uses a managed key.
-- **OpenAI API key + validation** (BYOK mode only)
-  - When `authMode` is `"byok"`, the user can enter their own OpenAI key (stored in `focusbot.settings.openAiApiKey`).
-  - A **Validate key** button makes a minimal `chat/completions` request ("Ping") using the selected model to confirm the key + model work (mirrors the desktop app’s credential validation).
-  - When `authMode` is `"foqus-account"`, BYOK controls are hidden.
-- **Model selection** (BYOK mode only)
-  - Dropdown restricted to `gpt-4o-mini` and `gpt-5-mini`.
-- **Excluded domains**
-  - Domains that should always be treated as aligned and never sent to the classifier.
-  - Shown under the authentication section in Settings.
+- **Account section**
+  - Sign in via Supabase magic link.
+  - Shows signed-in email.
+  - Shows subscription summary in the same account block (current plan, end date, Manage subscription, Refresh).
+- **Plan model**
+  - `trial` (24h full trial)
+  - `cloud-byok`
+  - `cloud-managed`
+  - No `free-byok` tier.
+- **OpenAI API key**
+  - Required for `trial` and `cloud-byok` plans.
+  - For `cloud-byok` with an empty key, popup shows an `API key required` banner with `Learn more` and `Open settings`.
+  - For `cloud-byok` with an empty key, options page shows a highlighted prompt and a `What is this?` BYOK details dialog.
+  - BYOK reminder clarifies keys are per-client; a key set in the Windows app must also be set in the extension.
+- **Model selection**
+  - Configurable classifier model text input in plan settings.
+- **Trial and billing UX**
+  - Popup shows compact trial banner when `status=trial`, `planType=0`, and `trialEndsAt` is in the future.
+  - Options account section links to web billing for manage/upgrade flows.
+- **No excluded domains**
+  - Domain exclusions were removed from UI and classifier flow.
 
 ### Foqus account authentication & sync (extension ↔ WebAPI)
 
-When the user selects **Foqus account** in Settings:
+When the user signs in with a Foqus account in Settings:
 
 1. The Settings page displays a **Foqus account email** field and a **Send magic link** button.
 2. On click, the extension uses `supabaseClient.ts` to call `supabase.auth.signInWithOtp({ email })`:
@@ -504,15 +511,22 @@ When the user selects **Foqus account** in Settings:
    - `focusbotAuth.saveFocusbotAuthSession` stores:
      - Supabase access token in `focusbot.supabaseAccessToken`.
      - Email in `focusbot.supabaseEmail`.
-     - Updates `focusbot.settings` with `authMode: "foqus-account"` and `focusbotEmail`.
+     - Updates `focusbot.settings.focusbotEmail`.
 4. The extension then calls the WebAPI with the stored token:
    - `apiClient.fetchCurrentUser()` sends `GET /auth/me` to the WebAPI at `http://localhost:5251` with `Authorization: Bearer <access_token>`.
    - The WebAPI validates the Supabase JWT using the same issuer/audience/key as the desktop app.
    - On first call, the backend auto-provisions a `User` row from the JWT claims and returns the profile.
-5. The options UI shows:
-   - **Currently signed in as &lt;email&gt;** when the `/auth/me` call succeeds.
-   - Any errors from either Supabase or the WebAPI as status text under the Foqus account section.
-6. The **Sign out** button:
+5. The extension refreshes subscription status (`GET /subscriptions/status`) and persists:
+   - `plan` (`trial`, `cloud-byok`, `cloud-managed`)
+   - `subscriptionStatus`
+   - `serverPlanType` (`0/1/2`)
+   - `trialEndsAt`
+   - `currentPeriodEndsAt`
+6. The options UI shows:
+   - **Currently signed in as &lt;email&gt;**
+   - Subscription summary (same Account block): current plan, end date, billing actions.
+   - Any errors from Supabase or WebAPI as status text.
+7. The **Sign out** button:
    - Clears the stored Supabase access token and email.
    - Calls `supabase.auth.signOut()`.
    - Resets `focusbotEmail` in `focusbot.settings`.
@@ -533,7 +547,7 @@ This flow ensures that:
 
 | Key | Type | Purpose |
 |-----|------|---------|
-| `focusbot.settings` | Settings | User configuration (including API key) |
+| `focusbot.settings` | Settings | User configuration (plan, subscription metadata, API key, model, account email) |
 | `focusbot.activeSession` | FocusSession | Current session (if any) |
 | `focusbot.sessions` | FocusSession[] | Historical sessions |
 | `focusbot.classificationCache` | Record<string, CacheEntry> | Page classification cache |
@@ -542,8 +556,8 @@ This flow ensures that:
 
 ### Data Persistence
 
-- All data is stored locally in chrome.storage.local. In Foqus account mode, the Supabase access token and email are also stored locally.
-- The OpenAI API key (when using BYOK) is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions). It is not encrypted at rest; the browser has no DPAPI equivalent.
+- All data is stored locally in chrome.storage.local. For signed-in users, the Supabase access token and email are also stored locally.
+- The OpenAI API key (for `trial` and `cloud-byok`) is stored in chrome.storage.local; only the extension can access it (not web pages or other extensions). It is not encrypted at rest; the browser has no DPAPI equivalent.
 - This is the standard "as safe as the platform allows" approach for BYOK (bring your own key).
 - In the initial implementation, there is **no automatic cloud sync of sessions or settings**; the WebAPI is only used to authenticate the Foqus account and create the corresponding backend user. Future iterations can build on this identity for multi-device sync.
 
@@ -643,17 +657,16 @@ In the background service worker DevTools (chrome://extensions → Service Worke
 2. **Cache never expires** - User must manually clear extension data to reset cache
 3. **Single session only** - Only one active session per browser profile
 4. **No background persistence** - Service worker may unload; background script restarts on next event
-5. **API key stored in client** - API key is stored in chrome.storage.local and is not encrypted at rest (for BYOK mode only). Only the extension can access it; web pages and other extensions cannot.
+5. **API key stored in client** - API key is stored in chrome.storage.local and is not encrypted at rest (for `trial`/`cloud-byok`). Only the extension can access it; web pages and other extensions cannot.
 
 ---
 
 ## Future Enhancements
 
-1. **Sync with Desktop App** - Import/export sessions between browser extension and desktop app
-2. **Real-time Cloud Sync** - Sync sessions across devices
-3. **Browser Profiles** - Separate settings per browser profile
-4. **Advanced Analytics** - Heatmaps, focus trends, recommended break times
-5. **Focus Music Integration** - Suggest focus playlists during sessions
-6. **Slack Integration** - Post focus summary to Slack
-7. **Cache TTL** - Automatic cache expiration (e.g., 7 days)
-8. **Rate Limiting** - Client-side rate limiting for API quota management
+1. **Real-time Cloud Sync Enhancements** - Improve multi-device session UX and conflict handling
+2. **Browser Profiles** - Separate settings per browser profile
+3. **Advanced Analytics** - Heatmaps, focus trends, recommended break times
+4. **Focus Music Integration** - Suggest focus playlists during sessions
+5. **Slack Integration** - Post focus summary to Slack
+6. **Cache TTL** - Automatic cache expiration (e.g., 7 days)
+7. **Rate Limiting** - Client-side rate limiting for API quota management

@@ -183,12 +183,31 @@ customData: {
 ### 3. Browser Extension (`browser-extension`)
 
 **Checkout redirect:**
-- Plan upgrade cards in options page link to `https://app.foqus.me/billing`
+- Browser extension opens `https://app.foqus.me/billing` for plan changes
 - No embedded checkout — delegates to web app
 
-**Implementation:**
-- `webAppUrl.ts` — `getWebAppBillingUrl()` helper
-- `options/main.tsx` — Updated paid plan buttons
+**Trial and subscription UX:**
+- Popup (`ui/AppShell.tsx`) shows a compact non-dismissible trial banner only when Foqus trial is active (`status = trial`, `planType = 0`, future `trialEndsAt`)
+- Trial banner is popup-only (not shown in sidepanel)
+- Options page (`options/main.tsx`) uses a subscription summary (current plan, end date, manage subscription link, refresh action) instead of plan comparison cards
+- Trial expiry with no paid subscription is shown as **No active plan** with a billing link
+
+**Cloud BYOK prompt:**
+- When subscription resolves to `cloud-byok` and `openAiApiKey` is empty, options page highlights the API key section and prompts the user to enter a key
+- Security copy explains key handling:
+  - Stored in Chrome extension storage scoped to this extension
+  - Sent directly to the AI provider over HTTPS
+  - Not transmitted to Foqus servers
+
+**Classification flow (dual-path, unchanged):**
+- **BYOK direct path:** `shared/classifier.ts` calls `https://api.openai.com/v1/chat/completions` with `Authorization: Bearer <openAiApiKey>`
+- **Cloud managed path:** `shared/classifier.ts` calls Foqus API `POST /classify` with JWT; server uses managed key
+
+**Implementation files:**
+- `shared/webAppUrl.ts` — `getWebAppBillingUrl()` helper
+- `background/index.ts` — plan refresh and persisted subscription fields (`status`, `planType`, `trialEndsAt`, `currentPeriodEndsAt`)
+- `ui/AppShell.tsx` + `ui/styles.css` — popup trial banner
+- `options/main.tsx` + `options/settings.css` — subscription summary and BYOK prompt
 
 ---
 

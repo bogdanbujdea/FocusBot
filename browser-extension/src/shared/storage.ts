@@ -20,12 +20,10 @@ export interface OfflineQueueItem {
 }
 
 const defaultSettings: Settings = {
-  plan: "free-byok",
+  plan: "trial",
   openAiApiKey: "",
   classifierModel: DEFAULT_MODEL,
-  onboardingCompleted: false,
-  excludedDomains: [],
-  desktopAppIntegration: false
+  onboardingCompleted: false
 };
 
 // Storage implementation uses chrome.storage.local for all data.
@@ -48,12 +46,12 @@ const setInStorage = async (key: string, value: unknown): Promise<void> => {
 
 /**
  * Migrates legacy authMode values to the new PlanType. Old BYOK users become
- * free-byok, old foqus-account users become cloud-managed (closest equivalent).
+ * trial, old foqus-account users become cloud-managed (closest equivalent).
  */
 const migrateLegacyAuthMode = (stored: Record<string, unknown>): PlanType => {
   const legacy = (stored as { authMode?: string }).authMode;
   if (legacy === "foqus-account") return "cloud-managed";
-  return "free-byok";
+  return "trial";
 };
 
 export const loadSettings = async (): Promise<Settings> => {
@@ -70,7 +68,6 @@ export const loadSettings = async (): Promise<Settings> => {
     ...defaultSettings,
     ...stored,
     plan,
-    excludedDomains: (stored.excludedDomains as string[] | undefined) ?? [],
     focusbotEmail: stored.focusbotEmail as string | undefined
   };
 };
@@ -83,8 +80,7 @@ export const patchSettings = async (partial: Partial<Settings>): Promise<Setting
   const current = await loadSettings();
   const next: Settings = {
     ...current,
-    ...partial,
-    excludedDomains: partial.excludedDomains ?? current.excludedDomains
+    ...partial
   };
 
   await saveSettings(next);

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { RuntimeState } from "../shared/types";
-import type { IntegrationState } from "../shared/integrationTypes";
 import { calculateLiveSummary } from "../shared/metrics";
 import { formatSeconds } from "../shared/utils";
 
@@ -9,7 +8,6 @@ interface SessionCardProps {
   state: RuntimeState;
   compact?: boolean;
   onChanged: () => Promise<void>;
-  integration?: IntegrationState | null;
 }
 
 const classificationToLabel = (
@@ -78,7 +76,7 @@ const MiniFocusGauge = ({ percentage }: { percentage: number }): JSX.Element => 
   );
 };
 
-export const SessionCard = ({ state, compact = false, onChanged, integration }: SessionCardProps): JSX.Element => {
+export const SessionCard = ({ state, compact = false, onChanged }: SessionCardProps): JSX.Element => {
   const [taskText, setTaskText] = useState("");
   const [taskHints, setTaskHints] = useState("");
   const [error, setError] = useState("");
@@ -122,21 +120,16 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
     return calculateLiveSummary(active);
   }, [active, tick]);
 
-  const desktopCtx = active ? integration?.currentDesktopContext : undefined;
-  const showDesktopContext = Boolean(desktopCtx) && integration?.browserInForeground === false;
-
-  const currentState = showDesktopContext
-    ? (desktopCtx!.classification === "aligned" ? "Aligned"
-      : desktopCtx!.classification === "distracting" ? "Distracting"
-      : "Neutral")
-    : classificationToLabel(active?.currentVisit?.visitState, active?.currentVisit?.classification, active?.currentVisit?.score);
+  const currentState = classificationToLabel(
+    active?.currentVisit?.visitState,
+    active?.currentVisit?.classification,
+    active?.currentVisit?.score
+  );
   const isPaused = Boolean(active?.pausedAt);
   const statusClass =
     isPaused
       ? "neutral"
-      : showDesktopContext
-        ? desktopCtx!.classification
-        : active?.currentVisit?.visitState === "classifying"
+      : active?.currentVisit?.visitState === "classifying"
           ? "neutral"
           : active?.currentVisit?.visitState === "error"
             ? "distracting"
@@ -168,15 +161,11 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
   const aiReasonText =
     active && !isPaused
       ? active.currentVisit?.reason ??
-        (showDesktopContext && desktopCtx?.reason ? desktopCtx.reason : undefined) ??
         ""
       : "";
 
-  const currentLocationLabel = showDesktopContext ? "Current app" : "Current website";
-  const currentLocationValue =
-    showDesktopContext
-      ? desktopCtx?.windowTitle ?? desktopCtx?.processName ?? "Unknown"
-      : active?.currentVisit?.domain ?? "Unknown";
+  const currentLocationLabel = "Current website";
+  const currentLocationValue = active?.currentVisit?.domain ?? "Unknown";
 
   const liveAlignedSeconds = liveSummary?.alignedSeconds ?? 0;
   const liveDistractingSeconds = liveSummary?.distractingSeconds ?? 0;
@@ -243,50 +232,6 @@ export const SessionCard = ({ state, compact = false, onChanged, integration }: 
     await onChanged();
     setBusy(false);
   };
-
-  if (integration?.leaderTaskId) {
-    const status = integration.lastFocusStatus;
-    const taskText = integration.leaderTaskText ?? "Waiting for task...";
-    const classification = status?.classification ?? "Waiting...";
-    const reason = status?.reason ?? "";
-    const focusPercent = status?.focusScorePercent ?? 0;
-    const contextTitle = status?.contextTitle ?? "";
-    const statusClass =
-      classification === "aligned" || classification === "Focused" || classification === "Aligned"
-        ? "aligned"
-        : classification === "distracting" || classification === "Distracted" || classification === "Distracting"
-          ? "distracting"
-          : "neutral";
-    const statusLabel =
-      statusClass === "aligned" ? "Aligned" : statusClass === "distracting" ? "Distracting" : "Waiting...";
-    const activeAppDisplay = contextTitle ? contextTitle.replace(/^Browser:\s*/i, "").trim() || contextTitle : "";
-
-    return (
-      <section className="card">
-        <h2>Task in progress</h2>
-        <div className="stack">
-          <p className="muted">
-            <strong>Source:</strong> Desktop App
-          </p>
-          <p className="muted">
-            <strong>Task:</strong> {taskText}
-          </p>
-          <p className={`status ${statusClass}`}>
-            <strong>Status:</strong> {statusLabel}
-          </p>
-          {reason ? <p className="muted">{reason}</p> : null}
-          {activeAppDisplay ? (
-            <p className="muted">
-              <strong>Active desktop app:</strong> {activeAppDisplay}
-            </p>
-          ) : null}
-          <p className="muted">
-            <strong>Focus:</strong> {focusPercent}% Focused
-          </p>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="card">

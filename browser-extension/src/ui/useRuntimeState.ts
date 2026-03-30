@@ -4,11 +4,10 @@ import type { RuntimeState } from "../shared/types";
 
 const emptyState: RuntimeState = {
   settings: {
-    plan: "free-byok",
+    plan: "trial",
     openAiApiKey: "",
     classifierModel: "gpt-4o-mini",
-    onboardingCompleted: false,
-    excludedDomains: []
+    onboardingCompleted: false
   },
   activeSession: null,
   lastSummary: null,

@@ -15,7 +15,14 @@ body {
 
 body.popup {
   min-width: 360px;
-  overflow-x: hidden;
+  width: 360px;
+  min-height: 560px;
+  max-height: 600px;
+  overflow: hidden;
+}
+
+body.popup #root {
+  min-height: 560px;
 }
 
 .app-shell {
@@ -32,6 +39,8 @@ body.popup {
 
 .app-shell.compact {
   padding: 12px;
+  min-height: 560px;
+  overflow: hidden;
 }
 
 .app-shell > * {
@@ -196,6 +205,22 @@ body.popup {
   background: rgba(196, 165, 116, 0.22);
 }
 
+.quick-action-btn--signin {
+  width: auto;
+  min-width: 78px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e7ecff;
+  border-color: rgba(54, 92, 255, 0.45);
+  background: rgba(54, 92, 255, 0.25);
+}
+
+.quick-action-btn--signin:hover {
+  border-color: rgba(54, 92, 255, 0.7);
+  background: rgba(54, 92, 255, 0.35);
+}
+
 h1,
 h2,
 h3,
@@ -290,6 +315,163 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(54, 92, 255, 0.15);
+  border: 1px solid rgba(54, 92, 255, 0.3);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.trial-banner p {
+  white-space: nowrap;
+}
+
+.byok-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.byok-banner p {
+  margin: 0;
+}
+
+.byok-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.byok-banner-link {
+  background: transparent;
+  border: 0;
+  color: #ffd188;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.byok-banner-link:hover {
+  color: #ffe4b5;
+}
+
+.byok-info-dialog-overlay {
+  z-index: 60;
+}
+
+.byok-info-dialog {
+  gap: 10px;
+}
+
+.byok-info-section {
+  display: grid;
+  gap: 6px;
+}
+
+.byok-info-section h3 {
+  margin: 0;
+}
+
+.password-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.password-field input {
+  flex: 1 1 auto;
+}
+
+.password-field-toggle {
+  flex: 0 0 auto;
+  min-width: 62px;
+}
+
+.popup-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: rgba(10, 12, 22, 0.88);
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+}
+
+.popup-overlay-card {
+  margin: 14px;
+  width: calc(100% - 28px);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.popup-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.popup-overlay-close {
+  min-width: 84px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.popup-account-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.popup-account-meta .muted {
+  line-height: 1.35;
+}
+
+.popup-account-actions {
+  align-items: center;
+  gap: 12px;
+}
+
+.popup-account-actions a {
+  font-size: 0.95rem;
+  text-underline-offset: 3px;
+}
+
+.popup-account-actions button {
+  min-width: 112px;
+}
+
+.popup-signin-form {
+  gap: 14px;
+}
+
+.popup-signin-actions button {
+  min-width: 152px;
+}
+
+.popup-signin-form input {
+  font-size: 1rem;
+  padding: 10px 12px;
 }
 
 .status {

@@ -11,11 +11,11 @@ export interface ClassificationResult {
  * Plan tier for the signed-in user. All users must have an account;
  * there is no anonymous usage.
  *
- * - free-byok: User provides their own API key. Local basic analytics only.
+ * - trial: 24-hour full trial. User provides their own API key.
  * - cloud-byok: User provides their own API key + full cloud analytics and sync.
  * - cloud-managed: Platform provides the API key. Full cloud analytics and sync.
  */
-export type PlanType = "free-byok" | "cloud-byok" | "cloud-managed";
+export type PlanType = "trial" | "cloud-byok" | "cloud-managed";
 
 /** Returns true when the plan uses a user-supplied OpenAI API key. */
 export const planRequiresApiKey = (plan: PlanType): boolean => plan !== "cloud-managed";
@@ -26,18 +26,16 @@ export const planUsesDirectClassification = (plan: PlanType): boolean => plan !=
 export interface Settings {
   /** Active plan tier. Requires a signed-in account for all values. */
   plan: PlanType;
-  /** User-provided OpenAI API key when plan is free-byok or cloud-byok. */
+  /** User-provided OpenAI API key when plan is trial or cloud-byok. */
   openAiApiKey: string;
   classifierModel: string;
   onboardingCompleted: boolean;
-  excludedDomains: string[];
+  subscriptionStatus?: string;
+  serverPlanType?: 0 | 1 | 2;
+  trialEndsAt?: string;
+  currentPeriodEndsAt?: string;
   /** Email of the signed-in Foqus account. */
   focusbotEmail?: string;
-  /**
-   * When true, the extension opens a WebSocket to the Foqus Windows app (localhost) for task sync.
-   * Default off so browsers do not log connection errors when the desktop app is not running.
-   */
-  desktopAppIntegration?: boolean;
 }
 
 export interface PageVisit {

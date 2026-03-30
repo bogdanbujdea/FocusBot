@@ -28,7 +28,7 @@ import type {
 } from "../shared/types";
 import { planRequiresApiKey } from "../shared/types";
 import { APP_KEYS, createId, nowIso, secondsBetween, sleep } from "../shared/utils";
-import { getDomain, isTrackableUrl, matchesExcludedDomain } from "../shared/url";
+import { getDomain, isTrackableUrl } from "../shared/url";
 import { ICON_DATA_URLS, type IconState } from "../shared/types";
 import {
   loadFocusbotAuthSession,
@@ -55,8 +55,8 @@ import {
   getClientHostFromUserAgent,
   fetchCurrentUser
 } from "../shared/apiClient";
+import { mapBackendPlanType } from "../shared/subscription";
 import {
-  startIntegration,
   stopIntegration,
   setMessageHandler,
   setHandshakeProvider,
@@ -71,7 +71,6 @@ import {
   updateLastFocusStatus,
   updateDesktopContext,
   updateBrowserForeground,
-  onIntegrationStateChange,
   isConnected
 } from "../shared/integration";
 import type {
@@ -631,12 +630,8 @@ setHandshakeProvider(async () => {
 });
 
 const syncDesktopIntegrationFromSettings = async (): Promise<void> => {
-  const settings = await loadSettings();
-  if (settings.desktopAppIntegration === true) {
-    startIntegration();
-  } else {
-    stopIntegration();
-  }
+  // WebSocket desktop integration is deprecated; extension now uses API/SignalR only.
+  stopIntegration();
 };
 
 void syncDesktopIntegrationFromSettings();
@@ -734,7 +729,7 @@ const updateIconState = async (): Promise<void> => {
     await chrome.action.setBadgeBackgroundColor({ color: config.color });
 
     const stateLabels: Record<IconState, string> = {
-      default: "Foqus Deep Work",
+      default: "Foqus",
       aligned: "Foqus - Aligned",
       neutral: "Foqus - Neutral",
       distracting: "Foqus - Distracting",
@@ -867,18 +862,6 @@ const classifyWithPolicy = async (
   title: string
 ): Promise<{ ok: true; result: ClassificationResult } | { ok: false; error: string }> => {
   const settings = await loadSettings();
-  const domain = getDomain(taskUrl);
-  const isExcluded = matchesExcludedDomain(domain, settings.excludedDomains);
-  if (isExcluded) {
-    return {
-      ok: true,
-      result: {
-        classification: "aligned",
-        confidence: 1,
-        reason: "Domain is excluded from classifier checks."
-      }
-    };
-  }
 
   let lastError = "Unknown classifier failure.";
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -1370,6 +1353,9 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
       }
       await disconnectFocusHub();
       await clearFocusbotAuthSession();
+      await patchSettings({
+        focusbotEmail: undefined
+      });
       await chrome.alarms.clear(HEARTBEAT_ALARM_NAME);
       await chrome.alarms.clear(SIGNALR_RECONNECT_ALARM_NAME);
       await broadcastStateUpdate();
@@ -1378,13 +1364,17 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
     case "REFRESH_PLAN": {
       const sub = await getSubscriptionStatus();
       if (sub) {
-        const planMap: Record<number, import("../shared/types").PlanType> = {
-          0: "free-byok",
-          1: "cloud-byok",
-          2: "cloud-managed"
-        };
-        const plan = planMap[sub.planType] ?? "free-byok";
-        await patchSettings({ plan });
+        const plan = mapBackendPlanType(sub.planType);
+        if (!plan) {
+          return { ok: false, error: `Unknown plan type: ${sub.planType}` };
+        }
+        await patchSettings({
+          plan,
+          subscriptionStatus: sub.status,
+          serverPlanType: sub.planType,
+          trialEndsAt: sub.trialEndsAt,
+          currentPeriodEndsAt: sub.currentPeriodEndsAt
+        });
         await broadcastStateUpdate();
       }
       return { ok: true };
@@ -1394,7 +1384,6 @@ const handleRequest = async (request: RuntimeRequest): Promise<RuntimeResponse> 
   }
 };
 
-const START_DESKTOP_INTEGRATION = "START_DESKTOP_INTEGRATION";
 const FOCUSBOT_AUTH_SESSION_STORED = "FOCUSBOT_AUTH_SESSION_STORED";
 const FOCUSBOT_AUTH_FROM_EXTENSION_CALLBACK = "FOCUSBOT_AUTH_FROM_EXTENSION_CALLBACK";
 
@@ -1408,12 +1397,17 @@ const finalizeFocusbotSignInAfterTokensStored = async (email: string | undefined
 
   const sub = await getSubscriptionStatus();
   if (sub) {
-    const planMap: Record<number, import("../shared/types").PlanType> = {
-      0: "free-byok",
-      1: "cloud-byok",
-      2: "cloud-managed"
-    };
-    await patchSettings({ plan: planMap[sub.planType] ?? "free-byok" });
+    const plan = mapBackendPlanType(sub.planType);
+    if (!plan) {
+      throw new Error(`Unknown plan type: ${sub.planType}`);
+    }
+    await patchSettings({
+      plan,
+      subscriptionStatus: sub.status,
+      serverPlanType: sub.planType,
+      trialEndsAt: sub.trialEndsAt,
+      currentPeriodEndsAt: sub.currentPeriodEndsAt
+    });
   }
 
   await ensureClientRegistered();
@@ -1435,15 +1429,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender: chrome.runtime.M
     handleContentReady(sender.tab.id)
       .then(() => sendResponse({ ok: true }))
       .catch(() => sendResponse({ ok: false }));
-    return true;
-  }
-  if (
-    message &&
-    typeof message === "object" &&
-    "type" in message &&
-    (message as { type: string }).type === START_DESKTOP_INTEGRATION
-  ) {
-    void syncDesktopIntegrationFromSettings().then(() => sendResponse({ ok: true }));
     return true;
   }
   if (

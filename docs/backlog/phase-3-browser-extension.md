@@ -2,7 +2,7 @@
 
 **Depends on:** Phase 1 — **complete** (API + web app; see [phase-1-web-app-and-api.md](phase-1-web-app-and-api.md), [web-app-sign-in-and-trials.md](../web-app-sign-in-and-trials.md)).
 
-**Goal:** When a user signs in via the browser extension, they see a welcome message explaining the 24h trial and a countdown banner in the popup/sidepanel. After subscribing to Cloud BYOK, the options page highlights the API key field if empty and displays security messaging about how the key is stored.
+**Goal:** When a user signs in via the browser extension, they see a compact trial banner in the popup explaining the 24h trial and linking to billing. After subscribing to Cloud BYOK, the options page highlights the API key field if empty and displays security messaging about how the key is stored.
 
 **After this phase:** All three clients (web app, desktop, extension) provide the full trial experience. Plan selection and checkout remain centralized on the web app.
 
@@ -20,29 +20,33 @@
 
 ---
 
-## Trial banner in popup / sidepanel
+## Trial banner in popup
 
-### In [`AppShell.tsx`](../browser-extension/src/ui/AppShell.tsx)
+### In [`AppShell.tsx`](../browser-extension/src/ui/AppShell.tsx) (popup only)
 
-- When subscription status is `trial` and `trialEndsAt` is in the future: render a banner card (similar to the existing "Attention" card pattern but with an informational style, not error).
-- Content: "Trial — [countdown or end time]" + link to billing via `getWebAppBillingUrl()`.
-- The banner should be visible in both popup and sidepanel views (both use `AppShell`).
-- Dismiss is optional — the banner naturally disappears when the trial expires or the user subscribes.
+- Gate on Foqus trial semantics, not status string alone: show only when `status === "trial"` **and** `planType === 0` (TrialFullAccess) and `trialEndsAt` is in the future.
+- Render a **single-row compact banner** to minimize vertical space in the popup.
+- Content should fit one row: `Trial ends ...` + `Manage plan` link (opens `getWebAppBillingUrl()`).
+- No dismiss button required; it disappears automatically when the trial ends or the user subscribes.
+- Do not render this banner in the sidepanel.
 
 ### State source
 
-- The extension already fetches subscription status via `getSubscriptionStatus()`. Store `trialEndsAt` in the shared settings/state so `AppShell` can read it.
-- On `REFRESH_PLAN`, also persist `trialEndsAt` and `status` from the API response.
+- The extension already fetches subscription status via `getSubscriptionStatus()`. Persist `trialEndsAt`, `status`, and `planType` in shared settings/state so popup UI can apply Foqus-trial-only gating.
+- On `REFRESH_PLAN`, persist those fields from API response together.
 
 ---
 
-## Welcome section in options page
+## Subscription summary in options page
 
 ### In [`options/main.tsx`](../browser-extension/src/options/main.tsx)
 
-- When `status === 'trial'` and a `chrome.storage.local` key `trialWelcomeSeen.<userId>` is not set: show a welcome section above the plan cards.
-- Content: short Foqus intro, "You have 24 hours of full access," link to billing to compare plans.
-- Dismiss button sets `trialWelcomeSeen.<userId>` in `chrome.storage.local`.
+- Replace plan card comparison UI with a simple summary, aligned with desktop settings:
+  - Current plan
+  - End date (`trialEndsAt` for trial, billing period end for active/canceled if available)
+  - `Manage subscription` button (opens web billing URL)
+- Keep a lightweight `Refresh` action and status/error text.
+- Keep sign-in prompt when unauthenticated.
 
 ---
 
@@ -77,13 +81,13 @@ No changes to the classification flow are needed. The BYOK prompt just ensures u
 
 ---
 
-## Plan card updates
+## Plan/status mapping updates
 
 ### In [`options/main.tsx`](../browser-extension/src/options/main.tsx)
 
-- Remove or rename the "Free (BYOK)" plan card to match the Phase 1 changes (no free tier).
-- Update plan labels: show `TrialFullAccess` (plan type **0**) as "Trial" in `PLAN_LABELS`.
-- After trial expiry with no subscription: show "No active plan" with a link to the web billing page.
+- Remove legacy "Free (BYOK)" naming in UI copy.
+- Show `planType = 0` as **Trial** in extension display labels.
+- After trial expiry with no paid subscription: show "No active plan" with a billing link.
 
 ---
 
@@ -91,8 +95,9 @@ No changes to the classification flow are needed. The BYOK prompt just ensures u
 
 ### Extension tests
 
-- **AppShell trial banner:** renders when status is `trial` with future `trialEndsAt`; hidden when status is `active`.
-- **Options welcome section:** visible on trial when not dismissed; hidden after dismiss; localStorage flag persisted.
+- **AppShell popup trial banner:** renders only when `status = trial` + `planType = 0` + future `trialEndsAt`; hidden for paid plans and sidepanel.
+- **Popup compact layout:** trial banner fits in one row and does not increase popup height significantly.
+- **Options subscription summary:** shows current plan, end date, and billing button without plan cards.
 - **BYOK prompt:** shown when plan is `cloud-byok` and key is empty; hidden when key is present.
 - **Plan labels:** `TrialFullAccess` (0) maps to "Trial" display name.
 

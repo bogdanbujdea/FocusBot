@@ -19,18 +19,3 @@ export const getDomain = (url: string): string => {
 
 export const normalizeDomain = (domain: string): string =>
   domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.$/, "");
-
-export const parseExcludedDomains = (input: string): string[] =>
-  input
-    .split(/[\n,]/g)
-    .map(normalizeDomain)
-    .filter((domain) => domain.length > 0);
-
-export const matchesExcludedDomain = (domain: string, excludedDomains: string[]): boolean => {
-  const normalizedDomain = normalizeDomain(domain);
-
-  return excludedDomains.some((rawCandidate) => {
-    const candidate = normalizeDomain(rawCandidate);
-    return normalizedDomain === candidate || normalizedDomain.endsWith(`.${candidate}`);
-  });
-};

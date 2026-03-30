@@ -2,11 +2,9 @@ import { createRoot } from "react-dom/client";
 import { AppShell } from "../ui/AppShell";
 import "../ui/styles.css";
 import { useRuntimeState } from "../ui/useRuntimeState";
-import { useIntegrationState } from "../ui/useIntegrationState";
 
 const SidePanelApp = (): JSX.Element => {
   const { state, loading, refreshState } = useRuntimeState();
-  const integration = useIntegrationState();
 
   return (
     <AppShell
@@ -15,7 +13,6 @@ const SidePanelApp = (): JSX.Element => {
       state={state}
       loading={loading}
       refreshState={refreshState}
-      integration={integration}
       showHeaderMeta={false}
     />
   );

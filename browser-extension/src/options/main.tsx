@@ -1,36 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { sendRuntimeRequest } from "../shared/runtime";
 import type { PlanType, Settings } from "../shared/types";
 import { supabase } from "../shared/supabaseClient";
 import { loadFocusbotAuthSession } from "../shared/focusbotAuth";
-import { parseExcludedDomains } from "../shared/url";
-import { getWebAppAnalyticsUrl, getWebAppBillingUrl } from "../shared/webAppUrl";
+import { getWebAppBillingUrl } from "../shared/webAppUrl";
+import { getPlanLabelFromServerPlanType, isByokKeyMissing, isExpiredTrial } from "../shared/subscription";
+import { BYOKInfoDialog } from "../ui/BYOKInfoDialog";
 import "../ui/styles.css";
 import "./settings.css";
 
 const webAppBillingUrl = getWebAppBillingUrl();
 
 const PLAN_LABELS: Record<PlanType, string> = {
-  "free-byok": "Free",
+  trial: "Trial (24h)",
   "cloud-byok": "Cloud BYOK",
   "cloud-managed": "Cloud Managed"
 };
 
 const SettingsPage = (): JSX.Element => {
   const [settings, setSettings] = useState<Settings>({
-    plan: "free-byok",
+    plan: "trial",
     openAiApiKey: "",
     classifierModel: "gpt-4o-mini",
-    onboardingCompleted: false,
-    excludedDomains: [],
-    desktopAppIntegration: false
+    onboardingCompleted: false
   });
-  const [excludedDomainsInput, setExcludedDomainsInput] = useState("");
   const [status, setStatus] = useState("");
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [focusbotEmailInput, setFocusbotEmailInput] = useState("");
   const [focusbotStatus, setFocusbotStatus] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showByokInfoDialog, setShowByokInfoDialog] = useState(false);
 
   // Load settings and current auth session on mount.
   useEffect(() => {
@@ -41,7 +41,6 @@ const SettingsPage = (): JSX.Element => {
       ]);
       if (response.ok && response.data) {
         setSettings(response.data.settings);
-        setExcludedDomainsInput(response.data.settings.excludedDomains.join("\n"));
       }
       if (session) {
         setSignedInEmail(session.email);
@@ -67,27 +66,32 @@ const SettingsPage = (): JSX.Element => {
     return () => chrome.storage.local.onChanged.removeListener(onChanged);
   }, []);
 
-  const excludedPreview = useMemo(() => parseExcludedDomains(excludedDomainsInput), [excludedDomainsInput]);
   const isAuthenticated = signedInEmail !== null;
-  const needsApiKey = settings.plan === "free-byok" || settings.plan === "cloud-byok";
+  const isByokMissing = isByokKeyMissing(settings, isAuthenticated);
+  const trialExpired = isExpiredTrial(
+    settings.subscriptionStatus,
+    settings.serverPlanType,
+    settings.trialEndsAt
+  );
+  const subscriptionEndDate = settings.serverPlanType === 0
+    ? settings.trialEndsAt
+    : settings.currentPeriodEndsAt;
+  const subscriptionEndDateLabel = subscriptionEndDate
+    ? new Date(subscriptionEndDate).toLocaleString()
+    : "Not available";
 
-  const save = async (): Promise<void> => {
-    setStatus("Saving...");
-    const response = await sendRuntimeRequest<Settings>({
-      type: "UPDATE_SETTINGS",
-      payload: {
-        ...settings,
-        excludedDomains: excludedPreview,
-        onboardingCompleted: true
-      }
-    });
-
+  const refreshPlan = async (): Promise<void> => {
+    setStatus("Refreshing plan...");
+    const response = await sendRuntimeRequest({ type: "REFRESH_PLAN" });
     if (!response.ok) {
-      setStatus(response.error ?? "Unable to save settings.");
+      setStatus(response.error ?? "Unable to refresh plan.");
       return;
     }
-
-    setStatus("Saved.");
+    const latest = await sendRuntimeRequest<{ settings: Settings }>({ type: "GET_STATE" });
+    if (latest.ok && latest.data) {
+      setSettings(latest.data.settings);
+    }
+    setStatus("Plan refreshed.");
   };
 
   const handleSignOut = async (): Promise<void> => {
@@ -115,6 +119,20 @@ const SettingsPage = (): JSX.Element => {
       return;
     }
     setFocusbotStatus("Magic link sent. Open the link from this device to finish sign-in.");
+  };
+
+  const updateSettings = async (payload: Partial<Settings>, successMessage: string): Promise<void> => {
+    setStatus("Saving settings...");
+    const response = await sendRuntimeRequest({ type: "UPDATE_SETTINGS", payload });
+    if (!response.ok) {
+      setStatus(response.error ?? "Unable to save settings.");
+      return;
+    }
+    const latest = await sendRuntimeRequest<{ settings: Settings }>({ type: "GET_STATE" });
+    if (latest.ok && latest.data) {
+      setSettings(latest.data.settings);
+    }
+    setStatus(successMessage);
   };
 
   return (
@@ -158,6 +176,28 @@ const SettingsPage = (): JSX.Element => {
               {" · "}
               <span className="pill">{PLAN_LABELS[settings.plan]}</span>
             </p>
+            <div className="settings-subscription-summary">
+              <p className="muted">
+                <strong>Current plan:</strong>{" "}
+                {trialExpired ? "No active plan" : getPlanLabelFromServerPlanType(settings.serverPlanType)}
+              </p>
+              <p className="muted">
+                <strong>End date:</strong> {subscriptionEndDateLabel}
+              </p>
+              <div className="settings-inline-actions">
+                <a
+                  href={webAppBillingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button-link"
+                >
+                  {trialExpired ? "View plans" : "Manage subscription"}
+                </a>
+                <button type="button" onClick={() => void refreshPlan()}>
+                  Refresh
+                </button>
+              </div>
+            </div>
             <div className="settings-inline-actions">
               <button type="button" onClick={() => void handleSignOut()}>Sign out</button>
             </div>
@@ -166,124 +206,72 @@ const SettingsPage = (): JSX.Element => {
         )}
       </section>
 
-      {/* Plan selection — only shown when authenticated */}
-      {isAuthenticated ? (
-        <section className="card">
-          <h2>Plan</h2>
-          <p className="muted">Your current plan determines how classifications are run and whether sessions sync to the cloud.</p>
-          <div className="settings-auth-cards">
-            {(["free-byok", "cloud-byok", "cloud-managed"] as PlanType[]).map((plan) => {
-              const isCurrentPlan = settings.plan === plan;
-              const isPaid = plan !== "free-byok";
-              return (
-                <div key={plan} className="settings-radio-card" data-selected={isCurrentPlan}>
-                  <span className="settings-radio-card-body">
-                    <span className="settings-radio-card-title">
-                      {plan === "free-byok" && "Free — Bring your own key"}
-                      {plan === "cloud-byok" && "Cloud BYOK — subscribe on foqus.me"}
-                      {plan === "cloud-managed" && "Cloud Managed — subscribe on foqus.me"}
-                    </span>
-                    <span className="settings-radio-card-desc">
-                      {plan === "free-byok" && "Use your own OpenAI key. Local analytics only. No cloud sync."}
-                      {plan === "cloud-byok" && "Your API key, cloud session sync and full analytics on foqus.me."}
-                      {plan === "cloud-managed" && "Platform API key, cloud sync, full analytics. No key needed."}
-                    </span>
-                  </span>
-                  {isCurrentPlan ? (
-                    <span className="pill">Current plan</span>
-                  ) : isPaid ? (
-                    <a
-                      href={webAppBillingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="button-link"
-                    >
-                      Open billing →
-                    </a>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+      {status ? <p className="muted">{status}</p> : null}
 
-          {/* API key input — only for plans that require a user-provided key */}
-          {needsApiKey ? (
-            <div className="settings-form" style={{ marginTop: "16px" }}>
-              <div className="settings-field">
-                <label className="label" htmlFor="api-key">OpenAI API Key</label>
+      {isAuthenticated ? (
+        <section className={`card ${isByokMissing ? "settings-byok-required" : ""}`}>
+          <h2>OpenAI API Key</h2>
+          {isByokMissing ? (
+            <div className="byok-prompt-card">
+              Enter your API key to start using Foqus with your Cloud BYOK plan.{" "}
+              <button type="button" className="inline-link-button" onClick={() => setShowByokInfoDialog(true)}>
+                What is this?
+              </button>
+            </div>
+          ) : null}
+          <div className="settings-form">
+            <div className="settings-field">
+              <label className="label" htmlFor="openai-api-key">API key</label>
+              <div className="password-field">
                 <input
-                  id="api-key"
-                  type="password"
+                  id="openai-api-key"
+                  type={showApiKey ? "text" : "password"}
                   value={settings.openAiApiKey}
                   onChange={(event) => setSettings((current) => ({ ...current, openAiApiKey: event.target.value }))}
                   placeholder="sk-..."
+                  autoComplete="off"
                 />
-              </div>
-              <div className="settings-field">
-                <label className="label" htmlFor="model">Classifier model</label>
-                <input
-                  id="model"
-                  type="text"
-                  value={settings.classifierModel}
-                  onChange={(event) => setSettings((current) => ({ ...current, classifierModel: event.target.value }))}
-                />
-              </div>
-              <div className="settings-help">
-                <p className="muted">
-                  Task text and page URL/title are sent to OpenAI for classification. Page body content is not sent.
-                </p>
+                <button type="button" className="password-field-toggle" onClick={() => setShowApiKey((current) => !current)}>
+                  {showApiKey ? "Hide" : "Show"}
+                </button>
               </div>
             </div>
-          ) : null}
-
-          {settings.plan !== "free-byok" ? (
-            <p className="muted" style={{ marginTop: "12px" }}>
-              <a href={getWebAppAnalyticsUrl()} target="_blank" rel="noopener noreferrer">
-                View full analytics →
-              </a>
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {/* Classifier behavior — only shown when authenticated */}
-      {isAuthenticated ? (
-        <section className="card">
-          <h2>Classifier behavior</h2>
-          <div className="settings-field" style={{ marginBottom: "16px" }}>
-            <label className="settings-checkbox-row">
+            <div className="settings-field">
+              <label className="label" htmlFor="classifier-model">Classifier model</label>
               <input
-                type="checkbox"
-                checked={settings.desktopAppIntegration === true}
-                onChange={(event) =>
-                  setSettings((current) => ({ ...current, desktopAppIntegration: event.target.checked }))
-                }
+                id="classifier-model"
+                type="text"
+                value={settings.classifierModel}
+                onChange={(event) => setSettings((current) => ({ ...current, classifierModel: event.target.value }))}
               />
-              <span>Connect to Foqus for Windows on this computer</span>
-            </label>
-            <p className="muted" style={{ marginTop: "8px", marginBottom: 0 }}>
-              Enables a local WebSocket to sync tasks with the desktop app. Leave off if you use the extension only in
-              the browser to avoid connection errors when the desktop app is not running.
-            </p>
+            </div>
+            <div className="settings-inline-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  void updateSettings(
+                    {
+                      openAiApiKey: settings.openAiApiKey,
+                      classifierModel: settings.classifierModel
+                    },
+                    "Settings saved."
+                  )
+                }
+              >
+                Save API settings
+              </button>
+            </div>
+            <div className="settings-help">
+              <p className="muted">
+                Your API key is stored in Chrome&apos;s protected extension storage, isolated from other extensions and websites. It is sent directly
+                to the AI provider over HTTPS and is never transmitted to Foqus servers.
+              </p>
+            </div>
           </div>
-          <label className="label" htmlFor="excluded-domains">
-            Excluded domains (comma or newline separated)
-          </label>
-          <textarea
-            id="excluded-domains"
-            rows={7}
-            value={excludedDomainsInput}
-            onChange={(event) => setExcludedDomainsInput(event.target.value)}
-            placeholder={"localhost\ninternal.company.com"}
-          />
-          <p className="muted">Excluded domains bypass classification and are counted as aligned visits.</p>
-          <div className="actions-row">
-            <button onClick={() => void save()}>Save settings</button>
-            <span className="pill">{excludedPreview.length} excluded domains</span>
-          </div>
-          {status ? <p className="muted">{status}</p> : null}
         </section>
       ) : null}
+
+      {showByokInfoDialog ? <BYOKInfoDialog onClose={() => setShowByokInfoDialog(false)} /> : null}
     </main>
   );
 };
