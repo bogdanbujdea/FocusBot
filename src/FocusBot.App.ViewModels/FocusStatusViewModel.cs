@@ -43,54 +43,11 @@ public partial class FocusStatusViewModel : ObservableObject
         private set => SetProperty(ref field, value);
     } = string.Empty;
 
-    public bool IsClassifying
-    {
-        get;
-        private set
-        {
-            if (SetProperty(ref field, value))
-            {
-                OnPropertyChanged(nameof(ShowCheckingMessage));
-            }
-        }
-    }
-
     public bool HasCurrentFocusResult
     {
         get;
-        private set
-        {
-            if (SetProperty(ref field, value))
-            {
-                OnPropertyChanged(nameof(ShowCheckingMessage));
-            }
-        }
+        private set => SetProperty(ref field, value);
     }
-
-    public string FocusScoreCategory =>
-        FocusScore >= 6 ? "Focused"
-        : FocusScore >= 4 ? "Unclear"
-        : "Distracted";
-
-    public string FocusStatusIcon =>
-        (IsMonitoring && !HasCurrentFocusResult)
-            ? "ms-appx:///Assets/icon-unclear.svg"
-            : FocusScore switch
-            {
-                >= 6 => "ms-appx:///Assets/icon-focused.svg",
-                >= 4 => "ms-appx:///Assets/icon-unclear.svg",
-                _ => "ms-appx:///Assets/icon-distracted.svg",
-            };
-
-    public string FocusAccentBrushKey =>
-        FocusScore switch
-        {
-            >= 6 => "FbAlignedAccentBrush",
-            >= 4 => "FbNeutralAccentBrush",
-            _ => "FbMisalignedAccentBrush",
-        };
-
-    public bool ShowCheckingMessage => IsMonitoring && !HasCurrentFocusResult;
 
     public FocusStatusViewModel(
         IFocusSessionOrchestrator sessionOrchestrator,
@@ -106,16 +63,11 @@ public partial class FocusStatusViewModel : ObservableObject
     {
         void UpdateState()
         {
-            IsClassifying = e.IsClassifying;
             FocusScore = e.FocusScore;
             FocusReason = e.FocusReason;
             HasCurrentFocusResult = e.HasCurrentFocusResult;
             CurrentProcessName = e.CurrentProcessName;
             CurrentWindowTitle = e.CurrentWindowTitle;
-
-            OnPropertyChanged(nameof(FocusScoreCategory));
-            OnPropertyChanged(nameof(FocusStatusIcon));
-            OnPropertyChanged(nameof(FocusAccentBrushKey));
         }
 
         if (_uiDispatcher != null)
@@ -143,10 +95,5 @@ public partial class FocusStatusViewModel : ObservableObject
         FocusReason = string.Empty;
         HasCurrentFocusResult = false;
         IsMonitoring = false;
-
-        OnPropertyChanged(nameof(FocusScoreCategory));
-        OnPropertyChanged(nameof(FocusStatusIcon));
-        OnPropertyChanged(nameof(FocusAccentBrushKey));
-        OnPropertyChanged(nameof(ShowCheckingMessage));
     }
 }

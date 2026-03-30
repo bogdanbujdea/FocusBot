@@ -48,6 +48,13 @@ public partial class FocusPageViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowStartForm))]
     [NotifyPropertyChangedFor(nameof(IsActiveSessionVisible))]
+    [NotifyPropertyChangedFor(nameof(ShowClassificationMessage))]
+    [NotifyPropertyChangedFor(nameof(ShowClassificationReason))]
+    [NotifyPropertyChangedFor(nameof(ClassificationStatusLabel))]
+    [NotifyPropertyChangedFor(nameof(IsClassificationAligned))]
+    [NotifyPropertyChangedFor(nameof(IsClassificationNeutral))]
+    [NotifyPropertyChangedFor(nameof(IsClassificationDistracting))]
+    [NotifyPropertyChangedFor(nameof(ClassificationReasonText))]
     private UserSession? _activeSession;
 
     [ObservableProperty]
@@ -64,10 +71,6 @@ public partial class FocusPageViewModel : ObservableObject
     /// </summary>
     public bool IsSessionPaused => _sessionOrchestrator.IsSessionPaused;
 
-    public bool IsFocusScoreVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
-
-    public bool IsFocusResultVisible => ActiveSession != null;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DistractedBarStarWeight))]
     [NotifyPropertyChangedFor(nameof(FocusedPercentLabel))]
@@ -75,6 +78,88 @@ public partial class FocusPageViewModel : ObservableObject
     private int _currentFocusScorePercent;
 
     public bool IsFocusScorePercentVisible => Status.IsMonitoring && AccountSection.IsAuthenticated;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowClassificationReason))]
+    [NotifyPropertyChangedFor(nameof(ClassificationReasonText))]
+    private string _signalRClassificationMessage = string.Empty;
+
+    public bool ShowClassificationMessage => ActiveSession != null;
+    public bool ShowClassificationReason => !string.IsNullOrWhiteSpace(ClassificationReasonText);
+
+    [ObservableProperty]
+    private bool _isClassificationRunning;
+
+    [ObservableProperty]
+    private bool _hasCurrentClassificationResult;
+
+    [ObservableProperty]
+    private int _currentClassificationScore;
+
+    public string ClassificationStatusLabel
+    {
+        get
+        {
+            if (ActiveSession == null)
+                return string.Empty;
+            if (IsSessionPaused)
+                return "Paused";
+            if (IsClassificationRunning)
+                return "Analyzing page...";
+            if (!string.IsNullOrWhiteSpace(AiRequestError))
+                return "Classifier error";
+            if (HasCurrentClassificationResult)
+            {
+                var mapped = MapApiScoreToClassification(CurrentClassificationScore);
+                return mapped switch
+                {
+                    "aligned" => "Aligned",
+                    "neutral" => "Neutral",
+                    _ => "Distracting",
+                };
+            }
+
+            return "Waiting for signal";
+        }
+    }
+
+    public bool IsClassificationAligned =>
+        ActiveSession != null
+        && !IsSessionPaused
+        && !IsClassificationRunning
+        && string.IsNullOrWhiteSpace(AiRequestError)
+        && HasCurrentClassificationResult
+        && MapApiScoreToClassification(CurrentClassificationScore) == "aligned";
+
+    public bool IsClassificationDistracting =>
+        ActiveSession != null
+        && !IsSessionPaused
+        && !IsClassificationRunning
+        && string.IsNullOrWhiteSpace(AiRequestError)
+        && HasCurrentClassificationResult
+        && MapApiScoreToClassification(CurrentClassificationScore) == "distracting";
+
+    public bool IsClassificationNeutral =>
+        ActiveSession != null
+        && (
+            IsSessionPaused
+            || IsClassificationRunning
+            || !string.IsNullOrWhiteSpace(AiRequestError)
+            || !HasCurrentClassificationResult
+            || MapApiScoreToClassification(CurrentClassificationScore) == "neutral"
+        );
+
+    public string ClassificationReasonText
+    {
+        get
+        {
+            if (ActiveSession == null || IsSessionPaused)
+                return string.Empty;
+            if (!string.IsNullOrWhiteSpace(AiRequestError))
+                return AiRequestError!;
+            return SignalRClassificationMessage;
+        }
+    }
 
     /// <summary>Star weight for the distracted segment of the focus bar (100 minus focus score).</summary>
     public int DistractedBarStarWeight => Math.Max(0, 100 - CurrentFocusScorePercent);
@@ -110,7 +195,11 @@ public partial class FocusPageViewModel : ObservableObject
     public string? AiRequestError
     {
         get;
-        set { if (SetProperty(ref field, value)) { } }
+        set
+        {
+            if (SetProperty(ref field, value))
+                RaiseClassificationDisplayChanged();
+        }
     }
 
     [ObservableProperty]
@@ -141,30 +230,9 @@ public partial class FocusPageViewModel : ObservableObject
     public bool IsSessionOperationEnabled => !IsSessionBusy;
 
     /// <summary>
-    /// True when the foreground window is Microsoft Edge or Google Chrome (used to show extension promo only for supported browsers).
-    /// </summary>
-    public bool IsForegroundBrowserEdgeOrChrome =>
-        BrowserProcessNames.IsExtensionSupported(Status.CurrentProcessName);
-
-    /// <summary>
     /// True when the browser extension is connected via WebSocket.
     /// </summary>
     public bool IsExtensionConnected => _extensionPresence?.IsExtensionOnline ?? false;
-
-    /// <summary>
-    /// True when we should show the "install extension" promo (foreground app is Edge or Chrome AND extension not connected).
-    /// </summary>
-    public bool ShowExtensionPromo => IsForegroundBrowserEdgeOrChrome && !IsExtensionConnected;
-
-    /// <summary>
-    /// Microsoft Edge Add-ons store URL for the FocusBot extension.
-    /// </summary>
-    public Uri ExtensionStoreEdgeUri => ExtensionStoreLinks.EdgeAddOns;
-
-    /// <summary>
-    /// Chrome Web Store URL for the FocusBot extension.
-    /// </summary>
-    public Uri ExtensionStoreChromeUri => ExtensionStoreLinks.ChromeWebStore;
 
     public FocusPageViewModel(
         INavigationService navigationService,
@@ -230,12 +298,17 @@ public partial class FocusPageViewModel : ObservableObject
     {
         void Apply()
         {
+            SignalRClassificationMessage = e.Reason ?? string.Empty;
+            IsClassificationRunning = false;
+            HasCurrentClassificationResult = true;
+            CurrentClassificationScore = e.Score;
             _sessionOrchestrator.ApplyRemoteClassificationFromHub(
                 e.Source,
                 e.Score,
-                e.Reason,
+                e.Reason ?? string.Empty,
                 e.ActivityName
             );
+            RaiseClassificationDisplayChanged();
         }
 
         if (_uiDispatcher != null)
@@ -257,7 +330,6 @@ public partial class FocusPageViewModel : ObservableObject
         void UpdateExtensionState()
         {
             OnPropertyChanged(nameof(IsExtensionConnected));
-            OnPropertyChanged(nameof(ShowExtensionPromo));
         }
 
         if (_uiDispatcher != null)
@@ -425,14 +497,14 @@ public partial class FocusPageViewModel : ObservableObject
             DistractedTime = TimeFormatHelper.FormatElapsed(e.DistractedSeconds);
             DistractionCount = e.DistractionCount;
             AiRequestError = e.AiRequestError;
+            IsClassificationRunning = e.IsClassifying;
+            HasCurrentClassificationResult = e.HasCurrentFocusResult;
+            CurrentClassificationScore = e.FocusScore;
 
             OnPropertyChanged(nameof(IsSessionPaused));
-            OnPropertyChanged(nameof(IsFocusScoreVisible));
-            OnPropertyChanged(nameof(IsFocusResultVisible));
             OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-            OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
             OnPropertyChanged(nameof(IsExtensionConnected));
-            OnPropertyChanged(nameof(ShowExtensionPromo));
+            RaiseClassificationDisplayChanged();
 
             RaiseFocusOverlayStateChanged();
         }
@@ -623,6 +695,7 @@ public partial class FocusPageViewModel : ObservableObject
             StartSessionContext = string.Empty;
 
             ActiveSession = result.Value;
+            SignalRClassificationMessage = string.Empty;
             UpdateMonitoringState();
         }
         finally
@@ -709,6 +782,7 @@ public partial class FocusPageViewModel : ObservableObject
             return;
         }
         OnPropertyChanged(nameof(IsSessionPaused));
+        RaiseClassificationDisplayChanged();
         RaiseFocusOverlayStateChanged();
     }
 
@@ -726,6 +800,7 @@ public partial class FocusPageViewModel : ObservableObject
             return;
         }
         OnPropertyChanged(nameof(IsSessionPaused));
+        RaiseClassificationDisplayChanged();
         RaiseFocusOverlayStateChanged();
     }
 
@@ -792,11 +867,13 @@ public partial class FocusPageViewModel : ObservableObject
         FocusedTime = "00:00:00";
         DistractedTime = "00:00:00";
         DistractionCount = 0;
+        IsClassificationRunning = false;
+        HasCurrentClassificationResult = false;
+        CurrentClassificationScore = 0;
+        SignalRClassificationMessage = string.Empty;
         Status.Reset();
-        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
         OnPropertyChanged(nameof(IsExtensionConnected));
-        OnPropertyChanged(nameof(ShowExtensionPromo));
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
+        RaiseClassificationDisplayChanged();
         RaiseFocusOverlayStateChanged();
     }
 
@@ -862,11 +939,28 @@ public partial class FocusPageViewModel : ObservableObject
         Status.IsMonitoring = ActiveSession != null;
         OnPropertyChanged(nameof(ShowStartForm));
         OnPropertyChanged(nameof(IsActiveSessionVisible));
-        OnPropertyChanged(nameof(IsFocusResultVisible));
-        OnPropertyChanged(nameof(IsFocusScoreVisible));
         OnPropertyChanged(nameof(IsFocusScorePercentVisible));
-        OnPropertyChanged(nameof(IsForegroundBrowserEdgeOrChrome));
         OnPropertyChanged(nameof(IsExtensionConnected));
-        OnPropertyChanged(nameof(ShowExtensionPromo));
+        RaiseClassificationDisplayChanged();
+    }
+
+    private static string MapApiScoreToClassification(int score)
+    {
+        if (score > 5)
+            return "aligned";
+        if (score == 5)
+            return "neutral";
+        return "distracting";
+    }
+
+    private void RaiseClassificationDisplayChanged()
+    {
+        OnPropertyChanged(nameof(ShowClassificationMessage));
+        OnPropertyChanged(nameof(ShowClassificationReason));
+        OnPropertyChanged(nameof(ClassificationStatusLabel));
+        OnPropertyChanged(nameof(IsClassificationAligned));
+        OnPropertyChanged(nameof(IsClassificationNeutral));
+        OnPropertyChanged(nameof(IsClassificationDistracting));
+        OnPropertyChanged(nameof(ClassificationReasonText));
     }
 }

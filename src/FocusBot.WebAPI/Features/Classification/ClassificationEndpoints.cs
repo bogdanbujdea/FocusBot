@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FocusBot.WebAPI.Features.Subscriptions;
+using Microsoft.Extensions.Logging;
 
 namespace FocusBot.WebAPI.Features.Classification;
 
@@ -20,9 +21,11 @@ public static class ClassificationEndpoints
                     ClassificationCoalescingService coalescingService,
                     SubscriptionService subscriptionService,
                     HttpContext ctx,
+                    ILoggerFactory loggerFactory,
                     CancellationToken ct
                 ) =>
                 {
+                    var logger = loggerFactory.CreateLogger("FocusBot.WebAPI.Features.Classification.ClassificationEndpoints");
                     var sub =
                         ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? ctx.User.FindFirstValue("sub");
@@ -55,6 +58,15 @@ public static class ClassificationEndpoints
                             remoteIp,
                             ct
                         );
+                        logger.LogInformation(
+                            "Classification response: UserId={UserId} Score={Score} Cached={Cached} Url={Url} WindowTitle={WindowTitle} PageTitle={PageTitle} Reason={Reason}",
+                            userId,
+                            result.Score,
+                            result.Cached,
+                            request.Url,
+                            request.WindowTitle,
+                            request.PageTitle,
+                            result.Reason);
                         return Results.Ok(result);
                     }
                     catch (ClassificationProviderException ex)

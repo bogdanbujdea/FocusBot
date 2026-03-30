@@ -16,13 +16,11 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
     private const int PrimaryPort = 9876;
     private const int BackupPort = 9877;
     private const string Path = "/foqus-presence";
-    private static readonly TimeSpan PingTimeout = TimeSpan.FromSeconds(60);
 
     private readonly ILogger<ExtensionPresenceService> _logger;
     private readonly object _lock = new();
     private HttpListener? _listener;
     private WebSocket? _activeConnection;
-    private DateTime _lastPingReceivedAt = DateTime.MinValue;
     private CancellationTokenSource? _listenerCts;
     private bool _isRunning;
     private bool _wasOnline;
@@ -33,8 +31,7 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
         {
             lock (_lock)
             {
-                return _activeConnection?.State == WebSocketState.Open 
-                    && DateTime.UtcNow - _lastPingReceivedAt < PingTimeout;
+                return _activeConnection?.State == WebSocketState.Open;
             }
         }
     }
@@ -59,10 +56,18 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
 
         if (!await TryStartListenerAsync(PrimaryPort, _listenerCts.Token))
         {
-            _logger.LogWarning("Primary port {Port} unavailable, trying backup port {BackupPort}", PrimaryPort, BackupPort);
+            _logger.LogWarning(
+                "Primary port {Port} unavailable, trying backup port {BackupPort}",
+                PrimaryPort,
+                BackupPort
+            );
             if (!await TryStartListenerAsync(BackupPort, _listenerCts.Token))
             {
-                _logger.LogError("Failed to start extension presence server on both ports {Primary} and {Backup}", PrimaryPort, BackupPort);
+                _logger.LogError(
+                    "Failed to start extension presence server on both ports {Primary} and {Backup}",
+                    PrimaryPort,
+                    BackupPort
+                );
                 lock (_lock)
                 {
                     _isRunning = false;
@@ -116,9 +121,12 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
                 bool stateChanged;
                 lock (_lock)
                 {
-                    _activeConnection?.CloseAsync(WebSocketCloseStatus.NormalClosure, "New connection", CancellationToken.None);
+                    _activeConnection?.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "New connection",
+                        CancellationToken.None
+                    );
                     _activeConnection = wsContext.WebSocket;
-                    _lastPingReceivedAt = DateTime.UtcNow;
                     stateChanged = !_wasOnline;
                     _wasOnline = true;
                 }
@@ -151,7 +159,11 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", ct);
+                    await socket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Client closed",
+                        ct
+                    );
                     _logger.LogInformation("Extension disconnected");
                     break;
                 }
@@ -163,25 +175,19 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
 
                     if (message?.Type == "ping")
                     {
-                        lock (_lock)
-                        {
-                            _lastPingReceivedAt = DateTime.UtcNow;
-                        }
-
                         var pong = JsonSerializer.Serialize(new PresenceMessage { Type = "pong" });
                         var pongBytes = Encoding.UTF8.GetBytes(pong);
                         await socket.SendAsync(
                             new ArraySegment<byte>(pongBytes),
                             WebSocketMessageType.Text,
                             true,
-                            ct);
+                            ct
+                        );
                     }
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "WebSocket connection error");
@@ -214,7 +220,11 @@ public sealed class ExtensionPresenceService : IExtensionPresenceService, IDispo
         }
 
         _listenerCts?.Cancel();
-        _activeConnection?.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server stopping", CancellationToken.None);
+        _activeConnection?.CloseAsync(
+            WebSocketCloseStatus.NormalClosure,
+            "Server stopping",
+            CancellationToken.None
+        );
         _listener?.Stop();
         _logger.LogInformation("Extension presence server stopped");
     }

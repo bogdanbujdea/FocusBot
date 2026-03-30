@@ -8,108 +8,220 @@ namespace FocusBot.App.ViewModels.Tests.FocusPageViewModelTests;
 public class ExtensionPromoShould
 {
     [Fact]
-    public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Msedge()
+    public async Task IsExtensionConnected_BeFalse_When_ExtensionOffline()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "msedge", "Some tab");
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var extensionPresence = new TestExtensionPresenceService(false);
+        var hub = new FakeFocusHubClient();
+        var vm = CreateViewModel(session, hub, extensionPresence);
 
-        vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
+        await Task.Delay(200);
+
+        vm.IsExtensionConnected.Should().BeFalse();
     }
 
     [Fact]
-    public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Chrome()
+    public async Task IsExtensionConnected_BeTrue_When_ExtensionOnline()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "chrome", "Some tab");
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var extensionPresence = new TestExtensionPresenceService(true);
+        var hub = new FakeFocusHubClient();
+        var vm = CreateViewModel(session, hub, extensionPresence);
 
-        vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
+        await Task.Delay(200);
+
+        vm.IsExtensionConnected.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsForegroundBrowserEdgeOrChrome_BeTrue_When_ProcessName_Is_Microsoft_Edge()
+    public async Task IsExtensionConnected_BeTrue_WithoutSession_When_ExtensionOnline()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "Microsoft Edge", "Some tab");
+        var extensionPresence = new TestExtensionPresenceService(true);
+        var hub = new FakeFocusHubClient();
+        var vm = CreateViewModel(null, hub, extensionPresence);
 
-        vm.IsForegroundBrowserEdgeOrChrome.Should().BeTrue();
+        await Task.Delay(200);
+
+        vm.IsExtensionConnected.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_Firefox()
+    public async Task SignalRClassificationMessage_BeShown_Only_When_SessionIsActive()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "firefox", "Some tab");
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var extensionPresence = new TestExtensionPresenceService(false);
+        var hub = new FakeFocusHubClient();
+        var vm = CreateViewModel(session, hub, extensionPresence);
 
-        vm.IsForegroundBrowserEdgeOrChrome.Should().BeFalse();
+        await Task.Delay(200);
+
+        hub.RaiseClassificationChanged(
+            new ClassificationChangedEvent(
+                8,
+                "SignalR says focused",
+                "extension",
+                "https://example.com",
+                DateTime.UtcNow,
+                false
+            )
+        );
+        await Task.Delay(100);
+
+        vm.SignalRClassificationMessage.Should().Be("SignalR says focused");
+        vm.ShowClassificationMessage.Should().BeTrue();
+        vm.ClassificationStatusLabel.Should().Be("Aligned");
+        vm.IsClassificationAligned.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsForegroundBrowserEdgeOrChrome_BeFalse_When_ProcessName_Is_NonBrowser()
+    public async Task SignalRClassificationMessage_BeHidden_When_NoSession()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "devenv", "MyFile.cs");
+        var extensionPresence = new TestExtensionPresenceService(false);
+        var hub = new FakeFocusHubClient();
+        var vm = CreateViewModel(null, hub, extensionPresence);
 
-        vm.IsForegroundBrowserEdgeOrChrome.Should().BeFalse();
+        await Task.Delay(200);
+        hub.RaiseClassificationChanged(
+            new ClassificationChangedEvent(
+                8,
+                "SignalR says focused",
+                "extension",
+                "https://example.com",
+                DateTime.UtcNow,
+                false
+            )
+        );
+        await Task.Delay(100);
+
+        vm.SignalRClassificationMessage.Should().Be("SignalR says focused");
+        vm.ShowClassificationMessage.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ShowExtensionPromo_BeTrue_When_Foreground_Is_Edge()
+    public async Task ClassificationStatusLabel_Be_Analyzing_When_Classifying()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "msedge", "Tab");
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var (vm, orchestratorMock) = CreateViewModelWithOrchestrator(
+            session,
+            new FakeFocusHubClient(),
+            new TestExtensionPresenceService(false)
+        );
 
-        vm.ShowExtensionPromo.Should().BeTrue();
+        await Task.Delay(200);
+        RaiseOrchestratorStateChanged(orchestratorMock, isClassifying: true);
+
+        vm.ClassificationStatusLabel.Should().Be("Analyzing page...");
+        vm.IsClassificationNeutral.Should().BeTrue();
     }
 
     [Fact]
-    public async Task ShowExtensionPromo_BeFalse_When_Foreground_Is_Firefox()
+    public async Task ClassificationStatusLabel_Be_ClassifierError_When_AiErrorExists()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, orchestratorMock) = CreateViewModel(ctx);
-        RaiseOrchestratorStateChanged(orchestratorMock, "firefox", "Tab");
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var (vm, orchestratorMock) = CreateViewModelWithOrchestrator(
+            session,
+            new FakeFocusHubClient(),
+            new TestExtensionPresenceService(false)
+        );
 
-        vm.ShowExtensionPromo.Should().BeFalse();
+        await Task.Delay(200);
+        RaiseOrchestratorStateChanged(orchestratorMock, aiRequestError: "OpenAI failed");
+
+        vm.ClassificationStatusLabel.Should().Be("Classifier error");
+        vm.ClassificationReasonText.Should().Be("OpenAI failed");
     }
 
     [Fact]
-    public async Task ExtensionStoreUris_Be_Valid_Absolute_Uris()
+    public async Task ClassificationStatusLabel_Be_Waiting_When_NoResultYet()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
-        var (vm, _) = CreateViewModel(ctx);
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var vm = CreateViewModel(
+            session,
+            new FakeFocusHubClient(),
+            new TestExtensionPresenceService(false)
+        );
 
-        vm.ExtensionStoreEdgeUri.Should().NotBeNull();
-        vm.ExtensionStoreEdgeUri.IsAbsoluteUri.Should().BeTrue();
-        vm.ExtensionStoreChromeUri.Should().NotBeNull();
-        vm.ExtensionStoreChromeUri.IsAbsoluteUri.Should().BeTrue();
+        await Task.Delay(200);
+
+        vm.ClassificationStatusLabel.Should().Be("Waiting for signal");
+        vm.IsClassificationNeutral.Should().BeTrue();
     }
 
-    private static void RaiseOrchestratorStateChanged(Mock<IFocusSessionOrchestrator> orchestratorMock, string processName, string windowTitle)
+    [Fact]
+    public async Task ClassificationStatusLabel_Be_Paused_When_SessionPaused()
     {
-        var stateArgs = new FocusSessionStateChangedEventArgs
-        {
-            SessionElapsedSeconds = 0,
-            FocusScorePercent = 0,
-            IsClassifying = false,
-            FocusScore = 0,
-            FocusReason = string.Empty,
-            HasCurrentFocusResult = false,
-            IsSessionPaused = false,
-            CurrentProcessName = processName,
-            CurrentWindowTitle = windowTitle,
-        };
-        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
+        await using var ctx = await FocusPageTestContext.CreateAsync();
+        var session = UserSession.FromApiResponse(
+            new ApiSessionResponse(Guid.NewGuid(), "Task", null, null, DateTime.UtcNow, null)
+        );
+        var (vm, orchestratorMock) = CreateViewModelWithOrchestrator(
+            session,
+            new FakeFocusHubClient(),
+            new TestExtensionPresenceService(false)
+        );
+        orchestratorMock.Setup(o => o.IsSessionPaused).Returns(true);
+
+        await Task.Delay(200);
+        RaiseOrchestratorStateChanged(orchestratorMock, hasCurrentFocusResult: true, focusScore: 9);
+
+        vm.ClassificationStatusLabel.Should().Be("Paused");
+        vm.ShowClassificationReason.Should().BeFalse();
     }
 
-    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock) CreateViewModel(FocusPageTestContext _)
+    private static FocusPageViewModel CreateViewModel(
+        UserSession? activeSession,
+        IFocusHubClient hub,
+        IExtensionPresenceService extensionPresence
+    )
     {
         var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
-        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync((UserSession?)null);
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync(activeSession);
+        var navMock = new Mock<INavigationService>();
+        var settingsMock = new Mock<ISettingsService>();
+        var accountVm = new AccountSettingsViewModel(
+            Mock.Of<IAuthService>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<AccountSettingsViewModel>>());
+        var statusBar = new FocusStatusViewModel(orchestratorMock.Object);
+        return new FocusPageViewModel(
+            navMock.Object,
+            settingsMock.Object,
+            orchestratorMock.Object,
+            hub,
+            new StubPlanService(),
+            accountVm,
+            statusBar,
+            extensionPresence: extensionPresence);
+    }
+
+    private static (FocusPageViewModel vm, Mock<IFocusSessionOrchestrator> orchestratorMock)
+        CreateViewModelWithOrchestrator(
+            UserSession? activeSession,
+            IFocusHubClient hub,
+            IExtensionPresenceService extensionPresence
+        )
+    {
+        var orchestratorMock = new Mock<IFocusSessionOrchestrator>();
+        orchestratorMock.Setup(o => o.LoadActiveSessionAsync()).ReturnsAsync(activeSession);
         var navMock = new Mock<INavigationService>();
         var settingsMock = new Mock<ISettingsService>();
         var accountVm = new AccountSettingsViewModel(
@@ -120,10 +232,53 @@ public class ExtensionPromoShould
             navMock.Object,
             settingsMock.Object,
             orchestratorMock.Object,
-            Mock.Of<IFocusHubClient>(),
+            hub,
             new StubPlanService(),
             accountVm,
-            statusBar);
+            statusBar,
+            extensionPresence: extensionPresence
+        );
         return (vm, orchestratorMock);
+    }
+
+    private static void RaiseOrchestratorStateChanged(
+        Mock<IFocusSessionOrchestrator> orchestratorMock,
+        bool isClassifying = false,
+        bool hasCurrentFocusResult = false,
+        int focusScore = 0,
+        string? aiRequestError = null
+    )
+    {
+        var stateArgs = new FocusSessionStateChangedEventArgs
+        {
+            SessionElapsedSeconds = 0,
+            FocusScorePercent = 0,
+            IsClassifying = isClassifying,
+            FocusScore = focusScore,
+            FocusReason = string.Empty,
+            HasCurrentFocusResult = hasCurrentFocusResult,
+            IsSessionPaused = false,
+            AiRequestError = aiRequestError,
+            CurrentProcessName = "msedge",
+            CurrentWindowTitle = "Some tab",
+        };
+        orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, stateArgs);
+    }
+
+    private sealed class TestExtensionPresenceService : IExtensionPresenceService
+    {
+        public TestExtensionPresenceService(bool isOnline) => IsExtensionOnline = isOnline;
+
+        public bool IsExtensionOnline { get; private set; }
+        public event EventHandler? ConnectionStateChanged;
+
+        public void SetOnline(bool isOnline)
+        {
+            IsExtensionOnline = isOnline;
+            ConnectionStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        public Task StartAsync() => Task.CompletedTask;
+        public void Stop() { }
     }
 }

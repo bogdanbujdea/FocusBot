@@ -62,7 +62,10 @@ public class ClassificationService(
 
         var cached = await TryGetCachedResultAsync(userId, contextHash, taskContentHash, ct);
         if (cached is not null)
+        {
+            LogClassificationOutcome(userId, request, cached);
             return cached;
+        }
 
         var (apiKey, providerId, modelId) = ResolveCredentials(request, byokApiKey);
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -71,7 +74,24 @@ public class ClassificationService(
         var result = await CallLlmAsync(apiKey, providerId, modelId, request, ct);
         await CacheResultAsync(userId, contextHash, taskContentHash, result.Score, result.Reason, ct);
 
+        LogClassificationOutcome(userId, request, result);
         return result;
+    }
+
+    /// <summary>
+    /// Logs the resolved classification for the request used for cache lookup / LLM (one log per provider call).
+    /// </summary>
+    private void LogClassificationOutcome(Guid userId, ClassifyRequest request, ClassifyResponse response)
+    {
+        logger.LogInformation(
+            "Classification resolved: UserId={UserId} Score={Score} Cached={Cached} Url={Url} WindowTitle={WindowTitle} PageTitle={PageTitle} Reason={Reason}",
+            userId,
+            response.Score,
+            response.Cached,
+            request.Url,
+            request.WindowTitle,
+            request.PageTitle,
+            response.Reason);
     }
 
     public static string ComputeHash(string input)

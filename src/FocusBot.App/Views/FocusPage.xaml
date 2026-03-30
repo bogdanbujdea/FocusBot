@@ -12,19 +12,68 @@
     xmlns:controls="using:FocusBot.App.Views.Controls"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     mc:Ignorable="d"
-    Background="{StaticResource FbPageBackgroundBrush}">
+    Background="Transparent">
 
-    <Grid x:Name="RootGrid" Margin="16,20,16,16" RowSpacing="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*" MinHeight="250"/>
-        </Grid.RowDefinitions>
+    <Page.Resources>
+        <LinearGradientBrush x:Key="PageBaseBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0E0B16" Offset="0"/>
+            <GradientStop Color="#141025" Offset="0.55"/>
+            <GradientStop Color="#0A0913" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="PageAmbientBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#221A3F" Offset="0"/>
+            <GradientStop Color="#10172D" Offset="0.5"/>
+            <GradientStop Color="#180F2B" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="AlignedBackgroundTintPrimaryBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#7327C07A" Offset="0"/>
+            <GradientStop Color="#0027C07A" Offset="0.76"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="AlignedBackgroundTintSecondaryBrush" StartPoint="0,1" EndPoint="1,0">
+            <GradientStop Color="#4D1FB3B8" Offset="0"/>
+            <GradientStop Color="#001FB3B8" Offset="0.72"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="DistractingBackgroundTintPrimaryBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#88FF5050" Offset="0"/>
+            <GradientStop Color="#00FF5050" Offset="0.74"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="DistractingBackgroundTintSecondaryBrush" StartPoint="0,1" EndPoint="1,0">
+            <GradientStop Color="#66FF7A45" Offset="0"/>
+            <GradientStop Color="#00FF7A45" Offset="0.7"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="ClassificationBadgeTextBrush" Color="#0E1320"/>
+    </Page.Resources>
 
-        <InfoBar
+    <Grid>
+        <Border Background="{StaticResource PageBaseBackgroundBrush}"/>
+        <Border Background="{StaticResource PageAmbientBackgroundBrush}" Opacity="0.65"/>
+
+        <Grid IsHitTestVisible="False">
+            <Border Background="{StaticResource AlignedBackgroundTintPrimaryBrush}"
+                    Opacity="0.6"
+                    Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Border Background="{StaticResource AlignedBackgroundTintSecondaryBrush}"
+                    Opacity="0.45"
+                    Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Border Background="{StaticResource DistractingBackgroundTintPrimaryBrush}"
+                    Opacity="0.62"
+                    Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Border Background="{StaticResource DistractingBackgroundTintSecondaryBrush}"
+                    Opacity="0.48"
+                    Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+        </Grid>
+
+        <Grid x:Name="RootGrid" Margin="20,20,20,16" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*" MinHeight="250"/>
+            </Grid.RowDefinitions>
+
+            <InfoBar
             Grid.Row="0"
             Severity="Error"
             Title="Session error"
@@ -33,7 +82,7 @@
             IsClosable="True"
             automation:AutomationProperties.Name="Session API sync error"/>
 
-        <InfoBar
+            <InfoBar
             Grid.Row="1"
             Severity="Informational"
             Title="Trial active"
@@ -48,7 +97,7 @@
             </InfoBar.ActionButton>
         </InfoBar>
 
-        <InfoBar
+            <InfoBar
             Grid.Row="2"
             Severity="Warning"
             Title="Subscription required"
@@ -63,15 +112,15 @@
             </InfoBar.ActionButton>
         </InfoBar>
 
-        <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
-        <controls:FocusStatusControl
+            <!-- Current foreground window and Focus Status Bar (visible when a session is in progress) -->
+            <controls:FocusStatusControl
             Grid.Row="3"
             DataContext="{x:Bind ViewModel.Status}"
             Visibility="{x:Bind ViewModel.Status.IsMonitoring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
             Margin="0,4,0,8"/>
 
-        <!-- Header with Settings -->
-        <Grid Grid.Row="4">
+            <!-- Header with Settings -->
+            <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -84,20 +133,20 @@
                     CornerRadius="12"
                     Padding="10,6"
                     VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.ShowExtensionPromo, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                    automation:AutomationProperties.Name="Install extension promo">
+                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                    automation:AutomationProperties.Name="Extension disconnected status">
                 <StackPanel Spacing="6" MaxWidth="380">
-                    <TextBlock Text="Web page focus accuracy is improved when you use the Foqus browser extension."
+                    <TextBlock Text="Extension disconnected"
                                Style="{StaticResource FbSecondaryTextStyle}"
                                FontSize="12"
                                TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <HyperlinkButton Content="Get it for Edge"
-                                         NavigateUri="{x:Bind ViewModel.ExtensionStoreEdgeUri, Mode=OneWay}"
+                                         NavigateUri="https://microsoftedge.microsoft.com/addons/detail/focus-bot/ffngbgoccgekcchdfdehlgiplcajapgb"
                                          FontSize="12"
                                          automation:AutomationProperties.Name="Get extension for Edge"/>
                         <HyperlinkButton Content="Get it for Chrome"
-                                         NavigateUri="{x:Bind ViewModel.ExtensionStoreChromeUri, Mode=OneWay}"
+                                         NavigateUri="https://chromewebstore.google.com/detail/focus-bot/iogcenocpodlomadmfnjdmobifpohmie"
                                          FontSize="12"
                                          automation:AutomationProperties.Name="Get extension for Chrome"/>
                     </StackPanel>
@@ -141,11 +190,11 @@
                         automation:AutomationProperties.Name="Settings"
                         Command="{x:Bind ViewModel.OpenSettingsCommand}"/>
             </StackPanel>
-        </Grid>
+            </Grid>
 
 
-        <!-- Main Content: Start Form or Active Session Card -->
-        <Grid Grid.Row="5">
+            <!-- Main Content: Start Form or Active Session Card -->
+            <Grid Grid.Row="5">
             <!-- Start Session Form (visible when no active session) -->
             <Border Visibility="{x:Bind ViewModel.ShowStartForm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                     Background="{StaticResource FbCardBackgroundBrush}"
@@ -220,6 +269,53 @@
                                    Visibility="{x:Bind ViewModel.ActiveSession.Context, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"
                                    automation:AutomationProperties.Name="Session context"/>
                     </StackPanel>
+
+                    <Border Background="{StaticResource FbCardBackgroundBrush}"
+                            BorderBrush="{StaticResource FbCardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="12,8"
+                            Visibility="{x:Bind ViewModel.ShowClassificationMessage, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                            automation:AutomationProperties.Name="Classification message">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Background="{StaticResource FbAlignedAccentBrush}"
+                                        CornerRadius="8"
+                                        Padding="8,2"
+                                        Visibility="{x:Bind ViewModel.IsClassificationAligned, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                </Border>
+                                <Border Background="{StaticResource FbMisalignedAccentBrush}"
+                                        CornerRadius="8"
+                                        Padding="8,2"
+                                        Visibility="{x:Bind ViewModel.IsClassificationDistracting, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                </Border>
+                                <Border Background="{StaticResource FbNeutralAccentBrush}"
+                                        CornerRadius="8"
+                                        Padding="8,2"
+                                        Visibility="{x:Bind ViewModel.IsClassificationNeutral, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{x:Bind ViewModel.ClassificationStatusLabel, Mode=OneWay}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource ClassificationBadgeTextBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind ViewModel.ClassificationReasonText, Mode=OneWay}"
+                                       Style="{StaticResource FbSecondaryTextStyle}"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource FbTextPrimaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{x:Bind ViewModel.ShowClassificationReason, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Border>
 
                     <StackPanel Spacing="16" Margin="0,8,0,8">
                         <Grid>
@@ -351,6 +447,7 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Page>
