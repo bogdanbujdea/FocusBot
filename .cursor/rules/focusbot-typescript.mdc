@@ -1,0 +1,61 @@
+---
+description: "FocusBot TypeScript/React coding standards: strict TS, functional components, named exports, React patterns, error handling, CSS variables. See docs/coding-guidelines.md for full reference."
+globs: "**/*.ts" "**/*.tsx"
+alwaysApply: false
+---
+
+# FocusBot TypeScript / React Rules
+
+Reference: `docs/coding-guidelines.md` (TypeScript / React section). Follow when editing `.ts` or `.tsx` files.
+
+## Style
+
+- **Strict TypeScript** (`strict: true`). No `any` unless truly unavoidable.
+- **ESM modules** (`"type": "module"`). Use `import` / `export`.
+- **Functional components** only — no class components.
+- **Named exports** preferred over default exports.
+
+## Naming
+
+| Kind | Convention | Example |
+|---|---|---|
+| Components | PascalCase | `SessionCard`, `FocusGauge` |
+| Hooks | `use` prefix | `useAuth`, `usePaddle` |
+| Files (components) | PascalCase `.tsx` | `BillingPage.tsx` |
+| Files (utilities) | camelCase `.ts` | `apiClient.ts` |
+| Interfaces/Types | PascalCase, no `I` prefix | `SessionResponse`, `AppState` |
+| Constants | UPPER_SNAKE_CASE | `APP_KEYS`, `API_BASE_URL` |
+
+## React Patterns
+
+- `useState` + `useEffect` for local state; React Context for cross-component state.
+- Extract reusable logic into custom hooks. Always clean up subscriptions/timers in effect return.
+- Use `useCallback` / `useMemo` only when there is a measurable benefit.
+- Event handlers: `handleClick`, `onSubmit` naming.
+
+## Error Handling
+
+- API calls return structured results (`{ ok, data }` | `{ ok: false, status, error }`). No thrown exceptions for expected failures.
+- Use `try`/`catch` only around truly exceptional operations (network, JSON parse).
+- Always handle loading and error states in UI components.
+
+## Imports
+
+- Group: React → third-party → project absolute → relative. Blank line between groups.
+- Prefer path aliases where configured.
+
+## CSS
+
+- Plain CSS files with `--fb-*` CSS variables for colors, spacing, elevation.
+- 3 surface layers: page (darkest `#110E1A`) < section (`#1C1730`) < card (`#2A2242`).
+- Scope styles under page/component wrappers. No global element selectors.
+- Always provide visible `:focus-visible` indicators.
+
+## Pre-commit Checklist
+
+- [ ] No `any` types
+- [ ] Named exports used
+- [ ] Effects have cleanup functions where needed
+- [ ] API calls use structured error returns
+- [ ] Accessible: focus states, alt text, ARIA labels
+- [ ] No hardcoded colors — use CSS variables

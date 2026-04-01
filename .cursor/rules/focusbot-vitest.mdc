@@ -1,0 +1,72 @@
+---
+description: "FocusBot Vitest testing standards: AAA pattern, describe/it naming, Testing Library for React, vi.mock for modules, no any. See docs/unit-testing.md for full reference."
+globs: "**/*.test.ts" "**/*.test.tsx"
+alwaysApply: false
+---
+
+# FocusBot Vitest Test Rules
+
+Reference: `docs/unit-testing.md` (TypeScript / Vitest section). Follow when writing TypeScript tests.
+
+## Structure
+
+- Test files co-located with source (web app: `*.test.tsx` next to component) or in `tests/` folder (extension).
+- Use `describe` blocks grouped by function/component. Use `it` or `test` for individual cases.
+- One behavior per test — one reason to fail.
+
+## Naming
+
+```typescript
+describe('apiClient', () => {
+  describe('fetchSessions', () => {
+    it('returns sessions when API responds 200', async () => { ... });
+    it('returns error when API responds 401', async () => { ... });
+  });
+});
+```
+
+## AAA Pattern
+
+Every test has three sections:
+
+```typescript
+it('returns sessions on success', async () => {
+  // Arrange
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(sessions)));
+
+  // Act
+  const result = await fetchSessions();
+
+  // Assert
+  expect(result.ok).toBe(true);
+  expect(result.data).toEqual(sessions);
+});
+```
+
+## Mocking
+
+- Use `vi.mock('module')` at top of file for module-level mocks.
+- Use `vi.hoisted(() => ...)` when mock values need to be defined before imports.
+- Reset mocks in `beforeEach`: `vi.clearAllMocks()`.
+- For Chrome APIs (extension): mock `chrome.storage.local`, `chrome.tabs`, `chrome.runtime` globally.
+- For React components: mock API modules, not internal hooks.
+
+## Component Testing (Web App)
+
+- Use `@testing-library/react` with `render`, `screen`, `fireEvent`, `waitFor`.
+- Use `@testing-library/jest-dom` matchers (`.toBeInTheDocument()`, `.toHaveTextContent()`).
+- Wrap renders in required providers (AuthContext, SubscriptionContext) via test utilities.
+- Query by role, label, or text — avoid test IDs unless necessary.
+
+## Principles
+
+- **Deterministic**: No real network, timers, or randomness. Mock everything external.
+- **Fast**: Unit tests in milliseconds.
+- **Isolated**: No shared mutable state between tests. Use `beforeEach` for fresh setup.
+- **No logic**: No `if`, loops, or conditional assertions. Add more tests instead.
+- **No `any`**: Type test data properly.
+
+## Running
+
+- Extension: `cd browser-extension && npm test`
+- Web app: `cd src/foqus-web-app && npm test`

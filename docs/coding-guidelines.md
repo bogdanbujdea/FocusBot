@@ -519,9 +519,89 @@ foreach (var task in await _repo.GetToDoTasksAsync())
 
 ---
 
-## Summary Checklist
+---
 
-Before committing code, verify:
+## TypeScript / React (Browser Extension, Web App, Website)
+
+### General Style
+
+- **Strict TypeScript** (`strict: true`) in all projects. No `any` unless truly unavoidable.
+- **ESM modules** (`"type": "module"` in package.json). Use `import` / `export`, not `require`.
+- **Functional components** only — no class components.
+- **Named exports** preferred over default exports for components and hooks.
+
+### Naming
+
+| Element | Convention | Example |
+|---|---|---|
+| Components | PascalCase | `SessionCard`, `FocusGauge` |
+| Hooks | `use` prefix, camelCase | `useAuth`, `usePaddle`, `useRuntimeState` |
+| Files (components) | PascalCase `.tsx` | `SessionCard.tsx`, `BYOKSetupModal.tsx` |
+| Files (utilities) | camelCase `.ts` | `classifier.ts`, `storage.ts` |
+| CSS files | Match component | `BYOKSetupModal.css`, `DashboardPage.css` |
+| Interfaces/Types | PascalCase | `RuntimeState`, `FocusSession` |
+| Enums | PascalCase members | `PlanType.CloudBYOK` |
+| Constants | UPPER_SNAKE_CASE | `APP_KEYS`, `FOQUS_WORK_EXAMPLES` |
+
+### React Patterns
+
+- **State management**: `useState` + `useEffect` for local state; `chrome.storage.local` for extension persistence; React Context for cross-component state (auth, subscription).
+- **Custom hooks**: Extract reusable logic into hooks. Keep side effects (`useEffect`) in hooks, not in component bodies.
+- **Prop types**: Define interfaces for component props. Use `React.FC` sparingly — prefer explicit function signatures.
+- **Cleanup**: Always clean up subscriptions, timers, and event listeners in `useEffect` return functions.
+
+```tsx
+// Good: Explicit props interface, cleanup
+interface SessionTimerProps {
+  startedAtIso: string;
+  pausedAtIso?: string;
+  totalPausedSeconds: number;
+  nowMs?: number;
+}
+
+export function SessionTimer({ startedAtIso, pausedAtIso, totalPausedSeconds, nowMs }: SessionTimerProps) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (pausedAtIso) return; // frozen
+    const id = setInterval(() => setElapsed(computeActive(startedAtIso, totalPausedSeconds, nowMs)), 1000);
+    return () => clearInterval(id);
+  }, [startedAtIso, pausedAtIso, totalPausedSeconds, nowMs]);
+
+  return <span>{formatDuration(elapsed)}</span>;
+}
+```
+
+### Error Handling
+
+- **API calls**: Return structured results (`{ ok: true, data }` | `{ ok: false, status, error }`). No thrown exceptions for expected failures.
+- **React boundaries**: Use error boundaries for unexpected rendering errors (not yet implemented in either app).
+- **Extension background**: Wrap message handlers in try/catch. Log errors, send error state to UI.
+- **Async/await**: Prefer async/await over `.then()` chains. Always handle rejections.
+
+### Imports
+
+- Group imports: React first, third-party libraries, then local modules.
+- Use relative paths for local imports. No path aliases configured.
+
+### CSS
+
+- **No CSS frameworks** (no Tailwind, no CSS modules in production code).
+- Plain CSS files with CSS custom properties (`--fb-*` tokens).
+- Scope styles by component/page class name.
+- See design token tables in [docs/website.md](website.md) and [docs/desktop-app.md](desktop-app.md).
+
+### Browser Extension-Specific
+
+- **Background service worker** has no DOM — no `localStorage`, no `document`. Use `chrome.storage.local`.
+- **Exclusive state mutations**: All state changes through `runExclusive()` promise queue to prevent races.
+- **Message passing**: `chrome.runtime.sendMessage` for UI ↔ background. Type all messages.
+
+---
+
+## C# Summary Checklist
+
+Before committing C# code, verify:
 
 - [ ] No tuple returns (use named types)
 - [ ] No null returns for expected failures (use Result)
@@ -532,3 +612,15 @@ Before committing code, verify:
 - [ ] Async methods are suffixed with `Async`
 - [ ] Public APIs have XML documentation
 - [ ] No emojis in comments
+
+## TypeScript Summary Checklist
+
+Before committing TypeScript code, verify:
+
+- [ ] No `any` types (use proper interfaces)
+- [ ] Functional components only
+- [ ] Props interfaces defined
+- [ ] Effects clean up subscriptions/timers
+- [ ] API errors handled (not thrown)
+- [ ] Imports grouped (React → third-party → local)
+- [ ] CSS scoped by component/page class

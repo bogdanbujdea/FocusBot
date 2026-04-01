@@ -1,10 +1,12 @@
 # AGENTS.md
 
-## Cursor Cloud specific instructions
+## Autonomous Agent Instructions
+
+Architecture: [docs/platform-overview.md](docs/platform-overview.md). Code conventions: [docs/coding-guidelines.md](docs/coding-guidelines.md). Testing: [docs/unit-testing.md](docs/unit-testing.md). Per-project docs: [desktop-app](docs/desktop-app.md), [webapi](docs/webapi.md), [browser-extension](docs/browser-extension.md), [web-app](docs/web-app.md), [website](docs/website.md). Integration: [docs/integration.md](docs/integration.md).
 
 ### Architecture overview
 
-Foqus is a Windows desktop productivity app + browser extension + Web API (vertical slice architecture). See `docs/coding-guidelines.md` for code conventions.
+Foqus is a productivity platform: Windows desktop app + browser extension + Web API + web dashboard + marketing site. See `docs/platform-overview.md` for the full architecture and `docs/coding-guidelines.md` for code conventions.
 
 | Project | Target | Builds on Linux? |
 |---|---|---|
@@ -20,6 +22,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 | `FocusBot.WebAPI.IntegrationTests` | `net10.0` | Yes |
 | `browser-extension` (Node/TS) | N/A | Yes |
 | `foqus-web-app` (Vite/React) | N/A | Yes |
+| `foqus-website` (Vite/React) | N/A | Yes |
 
 ### Running services
 
@@ -46,13 +49,13 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 - **Webhook security**: `PaddleWebhookVerifier` rejects all requests when `Paddle:WebhookSecret` is not configured or empty. No dev bypass.
 - **Webhook URL** (local tunnel or deployed): `POST {apiBase}/subscriptions/paddle-webhook` — must receive the **raw** body for signature verification.
 - **Realtime plan updates**: After webhook processing, the API emits **`PlanChanged`** on the same SignalR hub as focus sessions (`/hubs/focus`); desktop `FocusPageViewModel` and web clients can refresh subscription/plan state immediately.
-- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes), `docs/paddle-implementation-summary.md` (detailed implementation), `docs/web-app-sign-in-and-trials.md` (sign-in, provisioning, trial vs Paddle `trialing`). Legacy Windows Store pricing notes are under `pricing/archive/`.
+- **Docs**: `docs/paddle-guide.md` (Foqus-specific section + generic Paddle Billing notes), `docs/paddle-implementation-summary.md` (detailed implementation), `docs/web-app-sign-in-and-trials.md` (sign-in, provisioning, trial vs Paddle `trialing`). See also `docs/webapi.md` (Subscriptions slice) and `docs/web-app.md` (billing page). Legacy Windows Store pricing notes are under `pricing/archive/`.
 
 ### Running tests
 
 - **Core tests**: `dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj`
-- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (72 tests, includes comprehensive webhook idempotency, race condition, and security coverage)
-- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (28 tests, WebApplicationFactory + InMemory DB)
+- **WebAPI unit tests**: `dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj` (82 tests, includes comprehensive webhook idempotency, race condition, and security coverage)
+- **WebAPI integration tests**: `dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj` (32 tests, WebApplicationFactory + InMemory DB)
 - **ViewModel tests**: `dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj`
 - **Infrastructure tests**: `dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj`
 - **Browser extension tests**: `cd browser-extension && npm test` (Vitest)
@@ -63,6 +66,7 @@ Foqus is a Windows desktop productivity app + browser extension + Web API (verti
 
 - **.NET**: `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj` (no `.sln` file; build individual `.csproj` files)
 - **Web app**: `cd src/foqus-web-app && npm run build`
+- **Website**: `cd src/foqus-website && npm run build`
 - **Browser extension**: `cd browser-extension && npm run build`
 
 ### Desktop app: focus sessions (API-only)

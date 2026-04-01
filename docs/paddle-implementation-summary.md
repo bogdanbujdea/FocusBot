@@ -86,18 +86,6 @@ Paddle           → App (SubscriptionStatus enum)
 **Plan type mapping:**
 - Reads `custom_data.plan_type`: `"cloud-byok"` → `CloudBYOK`, `"cloud-managed"` → `CloudManaged`
 - Fallback: `custom_data.license`: `"byok"` → `CloudBYOK`, `"premium"` → `CloudManaged`
-
-**Payment details:**
-- Extracts from `method_details.card.last4` (nested path)
-- Populates `PaymentMethodType` (e.g. `"card"`) and `CardLastFour`
-
-**SignalR notification:**
-- After DB updates, emits `PlanChanged` event to `/hubs/focus`
-- Desktop and web clients refresh immediately
-
-**Plan type mapping:**
-- Reads `custom_data.plan_type`: `"cloud-byok"` → `CloudBYOK`, `"cloud-managed"` → `CloudManaged`
-- Fallback: `custom_data.license`: `"byok"` → `CloudBYOK`, `"premium"` → `CloudManaged`
 - **If unresolvable:** logs error and skips (no default `CloudBYOK` fallback)
 
 **Payment details:**

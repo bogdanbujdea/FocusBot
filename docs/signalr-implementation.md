@@ -121,6 +121,39 @@ public sealed record SessionResumedEvent(
 
 ---
 
+**Event: `PlanChanged`**
+```csharp
+Task PlanChanged(PlanChangedEvent e);
+
+public sealed record PlanChangedEvent();
+```
+- **Trigger:** Paddle webhook updates the user's subscription (e.g. `subscription.activated`, `subscription.canceled`)
+- **Broadcast:** To all connections in the user's group
+- **Effect:** Desktop app refreshes plan via `IPlanService`; web app refreshes `SubscriptionContext`; extension refreshes subscription status
+- **Note:** Empty payload — clients re-fetch `GET /subscriptions/status` for details
+
+---
+
+**Event: `ClassificationChanged`**
+```csharp
+Task ClassificationChanged(ClassificationChangedEvent e);
+
+public sealed record ClassificationChangedEvent(
+    int Score,
+    string Reason,
+    string Source,
+    string ActivityName,
+    DateTime ClassifiedAtUtc,
+    bool Cached
+);
+```
+- **Trigger:** Successful `POST /classify` (including coalesced batches)
+- **Broadcast:** To all connections in the user's group
+- **Source:** `"extension"` when classified request carried a URL; `"desktop"` otherwise
+- **Effect:** All connected clients mirror the same alignment state across devices
+
+---
+
 ## Event Flow
 
 ### Scenario: User Starts Session on Windows App

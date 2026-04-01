@@ -4,13 +4,13 @@
 
 Foqus is a productivity platform that classifies your current focus context against a single active task and tracks alignment over time. It consists of:
 
-- **Windows desktop app** (WinUI 3 / .NET 10) — foreground window monitoring, focus scoring, local analytics
-- **Browser extension** (Chrome/Edge, Manifest V3, TypeScript/React/Vite) — page/tab classification, distraction overlay
-- **WebAPI** (ASP.NET Core Minimal APIs, PostgreSQL) — auth, classification orchestration, sessions, subscriptions
-- **Website** (`foqus-website`, React 19/Vite) — landing page
-- **Web app** (`foqus-web-app`, React 19/Vite, planned) — cloud dashboard at `app.foqus.me`
+- **Windows desktop app** (WinUI 3 / .NET 10) — foreground window monitoring, focus scoring, overlay — [docs/desktop-app.md](../docs/desktop-app.md)
+- **Browser extension** (Chrome/Edge, Manifest V3, TypeScript/React/Vite) — page/tab classification, distraction overlay — [docs/browser-extension.md](../docs/browser-extension.md)
+- **WebAPI** (ASP.NET Core Minimal APIs, PostgreSQL) — auth, classification, sessions, subscriptions, analytics — [docs/webapi.md](../docs/webapi.md)
+- **Web app** (`foqus-web-app`, React 19/Vite) — cloud dashboard at `app.foqus.me` — [docs/web-app.md](../docs/web-app.md)
+- **Website** (`foqus-website`, React 19/Vite) — marketing landing page at `foqus.me` — [docs/website.md](../docs/website.md)
 
-For full context read `docs/foqus-platform-overview.md` and the MVP plan in `docs/MVP/README.md`.
+Platform overview: [docs/platform-overview.md](../docs/platform-overview.md). Integration guide: [docs/integration.md](../docs/integration.md).
 
 ---
 
@@ -24,9 +24,10 @@ For full context read `docs/foqus-platform-overview.md` and the MVP plan in `doc
 | `FocusBot.App` | `net10.0-windows` | WinUI 3 UI, DI wiring, XAML |
 | `FocusBot.WebAPI` | `net10.0` | Minimal API, vertical slice architecture, PostgreSQL |
 | `browser-extension/` | TypeScript/React/Vite | Chrome Manifest V3 extension |
+| `src/foqus-web-app/` | React 19/Vite/Recharts | Cloud dashboard SPA |
 | `src/foqus-website/` | React 19/Vite | Marketing landing page |
 
-No `.sln` file — build individual `.csproj` files. `TreatWarningsAsErrors` is on for all projects.
+No `.sln` file — build individual `.csproj` files. `TreatWarningsAsErrors` is on for all C# projects.
 
 ---
 
@@ -55,21 +56,34 @@ Features/<Name>/
 └── <Name>Dtos.cs       # Request/response DTOs
 ```
 
-Existing slices: Auth, Classification, Sessions, Subscriptions, Waitlist.
+Existing slices: **Auth**, **Analytics**, **Classification**, **Clients**, **Pricing**, **Sessions**, **Subscriptions**, **Waitlist**.
 
 ### Browser Extension Architecture
 
 ```
-UI (React popup/sidepanel/options) → Runtime (background/index.ts service worker) → Services (classifier, storage, analytics, apiClient)
+UI (React popup/sidepanel/options) → Runtime (background/index.ts service worker) → Services (17 shared modules)
 ```
 
-- Background service worker is the central state manager and classification orchestrator.
-- State stored in `chrome.storage.local`. Classification cache in IndexedDB.
+- Background service worker (~1174 lines) is the central state manager and classification orchestrator.
+- State stored in `chrome.storage.local`. Classification cache in IndexedDB (SHA-256 keyed).
 - Content script injected into tabs for the distraction overlay.
+- Exclusive state mutations via `runExclusive()` promise queue.
+
+### Web App Architecture
+
+```
+main.tsx → BrowserRouter → AuthProvider → ProtectedRoute → Layout → SubscriptionProvider → Page
+```
+
+- Supabase auth + SignalR real-time updates + Paddle.js checkout overlay.
+- API client with automatic JWT injection and 401 token refresh/retry.
+- 10 routes (5 public, 5 protected).
 
 ---
 
 ## C# Coding Rules
+
+Full reference: [docs/coding-guidelines.md](../docs/coding-guidelines.md).
 
 ### Style
 
@@ -140,9 +154,38 @@ UI (React popup/sidepanel/options) → Runtime (background/index.ts service work
 
 ---
 
+## TypeScript / React Rules
+
+Full reference: [docs/coding-guidelines.md](../docs/coding-guidelines.md).
+
+### Style
+
+- **Strict TypeScript** (`strict: true`). No `any` unless truly unavoidable.
+- **ESM modules** (`"type": "module"`). Use `import` / `export`.
+- **Functional components** only — no class components.
+- **Named exports** preferred over default exports.
+
+### Naming
+
+- Components: PascalCase (`SessionCard`, `FocusGauge`)
+- Hooks: `use` prefix (`useAuth`, `usePaddle`)
+- Files: PascalCase for components (`.tsx`), camelCase for utilities (`.ts`)
+- Constants: UPPER_SNAKE_CASE (`APP_KEYS`)
+
+### Patterns
+
+- `useState` + `useEffect` for local state; `chrome.storage.local` for extension; React Context for cross-component.
+- Extract reusable logic into hooks. Always clean up subscriptions/timers in effect returns.
+- API calls return structured results (`{ ok, data }` | `{ ok: false, status, error }`). No thrown exceptions for expected failures.
+- Extension background SW has no DOM — use `chrome.storage.local`, not `localStorage`.
+
+---
+
 ## Unit Testing Rules
 
-### Structure
+Full reference: [docs/unit-testing.md](../docs/unit-testing.md).
+
+### C# Tests (xUnit + Awesome Assertions)
 
 - Organized **per method/behavior**, not per class.
 - Folder: name of type under test (e.g., `TaskRepositoryTests/`).
@@ -189,22 +232,20 @@ public async Task ReturnTask_WhenIdExists()
 
 ### Assertions
 
-- Use **Awesome Assertions** (`.Should()`) for all assertions. Do not use `Assert.*`.
-
-### Stack
-
-- xUnit, Awesome Assertions, Microsoft.EntityFrameworkCore.InMemory, Moq when needed.
+- C#: **Awesome Assertions** (`.Should()`) for all assertions. Do not use `Assert.*`.
+- TypeScript: Vitest `expect` + `@testing-library/jest-dom` matchers for DOM.
 
 ### Test Projects
 
-| Project | Tests | Notes |
+| Project | ~Tests | Notes |
 |---|---|---|
-| `FocusBot.Core.Tests` | ~25 tests | Entity behavior, domain logic |
-| `FocusBot.WebAPI.Tests` | ~29 tests | Service logic, InMemory EF Core |
-| `FocusBot.WebAPI.IntegrationTests` | ~6 tests | WebApplicationFactory + InMemory DB, `CustomWebApplicationFactory` for test JWT |
-| `FocusBot.Infrastructure.Tests` | Windows-only | Data access, Win32 services |
-| `FocusBot.App.ViewModels.Tests` | Windows-only | ViewModel behavior |
-| `browser-extension/tests/` | ~76 tests | Vitest |
+| `FocusBot.Core.Tests` | 25 | Entity behavior, domain logic |
+| `FocusBot.WebAPI.Tests` | 82 | Service logic, webhook idempotency, security |
+| `FocusBot.WebAPI.IntegrationTests` | 32 | WebApplicationFactory + InMemory DB, test JWT |
+| `FocusBot.Infrastructure.Tests` | ~10 | Windows-only, data access, Win32 services |
+| `FocusBot.App.ViewModels.Tests` | ~20 | Windows-only, ViewModel behavior |
+| `browser-extension/tests/` | 83 | Vitest — analytics, storage, API client, metrics |
+| `foqus-web-app/src/**/*.test.*` | 58 | Vitest — components, pages, API client, utils |
 
 ---
 
@@ -247,7 +288,7 @@ public async Task ReturnTask_WhenIdExists()
 
 ---
 
-## CSS Rules (Extension UI)
+## CSS Rules (Extension & Web App UI)
 
 ### Primary Goals
 
@@ -339,8 +380,11 @@ public async Task ReturnTask_WhenIdExists()
 
 - **.NET**: `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj` (no .sln; build individual .csproj files)
 - **Browser extension**: `cd browser-extension && npm run build`
+- **Web app**: `cd src/foqus-web-app && npm run build`
+- **Website**: `cd src/foqus-website && npm run build`
 - **WebAPI dev**: Start PostgreSQL via Docker, then `dotnet run --project src/FocusBot.WebAPI/FocusBot.WebAPI.csproj --launch-profile http`
 - **Extension dev**: `cd browser-extension && npm run dev`
+- **Web app dev**: `cd src/foqus-web-app && npm run dev` (port 5174)
 
 ### Running Tests
 
@@ -349,6 +393,7 @@ dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj
 dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj
 dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj
 cd browser-extension && npm test
+cd src/foqus-web-app && npm test
 ```
 
 ### Key Caveats

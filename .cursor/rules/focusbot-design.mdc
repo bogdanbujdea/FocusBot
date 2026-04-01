@@ -1,18 +1,18 @@
 ---
-description: "FocusBot UI/UX and WinUI 3 design: glassy materials, 3 elevation layers, theme file layout, card structure, accessibility (no color-alone meaning). See docs/design_guidelines.md for full reference."
+description: "FocusBot UI/UX and WinUI 3 design: glassy materials, 3 elevation layers, theme file layout, accessibility (no color-alone meaning). See docs/desktop-app.md for full reference."
 globs: "**/*.xaml" "**/Themes/**"
 alwaysApply: false
 ---
 
 # FocusBot Design Rules
 
-Reference: `docs/design_guidelines.md`. Follow when editing XAML, themes, or UI behavior.
+Reference: `docs/desktop-app.md` (Design System section) and `docs/coding-guidelines.md`. Follow when editing XAML, themes, or UI behavior.
 
 ## UX Decisions (Locked)
 
-- **Hybrid**: Main window for setup, Kanban, review; small overlay for real-time focus status. Overlay is primary "always on" surface.
-- **Passive by default**: Status via overlay/color; no interruption. Optional toast for prolonged misalignment only (configurable).
-- **Default state**: Neutral until classification runs. Green only when clearly aligned; red/amber sparingly for misaligned.
+- **Hybrid**: Main window for setup and review; floating overlay for live focus status. Overlay is the primary "always on" surface.
+- **Passive by default**: Status via overlay color, no interruption. Optional toast for prolonged misalignment (configurable).
+- **Default state**: Neutral until classification runs. Green only when clearly aligned.
 
 ## Materials and Elevation
 
@@ -27,20 +27,10 @@ Reference: `docs/design_guidelines.md`. Follow when editing XAML, themes, or UI 
 - `Themes/Styles.xaml`: Shared styles using semantic brushes.
 - Merge in `App.xaml` in order: Colors, Brushes, Styles.
 
-## Card Structure
-
-- **Left accent bar**: 3px width. To Do: neutral (violet); In Progress: green; Done: green 50% opacity.
-- **Content**: Optional status badge → task title (max 3 lines) → 1px divider → actions (primary first).
-- **Actions**: Primary (Start, Done): accent, semibold. Secondary (Stop, Delete): muted; Delete as icon. Never rely on color alone for destructive action.
-
-## Column Headers
-
-- Title uppercase, letter-spaced; count badge next to title; subtle divider below header.
-
 ## Accessibility and Store
 
-- **Never encode meaning with color alone.** Pair color with icon, text label, or left accent bar.
-- Preserve **focus indicators** and **keyboard navigation** (Tab/Enter). Use **AutomationProperties.Name** on columns and buttons.
+- **Never encode meaning with color alone.** Pair color with icon, text label, or accent bar.
+- Preserve **focus indicators** and **keyboard navigation** (Tab/Enter). Use **AutomationProperties.Name** on interactive elements.
 - **High Contrast**: Solid backgrounds only. Ensure 3 distinct elevation layers and readable text in Light and Dark.
 
 ## Design Tokens

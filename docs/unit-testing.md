@@ -215,32 +215,143 @@ await act.Should().NotThrowAsync();
 
 ## Testing Stack
 
-| Component        | Technology                    |
-|-----------------|-------------------------------|
-| Test framework  | xUnit                         |
-| Assertions      | Awesome Assertions            |
-| In-memory DB    | Microsoft.EntityFrameworkCore.InMemory |
-| Mocking         | Moq (when needed)             |
+### C# (.NET)
+
+| Component | Technology |
+|---|---|
+| Test framework | xUnit |
+| Assertions | Awesome Assertions (`.Should()`) |
+| In-memory DB | Microsoft.EntityFrameworkCore.InMemory |
+| Mocking | Moq (when needed) |
+| Integration | WebApplicationFactory + CustomWebApplicationFactory (test JWT) |
+
+### TypeScript (Extension, Web App)
+
+| Component | Technology |
+|---|---|
+| Test framework | Vitest |
+| Assertions | Vitest `expect` + `@testing-library/jest-dom` |
+| DOM environment | jsdom |
+| Component testing | @testing-library/react + @testing-library/user-event |
+| Mocking | `vi.mock()`, `vi.hoisted()`, `vi.fn()` |
 
 ## Running Tests
 
 ```powershell
-# All tests
-dotnet test
+# C# — individual projects (no .sln test)
+dotnet test tests/FocusBot.Core.Tests/FocusBot.Core.Tests.csproj
+dotnet test tests/FocusBot.WebAPI.Tests/FocusBot.WebAPI.Tests.csproj
+dotnet test tests/FocusBot.WebAPI.IntegrationTests/FocusBot.WebAPI.IntegrationTests.csproj
+dotnet test tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj   # Windows only
+dotnet test tests/FocusBot.Infrastructure.Tests/FocusBot.Infrastructure.Tests.csproj     # Windows only
 
-# One project
-dotnet test tests/FocusBot.Core.Tests
+# TypeScript — extension
+cd browser-extension && npm test
 
-# With coverage
-dotnet test --collect:"XPlat Code Coverage"
+# TypeScript — web app
+cd src/foqus-web-app && npm test
+
+# Watch mode (Vitest)
+cd browser-extension && npm run test:watch
+cd src/foqus-web-app && npm run test:watch
 ```
+
+### Test Project Summary
+
+| Project | ~Tests | Platform | Coverage |
+|---|---|---|---|
+| `FocusBot.Core.Tests` | 25 | Cross-platform | Entity behavior, domain logic |
+| `FocusBot.WebAPI.Tests` | 82 | Cross-platform | Service logic, webhook idempotency, security |
+| `FocusBot.WebAPI.IntegrationTests` | 32 | Cross-platform | Full HTTP pipeline, InMemory DB, test JWT |
+| `FocusBot.App.ViewModels.Tests` | ~20 | Windows only | ViewModel behavior |
+| `FocusBot.Infrastructure.Tests` | ~10 | Windows only | Data access, Win32 services |
+| `browser-extension/tests/` | 83 | Cross-platform | Analytics, API client, storage, metrics, utils |
+| `foqus-web-app/src/**/*.test.*` | 58 | Cross-platform | Components, pages, API client, utils |
 
 ## What to Test
 
 - **Do**: Business rules, repository CRUD and status transitions, entity defaults and computed properties, error paths (e.g. not found).
 - **Don’t**: Private implementation, exact steps of an algorithm, or trivial getters/setters with no logic.
 - **Prefer**: One behavior per test, deterministic setup, and assertions that document the expected behavior.
+---
 
+## TypeScript / Vitest Testing
+
+The same principles apply to TypeScript tests (one behavior per test, deterministic, isolated, AAA structure). The key differences are:
+
+### Structure
+
+- **Browser extension**: Tests in `browser-extension/tests/` as `*.test.ts` files. One file per module.
+- **Web app**: Tests co-located with source as `*.test.ts` / `*.test.tsx`. One test file per component/module.
+- **Test setup**: Web app uses `src/test/setup.ts` for global mocks (Supabase) and `@testing-library/jest-dom` matchers.
+
+### Naming
+
+- Test files: `moduleName.test.ts` or `ComponentName.test.tsx`
+- `describe` blocks: group by function or component
+- `it` / `test`: describe outcome clearly
+
+```typescript
+describe("formatDuration", () => {
+  it("formats seconds as mm:ss for durations under 1 hour", () => {
+    expect(formatDuration(125)).toBe("02:05");
+  });
+});
+```
+
+### Component Testing
+
+Use `@testing-library/react` with `@testing-library/user-event`:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi } from "vitest";
+
+describe("SessionTimer", () => {
+  it("displays elapsed time excluding paused seconds", () => {
+    render(<SessionTimer startedAtIso="..." totalPausedSeconds={60} nowMs={fixedNow} />);
+    expect(screen.getByText("04:00")).toBeInTheDocument();
+  });
+});
+```
+
+### Mocking
+
+```typescript
+// Module mock
+vi.mock("../auth/supabase", () => ({
+  supabase: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: mockSession } }) } }
+}));
+
+// Hoisted mock (for imports that run at module load)
+const mockApi = vi.hoisted(() => ({
+  getActiveSession: vi.fn(),
+  startSession: vi.fn(),
+}));
+vi.mock("../api/client", () => ({ api: mockApi }));
+```
+
+### AAA in TypeScript
+
+The same three-section approach; comments optional but encouraged for complex tests:
+
+```typescript
+it("calls startSession with task title", async () => {
+  // Arrange
+  mockApi.startSession.mockResolvedValue({ ok: true, data: { sessionId: "1" } });
+  render(<DashboardPage />);
+
+  // Act
+  await userEvent.type(screen.getByRole("textbox"), "Write docs");
+  await userEvent.click(screen.getByRole("button", { name: /start/i }));
+
+  // Assert
+  expect(mockApi.startSession).toHaveBeenCalledWith(
+    expect.objectContaining({ sessionTitle: "Write docs" })
+  );
+});
+```
 ## Example: One Behavior Per Test
 
 **Bad** (multiple behaviors, one test):

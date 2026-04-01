@@ -1,0 +1,53 @@
+---
+description: "FocusBot browser extension architecture: Chrome MV3, background service worker, shared services, dual-mode classification, chrome.storage. See docs/browser-extension.md for full reference."
+globs: "browser-extension/**"
+alwaysApply: false
+---
+
+# FocusBot Browser Extension Rules
+
+Reference: `docs/browser-extension.md`. Follow when editing extension code.
+
+## Architecture
+
+```
+UI (React popup/sidepanel/options) → Runtime (background service worker) → Services (17 shared modules)
+```
+
+- **Background service worker** (`background/index.ts`, ~1314 lines): Central state manager and classification orchestrator. Has NO DOM access.
+- **Shared services** (`shared/`): 17 modules — apiClient, auth, classificationService, constants, extensionPresence, focusHubClient, metrics, sessionManager, settings, signalRClient, storage, subscriptionService, tabClassifier, taskCoordinator, types, urlUtils, utils.
+- **UI entry points**: popup, sidepanel, options page, content script (overlay), auth-callback.
+
+## Critical Constraints
+
+- **No DOM in service worker**: Use `chrome.storage.local`, NOT `localStorage` or `document`.
+- **Exclusive state mutations**: Use `runExclusive()` promise queue for all state changes to prevent race conditions.
+- **Typed messages**: All background ↔ UI communication uses typed message objects with `action` discriminator.
+
+## Classification
+
+- **Dual-mode**: BYOK (user API key → OpenAI direct) or Managed (Foqus account → WebAPI `/classify`).
+- **Cache**: SHA-256 hash key → IndexedDB. No expiry. Check cache before every API call.
+- **10-second interval**: `classificationTimer` in background SW.
+
+## State Management
+
+- All persistent state in `chrome.storage.local` via typed helpers (`storage.ts`).
+- Session state: `currentTask`, `isMonitoring`, `sessionId`, `focusMetrics`.
+- Settings: `apiKey`, `classificationMode`, `selectedProvider`, `selectedModel`.
+
+## Auth
+
+- Supabase magic-link via options page. Tokens stored in `chrome.storage.local`.
+- Token refresh on 401 via `apiClient.ts` retry logic.
+
+## Extension Presence
+
+- Local WebSocket to `ws://localhost:9876/focusbot` for desktop ↔ extension task sync.
+- Auto-reconnect with exponential backoff (1s → 30s max).
+
+## Testing
+
+- Vitest with Chrome API mocks (`vi.mock`).
+- Test files in `browser-extension/tests/`.
+- Mock `chrome.storage`, `chrome.tabs`, `chrome.runtime` globally.

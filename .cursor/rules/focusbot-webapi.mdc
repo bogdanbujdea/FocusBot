@@ -1,0 +1,60 @@
+---
+description: "FocusBot WebAPI vertical slice architecture: feature folders, Minimal API endpoints, service + DTOs pattern, PostgreSQL, SignalR hub. See docs/webapi.md for full reference."
+globs: "src/FocusBot.WebAPI/**/*.cs"
+alwaysApply: false
+---
+
+# FocusBot WebAPI Rules
+
+Reference: `docs/webapi.md`. Follow when editing the ASP.NET Core Minimal API project.
+
+## Vertical Slice Architecture
+
+Each feature lives in its own folder under `Features/`:
+
+```
+Features/<Name>/
+├── SLICE.md            # Documentation
+├── <Name>Endpoints.cs  # Minimal API route definitions
+├── <Name>Service.cs    # Business logic
+└── <Name>Dtos.cs       # Request/response DTOs
+```
+
+Existing slices: **Auth**, **Analytics**, **Classification**, **Clients**, **Pricing**, **Sessions**, **Subscriptions**, **Waitlist**.
+
+## Endpoint Conventions
+
+- Use Minimal API `MapGet`, `MapPost`, `MapPut`, `MapDelete` — no controllers.
+- Group routes in a static `Map<Name>Endpoints(this WebApplication app)` extension method.
+- Always add `.RequireAuthorization()` unless the endpoint is explicitly public (waitlist, pricing, health).
+- Extract `userId` from JWT claims: `ClaimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value`.
+
+## Service Pattern
+
+- Services accept and return DTOs or `Result<T>` (CSharpFunctionalExtensions).
+- Inject `FocusBotDbContext` via constructor. Use async/await with `CancellationToken`.
+- Keep endpoint methods thin — delegate logic to the service.
+
+## Database
+
+- PostgreSQL via EF Core (Npgsql). 6 tables: `Users`, `Subscriptions`, `Sessions`, `ClassificationCache`, `Clients`, `ProcessedWebhookEvents`.
+- Auto-migration on startup (`Database.MigrateAsync()`).
+- Use `DateTime` as UTC everywhere. Column naming: snake_case via Npgsql conventions.
+
+## SignalR Hub
+
+- Hub at `/hubs/focus`. Typed client: `IFocusHubClient`.
+- 6 events: `SessionStarted`, `SessionEnded`, `SessionPaused`, `SessionResumed`, `PlanChanged`, `ClassificationChanged`.
+- Send to user group: `Clients.User(userId).EventNameAsync(dto)`.
+
+## Paddle Webhooks
+
+- Raw body extraction for signature verification (`PaddleWebhookVerifier`).
+- Idempotency via `ProcessedWebhookEvent` table (deduplicate by `event_id`).
+- Never bypass webhook secret verification — no dev shortcuts.
+
+## Key Caveats
+
+- `TreatWarningsAsErrors` is on — fix all nullable warnings.
+- `Microsoft.OpenApi` v2.x — types in `Microsoft.OpenApi` namespace, not `Microsoft.OpenApi.Models`.
+- No `.sln` file — build via `dotnet build src/FocusBot.WebAPI/FocusBot.WebAPI.csproj`.
