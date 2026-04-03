@@ -32,11 +32,6 @@ public interface IAuthService
     Task TryRestoreSessionAsync();
 
     /// <summary>
-    /// Refreshes the access token using the stored refresh token.
-    /// </summary>
-    Task<bool> RefreshTokenAsync();
-
-    /// <summary>
     /// Gets a value indicating whether the user is currently authenticated.
     /// </summary>
     bool IsAuthenticated { get; }

@@ -85,10 +85,7 @@ public class SupabaseAuthService : IAuthService
         {
             var client = await GetSupabaseClientAsync();
 
-            var options = new SignInOptions
-            {
-                RedirectTo = DefaultMagicLinkRedirectTo
-            };
+            var options = new SignInOptions { RedirectTo = DefaultMagicLinkRedirectTo };
 
             var didSendMagicLink = await client.Auth.SendMagicLink(email, options);
             if (!didSendMagicLink)
@@ -202,7 +199,10 @@ public class SupabaseAuthService : IAuthService
             var refreshed = await RefreshTokenAsync();
             if (!refreshed)
             {
-                _logger.LogWarning("Proactive token refresh failed after {MaxAttempts} attempts; re-auth required", MaxRefreshAttempts);
+                _logger.LogWarning(
+                    "Proactive token refresh failed after {MaxAttempts} attempts; re-auth required",
+                    MaxRefreshAttempts
+                );
                 ReAuthRequired?.Invoke();
                 return null;
             }
@@ -229,8 +229,12 @@ public class SupabaseAuthService : IAuthService
             payload = payload.Replace('-', '+').Replace('_', '/');
             switch (payload.Length % 4)
             {
-                case 2: payload += "=="; break;
-                case 3: payload += "="; break;
+                case 2:
+                    payload += "==";
+                    break;
+                case 3:
+                    payload += "=";
+                    break;
             }
 
             var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(payload));
@@ -349,7 +353,6 @@ public class SupabaseAuthService : IAuthService
         }
     }
 
-    /// <inheritdoc />
     public async Task<bool> RefreshTokenAsync()
     {
         if (string.IsNullOrEmpty(_refreshToken))
@@ -395,14 +398,18 @@ public class SupabaseAuthService : IAuthService
                     continue;
                 }
 
-                var tokenResponse = await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
+                var tokenResponse =
+                    await response.Content.ReadFromJsonAsync<SupabaseTokenResponse>();
                 if (
                     tokenResponse is null
                     || string.IsNullOrEmpty(tokenResponse.AccessToken)
                     || string.IsNullOrEmpty(tokenResponse.RefreshToken)
                 )
                 {
-                    _logger.LogWarning("Refresh response missing tokens on attempt {Attempt}", attempt);
+                    _logger.LogWarning(
+                        "Refresh response missing tokens on attempt {Attempt}",
+                        attempt
+                    );
                     return false;
                 }
 
@@ -412,12 +419,20 @@ public class SupabaseAuthService : IAuthService
                     tokenResponse.ExpiresIn
                 );
 
-                _logger.LogInformation("Access token refreshed successfully on attempt {Attempt}", attempt);
+                _logger.LogInformation(
+                    "Access token refreshed successfully on attempt {Attempt}",
+                    attempt
+                );
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Token refresh attempt {Attempt}/{Max} threw an exception", attempt, MaxRefreshAttempts);
+                _logger.LogError(
+                    ex,
+                    "Token refresh attempt {Attempt}/{Max} threw an exception",
+                    attempt,
+                    MaxRefreshAttempts
+                );
 
                 if (attempt < MaxRefreshAttempts)
                     await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));

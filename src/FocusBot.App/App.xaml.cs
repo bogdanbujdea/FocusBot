@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using FocusBot.App.ViewModels;
 using FocusBot.App.Views;
-using FocusBot.Core.Events;
 using FocusBot.Core.Interfaces;
 using FocusBot.Infrastructure.Data;
 using FocusBot.Infrastructure.Services;
@@ -19,9 +18,7 @@ namespace FocusBot.App
     public partial class App
     {
         private Window? _window;
-        private FocusOverlayWindow? _overlayWindow;
         private readonly IServiceProvider? _services;
-        private FocusPageViewModel? _viewModel;
 
         public App()
         {
@@ -43,7 +40,6 @@ namespace FocusBot.App
                 .SetApplicationName("FocusBot")
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
             services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
-            services.AddScoped<IAlignmentCacheRepository, AlignmentCacheRepository>();
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),
                 sp.GetRequiredService<ILogger<SettingsService>>(),
@@ -70,12 +66,9 @@ namespace FocusBot.App
                 );
             });
             services.AddScoped<IClassificationService, AlignmentClassificationService>();
-            services.AddSingleton<ILocalSessionTracker, LocalSessionTracker>();
             services.AddSingleton<IClientService, DesktopClientService>();
             services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
-            services.AddSingleton<IExtensionPresenceService, ExtensionPresenceService>();
-            services.AddSingleton<IFocusSessionOrchestrator, FocusSessionOrchestrator>();
             services.AddSingleton<IFocusHubClient>(sp =>
             {
                 var baseUrl = GetFocusBotApiBaseUrl();
@@ -85,8 +78,6 @@ namespace FocusBot.App
                     baseUrl
                 );
             });
-            services.AddTransient<FocusStatusViewModel>();
-            services.AddTransient<FocusPageViewModel>();
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<PlanSelectionViewModel>();
@@ -117,8 +108,7 @@ namespace FocusBot.App
         }
 
         /// <summary>
-        /// Restores auth before creating the focus ViewModel so <see cref="FocusPageViewModel"/>
-        /// can load the active session from the API on first paint.
+        /// Restores auth before creating the main window so background services can initialize.
         /// </summary>
         private async Task StartApplicationAsync()
         {
@@ -140,15 +130,16 @@ namespace FocusBot.App
 
             await OnAuthStateChangedAsync();
 
-            var extensionPresence = _services!.GetRequiredService<IExtensionPresenceService>();
-            await extensionPresence.StartAsync();
+            var windowMonitor = _services!.GetRequiredService<IWindowMonitorService>();
 
-            _viewModel = _services!.GetRequiredService<FocusPageViewModel>();
+            _window = new MainWindow(windowMonitor);
+
             var navigationService = _services!.GetRequiredService<INavigationService>();
-
-            _window = new MainWindow(_viewModel);
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
+
+            var settingsViewModel = _services!.GetRequiredService<SettingsViewModel>();
+            _window.Content = new SettingsPage { DataContext = settingsViewModel };
 
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
@@ -166,25 +157,6 @@ namespace FocusBot.App
             }
 
             await ActivateAndShowChromeAsync();
-
-            try
-            {
-                _overlayWindow = new FocusOverlayWindow(navigationService);
-
-                // Check initial overlay visibility setting
-                var overlaySettings = _services!.GetRequiredService<OverlaySettingsViewModel>();
-                overlaySettings.OverlayVisibilityChanged += OnOverlayVisibilityChanged;
-
-                if (overlaySettings.IsOverlayEnabled)
-                    _overlayWindow.Show();
-
-                // Subscribe to ViewModel state changes
-                _viewModel.FocusOverlayStateChanged += OnFocusOverlayStateChanged;
-            }
-            catch (Exception ex)
-            {
-                ShowExceptionMessage("Focus overlay failed", ex);
-            }
         }
 
         public void HandleActivation(AppActivationArguments activationArgs)
@@ -243,14 +215,12 @@ namespace FocusBot.App
             if (_services is null)
                 return;
 
-            var navigationService = _services.GetRequiredService<INavigationService>();
             var dispatcher = _services.GetRequiredService<AppUIThreadDispatcher>();
 
             // Navigate on the UI thread so WinUI controls are not touched off-thread.
             dispatcher.DispatcherQueue?.TryEnqueue(() =>
             {
                 _window?.Activate();
-                navigationService.NavigateToSettings();
             });
         }
 
@@ -303,18 +273,7 @@ namespace FocusBot.App
             if (clientService.GetClientId() is null)
                 await clientService.RegisterAsync();
 
-            await ReloadFocusBoardIfReadyAsync();
-
-            if (_viewModel is not null)
-                await ConnectFocusHubAsync().ConfigureAwait(false);
-        }
-
-        private async Task ReloadFocusBoardIfReadyAsync()
-        {
-            if (_viewModel is null)
-                return;
-
-            await _viewModel.ReloadBoardAsync().ConfigureAwait(false);
+            await ConnectFocusHubAsync().ConfigureAwait(false);
         }
 
         private async Task ConnectFocusHubAsync()
@@ -352,7 +311,8 @@ namespace FocusBot.App
             }
 
             var tcs = new TaskCompletionSource();
-            if (!dq.TryEnqueue(() =>
+            if (
+                !dq.TryEnqueue(() =>
                 {
                     try
                     {
@@ -363,9 +323,12 @@ namespace FocusBot.App
                     {
                         tcs.TrySetException(ex);
                     }
-                }))
+                })
+            )
             {
-                tcs.TrySetException(new InvalidOperationException("Could not enqueue main window Activate."));
+                tcs.TrySetException(
+                    new InvalidOperationException("Could not enqueue main window Activate.")
+                );
             }
 
             return tcs.Task;
@@ -415,27 +378,6 @@ namespace FocusBot.App
                     return new ActivationRequest(default, null);
                 }
             }
-        }
-
-        private void OnFocusOverlayStateChanged(object? sender, FocusOverlayStateChangedEventArgs e)
-        {
-            _overlayWindow?.UpdateState(
-                e.HasActiveSession,
-                e.FocusScorePercent,
-                e.Status,
-                e.IsSessionPaused,
-                e.IsLoading,
-                e.HasError,
-                e.TooltipText
-            );
-        }
-
-        private void OnOverlayVisibilityChanged(object? sender, bool isVisible)
-        {
-            if (isVisible)
-                _overlayWindow?.Show();
-            else
-                _overlayWindow?.Hide();
         }
 
         private static void OnUnhandledException(
