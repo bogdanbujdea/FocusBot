@@ -125,8 +125,8 @@ The WebAPI validates Supabase-issued JWTs (ES256, JWKS) and auto-provisions a `U
 | Tier | `PlanType` enum | Key Source | Analytics | Sync |
 |---|---|---|---|---|
 | Trial (24h) | `TrialFullAccess` (0) | Platform-managed | Full (web app) | Yes |
-| Cloud BYOK | `CloudBYOK` (1) | User-provided | Full (web app) | Yes |
-| Cloud Managed | `CloudManaged` (2) | Platform-managed | Full (web app) | Yes |
+| Foqus BYOK | `CloudBYOK` (1) | User-provided | Full (web app) | Yes |
+| Foqus Premium | `CloudManaged` (2) | Platform-managed | Full (web app) | Yes |
 
 **`SubscriptionStatus` enum**: `None`, `Trial`, `Active`, `Expired`, `Canceled` (serialized as camelCase strings in JSON).
 

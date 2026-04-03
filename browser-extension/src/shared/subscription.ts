@@ -28,8 +28,8 @@ export const isTrialBannerVisible = (
 
 export const getPlanLabelFromServerPlanType = (serverPlanType: number | undefined): string => {
   if (serverPlanType === 0) return "Trial (24h)";
-  if (serverPlanType === 1) return "Cloud BYOK";
-  if (serverPlanType === 2) return "Cloud Managed";
+  if (serverPlanType === 1) return "Foqus BYOK";
+  if (serverPlanType === 2) return "Foqus Premium";
   return "No active plan";
 };
 

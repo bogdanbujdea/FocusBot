@@ -50,11 +50,11 @@ export function TermsPage() {
             analytics. No cloud sync.
           </li>
           <li>
-            <strong>Cloud BYOK</strong> — Use your own API key with full cloud analytics, cross-device
+            <strong>Foqus BYOK</strong> — Use your own API key with full cloud analytics, cross-device
             sync, and web dashboard access. Requires a paid subscription.
           </li>
           <li>
-            <strong>Cloud Managed</strong> — Platform-managed AI classification key with full cloud
+            <strong>Foqus Premium</strong> — Platform-managed AI classification key with full cloud
             analytics, cross-device sync, and web dashboard access. Requires a paid subscription.
           </li>
         </ul>

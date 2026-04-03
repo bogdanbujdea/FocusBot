@@ -43,7 +43,7 @@ vi.mock("../hooks/usePaddle", () => ({
       plans: [
         {
           priceId: "pri_byok",
-          name: "Cloud BYOK",
+          name: "Foqus BYOK",
           description: "BYOK tier",
           unitAmountMinor: 199,
           currency: "USD",
@@ -79,7 +79,7 @@ describe("BillingPage", () => {
     });
 
     expect(screen.getByRole("heading", { name: /plans/i })).toBeInTheDocument();
-    expect(screen.getByText("Cloud BYOK")).toBeInTheDocument();
+    expect(screen.getByText("Foqus BYOK")).toBeInTheDocument();
   });
 
   it("does not show a Free (BYOK) static plan card", async () => {

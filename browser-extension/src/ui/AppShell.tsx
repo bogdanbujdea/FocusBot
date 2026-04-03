@@ -315,7 +315,7 @@ export const AppShell = ({
     ) : null}
     {showByokBanner ? (
       <section className="byok-banner" aria-live="polite">
-        <p>OpenAI API key required for Cloud BYOK.</p>
+        <p>OpenAI API key required for Foqus BYOK.</p>
         <div className="byok-banner-actions">
           <button type="button" className="byok-banner-link" onClick={() => setShowByokInfoDialog(true)}>
             Learn more

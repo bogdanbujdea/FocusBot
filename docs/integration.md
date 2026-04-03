@@ -229,8 +229,8 @@ sequenceDiagram
 
 | Plan | Client Action |
 |---|---|
-| Cloud Managed | Immediate — managed classification available |
-| Cloud BYOK | Desktop: `BYOKKeyPromptDialog` prompts for API key. Extension: BYOK info banner in popup. Web app: `BYOKSetupModal` with setup steps |
+| Foqus Premium | Immediate — managed classification available |
+| Foqus BYOK | Desktop: `BYOKKeyPromptDialog` prompts for API key. Extension: BYOK info banner in popup. Web app: `BYOKSetupModal` with setup steps |
 
 ---
 

@@ -341,8 +341,8 @@ public async Task ReturnTask_WhenIdExists()
 | Tier | Key Source | Analytics | Sync |
 |---|---|---|---|
 | Free (BYOK) | User-provided | Basic (local) | None |
-| Cloud BYOK | User-provided | Full (web app) | Yes |
-| Cloud Managed | Platform-managed | Full (web app) | Yes |
+| Foqus BYOK | User-provided | Full (web app) | Yes |
+| Foqus Premium | Platform-managed | Full (web app) | Yes |
 
 ### Analytics Split
 

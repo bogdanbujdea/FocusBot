@@ -187,7 +187,7 @@ All ViewModels use **CommunityToolkit.Mvvm** source generators: `[ObservableProp
 | `FocusOverlayWindow.cs` | Pure Win32 | 96px floating overlay (see below) |
 | `HowItWorksDialog.xaml` | ContentDialog | First-run onboarding guide |
 | `TrialWelcomeDialog.xaml` | ContentDialog | One-time trial welcome (shown for trial users) |
-| `BYOKKeyPromptDialog.xaml` | ContentDialog | Prompts Cloud BYOK users to configure API key |
+| `BYOKKeyPromptDialog.xaml` | ContentDialog | Prompts Foqus BYOK users to configure API key |
 | `FocusStatusControl.xaml` | UserControl | Reusable focus status display |
 
 ### DI Registration
@@ -334,7 +334,7 @@ After the first-run "How it works" dialog, signed-in users on the 24h trial (`Pl
 - Shown when `ClientPlanType.FreeBYOK` (maps to server `TrialFullAccess`), `status = Trial`, and `trialEndsAt` is in the future
 - **Subscription required** banner when trial has ended (same tier, expired or past `trialEndsAt`) with **View plans** button
 
-### Cloud BYOK Key Prompt
+### Foqus BYOK Key Prompt
 
 After `PlanChanged` / hub refresh, if plan is `CloudBYOK` and no API key in settings:
 - `BYOKKeyPromptDialog` prompts once per session to open Settings

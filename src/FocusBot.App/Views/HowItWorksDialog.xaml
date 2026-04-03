@@ -52,7 +52,7 @@
             <TextBlock Foreground="{StaticResource FbTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        LineHeight="22">
-                <Run Text="You can lower your subscription cost with Cloud BYOK by using your own OpenAI API key. We use OpenAI because their lower-cost models perform very well for focus-alignment classification. If you choose BYOK, your key is encrypted on your device and used only for classification requests."/>
+                <Run Text="You can lower your subscription cost with Foqus BYOK by using your own OpenAI API key. We use OpenAI because their lower-cost models perform very well for focus-alignment classification. If you choose BYOK, your key is encrypted on your device and used only for classification requests."/>
             </TextBlock>
 
             <Border Style="{StaticResource FbDividerStyle}" Margin="0,4,0,0"/>

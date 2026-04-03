@@ -13,7 +13,7 @@ internal sealed class TestPaddleBillingApi : IPaddleBillingApi
                 [
                     new PricingPlanDto(
                         "pri_test_byok",
-                        "Cloud BYOK",
+                        "Foqus BYOK",
                         "Test",
                         199,
                         "USD",
@@ -21,7 +21,7 @@ internal sealed class TestPaddleBillingApi : IPaddleBillingApi
                         "cloud-byok"),
                     new PricingPlanDto(
                         "pri_test_managed",
-                        "Cloud Managed",
+                        "Foqus Premium",
                         "Test",
                         499,
                         "USD",

@@ -68,10 +68,10 @@ public partial class PlanSelectionViewModel : ObservableObject
     /// <summary>True when the current plan is Free (BYOK, local-only).</summary>
     public bool IsFreePlan => CurrentPlan == ClientPlanType.FreeBYOK;
 
-    /// <summary>True when the current plan is Cloud BYOK.</summary>
+    /// <summary>True when the current plan is Foqus BYOK.</summary>
     public bool IsCloudBYOKPlan => CurrentPlan == ClientPlanType.CloudBYOK;
 
-    /// <summary>True when the current plan is Cloud Managed.</summary>
+    /// <summary>True when the current plan is Foqus Premium.</summary>
     public bool IsCloudManagedPlan => CurrentPlan == ClientPlanType.CloudManaged;
 
     /// <summary>Show the "Open full analytics" button — visible for signed-in cloud users.</summary>
@@ -110,8 +110,8 @@ public partial class PlanSelectionViewModel : ObservableObject
             return CurrentPlan switch
             {
                 ClientPlanType.FreeBYOK => "Foqus trial",
-                ClientPlanType.CloudBYOK => "Cloud BYOK",
-                ClientPlanType.CloudManaged => "Cloud Managed",
+                ClientPlanType.CloudBYOK => "Foqus BYOK",
+                ClientPlanType.CloudManaged => "Foqus Premium",
                 _ => "Foqus trial",
             };
         }

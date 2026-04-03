@@ -155,7 +155,7 @@ Single-query troubleshooting: all subscription/billing/payment data in one row.
 - Subscribe buttons open Paddle.js overlay checkout
 - "Manage Subscription" button (active subscribers only) opens Paddle customer portal
 - Success banner on `checkout.completed` or `?checkout=success` query param
-- **Cloud BYOK setup modal** (`components/BYOKSetupModal.tsx`): After `checkout.completed`, if the subscribed price slug was **cloud-byok** (tracked when **Subscribe** is clicked), shows steps to open the Windows app or browser extension, go to Settings, and paste the OpenAI (or provider) API key. Dismiss with **Got it**.
+- **Foqus BYOK setup modal** (`components/BYOKSetupModal.tsx`): After `checkout.completed`, if the subscribed price slug was **cloud-byok** (tracked when **Subscribe** is clicked), shows steps to open the Windows app or browser extension, go to Settings, and paste the OpenAI (or provider) API key. Dismiss with **Got it**.
 - Error handling for missing `clientToken` or pricing failures
 
 **Custom data sent to Paddle:**
@@ -180,7 +180,7 @@ customData: {
 - Options page (`options/main.tsx`) uses a subscription summary (current plan, end date, manage subscription link, refresh action) instead of plan comparison cards
 - Trial expiry with no paid subscription is shown as **No active plan** with a billing link
 
-**Cloud BYOK prompt:**
+**Foqus BYOK prompt:**
 - When subscription resolves to `cloud-byok` and `openAiApiKey` is empty, options page highlights the API key section and prompts the user to enter a key
 - Security copy explains key handling:
   - Stored in Chrome extension storage scoped to this extension
@@ -189,7 +189,7 @@ customData: {
 
 **Classification flow (dual-path, unchanged):**
 - **BYOK direct path:** `shared/classifier.ts` calls `https://api.openai.com/v1/chat/completions` with `Authorization: Bearer <openAiApiKey>`
-- **Cloud managed path:** `shared/classifier.ts` calls Foqus API `POST /classify` with JWT; server uses managed key
+- **Foqus Premium path:** `shared/classifier.ts` calls Foqus API `POST /classify` with JWT; server uses managed key
 
 **Implementation files:**
 - `shared/webAppUrl.ts` — `getWebAppBillingUrl()` helper
@@ -209,7 +209,7 @@ customData: {
 **Trial UX (Focus page):**
 - **`TrialWelcomeDialog`** — One-time welcome after first-run **How it works** (or when the user signs in later), gated by `SettingsKeys.TrialWelcomeSeen`, for Foqus trial users. **View plans** opens `https://app.foqus.me/billing`.
 - **Trial `InfoBar`** — Countdown to `trialEndsAt` and **Manage plan** link when the Foqus trial is active (`ClientPlanType.FreeBYOK` / server `TrialFullAccess`, status trial, future end). Separate **Subscription required** banner after local trial expiry with **View plans**.
-- **`BYOKKeyPromptDialog`** — When the plan becomes **Cloud BYOK** and no API key is stored locally, prompts once per session to open **Settings** (includes DPAPI / HTTPS security copy).
+- **BYOKKeyPromptDialog** — When the plan becomes Foqus BYOK and no API key is stored locally, prompts once per session to open **Settings** (includes DPAPI / HTTPS security copy).
 
 **No local checkout** — user completes payment in browser, webhook updates DB, SignalR notifies desktop immediately.
 

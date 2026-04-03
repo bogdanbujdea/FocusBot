@@ -4,10 +4,10 @@ interface BYOKInfoDialogProps {
 
 export const BYOKInfoDialog = ({ onClose }: BYOKInfoDialogProps): JSX.Element => {
   return (
-    <section className="popup-overlay byok-info-dialog-overlay" role="dialog" aria-modal="true" aria-label="Cloud BYOK details">
+    <section className="popup-overlay byok-info-dialog-overlay" role="dialog" aria-modal="true" aria-label="Foqus BYOK details">
       <div className="popup-overlay-card byok-info-dialog">
         <div className="popup-overlay-header">
-          <h2>Cloud BYOK</h2>
+          <h2>Foqus BYOK</h2>
           <button type="button" className="popup-overlay-close" onClick={onClose}>
             Close
           </button>
@@ -16,7 +16,7 @@ export const BYOKInfoDialog = ({ onClose }: BYOKInfoDialogProps): JSX.Element =>
         <div className="byok-info-section">
           <h3>What this plan means</h3>
           <p className="muted">
-            Cloud BYOK means you use your own OpenAI API key with Foqus. Each Foqus client (browser extension and Windows app) stores its own key
+            Foqus BYOK means you use your own OpenAI API key with Foqus. Each Foqus client (browser extension and Windows app) stores its own key
             locally, because your key is not saved in your Foqus cloud account.
           </p>
         </div>

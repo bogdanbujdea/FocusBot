@@ -162,7 +162,7 @@ DashboardPage subscribes in `useEffect` gated on auth session; disconnects on un
 
 ### BYOKSetupModal
 
-Post-checkout for Cloud BYOK plan:
+Post-checkout for Foqus BYOK plan:
 - Steps: Open Windows app or extension → Settings → Paste API key
 - Notes: API key encrypted locally, not stored on servers
 - Dismissable via button or backdrop click
@@ -241,7 +241,7 @@ Post-checkout for Cloud BYOK plan:
 | `KpiCard` | Metric card (label/value/sublabel). Variants: `default`, `aligned`, `distracted`, `focus-score` (includes `FocusGauge`). |
 | `SessionTimer` | Live elapsed timer. Updates 1s. Computes active seconds excluding paused time. Freezes when paused. Accepts `nowMs` prop for deterministic tests. |
 | `SegmentedControl` | Generic segmented button group (`<T extends string>`). Uses `aria-pressed`. |
-| `BYOKSetupModal` | Post-checkout Cloud BYOK setup instructions. |
+| `BYOKSetupModal` | Post-checkout Foqus BYOK setup instructions. |
 | `TrialWelcomeModal` | One-time trial welcome. Per-user localStorage tracking. |
 | `PlanCard` | Plan comparison card (inline in BillingPage). |
 
