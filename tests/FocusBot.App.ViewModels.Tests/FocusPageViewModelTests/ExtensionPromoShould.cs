@@ -53,7 +53,7 @@ public class ExtensionPromoShould
     }
 
     [Fact]
-    public async Task SignalRClassificationMessage_BeShown_Only_When_SessionIsActive()
+    public async Task ClassificationReasonText_BeShown_When_SessionIsActive_AndHubEventArrives()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var session = UserSession.FromApiResponse(
@@ -61,7 +61,27 @@ public class ExtensionPromoShould
         );
         var extensionPresence = new TestExtensionPresenceService(false);
         var hub = new FakeFocusHubClient();
-        var vm = CreateViewModel(session, hub, extensionPresence);
+        var (vm, orchestratorMock) = CreateViewModelWithOrchestrator(session, hub, extensionPresence);
+
+        orchestratorMock
+            .Setup(o => o.ApplyRemoteClassificationFromHub(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, int, string, string>((_, score, reason, _) =>
+            {
+                var args = new FocusSessionStateChangedEventArgs
+                {
+                    FocusScore = score,
+                    FocusReason = reason,
+                    HasCurrentFocusResult = true,
+                    IsClassifying = false,
+                    IsSessionPaused = false,
+                    SessionElapsedSeconds = 0,
+                    FocusScorePercent = 0,
+                    CurrentProcessName = "msedge",
+                    CurrentWindowTitle = "Example",
+                };
+                orchestratorMock.Raise(m => m.StateChanged += null, orchestratorMock.Object, args);
+            });
 
         await Task.Delay(200);
 
@@ -77,14 +97,14 @@ public class ExtensionPromoShould
         );
         await Task.Delay(100);
 
-        vm.SignalRClassificationMessage.Should().Be("SignalR says focused");
+        vm.ClassificationReasonText.Should().Be("SignalR says focused");
         vm.ShowClassificationMessage.Should().BeTrue();
         vm.ClassificationStatusLabel.Should().Be("Aligned");
         vm.IsClassificationAligned.Should().BeTrue();
     }
 
     [Fact]
-    public async Task SignalRClassificationMessage_BeHidden_When_NoSession()
+    public async Task ShowClassificationMessage_BeFalse_When_NoSession()
     {
         await using var ctx = await FocusPageTestContext.CreateAsync();
         var extensionPresence = new TestExtensionPresenceService(false);
@@ -104,7 +124,6 @@ public class ExtensionPromoShould
         );
         await Task.Delay(100);
 
-        vm.SignalRClassificationMessage.Should().Be("SignalR says focused");
         vm.ShowClassificationMessage.Should().BeFalse();
     }
 
