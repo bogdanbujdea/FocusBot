@@ -6,7 +6,7 @@ namespace FocusBot.App.ViewModels;
 public interface INavigationService
 {
     /// <summary>
-    /// Navigates to the Focus page (main board view).
+    /// Navigates to the home view (session start page).
     /// </summary>
     void NavigateToHomePage();
 

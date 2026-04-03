@@ -27,6 +27,9 @@
     <Content Remove="Assets\BadgeLogo.scale-400.png" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Views\SessionPage.xaml" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -69,6 +72,11 @@
     <ProjectReference Include="..\FocusBot.App.ViewModels\FocusBot.App.ViewModels.csproj" />
     <ProjectReference Include="..\FocusBot.Core\FocusBot.Core.csproj" />
     <ProjectReference Include="..\FocusBot.Infrastructure\FocusBot.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\SessionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution

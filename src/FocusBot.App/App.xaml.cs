@@ -82,6 +82,7 @@ namespace FocusBot.App
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<PlanSelectionViewModel>();
             services.AddTransient<SettingsViewModel>();
+            services.AddTransient<SessionPageViewModel>();
 
             _services = services.BuildServiceProvider();
 
@@ -138,8 +139,8 @@ namespace FocusBot.App
             if (navigationService is MainWindowNavigationService mainNav)
                 mainNav.SetWindow(_window);
 
-            var settingsViewModel = _services!.GetRequiredService<SettingsViewModel>();
-            _window.Content = new SettingsPage { DataContext = settingsViewModel };
+            var sessionPageViewModel = _services!.GetRequiredService<SessionPageViewModel>();
+            _window.Content = new SessionPage { DataContext = sessionPageViewModel };
 
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
