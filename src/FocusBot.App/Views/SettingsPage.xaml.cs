@@ -28,7 +28,11 @@ public sealed partial class SettingsPage : Page
         vm!.ApiKeySection.ApiKey = box!.Text;
     }
 
-    private bool TryGetApiKeyUpdateContext(object sender, out TextBox? box, out SettingsViewModel? vm)
+    private bool TryGetApiKeyUpdateContext(
+        object sender,
+        out TextBox? box,
+        out SettingsViewModel? vm
+    )
     {
         box = sender as TextBox;
         vm = DataContext as SettingsViewModel;

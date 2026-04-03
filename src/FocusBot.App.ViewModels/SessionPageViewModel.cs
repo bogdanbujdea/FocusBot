@@ -3,19 +3,12 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace FocusBot.App.ViewModels;
 
-public partial class SessionPageViewModel(INavigationService navigationService) : ObservableObject
+public partial class SessionPageViewModel(
+    NewSessionViewModel newSession,
+    INavigationService navigationService
+) : ObservableObject
 {
-    [ObservableProperty]
-    private string _title = string.Empty;
-
-    [ObservableProperty]
-    private string _context = string.Empty;
-
-    [RelayCommand]
-    private void Start()
-    {
-        // Placeholder: implement session start logic later
-    }
+    public NewSessionViewModel NewSession { get; } = newSession;
 
     [RelayCommand]
     private void OpenSettings()

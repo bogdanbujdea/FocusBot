@@ -74,6 +74,9 @@
     <ProjectReference Include="..\FocusBot.Infrastructure\FocusBot.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Page Update="Views\NewSession.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="Views\SessionPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

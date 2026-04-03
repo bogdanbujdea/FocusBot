@@ -82,6 +82,7 @@ namespace FocusBot.App
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<PlanSelectionViewModel>();
             services.AddTransient<SettingsViewModel>();
+            services.AddTransient<NewSessionViewModel>();
             services.AddTransient<SessionPageViewModel>();
 
             _services = services.BuildServiceProvider();
