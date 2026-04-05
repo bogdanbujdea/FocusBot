@@ -31,12 +31,15 @@ public class InitializeAsyncShould
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
+        
+        var mockSessionControl = new Mock<IFocusSessionControlService>();
 
         var newSessionVm = new NewSessionViewModel(mockApi.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockApi.Object,
+            mockSessionControl.Object,
             mockDispatcher.Object);
 
         // Act
@@ -58,12 +61,14 @@ public class InitializeAsyncShould
 
         var mockNavigation = new Mock<INavigationService>();
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
+        var mockSessionControl = new Mock<IFocusSessionControlService>();
 
         var newSessionVm = new NewSessionViewModel(mockApi.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockApi.Object,
+            mockSessionControl.Object,
             mockDispatcher.Object);
 
         // Act

@@ -104,7 +104,7 @@ Handles the "Start session" form with title and context input.
 
 ### ActiveSessionViewModel
 
-Displays the in-progress session with a live elapsed timer. Uses `System.Timers.Timer` with `IUIThreadDispatcher` for UI updates.
+Displays the in-progress session with a live elapsed timer and pause/resume/stop controls. Uses `System.Timers.Timer` with `IUIThreadDispatcher` for UI updates. Delegates session control operations to `IFocusSessionControlService`.
 
 | Property | Purpose |
 |---|---|
@@ -112,12 +112,33 @@ Displays the in-progress session with a live elapsed timer. Uses `System.Timers.
 | `StartedAtUtc` | When the session started |
 | `IsPaused` | Whether the session is paused |
 | `ElapsedDisplay` | Live timer in `HH:MM:SS` format |
+| `State` | Command state (Idle, Loading, Error) |
+| `PauseResumeLabel` | "Pause" or "Resume" based on `IsPaused` |
+| `OnSessionEnded` | Callback when stop succeeds |
+
+**Commands:**
+- `PauseOrResumeCommand` — toggles pause/resume; calls service and updates UI from response.
+- `StopCommand` — ends session with placeholder metrics (zeros); invokes `OnSessionEnded` on success.
+- `ClearErrorCommand` — clears error state.
 
 Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSeconds`, freezing on `pausedAtUtc` when paused.
+
+**Stop behavior:** The desktop sends zero metrics (`FocusScorePercent`, `FocusedSeconds`, etc.) until real analytics are tracked. The server persists these values and can be updated once the overlay tracks focus data.
 
 ---
 
 ## Services
+
+### IFocusSessionControlService
+
+Provides pause/resume/end operations for focus sessions. Abstracts session control logic from ViewModels.
+
+| Method | Purpose |
+|---|---|
+| `TogglePauseAsync(sessionId, isCurrentlyPaused)` | Resumes if paused, pauses if running |
+| `EndWithPlaceholderMetricsAsync(sessionId)` | Ends session with zero metrics |
+
+**Implementation detail:** The service sends `EndSessionPayload(0, 0, 0, 0, 0, null, null)` when ending. Once the desktop tracks real focus metrics (via the overlay or background monitor), the service can be updated to send actual values.
 
 See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync via SignalR.
 

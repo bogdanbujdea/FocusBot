@@ -22,4 +22,10 @@ public sealed partial class ActiveSession : UserControl
     {
         return isPaused ? 0.5 : 1.0;
     }
+
+    private void InfoBar_Closed(InfoBar sender, object args)
+    {
+        ViewModel?.ClearErrorCommand.Execute(null);
+    }
 }
+

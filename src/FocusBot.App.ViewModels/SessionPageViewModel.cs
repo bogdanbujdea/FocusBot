@@ -9,6 +9,7 @@ public partial class SessionPageViewModel : ObservableObject
 {
     private readonly INavigationService _navigationService;
     private readonly IFocusBotApiClient _apiClient;
+    private readonly IFocusSessionControlService _sessionControl;
     private readonly IUIThreadDispatcher _dispatcher;
 
     [ObservableProperty]
@@ -23,11 +24,13 @@ public partial class SessionPageViewModel : ObservableObject
         NewSessionViewModel newSession,
         INavigationService navigationService,
         IFocusBotApiClient apiClient,
+        IFocusSessionControlService sessionControl,
         IUIThreadDispatcher dispatcher)
     {
         NewSession = newSession;
         _navigationService = navigationService;
         _apiClient = apiClient;
+        _sessionControl = sessionControl;
         _dispatcher = dispatcher;
 
         NewSession.OnSessionStarted = OnSessionStarted;
@@ -53,9 +56,17 @@ public partial class SessionPageViewModel : ObservableObject
     private void SetActiveSession(ApiSessionResponse session)
     {
         ActiveSession?.Dispose();
-        var vm = new ActiveSessionViewModel(_dispatcher);
+        var vm = new ActiveSessionViewModel(_dispatcher, _sessionControl);
+        vm.OnSessionEnded = HandleActiveSessionEnded;
         vm.SetSession(session);
         ActiveSession = vm;
+    }
+
+    private void HandleActiveSessionEnded()
+    {
+        var previous = ActiveSession;
+        ActiveSession = null;
+        previous?.Dispose();
     }
 
     [RelayCommand]

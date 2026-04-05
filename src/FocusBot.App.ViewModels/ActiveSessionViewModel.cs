@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 
@@ -6,13 +7,16 @@ namespace FocusBot.App.ViewModels;
 
 /// <summary>
 /// ViewModel for displaying an active (in-progress) focus session with a live elapsed timer.
+/// Manages pause/resume/end actions via IFocusSessionControlService.
 /// </summary>
 public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 {
     private readonly IUIThreadDispatcher _dispatcher;
+    private readonly IFocusSessionControlService _sessionControl;
     private readonly System.Timers.Timer _timer;
     private bool _disposed;
 
+    private Guid _sessionId;
     private DateTime? _pausedAtUtc;
     private long _totalPausedSeconds;
 
@@ -28,9 +32,19 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _elapsedDisplay = "00:00:00";
 
-    public ActiveSessionViewModel(IUIThreadDispatcher dispatcher)
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PauseOrResumeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    private SessionStartState _state = SessionStartState.Idle;
+
+    public Action? OnSessionEnded { get; set; }
+
+    public string PauseResumeLabel => IsPaused ? "Resume" : "Pause";
+
+    public ActiveSessionViewModel(IUIThreadDispatcher dispatcher, IFocusSessionControlService sessionControl)
     {
         _dispatcher = dispatcher;
+        _sessionControl = sessionControl;
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;
     }
@@ -40,14 +54,9 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     /// </summary>
     public void SetSession(ApiSessionResponse session)
     {
-        SessionTitle = session.SessionTitle;
-        StartedAtUtc = session.StartedAtUtc;
-        _pausedAtUtc = session.PausedAtUtc;
-        _totalPausedSeconds = session.TotalPausedSeconds;
-        IsPaused = session.IsPaused;
-
+        ApplySession(session);
         UpdateElapsedDisplay();
-        StartTimer();
+        StartTimerIfNotPaused();
     }
 
     /// <summary>
@@ -58,18 +67,38 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         StopTimer();
         SessionTitle = string.Empty;
         StartedAtUtc = default;
+        _sessionId = Guid.Empty;
         _pausedAtUtc = null;
         _totalPausedSeconds = 0;
         IsPaused = false;
         ElapsedDisplay = "00:00:00";
+        State = SessionStartState.Idle;
     }
 
-    private void StartTimer()
+    private void ApplySession(ApiSessionResponse session)
+    {
+        _sessionId = session.Id;
+        SessionTitle = session.SessionTitle;
+        StartedAtUtc = session.StartedAtUtc;
+        _pausedAtUtc = session.PausedAtUtc;
+        _totalPausedSeconds = session.TotalPausedSeconds;
+        IsPaused = session.IsPaused;
+        UpdateElapsedDisplay();
+        ManagedTimer();
+    }
+
+    private void ManagedTimer()
+    {
+        if (IsPaused)
+            StopTimer();
+        else
+            StartTimerIfNotPaused();
+    }
+
+    private void StartTimerIfNotPaused()
     {
         if (!IsPaused)
-        {
             _timer.Start();
-        }
     }
 
     private void StopTimer()
@@ -107,6 +136,45 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         var minutes = (totalSeconds % 3600) / 60;
         var seconds = totalSeconds % 60;
         return $"{hours:D2}:{minutes:D2}:{seconds:D2}";
+    }
+
+    private bool CanExecuteSessionCommand => !State.IsBusy && _sessionId != Guid.Empty;
+
+    [RelayCommand(CanExecute = nameof(CanExecuteSessionCommand))]
+    private async Task PauseOrResumeAsync()
+    {
+        State = SessionStartState.Loading;
+        var result = await _sessionControl.TogglePauseAsync(_sessionId, IsPaused);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            ApplySession(result.Value);
+            State = SessionStartState.Idle;
+        }
+        else
+        {
+            State = SessionStartState.Error(result.ErrorMessage ?? "Failed to toggle pause");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExecuteSessionCommand))]
+    private async Task StopAsync()
+    {
+        State = SessionStartState.Loading;
+        var result = await _sessionControl.EndWithPlaceholderMetricsAsync(_sessionId);
+        if (result.IsSuccess)
+        {
+            OnSessionEnded?.Invoke();
+        }
+        else
+        {
+            State = SessionStartState.Error(result.ErrorMessage ?? "Failed to end session");
+        }
+    }
+
+    [RelayCommand]
+    private void ClearError()
+    {
+        State = SessionStartState.Idle;
     }
 
     public void Dispose()

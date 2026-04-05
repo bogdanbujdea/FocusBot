@@ -11,6 +11,7 @@
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
     </UserControl.Resources>
 
     <Border Background="{StaticResource FbCardBackgroundBrush}"
@@ -52,6 +53,27 @@
                        Margin="0,16,0,16"
                        Opacity="{x:Bind TimerOpacity(ViewModel.IsPaused), Mode=OneWay}"
                        automation:AutomationProperties.Name="Elapsed time"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <Button Content="{x:Bind ViewModel.PauseResumeLabel, Mode=OneWay}"
+                        Style="{StaticResource FbAccentButtonStyle}"
+                        Command="{x:Bind ViewModel.PauseOrResumeCommand}"
+                        IsEnabled="{x:Bind ViewModel.State.IsBusy, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"
+                        automation:AutomationProperties.Name="Pause or resume"/>
+
+                <Button Content="Stop"
+                        Style="{StaticResource FbCardActionDeleteStyle}"
+                        Command="{x:Bind ViewModel.StopCommand}"
+                        IsEnabled="{x:Bind ViewModel.State.IsBusy, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"
+                        automation:AutomationProperties.Name="Stop session"/>
+            </StackPanel>
+
+            <InfoBar IsOpen="{x:Bind ViewModel.State.ErrorMessage, Converter={StaticResource StringToBoolConverter}, Mode=OneWay}"
+                     Severity="Error"
+                     Title="Error"
+                     Message="{x:Bind ViewModel.State.ErrorMessage, Mode=OneWay}"
+                     IsClosable="True"
+                     Closed="InfoBar_Closed"/>
         </StackPanel>
     </Border>
 </UserControl>
