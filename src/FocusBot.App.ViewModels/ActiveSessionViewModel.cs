@@ -27,6 +27,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     private DateTime _startedAtUtc;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseResumeLabel))]
     private bool _isPaused;
 
     [ObservableProperty]

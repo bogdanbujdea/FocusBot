@@ -15,8 +15,16 @@ namespace FocusBot.Infrastructure.Services;
 /// </summary>
 public class FocusBotApiClient : IFocusBotApiClient
 {
+    private const string DesktopClientFingerprintSettingKey = "Desktop_ClientFingerprint";
+    private const string DesktopClientIdSettingKey = "Desktop_ClientId";
+    private const string ClientFingerprintHeader = "X-Foqus-Client-Fingerprint";
+    private const string ClientNameHeader = "X-Foqus-Client-Name";
+    private const string ClientAppVersionHeader = "X-Foqus-Client-AppVersion";
+    private const string ClientPlatformHeader = "X-Foqus-Client-Platform";
+
     private readonly HttpClient _httpClient;
     private readonly IAuthService _authService;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<FocusBotApiClient> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -62,11 +70,13 @@ public class FocusBotApiClient : IFocusBotApiClient
     public FocusBotApiClient(
         HttpClient httpClient,
         IAuthService authService,
+        ISettingsService settingsService,
         ILogger<FocusBotApiClient> logger
     )
     {
         _httpClient = httpClient;
         _authService = authService;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -112,7 +122,14 @@ public class FocusBotApiClient : IFocusBotApiClient
             if (request is null)
                 return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
-            request.Content = JsonContent.Create(payload, options: JsonOptions);
+            var clientId = payload.ClientId ?? await GetStoredClientIdAsync();
+            request.Content = JsonContent.Create(
+                payload with
+                {
+                    ClientId = clientId,
+                },
+                options: JsonOptions
+            );
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -438,6 +455,12 @@ public class FocusBotApiClient : IFocusBotApiClient
             if (request is null)
                 return null;
 
+            var fingerprint = await EnsureDesktopFingerprintAsync();
+            request.Headers.Add(ClientFingerprintHeader, fingerprint);
+            request.Headers.Add(ClientNameHeader, Environment.MachineName);
+            request.Headers.Add(ClientAppVersionHeader, GetAppVersion());
+            request.Headers.Add(ClientPlatformHeader, "Windows");
+
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
@@ -446,6 +469,10 @@ public class FocusBotApiClient : IFocusBotApiClient
             }
 
             var body = await response.Content.ReadFromJsonAsync<ApiMeResponse>(JsonOptions);
+            if (body?.ClientId is Guid clientId)
+            {
+                await _settingsService.SetSettingAsync(DesktopClientIdSettingKey, clientId.ToString());
+            }
             _logger.LogInformation("Backend user provisioned successfully");
             return body;
         }
@@ -475,4 +502,28 @@ public class FocusBotApiClient : IFocusBotApiClient
 
     private static string GetAppVersion() =>
         System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "1.0.0";
+
+    private async Task<string> EnsureDesktopFingerprintAsync()
+    {
+        var existing = await _settingsService.GetSettingAsync<string>(DesktopClientFingerprintSettingKey);
+        if (!string.IsNullOrWhiteSpace(existing))
+        {
+            return existing;
+        }
+
+        var generated = Guid.NewGuid().ToString("N");
+        await _settingsService.SetSettingAsync(DesktopClientFingerprintSettingKey, generated);
+        return generated;
+    }
+
+    private async Task<Guid?> GetStoredClientIdAsync()
+    {
+        var raw = await _settingsService.GetSettingAsync<string>(DesktopClientIdSettingKey);
+        if (Guid.TryParse(raw, out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
 }

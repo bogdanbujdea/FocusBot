@@ -233,6 +233,56 @@ public class SessionCoordinator : ISessionCoordinator
         }
     }
 
+    public async Task ApplyRemoteSessionStartedAsync(SessionStartedEvent evt)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_currentState.HasActiveSession && _currentState.ActiveSession!.Id == evt.SessionId)
+            {
+                _logger.LogDebug(
+                    "Ignoring duplicate SessionStarted event for existing session {SessionId}",
+                    evt.SessionId
+                );
+                return;
+            }
+
+            var activeSession = await _apiClient.GetActiveSessionAsync();
+            if (activeSession is null)
+            {
+                _logger.LogWarning(
+                    "SessionStarted event received for {SessionId} but API returned no active session",
+                    evt.SessionId
+                );
+                return;
+            }
+
+            if (activeSession.Id != evt.SessionId)
+            {
+                _logger.LogWarning(
+                    "SessionStarted event ID mismatch. Event {EventSessionId}, API {ApiSessionId}",
+                    evt.SessionId,
+                    activeSession.Id
+                );
+                return;
+            }
+
+            _logger.LogInformation(
+                "Applied remote SessionStarted event for session {SessionId}",
+                evt.SessionId
+            );
+            UpdateState(activeSession, null, SessionChangeType.Synced);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to apply remote SessionStarted event");
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     public void ClearError()
     {
         if (_currentState.HasError)

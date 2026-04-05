@@ -154,9 +154,11 @@ Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSec
 
 ### ISessionRealtimeAdapter
 
-**Phase 1 (Current):** No-op implementation (`NoOpSessionRealtimeAdapter`) registered as singleton. Provides extension point for phase 2.
+**Current:** `SignalRSessionRealtimeAdapter` is registered as singleton and listens to `SessionStarted` from the FocusBot SignalR hub. Incoming events are reconciled through `ISessionCoordinator` so the desktop UI updates when a session starts on another client.
 
-**Phase 2 (Planned):** `SignalRSessionRealtimeAdapter` will listen to real-time session events (`SessionStarted`, `SessionEnded`, `SessionPaused`, `SessionResumed`) from the FocusBot SignalR hub and reconcile with `ISessionCoordinator` for cross-device sync. The coordinator will remain the only component allowed to mutate UI-facing session state, ensuring a single state flow.
+**Lifecycle wiring:** The adapter connects on authenticated state and disconnects/reset on sign-out in `App.xaml.cs`.
+
+**Next:** Add `SessionEnded`, `SessionPaused`, and `SessionResumed` event reconciliation to complete full remote session lifecycle sync.
 
 See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync patterns.
 

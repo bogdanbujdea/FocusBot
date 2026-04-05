@@ -67,7 +67,15 @@ public static class SessionEndpoints
 
         var s = result.Session!;
         await hub.Clients.Group(userId.ToString()).SessionStarted(
-            new SessionStartedEvent(s.Id, s.SessionTitle, s.SessionContext, s.StartedAtUtc, s.Source));
+            new SessionStartedEvent(
+                s.Id,
+                s.SessionTitle,
+                s.SessionContext,
+                s.StartedAtUtc,
+                s.Source,
+                s.ClientId
+            )
+        );
 
         return Results.Created($"/sessions/{s.Id}", s);
     }

@@ -63,11 +63,22 @@ namespace FocusBot.App
                 return new FocusBotApiClient(
                     new HttpClient { BaseAddress = new Uri(baseUrl) },
                     sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<ISettingsService>(),
                     sp.GetRequiredService<ILogger<FocusBotApiClient>>()
                 );
             });
             services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
-            services.AddSingleton<ISessionRealtimeAdapter, NoOpSessionRealtimeAdapter>();
+            services.AddSingleton<ISessionRealtimeAdapter>(sp =>
+            {
+                var hubUrl = $"{GetFocusBotApiBaseUrl()}/hubs/focus";
+                return new SignalRSessionRealtimeAdapter(
+                    sp.GetRequiredService<ISessionCoordinator>(),
+                    sp.GetRequiredService<IAuthService>(),
+                    sp.GetRequiredService<ISettingsService>(),
+                    sp.GetRequiredService<ILogger<SignalRSessionRealtimeAdapter>>(),
+                    hubUrl
+                );
+            });
             services.AddScoped<IClassificationService, AlignmentClassificationService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
 
@@ -225,9 +236,20 @@ namespace FocusBot.App
             if (_services is null)
                 return;
 
+            var authService = _services.GetRequiredService<IAuthService>();
             // Ensure the backend user row exists before any feature calls.
             // /auth/me uses get-or-create, so this is safe on every sign-in and session restore.
             var apiClient = _services.GetRequiredService<IFocusBotApiClient>();
+            var realtimeAdapter = _services.GetRequiredService<ISessionRealtimeAdapter>();
+            var coordinator = _services.GetRequiredService<ISessionCoordinator>();
+
+            if (!authService.IsAuthenticated)
+            {
+                await realtimeAdapter.DisconnectAsync();
+                coordinator.Reset();
+                return;
+            }
+
             var me = await apiClient.GetUserInfoAsync();
             if (me is null)
             {
@@ -236,6 +258,8 @@ namespace FocusBot.App
                     "Backend user provisioning failed; cloud features may be unavailable"
                 );
             }
+
+            await realtimeAdapter.ConnectAsync();
         }
 
         /// <summary>

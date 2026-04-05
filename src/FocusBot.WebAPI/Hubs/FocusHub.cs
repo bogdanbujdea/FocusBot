@@ -51,7 +51,8 @@ public sealed record SessionStartedEvent(
     string SessionTitle,
     string? SessionContext,
     DateTime StartedAtUtc,
-    string Source
+    string Source,
+    Guid? OriginClientId = null
 );
 
 public sealed record SessionEndedEvent(

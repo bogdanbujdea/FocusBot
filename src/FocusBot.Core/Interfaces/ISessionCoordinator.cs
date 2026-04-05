@@ -50,6 +50,11 @@ public interface ISessionCoordinator
     Task<bool> StopAsync();
 
     /// <summary>
+    /// Apply a remote session started event from realtime transport (SignalR).
+    /// </summary>
+    Task ApplyRemoteSessionStartedAsync(SessionStartedEvent evt);
+
+    /// <summary>
     /// Clear any error state.
     /// </summary>
     void ClearError();

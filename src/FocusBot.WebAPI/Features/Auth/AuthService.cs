@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
+using FocusBot.WebAPI.Features.Clients;
 using Microsoft.EntityFrameworkCore;
 
 namespace FocusBot.WebAPI.Features.Auth;
@@ -8,10 +9,15 @@ namespace FocusBot.WebAPI.Features.Auth;
 /// <summary>
 /// Handles user auto-provisioning and profile retrieval from JWT claims.
 /// </summary>
-public class AuthService(ApiDbContext db)
+public class AuthService(ApiDbContext db, ClientService clientService)
 {
-    public async Task<User> GetOrProvisionUserAsync(
+    public async Task<ProvisionedUserResult> GetOrProvisionUserAsync(
         ClaimsPrincipal principal,
+        string? clientFingerprint,
+        string? clientName,
+        string? appVersion,
+        string? platform,
+        string? remoteIpAddress,
         CancellationToken ct = default
     )
     {
@@ -23,45 +29,69 @@ public class AuthService(ApiDbContext db)
         var userId = Guid.Parse(sub);
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-        if (user is not null)
-            return user;
-
-        var email =
-            principal.FindFirstValue(ClaimTypes.Email)
-            ?? principal.FindFirstValue("email")
-            ?? string.Empty;
-
-        user = new User
+        if (user is null)
         {
-            Id = userId,
-            Email = email,
-            CreatedAtUtc = DateTime.UtcNow,
-        };
+            var email =
+                principal.FindFirstValue(ClaimTypes.Email)
+                ?? principal.FindFirstValue("email")
+                ?? string.Empty;
 
-        var trial = new Subscription
-        {
-            UserId = userId,
-            Status = SubscriptionStatus.Trial,
-            PlanType = PlanType.TrialFullAccess,
-            CurrentPeriodEndsAtUtc = DateTime.UtcNow.AddHours(24),
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
-        };
+            user = new User
+            {
+                Id = userId,
+                Email = email,
+                CreatedAtUtc = DateTime.UtcNow,
+            };
 
-        db.Users.Add(user);
-        db.Subscriptions.Add(trial);
+            var trial = new Subscription
+            {
+                UserId = userId,
+                Status = SubscriptionStatus.Trial,
+                PlanType = PlanType.TrialFullAccess,
+                CurrentPeriodEndsAtUtc = DateTime.UtcNow.AddHours(24),
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow,
+            };
 
-        try
-        {
-            await db.SaveChangesAsync(ct);
+            db.Users.Add(user);
+            db.Subscriptions.Add(trial);
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                db.Entry(user).State = EntityState.Detached;
+                db.Entry(trial).State = EntityState.Detached;
+                user = await db.Users.FirstAsync(u => u.Id == userId, ct);
+            }
         }
-        catch (DbUpdateException)
+
+        Guid? clientId = null;
+        if (
+            !string.IsNullOrWhiteSpace(clientFingerprint)
+            && clientFingerprint.Length <= 100
+        )
         {
-            db.Entry(user).State = EntityState.Detached;
-            db.Entry(trial).State = EntityState.Detached;
-            user = await db.Users.FirstAsync(u => u.Id == userId, ct);
+            var registeredClient = await clientService.RegisterAsync(
+                userId,
+                new RegisterClientRequest(
+                    ClientType.Desktop,
+                    ClientHost.Windows,
+                    string.IsNullOrWhiteSpace(clientName) ? "Desktop App" : clientName,
+                    clientFingerprint,
+                    appVersion,
+                    string.IsNullOrWhiteSpace(platform) ? "Windows" : platform
+                ),
+                remoteIpAddress,
+                ct
+            );
+            clientId = registeredClient.Id;
         }
 
-        return user;
+        return new ProvisionedUserResult(user, clientId);
     }
 }
+
+public sealed record ProvisionedUserResult(User User, Guid? ClientId);

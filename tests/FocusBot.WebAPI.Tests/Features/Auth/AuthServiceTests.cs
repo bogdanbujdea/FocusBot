@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Auth;
+using FocusBot.WebAPI.Features.Clients;
 using Microsoft.EntityFrameworkCore;
 
 namespace FocusBot.WebAPI.Tests.Features.Auth;
@@ -30,12 +31,18 @@ public class AuthServiceTests
     public async Task GetOrProvisionUserAsync_CreatesNewUserAndTrial_WhenNotExists()
     {
         await using var db = CreateInMemoryDb();
-        var service = new AuthService(db);
+        var service = new AuthService(db, new ClientService(db));
         var userId = Guid.NewGuid();
 
-        var user = await service.GetOrProvisionUserAsync(
-            CreatePrincipal(userId, "test@example.com")
+        var result = await service.GetOrProvisionUserAsync(
+            CreatePrincipal(userId, "test@example.com"),
+            clientFingerprint: null,
+            clientName: null,
+            appVersion: null,
+            platform: null,
+            remoteIpAddress: null
         );
+        var user = result.User;
 
         user.Id.Should().Be(userId);
         user.Email.Should().Be("test@example.com");
@@ -67,10 +74,16 @@ public class AuthServiceTests
         );
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db);
-        var user = await service.GetOrProvisionUserAsync(
-            CreatePrincipal(userId, "existing@example.com")
+        var service = new AuthService(db, new ClientService(db));
+        var result = await service.GetOrProvisionUserAsync(
+            CreatePrincipal(userId, "existing@example.com"),
+            clientFingerprint: null,
+            clientName: null,
+            appVersion: null,
+            platform: null,
+            remoteIpAddress: null
         );
+        var user = result.User;
 
         user.Id.Should().Be(userId);
         (await db.Users.CountAsync()).Should().Be(1);
@@ -81,11 +94,41 @@ public class AuthServiceTests
     public async Task GetOrProvisionUserAsync_Throws_WhenSubClaimMissing()
     {
         await using var db = CreateInMemoryDb();
-        var service = new AuthService(db);
+        var service = new AuthService(db, new ClientService(db));
         var principal = new ClaimsPrincipal(new ClaimsIdentity());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.GetOrProvisionUserAsync(principal)
+            service.GetOrProvisionUserAsync(
+                principal,
+                clientFingerprint: null,
+                clientName: null,
+                appVersion: null,
+                platform: null,
+                remoteIpAddress: null
+            )
         );
+    }
+
+    [Fact]
+    public async Task GetOrProvisionUserAsync_RegistersClient_WhenFingerprintProvided()
+    {
+        await using var db = CreateInMemoryDb();
+        var service = new AuthService(db, new ClientService(db));
+        var userId = Guid.NewGuid();
+
+        var result = await service.GetOrProvisionUserAsync(
+            CreatePrincipal(userId, "client@example.com"),
+            clientFingerprint: "stablefingerprint123",
+            clientName: "Desktop Unit Test",
+            appVersion: "1.0.0-test",
+            platform: "Windows",
+            remoteIpAddress: "127.0.0.1"
+        );
+
+        result.ClientId.Should().NotBeNull();
+        (await db.Clients.CountAsync()).Should().Be(1);
+        var client = await db.Clients.SingleAsync();
+        client.UserId.Should().Be(userId);
+        client.Fingerprint.Should().Be("stablefingerprint123");
     }
 }

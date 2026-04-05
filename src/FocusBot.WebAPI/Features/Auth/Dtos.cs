@@ -8,5 +8,6 @@ public sealed record MeResponse(
     string Email,
     PlanType PlanType,
     DateTime CreatedAtUtc,
-    DateTime SubscriptionEndDate
+    DateTime SubscriptionEndDate,
+    Guid? ClientId
 );

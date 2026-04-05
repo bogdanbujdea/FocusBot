@@ -3,7 +3,7 @@ using FocusBot.WebAPI.Data.Entities;
 namespace FocusBot.Core.Entities;
 
 /// <summary>Payload sent to POST /sessions.</summary>
-public sealed record StartSessionPayload(string SessionTitle, string? SessionContext);
+public sealed record StartSessionPayload(string SessionTitle, string? SessionContext, Guid? ClientId = null);
 
 /// <summary>Payload sent to POST /sessions/{id}/end.</summary>
 public sealed record EndSessionPayload(
@@ -52,7 +52,8 @@ public sealed record ApiMeResponse(
     string SubscriptionStatus,
     PlanType PlanType,
     DateTime CreatedAtUtc,
-    DateTime SubscriptionEndDate
+    DateTime SubscriptionEndDate,
+    Guid? ClientId = null
 );
 
 /// <summary>Response from GET /subscriptions/status.</summary>
