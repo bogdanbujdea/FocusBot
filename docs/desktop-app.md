@@ -71,7 +71,7 @@ Manages BYOK API key storage (DPAPI encrypted) and provider/model selection.
 
 ### OverlaySettingsViewModel
 
-Controls the floating focus overlay visibility preference.
+Controls the floating focus overlay visibility preference. Raises `OverlayVisibilityChanged` when the setting changes, which `IOverlayService` subscribes to for show/hide.
 
 ### SessionPageViewModel
 
@@ -161,6 +161,22 @@ Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSec
 **Next:** Add `SessionEnded`, `SessionPaused`, and `SessionResumed` event reconciliation to complete full remote session lifecycle sync.
 
 See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync patterns.
+
+### IOverlayService
+
+Controls the floating focus overlay window (Win32 layered window). Initialized in `App.xaml.cs` after the UI dispatcher is available.
+
+| Subscription | Purpose |
+|---|---|
+| `OverlaySettingsViewModel.OverlayVisibilityChanged` | Show/hide overlay based on user setting |
+| `ISessionCoordinator.StateChanged` | Update overlay when session starts/pauses/stops |
+| `IForegroundClassificationCoordinator.ClassificationChanged` | Update focus score and status color |
+
+**Visual states:**
+- **No session**: Empty purple circle
+- **Active session**: Score percentage with color (green=focused, purple=neutral, red=distracted)
+- **Error**: Orange color
+- **Status change**: 3-second glow effect when focus status changes
 
 ### IForegroundClassificationCoordinator
 

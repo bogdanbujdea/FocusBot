@@ -89,6 +89,7 @@ namespace FocusBot.App
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<NewSessionViewModel>();
             services.AddTransient<SessionPageViewModel>();
+            services.AddSingleton<IOverlayService, OverlayService>();
 
             _services = services.BuildServiceProvider();
         }
@@ -146,6 +147,9 @@ namespace FocusBot.App
 
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
+
+            var overlayService = _services!.GetRequiredService<IOverlayService>();
+            overlayService.Initialize();
 
             await ActivateAndShowChromeAsync();
 
