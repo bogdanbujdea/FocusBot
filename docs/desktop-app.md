@@ -75,7 +75,7 @@ Controls the floating focus overlay visibility preference.
 
 ### SessionPageViewModel
 
-Main page ViewModel managing the session UI state. On initialization, loads any existing active session from the API (`GET /sessions/active`) for cross-device sync.
+Main page ViewModel managing the session UI state. Consumes `ISessionCoordinator` state updates to display the active session panel or new session form.
 
 | Property | Purpose |
 |---|---|
@@ -84,27 +84,26 @@ Main page ViewModel managing the session UI state. On initialization, loads any 
 | `HasActiveSession` | True when a session is active; controls which panel is visible |
 
 **Session flow:**
-1. `InitializeAsync()` is called after the page loads and the UI dispatcher is ready
-2. If the API returns an active session, `ActiveSession` is populated and displayed
-3. When the user starts a new session, `NewSession.SessionStarted` event fires
-4. `SessionPageViewModel` subscribes and switches to the `ActiveSession` panel
+1. `InitializeAsync()` calls `ISessionCoordinator.InitializeAsync()` which loads any existing active session from the API
+2. When coordinator state changes to active session, `SessionPageViewModel` creates and displays `ActiveSession`
+3. When the user starts a new session via `NewSession`, the coordinator orchestrates the API call
+4. `SessionPageViewModel` subscribes to coordinator state changes and updates UI reactively
 
 ### NewSessionViewModel
 
-Handles the "Start session" form with title and context input.
+Handles the "Start session" form with title and context input. Delegates start operations to `ISessionCoordinator`.
 
 | Property | Purpose |
 |---|---|
 | `SessionTitle` | Required session title input |
 | `SessionContext` | Optional context/notes input |
-| `IsBusy` | True while API call is in progress |
-| `ErrorMessage` | Set when the API call fails |
+| `State` | Command state (Idle, Loading, Error) derived from coordinator state |
 
-`StartCommand` calls `POST /sessions` and raises `SessionStarted` on success.
+`StartCommand` calls `ISessionCoordinator.StartAsync()` which orchestrates the `POST /sessions` API call and state transitions.
 
 ### ActiveSessionViewModel
 
-Displays the in-progress session with a live elapsed timer and pause/resume/stop controls. Uses `System.Timers.Timer` with `IUIThreadDispatcher` for UI updates. Delegates session control operations to `IFocusSessionControlService`.
+Displays the in-progress session with a live elapsed timer and pause/resume/stop controls. Uses `System.Timers.Timer` with `IUIThreadDispatcher` for UI updates. Subscribes to `ISessionCoordinator` state changes for reactive updates.
 
 | Property | Purpose |
 |---|---|
@@ -112,35 +111,54 @@ Displays the in-progress session with a live elapsed timer and pause/resume/stop
 | `StartedAtUtc` | When the session started |
 | `IsPaused` | Whether the session is paused |
 | `ElapsedDisplay` | Live timer in `HH:MM:SS` format |
-| `State` | Command state (Idle, Loading, Error) |
+| `State` | Command state (Idle, Loading, Error) derived from coordinator state |
 | `PauseResumeLabel` | "Pause" or "Resume" based on `IsPaused` |
-| `OnSessionEnded` | Callback when stop succeeds |
 
 **Commands:**
-- `PauseOrResumeCommand` — toggles pause/resume; calls service and updates UI from response.
-- `StopCommand` — ends session with placeholder metrics (zeros); invokes `OnSessionEnded` on success.
-- `ClearErrorCommand` — clears error state.
+- `PauseOrResumeCommand` — calls `ISessionCoordinator.PauseAsync()` or `ResumeAsync()`
+- `StopCommand` — calls `ISessionCoordinator.StopAsync()` which ends session with placeholder metrics
+- `ClearErrorCommand` — calls `ISessionCoordinator.ClearError()`
 
 Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSeconds`, freezing on `pausedAtUtc` when paused.
 
-**Stop behavior:** The desktop sends zero metrics (`FocusScorePercent`, `FocusedSeconds`, etc.) until real analytics are tracked. The server persists these values and can be updated once the overlay tracks focus data.
+**Stop behavior:** The coordinator sends zero metrics (`FocusScorePercent`, `FocusedSeconds`, etc.) until real analytics are tracked. The server persists these values and can be updated once the overlay tracks focus data.
 
 ---
 
 ## Services
 
-### IFocusSessionControlService
+### ISessionCoordinator
 
-Provides pause/resume/end operations for focus sessions. Abstracts session control logic from ViewModels.
+**Phase 1 (Current):** Central coordinator for session lifecycle state and API orchestration. Acts as the single source of truth for active session state. All ViewModels consume coordinator state reactively rather than managing API calls directly.
 
 | Method | Purpose |
 |---|---|
-| `TogglePauseAsync(sessionId, isCurrentlyPaused)` | Resumes if paused, pauses if running |
-| `EndWithPlaceholderMetricsAsync(sessionId)` | Ends session with zero metrics |
+| `InitializeAsync()` | Load existing active session from API on startup |
+| `StartAsync(title, context)` | Start new session; returns true on success |
+| `PauseAsync()` | Pause active session |
+| `ResumeAsync()` | Resume paused session |
+| `StopAsync()` | End active session with placeholder metrics (zeros) |
+| `ClearError()` | Clear error state |
+| `Reset()` | Reset coordinator (called on sign-out) |
 
-**Implementation detail:** The service sends `EndSessionPayload(0, 0, 0, 0, 0, null, null)` when ending. Once the desktop tracks real focus metrics (via the overlay or background monitor), the service can be updated to send actual values.
+| Property/Event | Purpose |
+|---|---|
+| `CurrentState` | Immutable `SessionState` snapshot (phase, active session, error, change type) |
+| `StateChanged` | Event raised on every state transition with full snapshot and `SessionChangeType` |
 
-See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync via SignalR.
+**Command serialization:** All mutations are serialized via `SemaphoreSlim` to prevent race conditions from rapid button clicks or concurrent API calls.
+
+**Conflict handling:** On `409 Conflict` from stop/end operations, the coordinator reconciles state by treating the session as already ended (idempotent stop).
+
+**Implementation detail:** The coordinator sends `EndSessionPayload(0, 0, 0, 0, 0, null, null)` when ending. Once the desktop tracks real focus metrics (via the overlay or background monitor), this payload can include actual values.
+
+### ISessionRealtimeAdapter
+
+**Phase 1 (Current):** No-op implementation (`NoOpSessionRealtimeAdapter`) registered as singleton. Provides extension point for phase 2.
+
+**Phase 2 (Planned):** `SignalRSessionRealtimeAdapter` will listen to real-time session events (`SessionStarted`, `SessionEnded`, `SessionPaused`, `SessionResumed`) from the FocusBot SignalR hub and reconcile with `ISessionCoordinator` for cross-device sync. The coordinator will remain the only component allowed to mutate UI-facing session state, ensuring a single state flow.
+
+See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync patterns.
 
 ---
 

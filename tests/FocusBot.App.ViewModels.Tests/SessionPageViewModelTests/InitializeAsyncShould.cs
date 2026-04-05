@@ -19,27 +19,29 @@ public class InitializeAsyncShould
     );
 
     [Fact]
-    public async Task SetHasActiveSession_When_ApiReturnsSession()
+    public async Task SetHasActiveSession_When_CoordinatorReturnsSession()
     {
         // Arrange
         var testSession = CreateTestSession();
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.GetActiveSessionAsync())
-            .ReturnsAsync(testSession);
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.InitializeAsync())
+            .Returns(Task.CompletedTask)
+            .Callback(() =>
+            {
+                var state = new SessionState(testSession, null, SessionChangeType.Synced);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Synced);
+            });
 
         var mockNavigation = new Mock<INavigationService>();
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
-        
-        var mockSessionControl = new Mock<IFocusSessionControlService>();
 
-        var newSessionVm = new NewSessionViewModel(mockApi.Object);
+        var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
-            mockApi.Object,
-            mockSessionControl.Object,
+            mockCoordinator.Object,
             mockDispatcher.Object);
 
         // Act
@@ -52,23 +54,28 @@ public class InitializeAsyncShould
     }
 
     [Fact]
-    public async Task NotSetActiveSession_When_ApiReturnsNull()
+    public async Task NotSetActiveSession_When_CoordinatorReturnsNull()
     {
         // Arrange
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.GetActiveSessionAsync())
-            .ReturnsAsync((ApiSessionResponse?)null);
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.InitializeAsync())
+            .Returns(Task.CompletedTask)
+            .Callback(() =>
+            {
+                var state = new SessionState(null, null, SessionChangeType.Started);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Started);
+            });
 
         var mockNavigation = new Mock<INavigationService>();
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
-        var mockSessionControl = new Mock<IFocusSessionControlService>();
+        mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(f => f());
 
-        var newSessionVm = new NewSessionViewModel(mockApi.Object);
+        var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
-            mockApi.Object,
-            mockSessionControl.Object,
+            mockCoordinator.Object,
             mockDispatcher.Object);
 
         // Act

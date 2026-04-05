@@ -8,6 +8,7 @@ namespace FocusBot.App.ViewModels;
 public partial class AccountSettingsViewModel : ObservableObject
 {
     private readonly IAuthService _authService;
+    private readonly ISessionCoordinator _coordinator;
     private readonly ILogger<AccountSettingsViewModel> _logger;
 
     [ObservableProperty]
@@ -28,9 +29,10 @@ public partial class AccountSettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isStatusError;
 
-    public AccountSettingsViewModel(IAuthService authService, ILogger<AccountSettingsViewModel> logger)
+    public AccountSettingsViewModel(IAuthService authService, ISessionCoordinator coordinator, ILogger<AccountSettingsViewModel> logger)
     {
         _authService = authService;
+        _coordinator = coordinator;
         _logger = logger;
 
         IsAuthenticated = _authService.IsAuthenticated;
@@ -122,6 +124,7 @@ public partial class AccountSettingsViewModel : ObservableObject
         try
         {
             await _authService.SignOutAsync();
+            _coordinator.Reset();
             StatusMessage = "Signed out.";
         }
         catch (Exception ex)

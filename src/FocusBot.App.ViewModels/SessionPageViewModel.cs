@@ -8,8 +8,7 @@ namespace FocusBot.App.ViewModels;
 public partial class SessionPageViewModel : ObservableObject
 {
     private readonly INavigationService _navigationService;
-    private readonly IFocusBotApiClient _apiClient;
-    private readonly IFocusSessionControlService _sessionControl;
+    private readonly ISessionCoordinator _coordinator;
     private readonly IUIThreadDispatcher _dispatcher;
 
     [ObservableProperty]
@@ -23,17 +22,15 @@ public partial class SessionPageViewModel : ObservableObject
     public SessionPageViewModel(
         NewSessionViewModel newSession,
         INavigationService navigationService,
-        IFocusBotApiClient apiClient,
-        IFocusSessionControlService sessionControl,
+        ISessionCoordinator coordinator,
         IUIThreadDispatcher dispatcher)
     {
         NewSession = newSession;
         _navigationService = navigationService;
-        _apiClient = apiClient;
-        _sessionControl = sessionControl;
+        _coordinator = coordinator;
         _dispatcher = dispatcher;
 
-        NewSession.OnSessionStarted += OnNewSessionStarted;
+        _coordinator.StateChanged += OnCoordinatorStateChanged;
     }
 
     /// <summary>
@@ -41,32 +38,28 @@ public partial class SessionPageViewModel : ObservableObject
     /// </summary>
     public async Task InitializeAsync()
     {
-        var existing = await _apiClient.GetActiveSessionAsync();
-        if (existing != null)
+        await _coordinator.InitializeAsync();
+    }
+
+    private void OnCoordinatorStateChanged(SessionState state, SessionChangeType changeType)
+    {
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
         {
-            await StartActiveSessionAsync(existing);
-        }
-    }
+            if (state.HasActiveSession && ActiveSession == null)
+            {
+                var vm = new ActiveSessionViewModel(_dispatcher, _coordinator);
+                _ = vm.LoadAsync(state.ActiveSession!);
+                ActiveSession = vm;
+            }
+            else if (!state.HasActiveSession && ActiveSession != null)
+            {
+                var previous = ActiveSession;
+                ActiveSession = null;
+                previous?.Dispose();
+            }
 
-    private void OnNewSessionStarted(ApiSessionResponse session)
-    {
-        _ = StartActiveSessionAsync(session);
-    }
-
-    private async Task StartActiveSessionAsync(ApiSessionResponse session)
-    {
-        ActiveSession?.Dispose();
-        var vm = new ActiveSessionViewModel(_dispatcher, _sessionControl);
-        vm.SessionEnded += HandleSessionEnded;
-        await vm.LoadAsync(session);
-        ActiveSession = vm;
-    }
-
-    private void HandleSessionEnded()
-    {
-        var previous = ActiveSession;
-        ActiveSession = null;
-        previous?.Dispose();
+            return Task.CompletedTask;
+        });
     }
 
     [RelayCommand]

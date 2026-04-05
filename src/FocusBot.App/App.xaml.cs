@@ -66,7 +66,8 @@ namespace FocusBot.App
                     sp.GetRequiredService<ILogger<FocusBotApiClient>>()
                 );
             });
-            services.AddSingleton<IFocusSessionControlService, FocusSessionControlService>();
+            services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
+            services.AddSingleton<ISessionRealtimeAdapter, NoOpSessionRealtimeAdapter>();
             services.AddScoped<IClassificationService, AlignmentClassificationService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
 

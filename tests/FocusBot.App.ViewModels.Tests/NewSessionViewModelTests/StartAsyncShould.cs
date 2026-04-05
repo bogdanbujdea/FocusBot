@@ -19,14 +19,14 @@ public class StartAsyncShould
     );
 
     [Fact]
-    public async Task InvokeApiClient()
+    public async Task InvokeCoordinator()
     {
         // Arrange
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.StartSessionAsync(It.IsAny<StartSessionPayload>()))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Success(CreateTestSession()));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StartAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
 
-        var vm = new NewSessionViewModel(mockApi.Object)
+        var vm = new NewSessionViewModel(mockCoordinator.Object)
         {
             SessionTitle = "Test Task",
             SessionContext = "Test context"
@@ -36,11 +36,7 @@ public class StartAsyncShould
         await vm.StartCommand.ExecuteAsync(null);
 
         // Assert
-        mockApi.Verify(x => x.StartSessionAsync(
-            It.Is<StartSessionPayload>(p =>
-                p.SessionTitle == "Test Task" &&
-                p.SessionContext == "Test context")),
-            Times.Once);
+        mockCoordinator.Verify(x => x.StartAsync("Test Task", "Test context"), Times.Once);
     }
 
     [Fact]
@@ -48,25 +44,25 @@ public class StartAsyncShould
     {
         // Arrange
         var testSession = CreateTestSession();
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.StartSessionAsync(It.IsAny<StartSessionPayload>()))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Success(testSession));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StartAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true)
+            .Callback(() =>
+            {
+                var state = new SessionState(testSession, null, SessionChangeType.Started);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Started);
+            });
 
-        var vm = new NewSessionViewModel(mockApi.Object)
+        var vm = new NewSessionViewModel(mockCoordinator.Object)
         {
             SessionTitle = "Test Task",
             SessionContext = "Test context"
         };
 
-        ApiSessionResponse? callbackSession = null;
-        vm.OnSessionStarted += session => callbackSession = session;
-
         // Act
         await vm.StartCommand.ExecuteAsync(null);
 
         // Assert
-        callbackSession.Should().NotBeNull();
-        callbackSession!.Id.Should().Be(testSession.Id);
         vm.SessionTitle.Should().BeEmpty();
         vm.SessionContext.Should().BeEmpty();
         vm.State.IsBusy.Should().BeFalse();
@@ -77,23 +73,24 @@ public class StartAsyncShould
     public async Task ShowError_When_ErrorReturned()
     {
         // Arrange
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.StartSessionAsync(It.IsAny<StartSessionPayload>()))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Failure(System.Net.HttpStatusCode.InternalServerError));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StartAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(false)
+            .Callback(() =>
+            {
+                var state = new SessionState(null, "Failed to start", SessionChangeType.Failed);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Failed);
+            });
 
-        var vm = new NewSessionViewModel(mockApi.Object)
+        var vm = new NewSessionViewModel(mockCoordinator.Object)
         {
             SessionTitle = "Test Task"
         };
-
-        ApiSessionResponse? callbackSession = null;
-        vm.OnSessionStarted += session => callbackSession = session;
 
         // Act
         await vm.StartCommand.ExecuteAsync(null);
 
         // Assert
-        callbackSession.Should().BeNull();
         vm.State.ErrorMessage.Should().NotBeNullOrEmpty();
         vm.State.IsBusy.Should().BeFalse();
         vm.SessionTitle.Should().Be("Test Task");
@@ -103,11 +100,16 @@ public class StartAsyncShould
     public async Task ClearError_When_ClearErrorCommandExecuted()
     {
         // Arrange
-        var mockApi = new Mock<IFocusBotApiClient>();
-        mockApi.Setup(x => x.StartSessionAsync(It.IsAny<StartSessionPayload>()))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Failure(System.Net.HttpStatusCode.InternalServerError));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StartAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(false)
+            .Callback(() =>
+            {
+                var state = new SessionState(null, "Failed to start", SessionChangeType.Failed);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Failed);
+            });
 
-        var vm = new NewSessionViewModel(mockApi.Object)
+        var vm = new NewSessionViewModel(mockCoordinator.Object)
         {
             SessionTitle = "Test Task"
         };
@@ -119,7 +121,6 @@ public class StartAsyncShould
         vm.ClearErrorCommand.Execute(null);
 
         // Assert
-        vm.State.ErrorMessage.Should().BeNull();
-        vm.State.IsBusy.Should().BeFalse();
+        mockCoordinator.Verify(x => x.ClearError(), Times.Once);
     }
 }

@@ -19,29 +19,27 @@ public class ActiveSessionViewModelShould
     );
 
     [Fact]
-    public async Task RaiseSessionEnded_WhenStopSucceeds()
+    public async Task CallCoordinator_WhenStopExecuted()
     {
         // Arrange
         var sessionId = Guid.NewGuid();
         var testSession = CreateTestSession(id: sessionId);
         
-        var mockService = new Mock<IFocusSessionControlService>();
-        mockService.Setup(x => x.EndWithPlaceholderMetricsAsync(sessionId))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Success(testSession));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StopAsync()).ReturnsAsync(true);
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
-        await vm.LoadAsync(testSession);
+        mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(f => f());
 
-        bool sessionEndedRaised = false;
-        vm.SessionEnded += () => sessionEndedRaised = true;
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
+        await vm.LoadAsync(testSession);
 
         // Act
         await vm.StopCommand.ExecuteAsync(null);
 
         // Assert
-        mockService.Verify(x => x.EndWithPlaceholderMetricsAsync(sessionId), Times.Once);
-        sessionEndedRaised.Should().BeTrue();
+        mockCoordinator.Verify(x => x.StopAsync(), Times.Once);
     }
 
     [Fact]
@@ -62,12 +60,20 @@ public class ActiveSessionViewModelShould
             Source: "desktop"
         );
 
-        var mockService = new Mock<IFocusSessionControlService>();
-        mockService.Setup(x => x.TogglePauseAsync(sessionId, false))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Success(pausedSession));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.PauseAsync())
+            .ReturnsAsync(true)
+            .Callback(() =>
+            {
+                var state = new SessionState(pausedSession, null, SessionChangeType.Paused);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Paused);
+            });
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
+        mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(f => f());
+
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
         await vm.LoadAsync(initialSession);
 
         vm.IsPaused.Should().BeFalse();
@@ -76,7 +82,7 @@ public class ActiveSessionViewModelShould
         await vm.PauseOrResumeCommand.ExecuteAsync(null);
 
         // Assert
-        mockService.Verify(x => x.TogglePauseAsync(sessionId, false), Times.Once);
+        mockCoordinator.Verify(x => x.PauseAsync(), Times.Once);
         vm.IsPaused.Should().BeTrue();
     }
 
@@ -87,12 +93,20 @@ public class ActiveSessionViewModelShould
         var sessionId = Guid.NewGuid();
         var testSession = CreateTestSession(id: sessionId);
 
-        var mockService = new Mock<IFocusSessionControlService>();
-        mockService.Setup(x => x.EndWithPlaceholderMetricsAsync(sessionId))
-            .ReturnsAsync(ApiResult<ApiSessionResponse>.Failure(System.Net.HttpStatusCode.InternalServerError));
+        var mockCoordinator = new Mock<ISessionCoordinator>();
+        mockCoordinator.Setup(x => x.StopAsync())
+            .ReturnsAsync(false)
+            .Callback(() =>
+            {
+                var state = new SessionState(testSession, "Failed to stop", SessionChangeType.Failed);
+                mockCoordinator.Raise(m => m.StateChanged += null, state, SessionChangeType.Failed);
+            });
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
+        mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(f => f());
+
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
         await vm.LoadAsync(testSession);
 
         vm.State.ErrorMessage.Should().BeNull();

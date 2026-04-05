@@ -7,12 +7,12 @@ namespace FocusBot.App.ViewModels;
 
 /// <summary>
 /// ViewModel for displaying an active (in-progress) focus session with a live elapsed timer.
-/// Manages pause/resume/end actions via IFocusSessionControlService.
+/// Manages pause/resume/end actions via ISessionCoordinator.
 /// </summary>
 public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 {
     private readonly IUIThreadDispatcher _dispatcher;
-    private readonly IFocusSessionControlService _sessionControl;
+    private readonly ISessionCoordinator _coordinator;
     private readonly System.Timers.Timer _timer;
     private bool _disposed;
 
@@ -39,14 +39,13 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 
     public string PauseResumeLabel => IsPaused ? "Resume" : "Pause";
 
-    public event Action? SessionEnded;
-
-    public ActiveSessionViewModel(IUIThreadDispatcher dispatcher, IFocusSessionControlService sessionControl)
+    public ActiveSessionViewModel(IUIThreadDispatcher dispatcher, ISessionCoordinator coordinator)
     {
         _dispatcher = dispatcher;
-        _sessionControl = sessionControl;
+        _coordinator = coordinator;
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;
+        _coordinator.StateChanged += OnCoordinatorStateChanged;
     }
 
     /// <summary>
@@ -74,6 +73,28 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         IsPaused = false;
         ElapsedDisplay = "00:00:00";
         State = SessionStartState.Idle;
+    }
+
+    private void OnCoordinatorStateChanged(SessionState state, SessionChangeType changeType)
+    {
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
+        {
+            if (state.HasActiveSession && state.ActiveSession is not null)
+            {
+                ApplySession(state.ActiveSession);
+            }
+
+            if (state.HasError)
+            {
+                State = SessionStartState.Error(state.ErrorMessage ?? "Unknown error");
+            }
+            else
+            {
+                State = SessionStartState.Idle;
+            }
+
+            return Task.CompletedTask;
+        });
     }
 
     private void ApplySession(ApiSessionResponse session)
@@ -144,39 +165,26 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanExecuteSessionCommand))]
     private async Task PauseOrResumeAsync()
     {
-        State = SessionStartState.Loading;
-        var result = await _sessionControl.TogglePauseAsync(_sessionId, IsPaused);
-        if (result.IsSuccess && result.Value is not null)
+        if (IsPaused)
         {
-            ApplySession(result.Value);
-            State = SessionStartState.Idle;
+            await _coordinator.ResumeAsync();
         }
         else
         {
-            State = SessionStartState.Error(result.ErrorMessage ?? "Failed to toggle pause");
+            await _coordinator.PauseAsync();
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanExecuteSessionCommand))]
     private async Task StopAsync()
     {
-        State = SessionStartState.Loading;
-        var result = await _sessionControl.EndWithPlaceholderMetricsAsync(_sessionId);
-        if (result.IsSuccess)
-        {
-            State = SessionStartState.Idle;
-            SessionEnded?.Invoke();
-        }
-        else
-        {
-            State = SessionStartState.Error(result.ErrorMessage ?? "Failed to end session");
-        }
+        await _coordinator.StopAsync();
     }
 
     [RelayCommand]
     private void ClearError()
     {
-        State = SessionStartState.Idle;
+        _coordinator.ClearError();
     }
 
     public void Dispose()
@@ -191,6 +199,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 
         if (disposing)
         {
+            _coordinator.StateChanged -= OnCoordinatorStateChanged;
             _timer.Stop();
             _timer.Elapsed -= OnTimerElapsed;
             _timer.Dispose();

@@ -7,7 +7,7 @@ namespace FocusBot.App.ViewModels;
 
 public partial class NewSessionViewModel : ObservableObject
 {
-    private readonly IFocusBotApiClient _apiClient;
+    private readonly ISessionCoordinator _coordinator;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
@@ -20,11 +20,28 @@ public partial class NewSessionViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     private SessionStartState _state = SessionStartState.Idle;
 
-    public event Action<ApiSessionResponse>? OnSessionStarted;
-
-    public NewSessionViewModel(IFocusBotApiClient apiClient)
+    public NewSessionViewModel(ISessionCoordinator coordinator)
     {
-        _apiClient = apiClient;
+        _coordinator = coordinator;
+        _coordinator.StateChanged += OnCoordinatorStateChanged;
+    }
+
+    private void OnCoordinatorStateChanged(SessionState state, SessionChangeType changeType)
+    {
+        if (changeType == SessionChangeType.Started && !state.HasError && state.HasActiveSession)
+        {
+            SessionTitle = string.Empty;
+            SessionContext = string.Empty;
+            State = SessionStartState.Idle;
+        }
+        else if (state.HasError && !state.HasActiveSession)
+        {
+            State = SessionStartState.Error(state.ErrorMessage ?? "Unknown error");
+        }
+        else if (!state.HasError && !state.HasActiveSession)
+        {
+            State = SessionStartState.Idle;
+        }
     }
 
     private bool CanStartSession =>
@@ -35,34 +52,12 @@ public partial class NewSessionViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync()
     {
-        State = SessionStartState.Loading;
-        try
-        {
-            var result = await _apiClient.StartSessionAsync(
-                new StartSessionPayload(SessionTitle.Trim(), SessionContext?.Trim())
-            );
-
-            if (result.IsSuccess)
-            {
-                OnSessionStarted?.Invoke(result.Value!);
-                SessionTitle = string.Empty;
-                SessionContext = string.Empty;
-                State = SessionStartState.Idle;
-            }
-            else
-            {
-                State = SessionStartState.Error(result.ErrorMessage ?? "Unknown error");
-            }
-        }
-        catch (Exception ex)
-        {
-            State = SessionStartState.Error(ex.Message);
-        }
+        await _coordinator.StartAsync(SessionTitle.Trim(), SessionContext?.Trim());
     }
 
     [RelayCommand]
     private void ClearError()
     {
-        State = SessionStartState.Idle;
+        _coordinator.ClearError();
     }
 }
