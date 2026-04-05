@@ -7,7 +7,7 @@ namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// SignalR-backed implementation of realtime session synchronization.
-/// Listens to SessionStarted events and reconciles coordinator state.
+/// Listens to focus hub session lifecycle events and reconciles coordinator state from the API.
 /// </summary>
 public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAsyncDisposable
 {
@@ -96,6 +96,21 @@ public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAs
 
                     await _coordinator.ApplyRemoteSessionStartedAsync(evt);
                 }
+            );
+
+            connection.On<SessionEndedEvent>(
+                "SessionEnded",
+                async evt => await _coordinator.ApplyRemoteSessionEndedAsync(evt)
+            );
+
+            connection.On<SessionPausedEvent>(
+                "SessionPaused",
+                async evt => await _coordinator.ApplyRemoteSessionPausedAsync(evt)
+            );
+
+            connection.On<SessionResumedEvent>(
+                "SessionResumed",
+                async evt => await _coordinator.ApplyRemoteSessionResumedAsync(evt)
             );
 
             await connection.StartAsync();

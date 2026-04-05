@@ -27,7 +27,7 @@
             <TextBlock Text="Title"
                        Style="{StaticResource FbColumnHeaderStyle}"
                        FontSize="14"/>
-            <TextBox Text="{x:Bind ViewModel.SessionTitle, Mode=TwoWay}"
+            <TextBox Text="{x:Bind ViewModel.SessionTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="Session title"
                      CornerRadius="{StaticResource FbCornerRadiusSmall}"
                      IsEnabled="{x:Bind ViewModel.State.IsBusy, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"

@@ -11,3 +11,9 @@ public sealed record SessionStartedEvent(
     string Source,
     Guid? OriginClientId = null
 );
+
+public sealed record SessionEndedEvent(Guid SessionId, DateTime EndedAtUtc, string Source);
+
+public sealed record SessionPausedEvent(Guid SessionId, DateTime PausedAtUtc, string Source);
+
+public sealed record SessionResumedEvent(Guid SessionId, string Source);

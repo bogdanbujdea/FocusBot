@@ -9,6 +9,7 @@ public partial class SessionPageViewModel : ObservableObject
 {
     private readonly INavigationService _navigationService;
     private readonly ISessionCoordinator _coordinator;
+    private readonly IForegroundClassificationCoordinator _classificationCoordinator;
     private readonly IUIThreadDispatcher _dispatcher;
 
     [ObservableProperty]
@@ -23,11 +24,13 @@ public partial class SessionPageViewModel : ObservableObject
         NewSessionViewModel newSession,
         INavigationService navigationService,
         ISessionCoordinator coordinator,
+        IForegroundClassificationCoordinator classificationCoordinator,
         IUIThreadDispatcher dispatcher)
     {
         NewSession = newSession;
         _navigationService = navigationService;
         _coordinator = coordinator;
+        _classificationCoordinator = classificationCoordinator;
         _dispatcher = dispatcher;
 
         _coordinator.StateChanged += OnCoordinatorStateChanged;
@@ -47,7 +50,7 @@ public partial class SessionPageViewModel : ObservableObject
         {
             if (state.HasActiveSession && ActiveSession == null)
             {
-                var vm = new ActiveSessionViewModel(_dispatcher, _coordinator);
+                var vm = new ActiveSessionViewModel(_dispatcher, _coordinator, _classificationCoordinator);
                 _ = vm.LoadAsync(state.ActiveSession!);
                 ActiveSession = vm;
             }

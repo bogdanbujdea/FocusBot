@@ -55,6 +55,21 @@ public interface ISessionCoordinator
     Task ApplyRemoteSessionStartedAsync(SessionStartedEvent evt);
 
     /// <summary>
+    /// Apply a remote session ended event from realtime transport (SignalR).
+    /// </summary>
+    Task ApplyRemoteSessionEndedAsync(SessionEndedEvent evt);
+
+    /// <summary>
+    /// Apply a remote session paused event from realtime transport (SignalR).
+    /// </summary>
+    Task ApplyRemoteSessionPausedAsync(SessionPausedEvent evt);
+
+    /// <summary>
+    /// Apply a remote session resumed event from realtime transport (SignalR).
+    /// </summary>
+    Task ApplyRemoteSessionResumedAsync(SessionResumedEvent evt);
+
+    /// <summary>
     /// Clear any error state.
     /// </summary>
     void ClearError();

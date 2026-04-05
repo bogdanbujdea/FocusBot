@@ -19,6 +19,6 @@ public class BoolToVisibilityConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
     {
-        return value is Visibility visibility && visibility == Visibility.Visible;
+        return value is Visibility and Visibility.Visible;
     }
 }

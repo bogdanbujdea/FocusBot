@@ -74,7 +74,8 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         ISettingsService settingsService,
         IFocusBotApiClient apiClient,
         IAuthService authService,
-        ILogger<ApiKeySettingsViewModel> logger)
+        ILogger<ApiKeySettingsViewModel> logger
+    )
     {
         _settingsService = settingsService;
         _apiClient = apiClient;
@@ -90,11 +91,12 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         try
         {
             var savedProviderId = await _settingsService.GetProviderAsync();
-            SelectedProvider = Providers.FirstOrDefault(p => p.ProviderId == savedProviderId)
-                ?? Providers.First();
+            SelectedProvider =
+                Providers.FirstOrDefault(p => p.ProviderId == savedProviderId) ?? Providers.First();
 
             var savedModelId = await _settingsService.GetModelAsync();
-            SelectedModel = AvailableModels.FirstOrDefault(m => m.ModelId == savedModelId)
+            SelectedModel =
+                AvailableModels.FirstOrDefault(m => m.ModelId == savedModelId)
                 ?? AvailableModels.FirstOrDefault();
 
             var existingKey = await _settingsService.GetApiKeyAsync();
@@ -125,7 +127,8 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     partial void OnSelectedProviderChanged(ProviderInfo? value)
     {
-        if (value == null) return;
+        if (value == null)
+            return;
 
         AvailableModels.Clear();
         foreach (var model in LlmProviderConfig.Models[value.ProviderId])
@@ -187,7 +190,9 @@ public partial class ApiKeySettingsViewModel : ObservableObject
                 new ValidateKeyPayload(
                     SelectedProvider.ProviderId,
                     SelectedModel.ModelId,
-                    ApiKey.Trim()));
+                    ApiKey.Trim()
+                )
+            );
 
             if (validation is null || !validation.Valid)
             {
@@ -279,13 +284,14 @@ public partial class ApiKeySettingsViewModel : ObservableObject
 
     private bool HasValidApiKey() => !string.IsNullOrWhiteSpace(ApiKey);
 
-    private bool CanShowMaskedKey(string? key) => IsApiKeyConfigured && key != null && key.Length >= 4;
+    private bool CanShowMaskedKey(string? key) => IsApiKeyConfigured && key is { Length: >= 4 };
 
-    private static string ToValidationErrorMessage(string? errorCode) => errorCode switch
-    {
-        "invalid_key" => "Invalid API key. Check your credentials.",
-        "rate_limited" => "Rate limit reached. Wait a moment and try again.",
-        "provider_unavailable" => "AI provider is unavailable. Try again later.",
-        _ => "Key validation failed. Check your credentials."
-    };
+    private static string ToValidationErrorMessage(string? errorCode) =>
+        errorCode switch
+        {
+            "invalid_key" => "Invalid API key. Check your credentials.",
+            "rate_limited" => "Rate limit reached. Wait a moment and try again.",
+            "provider_unavailable" => "AI provider is unavailable. Try again later.",
+            _ => "Key validation failed. Check your credentials.",
+        };
 }

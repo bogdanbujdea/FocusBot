@@ -162,6 +162,23 @@ Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSec
 
 See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync patterns.
 
+### IForegroundClassificationCoordinator
+
+Coordinates foreground window change detection with the classification API. Controlled directly by `ISessionCoordinator` when session state changes.
+
+| Method | Purpose |
+|---|---|
+| `Start(title, context)` | Subscribe to `ForegroundWindowChanged` and begin classifying |
+| `Stop()` | Unsubscribe from window changes and stop classifying |
+
+**Session-driven behavior:**
+- `ISessionCoordinator` calls `Start()` when a session starts or resumes
+- `ISessionCoordinator` calls `Stop()` when a session pauses, ends, or is reset
+- On each foreground window change, calls `IClassificationService.ClassifyAsync`
+- Classification results are broadcast via SignalR `ClassificationChanged` to all connected clients
+
+**Lifecycle:** No external wiring needed. The coordinator is a dependency of `ISessionCoordinator` which controls its lifecycle directly.
+
 ---
 
 ## Session Architecture

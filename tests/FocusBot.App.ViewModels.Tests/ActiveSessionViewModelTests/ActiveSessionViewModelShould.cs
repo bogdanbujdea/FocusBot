@@ -32,7 +32,8 @@ public class ActiveSessionViewModelShould
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
 
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
+        var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object, mockClassificationCoordinator.Object);
         await vm.LoadAsync(testSession);
 
         // Act
@@ -73,7 +74,8 @@ public class ActiveSessionViewModelShould
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
 
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
+        var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object, mockClassificationCoordinator.Object);
         await vm.LoadAsync(initialSession);
 
         vm.IsPaused.Should().BeFalse();
@@ -106,7 +108,8 @@ public class ActiveSessionViewModelShould
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
 
-        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object);
+        var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
+        var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockCoordinator.Object, mockClassificationCoordinator.Object);
         await vm.LoadAsync(testSession);
 
         vm.State.ErrorMessage.Should().BeNull();

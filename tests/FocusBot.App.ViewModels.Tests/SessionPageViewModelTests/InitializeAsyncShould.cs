@@ -37,11 +37,13 @@ public class InitializeAsyncShould
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
 
+        var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
         var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockCoordinator.Object,
+            mockClassificationCoordinator.Object,
             mockDispatcher.Object);
 
         // Act
@@ -71,11 +73,13 @@ public class InitializeAsyncShould
         mockDispatcher.Setup(x => x.RunOnUIThreadAsync(It.IsAny<Func<Task>>()))
             .Returns<Func<Task>>(f => f());
 
+        var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
         var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockCoordinator.Object,
+            mockClassificationCoordinator.Object,
             mockDispatcher.Object);
 
         // Act

@@ -67,6 +67,8 @@ namespace FocusBot.App
                     sp.GetRequiredService<ILogger<FocusBotApiClient>>()
                 );
             });
+            services.AddSingleton<IClassificationService, AlignmentClassificationService>();
+            services.AddSingleton<IForegroundClassificationCoordinator, ForegroundClassificationCoordinator>();
             services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
             services.AddSingleton<ISessionRealtimeAdapter>(sp =>
             {
@@ -79,7 +81,6 @@ namespace FocusBot.App
                     hubUrl
                 );
             });
-            services.AddScoped<IClassificationService, AlignmentClassificationService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
 
             services.AddTransient<ApiKeySettingsViewModel>();
@@ -241,12 +242,12 @@ namespace FocusBot.App
             // /auth/me uses get-or-create, so this is safe on every sign-in and session restore.
             var apiClient = _services.GetRequiredService<IFocusBotApiClient>();
             var realtimeAdapter = _services.GetRequiredService<ISessionRealtimeAdapter>();
-            var coordinator = _services.GetRequiredService<ISessionCoordinator>();
+            var sessionCoordinator = _services.GetRequiredService<ISessionCoordinator>();
 
             if (!authService.IsAuthenticated)
             {
                 await realtimeAdapter.DisconnectAsync();
-                coordinator.Reset();
+                sessionCoordinator.Reset();
                 return;
             }
 

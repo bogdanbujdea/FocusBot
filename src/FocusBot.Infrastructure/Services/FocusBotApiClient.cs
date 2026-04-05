@@ -62,7 +62,7 @@ public class FocusBotApiClient : IFocusBotApiClient
         var code = (int)r.StatusCode.Value;
         if (code == 408)
             return true;
-        return code >= 500 && code <= 599;
+        return code is >= 500 and <= 599;
     }
 
     public bool IsAuthenticated => _authService.IsAuthenticated;
@@ -471,7 +471,10 @@ public class FocusBotApiClient : IFocusBotApiClient
             var body = await response.Content.ReadFromJsonAsync<ApiMeResponse>(JsonOptions);
             if (body?.ClientId is Guid clientId)
             {
-                await _settingsService.SetSettingAsync(DesktopClientIdSettingKey, clientId.ToString());
+                await _settingsService.SetSettingAsync(
+                    DesktopClientIdSettingKey,
+                    clientId.ToString()
+                );
             }
             _logger.LogInformation("Backend user provisioned successfully");
             return body;
@@ -505,7 +508,9 @@ public class FocusBotApiClient : IFocusBotApiClient
 
     private async Task<string> EnsureDesktopFingerprintAsync()
     {
-        var existing = await _settingsService.GetSettingAsync<string>(DesktopClientFingerprintSettingKey);
+        var existing = await _settingsService.GetSettingAsync<string>(
+            DesktopClientFingerprintSettingKey
+        );
         if (!string.IsNullOrWhiteSpace(existing))
         {
             return existing;

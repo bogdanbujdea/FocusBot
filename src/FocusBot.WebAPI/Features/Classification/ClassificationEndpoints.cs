@@ -29,7 +29,9 @@ public static class ClassificationEndpoints
                     CancellationToken ct
                 ) =>
                 {
-                    var logger = loggerFactory.CreateLogger("FocusBot.WebAPI.Features.Classification.ClassificationEndpoints");
+                    var logger = loggerFactory.CreateLogger(
+                        "FocusBot.WebAPI.Features.Classification.ClassificationEndpoints"
+                    );
                     var sub =
                         ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? ctx.User.FindFirstValue("sub");
@@ -70,10 +72,23 @@ public static class ClassificationEndpoints
                             request.Url,
                             request.WindowTitle,
                             request.PageTitle,
-                            result.Reason);
+                            result.Reason
+                        );
 
-                        await TouchClientLastSeenAsync(clientService, userId, request, remoteIp, logger);
-                        await BroadcastClassificationAsync(hubContext, userId, request, result, logger);
+                        await TouchClientLastSeenAsync(
+                            clientService,
+                            userId,
+                            request,
+                            remoteIp,
+                            logger
+                        );
+                        await BroadcastClassificationAsync(
+                            hubContext,
+                            userId,
+                            request,
+                            result,
+                            logger
+                        );
 
                         return Results.Ok(result);
                     }
@@ -143,7 +158,8 @@ public static class ClassificationEndpoints
         Guid userId,
         ClassifyRequest request,
         string? remoteIp,
-        ILogger logger)
+        ILogger logger
+    )
     {
         if (request.ClientId is null)
             return;
@@ -159,7 +175,11 @@ public static class ClassificationEndpoints
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to touch last seen for client {ClientId}", request.ClientId);
+            logger.LogWarning(
+                ex,
+                "Failed to touch last seen for client {ClientId}",
+                request.ClientId
+            );
         }
     }
 
@@ -168,7 +188,8 @@ public static class ClassificationEndpoints
         Guid userId,
         ClassifyRequest request,
         ClassifyResponse result,
-        ILogger logger)
+        ILogger logger
+    )
     {
         var (source, activityName) = ClassificationBroadcastHelper.Describe(request);
         var evt = new ClassificationChangedEvent(
@@ -177,26 +198,33 @@ public static class ClassificationEndpoints
             source,
             activityName,
             DateTime.UtcNow,
-            result.Cached);
+            result.Cached
+        );
 
-        var classification = result.Score > 5 ? "Aligned" : result.Score < 5 ? "Distracting" : "Neutral";
+        var classification =
+            result.Score > 5 ? "Aligned"
+            : result.Score < 5 ? "Distracting"
+            : "Neutral";
         logger.LogInformation(
             "Broadcasting classification: {Classification} (score={Score}) from {Source} | Activity: {Activity} | Cached: {Cached}",
             classification,
             result.Score,
             source,
             activityName,
-            result.Cached);
+            result.Cached
+        );
 
         try
         {
-            await hubContext
-                .Clients.Group(userId.ToString())
-                .ClassificationChanged(evt);
+            await hubContext.Clients.Group(userId.ToString()).ClassificationChanged(evt);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to broadcast ClassificationChanged for user {UserId}", userId);
+            logger.LogWarning(
+                ex,
+                "Failed to broadcast ClassificationChanged for user {UserId}",
+                userId
+            );
         }
     }
 
@@ -206,8 +234,13 @@ public static class ClassificationEndpoints
         if (ip is null)
             return null;
 
-        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
-            && ip.IsIPv4MappedToIPv6)
+        if (
+            ip is
+            {
+                AddressFamily: System.Net.Sockets.AddressFamily.InterNetworkV6,
+                IsIPv4MappedToIPv6: true
+            }
+        )
         {
             return ip.MapToIPv4().ToString();
         }

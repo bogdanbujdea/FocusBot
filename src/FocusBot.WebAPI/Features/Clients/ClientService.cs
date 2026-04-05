@@ -57,7 +57,7 @@ public class ClientService(ApiDbContext db)
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateException ex)
-            when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
+            when (ex.InnerException is PostgresException { SqlState: "23505" })
         {
             var race = await db.Clients.FirstOrDefaultAsync(
                 c => c.UserId == userId && c.Fingerprint == request.Fingerprint,

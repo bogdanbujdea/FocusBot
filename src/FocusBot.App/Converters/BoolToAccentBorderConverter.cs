@@ -12,7 +12,7 @@ public class BoolToAccentBorderConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isSelected && isSelected)
+        if (value is true)
         {
             // Return accent brush from app resources
             if (Application.Current.Resources.TryGetValue("FbAccentBrush", out var brush))

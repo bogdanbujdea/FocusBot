@@ -28,17 +28,20 @@ public partial class NewSessionViewModel : ObservableObject
 
     private void OnCoordinatorStateChanged(SessionState state, SessionChangeType changeType)
     {
-        if (changeType == SessionChangeType.Started && !state.HasError && state.HasActiveSession)
+        if (
+            changeType == SessionChangeType.Started
+            && state is { HasError: false, HasActiveSession: true }
+        )
         {
             SessionTitle = string.Empty;
             SessionContext = string.Empty;
             State = SessionStartState.Idle;
         }
-        else if (state.HasError && !state.HasActiveSession)
+        else if (state is { HasError: true, HasActiveSession: false })
         {
             State = SessionStartState.Error(state.ErrorMessage ?? "Unknown error");
         }
-        else if (!state.HasError && !state.HasActiveSession)
+        else if (state is { HasError: false, HasActiveSession: false })
         {
             State = SessionStartState.Idle;
         }

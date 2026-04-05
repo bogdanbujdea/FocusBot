@@ -13,6 +13,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 {
     private readonly IUIThreadDispatcher _dispatcher;
     private readonly ISessionCoordinator _coordinator;
+    private readonly IForegroundClassificationCoordinator _classificationCoordinator;
     private readonly System.Timers.Timer _timer;
     private bool _disposed;
 
@@ -38,15 +39,27 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     private SessionStartState _state = SessionStartState.Idle;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasClassification))]
+    private string _classificationLabel = string.Empty;
+
     public string PauseResumeLabel => IsPaused ? "Resume" : "Pause";
 
-    public ActiveSessionViewModel(IUIThreadDispatcher dispatcher, ISessionCoordinator coordinator)
+    public bool HasClassification => !string.IsNullOrEmpty(ClassificationLabel);
+
+    public ActiveSessionViewModel(
+        IUIThreadDispatcher dispatcher,
+        ISessionCoordinator coordinator,
+        IForegroundClassificationCoordinator classificationCoordinator
+    )
     {
         _dispatcher = dispatcher;
         _coordinator = coordinator;
+        _classificationCoordinator = classificationCoordinator;
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;
         _coordinator.StateChanged += OnCoordinatorStateChanged;
+        _classificationCoordinator.ClassificationChanged += OnClassificationChanged;
     }
 
     /// <summary>
@@ -60,27 +73,20 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         await Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Clears the session data and stops the timer.
-    /// </summary>
-    public void Clear()
+    private void OnClassificationChanged(ClassificationStatus status)
     {
-        StopTimer();
-        SessionTitle = string.Empty;
-        StartedAtUtc = default;
-        _sessionId = Guid.Empty;
-        _pausedAtUtc = null;
-        _totalPausedSeconds = 0;
-        IsPaused = false;
-        ElapsedDisplay = "00:00:00";
-        State = SessionStartState.Idle;
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
+        {
+            ClassificationLabel = status.Label;
+            return Task.CompletedTask;
+        });
     }
 
     private void OnCoordinatorStateChanged(SessionState state, SessionChangeType changeType)
     {
         _ = _dispatcher.RunOnUIThreadAsync(() =>
         {
-            if (state.HasActiveSession && state.ActiveSession is not null)
+            if (state is { HasActiveSession: true, ActiveSession: not null })
             {
                 ApplySession(state.ActiveSession);
             }
@@ -146,9 +152,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 
     private int ComputeActiveSeconds()
     {
-        var endRef = IsPaused && _pausedAtUtc.HasValue
-            ? _pausedAtUtc.Value
-            : DateTime.UtcNow;
+        var endRef = IsPaused && _pausedAtUtc.HasValue ? _pausedAtUtc.Value : DateTime.UtcNow;
         var wallSeconds = (int)(endRef - StartedAtUtc).TotalSeconds;
         return Math.Max(0, wallSeconds - (int)_totalPausedSeconds);
     }
@@ -196,11 +200,13 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
 
         if (disposing)
         {
             _coordinator.StateChanged -= OnCoordinatorStateChanged;
+            _classificationCoordinator.ClassificationChanged -= OnClassificationChanged;
             _timer.Stop();
             _timer.Elapsed -= OnTimerElapsed;
             _timer.Dispose();

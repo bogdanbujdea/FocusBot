@@ -54,6 +54,14 @@
                        Opacity="1"
                        automation:AutomationProperties.Name="Elapsed time"/>
 
+            <TextBlock Text="{Binding ClassificationLabel, Mode=OneWay}"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,16"
+                       Visibility="{Binding HasClassification, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                       automation:AutomationProperties.Name="Classification status"/>
+
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <Button Content="{Binding PauseResumeLabel, Mode=OneWay}"
                         Style="{StaticResource FbAccentButtonStyle}"

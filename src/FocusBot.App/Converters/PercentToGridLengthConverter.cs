@@ -19,7 +19,7 @@ public sealed class PercentToGridLengthConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)
     {
-        if (value is GridLength gridLength && gridLength.IsStar)
+        if (value is GridLength { IsStar: true } gridLength)
         {
             return gridLength.Value;
         }
@@ -27,4 +27,3 @@ public sealed class PercentToGridLengthConverter : IValueConverter
         return 0d;
     }
 }
-
