@@ -55,3 +55,9 @@ Reference: `docs/coding-guidelines.md`. Follow these when editing C# code.
 ## Pre-commit Checklist
 
 - No tuple returns; no null for expected failure; methods &lt; 30 lines; classes &lt; 200 lines; complex logic in named methods; descriptive names; `Async` suffix; public API has XML docs; no emojis in comments.
+
+
+## WinUI coding
+
+- try to limit the number of properties for visibility because they clutter the view model
+- do not use many assignments in one method, prefer grouping them and moving them in separate methods which clearly explain what they do

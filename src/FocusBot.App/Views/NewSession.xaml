@@ -6,7 +6,13 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
+    xmlns:converters="using:FocusBot.App.Converters"
     mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </UserControl.Resources>
 
     <Border Background="{StaticResource FbCardBackgroundBrush}"
             BorderBrush="{StaticResource FbCardBorderBrush}"
@@ -24,6 +30,7 @@
             <TextBox Text="{x:Bind ViewModel.SessionTitle, Mode=TwoWay}"
                      PlaceholderText="Session title"
                      CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                     IsEnabled="{x:Bind ViewModel.State.IsBusy, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"
                      automation:AutomationProperties.Name="Session title"/>
 
             <TextBlock Text="Context"
@@ -35,6 +42,7 @@
                      TextWrapping="Wrap"
                      MinHeight="120"
                      CornerRadius="{StaticResource FbCornerRadiusSmall}"
+                     IsEnabled="{x:Bind ViewModel.State.IsBusy, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"
                      automation:AutomationProperties.Name="Session context"/>
 
             <Button Content="Start"
@@ -42,6 +50,13 @@
                     Command="{x:Bind ViewModel.StartCommand, Mode=OneWay}"
                     HorizontalAlignment="Left"
                     automation:AutomationProperties.Name="Start session"/>
+
+            <InfoBar IsOpen="{x:Bind ViewModel.State.ErrorMessage, Converter={StaticResource StringToBoolConverter}, Mode=OneWay}"
+                     Severity="Error"
+                     Title="Error"
+                     Message="{x:Bind ViewModel.State.ErrorMessage, Mode=OneWay}"
+                     IsClosable="True"
+                     Closed="InfoBar_Closed"/>
         </StackPanel>
     </Border>
 </UserControl>

@@ -35,7 +35,11 @@ public sealed record ApiSessionResponse(
     string SessionTitle,
     string? SessionContext,
     DateTime StartedAtUtc,
-    DateTime? EndedAtUtc
+    DateTime? EndedAtUtc,
+    DateTime? PausedAtUtc,
+    long TotalPausedSeconds,
+    bool IsPaused,
+    string? Source
 );
 
 /// <summary>Response from POST /classify.</summary>

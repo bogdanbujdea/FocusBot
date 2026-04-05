@@ -73,8 +73,66 @@ Manages BYOK API key storage (DPAPI encrypted) and provider/model selection.
 
 Controls the floating focus overlay visibility preference.
 
+### SessionPageViewModel
+
+Main page ViewModel managing the session UI state. On initialization, loads any existing active session from the API (`GET /sessions/active`) for cross-device sync.
+
+| Property | Purpose |
+|---|---|
+| `NewSession` | Child ViewModel for the "Start session" form |
+| `ActiveSession` | Child ViewModel for the in-progress session display (null when no session) |
+| `HasActiveSession` | True when a session is active; controls which panel is visible |
+
+**Session flow:**
+1. `InitializeAsync()` is called after the page loads and the UI dispatcher is ready
+2. If the API returns an active session, `ActiveSession` is populated and displayed
+3. When the user starts a new session, `NewSession.SessionStarted` event fires
+4. `SessionPageViewModel` subscribes and switches to the `ActiveSession` panel
+
+### NewSessionViewModel
+
+Handles the "Start session" form with title and context input.
+
+| Property | Purpose |
+|---|---|
+| `SessionTitle` | Required session title input |
+| `SessionContext` | Optional context/notes input |
+| `IsBusy` | True while API call is in progress |
+| `ErrorMessage` | Set when the API call fails |
+
+`StartCommand` calls `POST /sessions` and raises `SessionStarted` on success.
+
+### ActiveSessionViewModel
+
+Displays the in-progress session with a live elapsed timer. Uses `System.Timers.Timer` with `IUIThreadDispatcher` for UI updates.
+
+| Property | Purpose |
+|---|---|
+| `SessionTitle` | The session's title |
+| `StartedAtUtc` | When the session started |
+| `IsPaused` | Whether the session is paused |
+| `ElapsedDisplay` | Live timer in `HH:MM:SS` format |
+
+Timer calculation matches the web app logic: `(now - startedAt) - totalPausedSeconds`, freezing on `pausedAtUtc` when paused.
+
 ---
 
 ## Services
 
 See [docs/platform-overview.md](platform-overview.md) for architecture details and [docs/integration.md](integration.md) for cross-device sync via SignalR.
+
+---
+
+## Session Architecture
+
+Focus sessions are **API-only** — there is no local SQLite storage for sessions. The desktop app uses `IFocusBotApiClient` to communicate with the FocusBot Web API for all session lifecycle operations:
+
+| Operation | API Call |
+|---|---|
+| Start session | `POST /sessions` |
+| Load active session | `GET /sessions/active` |
+| Pause session | `POST /sessions/{id}/pause` |
+| Resume session | `POST /sessions/{id}/resume` |
+| End session | `POST /sessions/{id}/end` |
+
+This enables cross-device session sync: a session started on the desktop is visible on the web dashboard, and vice versa.

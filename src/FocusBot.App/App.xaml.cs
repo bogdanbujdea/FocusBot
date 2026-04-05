@@ -134,6 +134,8 @@ namespace FocusBot.App
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
 
             await ActivateAndShowChromeAsync();
+
+            await sessionPageViewModel.InitializeAsync();
         }
 
         public void HandleActivation(AppActivationArguments activationArgs)

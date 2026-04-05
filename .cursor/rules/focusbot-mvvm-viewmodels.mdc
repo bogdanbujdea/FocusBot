@@ -1,0 +1,342 @@
+---
+description: "FocusBot WinUI MVVM ViewModels: lightweight, state-focused, split responsibilities. Use CommunityToolkit.Mvvm with state records, callbacks, child ViewModels, and services to keep classes small and readable."
+globs: "src/FocusBot.App.ViewModels/**/*.cs"
+alwaysApply: false
+---
+
+# FocusBot MVVM ViewModel Rules
+
+Build ViewModels that are **simple, composable, and easy to test**. Reference `docs/desktop-app.md` for page/feature documentation.
+
+## Core Principle: State, Not Boilerplate
+
+ViewModels should focus on **what the UI needs to display**, not on binding plumbing. Keep properties and commands lean; use **state records** and **child ViewModels** to organize complexity.
+
+---
+
+## Semantic State Transitions (Not Procedural Updates)
+
+When multiple properties change together as part of a **coherent UI state**, group them into a **single intent-driven method** that names what is happening, not how.
+
+### Anti-Pattern: Procedural UpdateUI
+
+```csharp
+private void UpdateUI()
+{
+    IsSessionVisible = false;
+    IsStartButtonVisible = false;
+    CanShowSettings = true;
+    IsLoadingSpinnerVisible = false;
+    ErrorMessage = null;
+}
+```
+
+**Problems**: The caller doesn't know *why* these properties change together. The method name is vague. If you need similar behavior elsewhere, you copy the assignments.
+
+### Pattern: Intent-Driven State Methods
+
+```csharp
+// Clear semantic intent: we're showing the UI for a logged-in user ready to start a session
+private void ShowUIForLoggedInUser()
+{
+    IsSessionVisible = false;
+    IsStartButtonVisible = true;
+    CanShowSettings = true;
+}
+
+// Different scenario: show loading state
+private void ShowLoadingState()
+{
+    IsLoadingSpinnerVisible = true;
+    IsStartButtonVisible = false;
+}
+
+// Called from command or lifecycle method
+[RelayCommand]
+private async Task InitializeAsync()
+{
+    if (IsLoggedIn)
+    {
+        ShowUIForLoggedInUser();
+    }
+    else
+    {
+        ShowLoginPrompt();
+    }
+}
+```
+
+**Benefits**:
+- **Self-documenting**: Method name explains the business intent ("`ShowUIForLoggedInUser`" is clearer than "`UpdateUI`").
+- **Reusable**: Other methods can call `ShowUIForLoggedInUser()` without duplicating assignments.
+- **Testable**: You can mock/verify the exact UI state transition without wading through a long method.
+- **Easy to modify**: If logged-in UI later needs an extra property, you change one place.
+
+### Guideline
+
+- If a method sets **3+ related properties**, extract it into a semantic method.
+- **Name it after the state being entered**, not the action: `ShowLoadingState()`, `HideErrorMessage()`, `ResetFormForNewEntry()`.
+- Keep semantic methods **short** (typically 3–5 assignments); if longer, consider a state record or child ViewModel instead.
+
+---
+
+## State Records Over Boolean Forests
+
+When a feature has multiple related states (e.g., idle, loading, error), use a **record type** with named factory methods instead of scattered `IsBusy`, `ErrorMessage`, `IsLoading`, etc. properties.
+
+### Anti-Pattern: Too Many Booleans
+
+```csharp
+[ObservableProperty] private bool _isBusy;
+[ObservableProperty] private bool _isLoading;
+[ObservableProperty] private string? _errorMessage;
+[ObservableProperty] private bool _showError;
+```
+
+### Pattern: State Record
+
+**Define a dedicated record** (keep it simple; can be in the same file if small):
+
+```csharp
+public record FeatureState
+{
+    public required bool IsBusy { get; init; }
+    public required string? ErrorMessage { get; init; }
+    
+    public static FeatureState Idle => new() { IsBusy = false, ErrorMessage = null };
+    public static FeatureState Loading => new() { IsBusy = true, ErrorMessage = null };
+    public static FeatureState Error(string msg) => new() { IsBusy = false, ErrorMessage = msg };
+}
+```
+
+**Then use a single property**:
+
+```csharp
+[ObservableProperty]
+[NotifyCanExecuteChangedFor(nameof(StartCommand))]
+private FeatureState _state = FeatureState.Idle;
+```
+
+**Benefits**: Single source of truth; no impossible state combinations (both `IsBusy=true` AND `ErrorMessage` set); easier to test and reason about.
+
+---
+
+## Callbacks Over Events
+
+For communication from child ViewModels to parent, prefer **Action/Func delegates** over `EventHandler<T>`. This keeps callsites cleaner and signatures more explicit.
+
+### Anti-Pattern: Generic Event
+
+```csharp
+public event EventHandler<MyData>? OnComplete;
+vm.OnComplete += (sender, data) => { /*...*/ };
+```
+
+### Pattern: Simple Callback
+
+```csharp
+public Action<MyData>? OnComplete { get; set; }
+vm.OnComplete = data => { /*...*/ };
+```
+
+---
+
+## Child ViewModels for Feature Splitting
+
+If a ViewModel exceeds **~150 lines** or handles multiple unrelated features, **extract a child ViewModel** and inject it as a property. This keeps each ViewModel focused.
+
+### Example: SessionPageViewModel
+
+```csharp
+public partial class SessionPageViewModel : ObservableObject
+{
+    public NewSessionViewModel NewSession { get; }  // Child: session entry form
+    public ActiveSessionViewModel? ActiveSession { get; private set; }  // Child: session display
+    
+    [ObservableProperty]
+    private ActiveSessionViewModel? _activeSession;
+    
+    public bool HasActiveSession => ActiveSession != null;
+    
+    // Parent: orchestrates which child is visible
+}
+```
+
+**Each child is independently testable** and has a clear responsibility.
+
+---
+
+## Avoid Visibility-Only Properties
+
+Do **not** create a property just for `Visibility` binding. Instead, use:
+
+- **Computed properties** for simple logic: `public bool ShowError => !string.IsNullOrEmpty(State.ErrorMessage);`
+- **Converters** for binding transformations (e.g., `StringToBoolConverter`, `InverseBoolConverter`).
+- **Conditional display** in XAML: `Visibility="{x:Bind ShowError, Converter=BoolToVisibilityConverter}"`
+
+### Anti-Pattern
+
+```csharp
+[ObservableProperty] private bool _showPlanOptions;
+[ObservableProperty] private bool _showErrorMessage;
+[ObservableProperty] private bool _showLoadingSpinner;
+```
+
+### Pattern
+
+```csharp
+public bool ShowPlanOptions => IsSignedIn && IsOnTrial;
+public bool ShowError => !string.IsNullOrEmpty(State.ErrorMessage);
+public bool IsLoading => State.IsBusy;
+```
+
+---
+
+## Command Naming and Clarity
+
+- **Command names** should be verb-driven: `StartCommand`, `SaveCommand`, `ClearErrorCommand`.
+- **Methods** should be private async: `private async Task StartAsync()`.
+- For commands that should not run concurrently: `[RelayCommand(AllowConcurrentExecutions = false)]`.
+
+```csharp
+[RelayCommand(AllowConcurrentExecutions = false)]
+private async Task StartAsync()
+{
+    State = FeatureState.Loading;
+    try
+    {
+        var result = await _service.DoWorkAsync();
+        State = result.IsSuccess 
+            ? FeatureState.Idle 
+            : FeatureState.Error(result.ErrorMessage);
+    }
+    catch (Exception ex)
+    {
+        State = FeatureState.Error(ex.Message);
+    }
+}
+```
+
+---
+
+## Move Complex Logic to Services
+
+If a ViewModel method exceeds **~20 lines**, move the logic to a service. ViewModels orchestrate; services implement.
+
+### Anti-Pattern: Fat ViewModel
+
+```csharp
+public async Task ProcessAsync()
+{
+    // 40 lines of validation, transformation, and API calls
+}
+```
+
+### Pattern: Thin ViewModel + Service
+
+```csharp
+[RelayCommand]
+private async Task ProcessAsync()
+{
+    State = FeatureState.Loading;
+    var result = await _service.ProcessAsync(_input);
+    State = result.IsSuccess ? FeatureState.Idle : FeatureState.Error(result.ErrorMessage);
+}
+```
+
+---
+
+## Input Validation and CanExecute
+
+Use `CanExecute` predicates (not separate `CanSomething` booleans) to control command availability.
+
+```csharp
+private bool CanStart() => State != FeatureState.Loading && !string.IsNullOrWhiteSpace(Title);
+
+[RelayCommand(CanExecute = nameof(CanStart))]
+private async Task StartAsync()
+{
+    // ...
+}
+```
+
+**Tip**: Use `[NotifyCanExecuteChangedFor(nameof(StartCommand))]` on `_state` property to automatically re-evaluate the condition when state changes.
+
+---
+
+## Async/Await in ViewModels
+
+- Always suffix async methods with `Async`.
+- Use `try/finally` or `try/catch` to ensure state cleanup.
+- Propagate `CancellationToken` when operations support cancellation.
+
+```csharp
+private async Task LoadDataAsync(CancellationToken ct = default)
+{
+    State = FeatureState.Loading;
+    try
+    {
+        var data = await _service.FetchAsync(ct);
+        Data = data;
+        State = FeatureState.Idle;
+    }
+    catch (OperationCanceledException)
+    {
+        State = FeatureState.Idle;
+    }
+    catch (Exception ex)
+    {
+        State = FeatureState.Error(ex.Message);
+    }
+}
+```
+
+---
+
+## Testing Child ViewModels
+
+Each child ViewModel should be **independently testable** with mocked services. Parent orchestration logic should be minimal and unit-tested separately.
+
+```csharp
+var mockService = new Mock<IMyService>();
+mockService.Setup(x => x.DoWorkAsync()).ReturnsAsync(result);
+
+var vm = new MyViewModel(mockService.Object);
+await vm.DoCommand.ExecuteAsync(null);
+
+Assert.Equal(expectedState, vm.State);
+```
+
+---
+
+## XML Documentation
+
+Add **XML docs** to public ViewModels and public properties with non-obvious purpose. Do not document every property; comment only when behavior is unclear.
+
+```csharp
+/// <summary>
+/// Orchestrates the session page, switching between the new session form and active session display.
+/// </summary>
+public partial class SessionPageViewModel : ObservableObject
+{
+    /// <summary>
+    /// The form for starting a new session. Communicates completion via the <see cref="OnSessionStarted"/> callback.
+    /// </summary>
+    public NewSessionViewModel NewSession { get; }
+}
+```
+
+---
+
+## Checklist
+
+- [ ] Each ViewModel is **< ~150 lines**; complex features are split into child ViewModels or services.
+- [ ] State is managed via **state records** (not scattered booleans).
+- [ ] **No visibility-only properties**; use computed properties or converters instead.
+- [ ] **State transitions are semantic**: Multi-property updates grouped into intent-driven methods (`ShowLoadingState()`, not `UpdateUI()`).
+- [ ] Commands are **verb-driven** and have clear `CanExecute` predicates.
+- [ ] Complex logic is **delegated to services**.
+- [ ] Child ViewModels use **callbacks** (not events) for parent communication.
+- [ ] Async methods are **suffixed with `Async`** and handle exceptions.
+- [ ] Each child ViewModel is **independently testable**.
+- [ ] Public API has **XML docs**; no emojis in comments.

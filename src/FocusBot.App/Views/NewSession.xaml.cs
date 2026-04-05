@@ -11,4 +11,9 @@ public sealed partial class NewSession : UserControl
     {
         InitializeComponent();
     }
+
+    private void InfoBar_Closed(InfoBar sender, object args)
+    {
+        ViewModel?.ClearErrorCommand.Execute(null);
+    }
 }

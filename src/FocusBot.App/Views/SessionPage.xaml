@@ -7,13 +7,23 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:views="using:FocusBot.App.Views"
+    xmlns:converters="using:FocusBot.App.Converters"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     mc:Ignorable="d"
     Background="{StaticResource FbPageBackgroundBrush}">
 
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:BoolToVisibilityInvertedConverter x:Key="BoolToVisibilityInverted"/>
+    </Page.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32" Spacing="24">
-            <views:NewSession DataContext="{x:Bind ViewModel.NewSession, Mode=OneWay}"/>
+            <views:ActiveSession DataContext="{x:Bind ViewModel.ActiveSession, Mode=OneWay}"
+                                 Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+            <views:NewSession DataContext="{x:Bind ViewModel.NewSession, Mode=OneWay}"
+                              Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibilityInverted}}"/>
 
             <Button Content="Settings"
                     Style="{StaticResource FbOutlineButtonStyle}"
