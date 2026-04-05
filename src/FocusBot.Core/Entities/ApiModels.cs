@@ -1,3 +1,5 @@
+using FocusBot.WebAPI.Data.Entities;
+
 namespace FocusBot.Core.Entities;
 
 /// <summary>Payload sent to POST /sessions.</summary>
@@ -38,6 +40,16 @@ public sealed record ApiSessionResponse(
 
 /// <summary>Response from POST /classify.</summary>
 public sealed record ApiClassifyResponse(int Score, string Reason, bool Cached);
+
+/// <summary>Response from GET /auth/me.</summary>
+public sealed record ApiMeResponse(
+    Guid UserId,
+    string Email,
+    string SubscriptionStatus,
+    PlanType PlanType,
+    DateTime CreatedAtUtc,
+    DateTime SubscriptionEndDate
+);
 
 /// <summary>Response from GET /subscriptions/status.</summary>
 public sealed record ApiSubscriptionStatus(

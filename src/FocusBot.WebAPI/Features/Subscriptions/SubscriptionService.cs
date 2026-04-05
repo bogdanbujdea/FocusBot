@@ -1,12 +1,10 @@
 using System.Globalization;
-using System.Text.Json;
 using FocusBot.WebAPI.Data;
 using FocusBot.WebAPI.Data.Entities;
 using FocusBot.WebAPI.Features.Pricing;
 using FocusBot.WebAPI.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using JsonException = System.Text.Json.JsonException;
 
 namespace FocusBot.WebAPI.Features.Subscriptions;
 
@@ -54,13 +52,11 @@ public class SubscriptionService(
                 userId
             );
 
-            var trialEnd = DateTime.UtcNow.AddHours(24);
             var trial = new Subscription
             {
                 UserId = userId,
                 Status = SubscriptionStatus.Trial,
                 PlanType = PlanType.TrialFullAccess,
-                TrialEndsAtUtc = trialEnd,
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow,
             };
@@ -70,16 +66,13 @@ public class SubscriptionService(
             return new SubscriptionStatusResponse(
                 SubscriptionStatus.Trial,
                 PlanType.TrialFullAccess,
-                trialEnd,
-                null,
-                null
+                DateTime.UtcNow.AddDays(1)
             );
         }
 
         return new SubscriptionStatusResponse(
             subscription.Status,
             subscription.PlanType,
-            subscription.TrialEndsAtUtc,
             subscription.CurrentPeriodEndsAtUtc,
             subscription.NextBilledAtUtc
         );
@@ -96,10 +89,7 @@ public class SubscriptionService(
     {
         if (!await UserExistsAsync(userId, ct))
         {
-            logger.LogWarning(
-                "ActivateTrialAsync: user {UserId} has no Users row.",
-                userId
-            );
+            logger.LogWarning("ActivateTrialAsync: user {UserId} has no Users row.", userId);
             return new ActivateTrialOutcome(ActivateTrialResultKind.UserNotProvisioned);
         }
 
@@ -114,7 +104,6 @@ public class SubscriptionService(
             UserId = userId,
             Status = SubscriptionStatus.Trial,
             PlanType = planType,
-            TrialEndsAtUtc = trialEnd,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow,
         };
@@ -146,7 +135,7 @@ public class SubscriptionService(
         return subscription.Status switch
         {
             SubscriptionStatus.Active => true,
-            SubscriptionStatus.Trial => subscription.TrialEndsAtUtc > DateTime.UtcNow,
+            SubscriptionStatus.Trial => subscription.PlanType == PlanType.TrialFullAccess,
             _ => false,
         };
     }

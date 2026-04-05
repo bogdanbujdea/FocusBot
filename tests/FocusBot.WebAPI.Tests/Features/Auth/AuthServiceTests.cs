@@ -21,7 +21,7 @@ public class AuthServiceTests
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Email, email)
+            new Claim(ClaimTypes.Email, email),
         };
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
@@ -33,7 +33,9 @@ public class AuthServiceTests
         var service = new AuthService(db);
         var userId = Guid.NewGuid();
 
-        var user = await service.GetOrProvisionUserAsync(CreatePrincipal(userId, "test@example.com"));
+        var user = await service.GetOrProvisionUserAsync(
+            CreatePrincipal(userId, "test@example.com")
+        );
 
         user.Id.Should().Be(userId);
         user.Email.Should().Be("test@example.com");
@@ -43,7 +45,9 @@ public class AuthServiceTests
         subscription.UserId.Should().Be(userId);
         subscription.Status.Should().Be(SubscriptionStatus.Trial);
         subscription.PlanType.Should().Be(PlanType.TrialFullAccess);
-        subscription.TrialEndsAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
+        subscription
+            .CurrentPeriodEndsAtUtc.Should()
+            .BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -52,17 +56,21 @@ public class AuthServiceTests
         await using var db = CreateInMemoryDb();
         var userId = Guid.NewGuid();
         db.Users.Add(new User { Id = userId, Email = "existing@example.com" });
-        db.Subscriptions.Add(new Subscription
-        {
-            UserId = userId,
-            Status = SubscriptionStatus.Trial,
-            PlanType = PlanType.TrialFullAccess,
-            TrialEndsAtUtc = DateTime.UtcNow.AddHours(20)
-        });
+        db.Subscriptions.Add(
+            new Subscription
+            {
+                UserId = userId,
+                Status = SubscriptionStatus.Trial,
+                PlanType = PlanType.TrialFullAccess,
+                CurrentPeriodEndsAtUtc = DateTime.UtcNow.AddHours(20),
+            }
+        );
         await db.SaveChangesAsync();
 
         var service = new AuthService(db);
-        var user = await service.GetOrProvisionUserAsync(CreatePrincipal(userId, "existing@example.com"));
+        var user = await service.GetOrProvisionUserAsync(
+            CreatePrincipal(userId, "existing@example.com")
+        );
 
         user.Id.Should().Be(userId);
         (await db.Users.CountAsync()).Should().Be(1);
@@ -76,7 +84,8 @@ public class AuthServiceTests
         var service = new AuthService(db);
         var principal = new ClaimsPrincipal(new ClaimsIdentity());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetOrProvisionUserAsync(principal));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.GetOrProvisionUserAsync(principal)
+        );
     }
 }

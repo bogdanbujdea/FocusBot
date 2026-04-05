@@ -40,8 +40,8 @@ public class SubscriptionTests(CustomWebApplicationFactory factory)
 
         var me = await meResponse.Content.ReadFromJsonAsync<MeResponse>();
         me.Should().NotBeNull();
-        me!.SubscriptionStatus.Should().Be(SubscriptionStatus.Trial);
         me.PlanType.Should().Be(PlanType.TrialFullAccess);
+        me.CreatedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
     }
 
     [Fact]
@@ -62,7 +62,9 @@ public class SubscriptionTests(CustomWebApplicationFactory factory)
         status.Should().NotBeNull();
         status!.Status.Should().Be(SubscriptionStatus.Trial);
         status.PlanType.Should().Be(PlanType.TrialFullAccess);
-        status.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(10));
+        status
+            .CurrentPeriodEndsAt.Should()
+            .BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(10));
     }
 
     [Fact]
@@ -127,6 +129,8 @@ public class SubscriptionTests(CustomWebApplicationFactory factory)
         var status = await statusResponse.Content.ReadFromJsonAsync<SubscriptionStatusResponse>();
         status.Should().NotBeNull();
         status!.Status.Should().Be(SubscriptionStatus.Trial);
-        status.TrialEndsAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(10));
+        status
+            .CurrentPeriodEndsAt.Should()
+            .BeCloseTo(DateTime.UtcNow.AddHours(24), TimeSpan.FromSeconds(10));
     }
 }

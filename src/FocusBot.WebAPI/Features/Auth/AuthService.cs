@@ -10,11 +10,15 @@ namespace FocusBot.WebAPI.Features.Auth;
 /// </summary>
 public class AuthService(ApiDbContext db)
 {
-    public async Task<User> GetOrProvisionUserAsync(ClaimsPrincipal principal, CancellationToken ct = default)
+    public async Task<User> GetOrProvisionUserAsync(
+        ClaimsPrincipal principal,
+        CancellationToken ct = default
+    )
     {
-        var sub = principal.FindFirstValue(ClaimTypes.NameIdentifier)
-                  ?? principal.FindFirstValue("sub")
-                  ?? throw new InvalidOperationException("JWT missing sub claim");
+        var sub =
+            principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue("sub")
+            ?? throw new InvalidOperationException("JWT missing sub claim");
 
         var userId = Guid.Parse(sub);
 
@@ -22,15 +26,16 @@ public class AuthService(ApiDbContext db)
         if (user is not null)
             return user;
 
-        var email = principal.FindFirstValue(ClaimTypes.Email)
-                    ?? principal.FindFirstValue("email")
-                    ?? string.Empty;
+        var email =
+            principal.FindFirstValue(ClaimTypes.Email)
+            ?? principal.FindFirstValue("email")
+            ?? string.Empty;
 
         user = new User
         {
             Id = userId,
             Email = email,
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
         };
 
         var trial = new Subscription
@@ -38,7 +43,7 @@ public class AuthService(ApiDbContext db)
             UserId = userId,
             Status = SubscriptionStatus.Trial,
             PlanType = PlanType.TrialFullAccess,
-            TrialEndsAtUtc = DateTime.UtcNow.AddHours(24),
+            CurrentPeriodEndsAtUtc = DateTime.UtcNow.AddHours(24),
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow,
         };

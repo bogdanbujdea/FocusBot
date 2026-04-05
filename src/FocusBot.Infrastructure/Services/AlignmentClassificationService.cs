@@ -1,20 +1,20 @@
 using CSharpFunctionalExtensions;
 using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
+using FocusBot.WebAPI.Data.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// Classifies the alignment of the current foreground window with the active task via the WebAPI.
-/// When the cached subscription plan is <see cref="ClientPlanType.CloudBYOK"/>, reads the API key,
+/// When the cached subscription plan is <see cref="PlanType.CloudBYOK"/>, reads the API key,
 /// provider, and model from settings and passes the key as a header to the backend.
 /// All caching is handled server-side.
 /// </summary>
 public class AlignmentClassificationService(
     IFocusBotApiClient apiClient,
     ISettingsService settings,
-    IPlanService planService,
     ILogger<AlignmentClassificationService> logger
 ) : IClassificationService
 {
@@ -26,7 +26,7 @@ public class AlignmentClassificationService(
         CancellationToken ct = default
     )
     {
-        if (!apiClient.IsConfigured)
+        if (!apiClient.IsAuthenticated)
             return Result.Failure<AlignmentResult>("Not authenticated. Sign in to classify.");
 
         return await ClassifyViaApiAsync(processName, windowTitle, sessionText, sessionContext, ct);
@@ -95,10 +95,6 @@ public class AlignmentClassificationService(
     {
         try
         {
-            var plan = await planService.GetCurrentPlanAsync(ct);
-            if (plan != ClientPlanType.CloudBYOK)
-                return null;
-
             var key = await settings.GetApiKeyAsync();
             return string.IsNullOrWhiteSpace(key) ? null : key;
         }

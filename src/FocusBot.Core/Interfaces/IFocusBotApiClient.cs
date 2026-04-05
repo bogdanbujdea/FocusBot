@@ -8,13 +8,14 @@ namespace FocusBot.Core.Interfaces;
 public interface IFocusBotApiClient
 {
     /// <summary>Whether the client has an authenticated user session.</summary>
-    bool IsConfigured { get; }
+    bool IsAuthenticated { get; }
 
     // Sessions
     Task<ApiResult<ApiSessionResponse>> StartSessionAsync(StartSessionPayload payload);
     Task<ApiResult<ApiSessionResponse>> EndSessionAsync(Guid sessionId, EndSessionPayload payload);
     Task<ApiResult<ApiSessionResponse>> PauseSessionAsync(Guid sessionId);
     Task<ApiResult<ApiSessionResponse>> ResumeSessionAsync(Guid sessionId);
+
     /// <summary>Gets the currently active focus session for the authenticated user, or null if none exists.</summary>
     Task<ApiSessionResponse?> GetActiveSessionAsync();
 
@@ -31,14 +32,15 @@ public interface IFocusBotApiClient
         string name,
         string fingerprint,
         ClientType clientType = ClientType.Desktop,
-        ClientHost host = ClientHost.Windows);
+        ClientHost host = ClientHost.Windows
+    );
     Task<bool> DeregisterClientAsync(Guid clientId);
 
     // Account
     /// <summary>
     /// Calls GET /auth/me to ensure the authenticated user's account is provisioned in the
     /// backend database. Safe to call on every sign-in; the backend is idempotent.
-    /// Returns true when the call succeeds.
+    /// Returns the response body when the call succeeds.
     /// </summary>
-    Task<bool> ProvisionUserAsync();
+    Task<ApiMeResponse?> GetUserInfoAsync();
 }

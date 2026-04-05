@@ -6,9 +6,9 @@ namespace FocusBot.WebAPI.Features.Subscriptions;
 public sealed record SubscriptionStatusResponse(
     SubscriptionStatus Status,
     PlanType PlanType,
-    DateTime? TrialEndsAt,
-    DateTime? CurrentPeriodEndsAt,
-    DateTime? NextBilledAtUtc = null);
+    DateTime CurrentPeriodEndsAt,
+    DateTime? NextBilledAtUtc = null
+);
 
 /// <summary>Response for POST /subscriptions/portal.</summary>
 public sealed record CustomerPortalResponse(string Url);
@@ -25,7 +25,10 @@ public enum ActivateTrialResultKind
 }
 
 /// <summary>Result of trial activation including conflict and not-provisioned cases.</summary>
-public sealed record ActivateTrialOutcome(ActivateTrialResultKind Kind, ActivateTrialResponse? Response = null);
+public sealed record ActivateTrialOutcome(
+    ActivateTrialResultKind Kind,
+    ActivateTrialResponse? Response = null
+);
 
 /// <summary>Request to activate a trial.</summary>
 public sealed record ActivateTrialRequest(PlanType PlanType);

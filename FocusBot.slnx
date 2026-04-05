@@ -15,6 +15,7 @@
     <Project Path="src/FocusBot.Core/FocusBot.Core.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
     <Project Path="src/FocusBot.Infrastructure/FocusBot.Infrastructure.csproj" Id="b2c3d4e5-f6a7-8901-bcde-f12345678901" />
     <Project Path="src/FocusBot.WebAPI/FocusBot.WebAPI.csproj" />
+    <Project Path="src/Foqus.Common/Foqus.Common.csproj" Id="20049f4b-3338-4b04-9a9a-618969c1a24f" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FocusBot.App.ViewModels.Tests/FocusBot.App.ViewModels.Tests.csproj" Id="f6a7b8c9-d0e1-2345-f012-567890123456" />

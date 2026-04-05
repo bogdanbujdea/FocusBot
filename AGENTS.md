@@ -79,7 +79,7 @@ Foqus is a productivity platform: Windows desktop app + browser extension + Web 
 
 ### Desktop app: trial UX and Foqus BYOK
 
-- **`IPlanService`** (`FocusBot.Infrastructure` / `PlanService`) caches `GET /subscriptions/status` fields: `ClientPlanType`, `ClientSubscriptionStatus`, and `TrialEndsAt`. Use `GetStatusAsync()` / `GetTrialEndsAtAsync()` for UI that depends on trial end time, not only `GetCurrentPlanAsync()`.
+- **`IPlanService`** (`FocusBot.Infrastructure` / `PlanService`) caches `GET /subscriptions/status` fields: `ClientPlanType`, `TrialEndsAt`, and `CurrentPeriodEndsAt`. Use `GetTrialEndsAtAsync()` / `GetCurrentPeriodEndsAtAsync()` for UI that depends on dates, not only `GetCurrentPlanAsync()`.
 - **Trial welcome** (`TrialWelcomeDialog`): After the first-run **How it works** dialog, signed-in users on the Foqus trial (`PlanType` trial tier + `status` trial) see a one-time welcome dialog unless `SettingsKeys.TrialWelcomeSeen` is set. **View plans** opens `https://app.foqus.me/billing`. Also shown when the user signs in after launch (via `AccountSection.PropertyChanged`).
 - **Trial banner** (`FocusPage`): `InfoBar` with countdown and **Manage plan** (billing URL). Shown when the Foqus trial is active (`ClientPlanType.FreeBYOK` / server `TrialFullAccess`, `status` trial, future `trialEndsAt`). A separate **Subscription required** banner appears when the trial has ended locally (same tier, expired or past `trialEndsAt`) with **View plans**.
 - **Foqus BYOK key prompt** (`BYOKKeyPromptDialog`): After `PlanChanged` / hub refresh, if the plan is `CloudBYOK` and no API key is stored in settings, the app prompts once per session to open **Settings** (DPAPI encryption copy in the dialog). **Later** dismisses for that session.

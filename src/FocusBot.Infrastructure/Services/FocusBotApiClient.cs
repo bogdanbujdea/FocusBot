@@ -22,12 +22,14 @@ public class FocusBotApiClient : IFocusBotApiClient
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
     };
 
-    private static readonly ResiliencePipeline<ApiResult<ApiSessionResponse>> SessionApiRetryPipeline =
-        new ResiliencePipelineBuilder<ApiResult<ApiSessionResponse>>()
-            .AddRetry(new RetryStrategyOptions<ApiResult<ApiSessionResponse>>
+    private static readonly ResiliencePipeline<
+        ApiResult<ApiSessionResponse>
+    > SessionApiRetryPipeline = new ResiliencePipelineBuilder<ApiResult<ApiSessionResponse>>()
+        .AddRetry(
+            new RetryStrategyOptions<ApiResult<ApiSessionResponse>>
             {
                 MaxRetryAttempts = 3,
                 Delay = TimeSpan.FromSeconds(2),
@@ -39,8 +41,9 @@ public class FocusBotApiClient : IFocusBotApiClient
                     var r = args.Outcome.Result!;
                     return new ValueTask<bool>(ShouldRetrySessionApiResult(r));
                 },
-            })
-            .Build();
+            }
+        )
+        .Build();
 
     private static bool ShouldRetrySessionApiResult(ApiResult<ApiSessionResponse> r)
     {
@@ -54,12 +57,13 @@ public class FocusBotApiClient : IFocusBotApiClient
         return code >= 500 && code <= 599;
     }
 
-    public bool IsConfigured => _authService.IsAuthenticated;
+    public bool IsAuthenticated => _authService.IsAuthenticated;
 
     public FocusBotApiClient(
         HttpClient httpClient,
         IAuthService authService,
-        ILogger<FocusBotApiClient> logger)
+        ILogger<FocusBotApiClient> logger
+    )
     {
         _httpClient = httpClient;
         _authService = authService;
@@ -68,31 +72,39 @@ public class FocusBotApiClient : IFocusBotApiClient
 
     public async Task<ApiResult<ApiSessionResponse>> StartSessionAsync(StartSessionPayload payload)
     {
-        return await SessionApiRetryPipeline.ExecuteAsync(
-            async ct => await StartSessionCoreAsync(payload, ct));
+        return await SessionApiRetryPipeline.ExecuteAsync(async ct =>
+            await StartSessionCoreAsync(payload, ct)
+        );
     }
 
-    public async Task<ApiResult<ApiSessionResponse>> EndSessionAsync(Guid sessionId, EndSessionPayload payload)
+    public async Task<ApiResult<ApiSessionResponse>> EndSessionAsync(
+        Guid sessionId,
+        EndSessionPayload payload
+    )
     {
-        return await SessionApiRetryPipeline.ExecuteAsync(
-            async ct => await EndSessionCoreAsync(sessionId, payload, ct));
+        return await SessionApiRetryPipeline.ExecuteAsync(async ct =>
+            await EndSessionCoreAsync(sessionId, payload, ct)
+        );
     }
 
     public async Task<ApiResult<ApiSessionResponse>> PauseSessionAsync(Guid sessionId)
     {
-        return await SessionApiRetryPipeline.ExecuteAsync(
-            async ct => await PauseSessionCoreAsync(sessionId, ct));
+        return await SessionApiRetryPipeline.ExecuteAsync(async ct =>
+            await PauseSessionCoreAsync(sessionId, ct)
+        );
     }
 
     public async Task<ApiResult<ApiSessionResponse>> ResumeSessionAsync(Guid sessionId)
     {
-        return await SessionApiRetryPipeline.ExecuteAsync(
-            async ct => await ResumeSessionCoreAsync(sessionId, ct));
+        return await SessionApiRetryPipeline.ExecuteAsync(async ct =>
+            await ResumeSessionCoreAsync(sessionId, ct)
+        );
     }
 
     private async Task<ApiResult<ApiSessionResponse>> StartSessionCoreAsync(
         StartSessionPayload payload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -109,7 +121,10 @@ public class FocusBotApiClient : IFocusBotApiClient
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(
+                JsonOptions,
+                cancellationToken
+            );
             if (body is null)
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
 
@@ -125,11 +140,15 @@ public class FocusBotApiClient : IFocusBotApiClient
     private async Task<ApiResult<ApiSessionResponse>> EndSessionCoreAsync(
         Guid sessionId,
         EndSessionPayload payload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/end");
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Post,
+                $"/sessions/{sessionId}/end"
+            );
             if (request is null)
                 return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
@@ -142,7 +161,10 @@ public class FocusBotApiClient : IFocusBotApiClient
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(
+                JsonOptions,
+                cancellationToken
+            );
             if (body is null)
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
 
@@ -157,11 +179,15 @@ public class FocusBotApiClient : IFocusBotApiClient
 
     private async Task<ApiResult<ApiSessionResponse>> PauseSessionCoreAsync(
         Guid sessionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/pause");
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Post,
+                $"/sessions/{sessionId}/pause"
+            );
             if (request is null)
                 return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
@@ -172,7 +198,10 @@ public class FocusBotApiClient : IFocusBotApiClient
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(
+                JsonOptions,
+                cancellationToken
+            );
             if (body is null)
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
 
@@ -187,11 +216,15 @@ public class FocusBotApiClient : IFocusBotApiClient
 
     private async Task<ApiResult<ApiSessionResponse>> ResumeSessionCoreAsync(
         Guid sessionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, $"/sessions/{sessionId}/resume");
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Post,
+                $"/sessions/{sessionId}/resume"
+            );
             if (request is null)
                 return ApiResult<ApiSessionResponse>.NotAuthenticated();
 
@@ -202,7 +235,10 @@ public class FocusBotApiClient : IFocusBotApiClient
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
             }
 
-            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(JsonOptions, cancellationToken);
+            var body = await response.Content.ReadFromJsonAsync<ApiSessionResponse>(
+                JsonOptions,
+                cancellationToken
+            );
             if (body is null)
                 return ApiResult<ApiSessionResponse>.Failure(response.StatusCode);
 
@@ -219,8 +255,12 @@ public class FocusBotApiClient : IFocusBotApiClient
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Get, "/sessions/active");
-            if (request is null) return null;
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Get,
+                "/sessions/active"
+            );
+            if (request is null)
+                return null;
 
             var response = await _httpClient.SendAsync(request);
 
@@ -239,12 +279,16 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
-    public async Task<ApiClassifyResponse?> ClassifyAsync(ClassifyPayload payload, string? byokApiKey = null)
+    public async Task<ApiClassifyResponse?> ClassifyAsync(
+        ClassifyPayload payload,
+        string? byokApiKey = null
+    )
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/classify");
-            if (request is null) return null;
+            if (request is null)
+                return null;
 
             if (!string.IsNullOrWhiteSpace(byokApiKey))
                 request.Headers.Add("X-Api-Key", byokApiKey);
@@ -271,8 +315,12 @@ public class FocusBotApiClient : IFocusBotApiClient
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/classify/validate-key");
-            if (request is null) return null;
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Post,
+                "/classify/validate-key"
+            );
+            if (request is null)
+                return null;
 
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
@@ -296,13 +344,20 @@ public class FocusBotApiClient : IFocusBotApiClient
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Get, "/subscriptions/status");
-            if (request is null) return null;
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Get,
+                "/subscriptions/status"
+            );
+            if (request is null)
+                return null;
 
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("GetSubscriptionStatus failed: {StatusCode}", response.StatusCode);
+                _logger.LogWarning(
+                    "GetSubscriptionStatus failed: {StatusCode}",
+                    response.StatusCode
+                );
                 return null;
             }
 
@@ -319,12 +374,14 @@ public class FocusBotApiClient : IFocusBotApiClient
         string name,
         string fingerprint,
         ClientType clientType = ClientType.Desktop,
-        ClientHost host = ClientHost.Windows)
+        ClientHost host = ClientHost.Windows
+    )
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Post, "/clients");
-            if (request is null) return null;
+            if (request is null)
+                return null;
 
             var payload = new RegisterClientRequest(
                 clientType,
@@ -332,7 +389,8 @@ public class FocusBotApiClient : IFocusBotApiClient
                 name,
                 fingerprint,
                 GetAppVersion(),
-                "Windows");
+                "Windows"
+            );
             request.Content = JsonContent.Create(payload, options: JsonOptions);
 
             var response = await _httpClient.SendAsync(request);
@@ -355,8 +413,12 @@ public class FocusBotApiClient : IFocusBotApiClient
     {
         try
         {
-            using var request = await CreateAuthorizedRequestAsync(HttpMethod.Delete, $"/clients/{clientId}");
-            if (request is null) return false;
+            using var request = await CreateAuthorizedRequestAsync(
+                HttpMethod.Delete,
+                $"/clients/{clientId}"
+            );
+            if (request is null)
+                return false;
 
             var response = await _httpClient.SendAsync(request);
             return response.IsSuccessStatusCode;
@@ -368,31 +430,36 @@ public class FocusBotApiClient : IFocusBotApiClient
         }
     }
 
-    public async Task<bool> ProvisionUserAsync()
+    public async Task<ApiMeResponse?> GetUserInfoAsync()
     {
         try
         {
             using var request = await CreateAuthorizedRequestAsync(HttpMethod.Get, "/auth/me");
-            if (request is null) return false;
+            if (request is null)
+                return null;
 
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("ProvisionUser failed: {StatusCode}", response.StatusCode);
-                return false;
+                return null;
             }
 
+            var body = await response.Content.ReadFromJsonAsync<ApiMeResponse>(JsonOptions);
             _logger.LogInformation("Backend user provisioned successfully");
-            return true;
+            return body;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "ProvisionUser request failed");
-            return false;
+            return null;
         }
     }
 
-    private async Task<HttpRequestMessage?> CreateAuthorizedRequestAsync(HttpMethod method, string path)
+    private async Task<HttpRequestMessage?> CreateAuthorizedRequestAsync(
+        HttpMethod method,
+        string path
+    )
     {
         var token = await _authService.GetAccessTokenAsync();
         if (string.IsNullOrEmpty(token))

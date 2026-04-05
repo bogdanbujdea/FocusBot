@@ -204,7 +204,7 @@ customData: {
 **Checkout redirect:**
 - `PlanSelectionViewModel.cs` — `SelectPlan` command opens web app billing URL in browser
 - `FocusPageViewModel.cs` — Subscribes to SignalR `PlanChanged` and `IPlanService.PlanChanged`, calls `IPlanService.RefreshAsync()` and updates trial / BYOK UI
-- `PlanService` — Caches plan type, subscription status string (mapped to `ClientSubscriptionStatus`), and `TrialEndsAt` from `GET /subscriptions/status`; 5-minute TTL; instant refresh on SignalR notification
+- `PlanService` — Caches plan type, `TrialEndsAt`, and `CurrentPeriodEndsAt` from `GET /subscriptions/status`; 5-minute TTL; instant refresh on SignalR notification
 
 **Trial UX (Focus page):**
 - **`TrialWelcomeDialog`** — One-time welcome after first-run **How it works** (or when the user signs in later), gated by `SettingsKeys.TrialWelcomeSeen`, for Foqus trial users. **View plans** opens `https://app.foqus.me/billing`.

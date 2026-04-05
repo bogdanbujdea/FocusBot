@@ -3,6 +3,8 @@ export interface MeResponse {
   email: string;
   subscriptionStatus: string;
   planType: number;
+  /** ISO timestamp; server sets when the Foqus user row was created. */
+  createdAtUtc?: string;
 }
 
 export interface SubscriptionStatusResponse {

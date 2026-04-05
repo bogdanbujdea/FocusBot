@@ -28,8 +28,9 @@ public static class AuthEndpoints
                         new MeResponse(
                             user.Id,
                             user.Email,
-                            status!.Status,
-                            status.PlanType
+                            status!.PlanType,
+                            user.CreatedAtUtc,
+                            status.CurrentPeriodEndsAt
                         )
                     );
                 }

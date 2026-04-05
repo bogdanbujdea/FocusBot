@@ -19,8 +19,7 @@ public class Subscription
     /// <summary>The subscription tier the user is on.</summary>
     public PlanType PlanType { get; set; } = PlanType.TrialFullAccess;
 
-    public DateTime? TrialEndsAtUtc { get; set; }
-    public DateTime? CurrentPeriodEndsAtUtc { get; set; }
+    public DateTime CurrentPeriodEndsAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public User User { get; set; } = null!;
@@ -39,15 +38,6 @@ public class Subscription
     public string? CardLastFour { get; set; }
 }
 
-/// <summary>The Foqus subscription tiers.</summary>
-public enum PlanType
-{
-    /// <summary>Generic 24h trial — plan not yet chosen by the user.</summary>
-    TrialFullAccess = 0,
-    CloudBYOK = 1,
-    CloudManaged = 2,
-}
-
 /// <summary>Subscription lifecycle status.</summary>
 [JsonConverter(typeof(CamelCaseEnumConverter<SubscriptionStatus>))]
 public enum SubscriptionStatus
@@ -63,9 +53,8 @@ public enum SubscriptionStatus
 public sealed class CamelCaseEnumConverter<T> : JsonStringEnumConverter<T>
     where T : struct, Enum
 {
-    public CamelCaseEnumConverter() : base(JsonNamingPolicy.CamelCase)
-    {
-    }
+    public CamelCaseEnumConverter()
+        : base(JsonNamingPolicy.CamelCase) { }
 }
 
 /// <summary>Tracks processed webhook events for idempotency.</summary>

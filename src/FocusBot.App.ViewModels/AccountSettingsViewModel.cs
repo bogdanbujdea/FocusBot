@@ -40,8 +40,24 @@ public partial class AccountSettingsViewModel : ObservableObject
 
     private async void OnAuthStateChanged()
     {
-        IsAuthenticated = _authService.IsAuthenticated;
+        var authenticated = _authService.IsAuthenticated;
+        if (authenticated && LooksLikeMagicLinkFlowStatus(StatusMessage))
+        {
+            StatusMessage = "Welcome to Foqus!";
+            IsStatusError = false;
+        }
+
+        IsAuthenticated = authenticated;
         await LoadUserEmailAsync();
+    }
+
+    private static bool LooksLikeMagicLinkFlowStatus(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return false;
+
+        return message.Contains("magic link", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Sending magic link", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task LoadUserEmailAsync()

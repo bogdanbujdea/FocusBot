@@ -1,55 +1,59 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FocusBot.Core.Interfaces;
+using FocusBot.WebAPI.Data.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace FocusBot.App.ViewModels;
 
 /// <summary>
 /// Manages plan display and tier selection in the settings view.
-/// Shows the current plan, allows the user to open the billing portal or full analytics,
-/// and polls plan state via <see cref="IPlanService"/>.
+/// Shows the current plan, allows the user to open the billing portal or full analytics
 /// </summary>
 public partial class PlanSelectionViewModel : ObservableObject
 {
-    private readonly IPlanService _planService;
     private readonly IAuthService _authService;
+    private readonly IFocusBotApiClient _focusBotApiClient;
     private readonly ILogger<PlanSelectionViewModel> _logger;
 
     private const string WebAppAnalyticsUrl = "https://app.foqus.me/analytics";
     private const string WebAppBillingUrl = "https://app.foqus.me/billing";
 
+    public PlanSelectionViewModel(
+        IAuthService authService,
+        IFocusBotApiClient focusBotApiClient,
+        ILogger<PlanSelectionViewModel> logger
+    )
+    {
+        _authService = authService;
+        _focusBotApiClient = focusBotApiClient;
+        _logger = logger;
+
+        _authService.AuthStateChanged += OnAuthStateChanged;
+
+        _ = LoadAsync();
+    }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFreePlan))]
     [NotifyPropertyChangedFor(nameof(IsCloudBYOKPlan))]
     [NotifyPropertyChangedFor(nameof(IsCloudManagedPlan))]
     [NotifyPropertyChangedFor(nameof(ShowFullAnalyticsCta))]
     [NotifyPropertyChangedFor(nameof(ShowUpgradeCta))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanOptions))]
+    [NotifyPropertyChangedFor(nameof(ShowUpgradeToCloudManaged))]
     [NotifyPropertyChangedFor(nameof(PlanDisplayName))]
     [NotifyPropertyChangedFor(nameof(PlanDescription))]
     [NotifyPropertyChangedFor(nameof(PlanEndDateLabel))]
-    private ClientPlanType _currentPlan = ClientPlanType.TrialFullAccess;
+    private PlanType _currentPlan = PlanType.TrialFullAccess;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFullAnalyticsCta))]
     [NotifyPropertyChangedFor(nameof(ShowUpgradeCta))]
+    [NotifyPropertyChangedFor(nameof(ShowPlanOptions))]
+    [NotifyPropertyChangedFor(nameof(ShowUpgradeToCloudManaged))]
     [NotifyPropertyChangedFor(nameof(ShowSignInPrompt))]
     [NotifyPropertyChangedFor(nameof(CanSelectPlan))]
     private bool _isSignedIn;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowUpgradeCta))]
-    [NotifyPropertyChangedFor(nameof(PlanDisplayName))]
-    [NotifyPropertyChangedFor(nameof(PlanDescription))]
-    [NotifyPropertyChangedFor(nameof(PlanEndDateLabel))]
-    private ClientSubscriptionStatus _subscriptionStatus = ClientSubscriptionStatus.None;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowUpgradeCta))]
-    [NotifyPropertyChangedFor(nameof(PlanDisplayName))]
-    [NotifyPropertyChangedFor(nameof(PlanDescription))]
-    [NotifyPropertyChangedFor(nameof(PlanEndDateLabel))]
-    private DateTime? _subscriptionTrialEndsAtUtc;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlanEndDateLabel))]
@@ -65,55 +69,43 @@ public partial class PlanSelectionViewModel : ObservableObject
     /// <summary>True when there is a non-empty status message to display.</summary>
     public bool HasStatusMessage => !string.IsNullOrEmpty(StatusMessage);
 
-    /// <summary>True when the current plan is Free (BYOK, local-only).</summary>
-    public bool IsFreePlan => CurrentPlan == ClientPlanType.TrialFullAccess;
-
     /// <summary>True when the current plan is Foqus BYOK.</summary>
-    public bool IsCloudBYOKPlan => CurrentPlan == ClientPlanType.CloudBYOK;
+    public bool IsCloudBYOKPlan => CurrentPlan == PlanType.CloudBYOK;
 
     /// <summary>True when the current plan is Foqus Premium.</summary>
-    public bool IsCloudManagedPlan => CurrentPlan == ClientPlanType.CloudManaged;
+    public bool IsCloudManagedPlan => CurrentPlan == PlanType.CloudManaged;
 
     /// <summary>Show the "Open full analytics" button — visible for signed-in cloud users.</summary>
-    public bool ShowFullAnalyticsCta => IsSignedIn && _planService.IsCloudPlan(CurrentPlan);
+    public bool ShowFullAnalyticsCta => IsSignedIn;
 
     /// <summary>Show the upgrade CTA after the Foqus trial ended and the user has no paid cloud plan.</summary>
-    public bool ShowUpgradeCta =>
-        IsSignedIn
-        && !_planService.IsCloudPlan(CurrentPlan)
-        && (
-            SubscriptionStatus == ClientSubscriptionStatus.Expired
-            || (
-                SubscriptionStatus == ClientSubscriptionStatus.Trial
-                && SubscriptionTrialEndsAtUtc.HasValue
-                && ToUtc(SubscriptionTrialEndsAtUtc.Value) <= DateTime.UtcNow
-            )
-        );
+    public bool ShowUpgradeCta => IsSignedIn && CurrentPlan == PlanType.TrialFullAccess;
 
     /// <summary>Show the sign-in prompt — user is on free plan and not signed in.</summary>
-    public bool ShowSignInPrompt => !IsSignedIn && IsFreePlan;
+    public bool ShowSignInPrompt => !IsSignedIn;
 
     /// <summary>True if user can select plans (signed in).</summary>
     public bool CanSelectPlan => IsSignedIn;
+
+    /// <summary>Show plan options (BYOK and Premium) when signed in and on trial.</summary>
+    public bool ShowPlanOptions => IsSignedIn && CurrentPlan == PlanType.TrialFullAccess;
+
+    /// <summary>Show upgrade to Cloud Managed button when signed in and on BYOK plan.</summary>
+    public bool ShowUpgradeToCloudManaged => IsSignedIn && CurrentPlan == PlanType.CloudBYOK;
 
     /// <summary>Short display name for the current plan.</summary>
     public string PlanDisplayName
     {
         get
         {
-            if (
-                CurrentPlan == ClientPlanType.TrialFullAccess
-                && SubscriptionStatus == ClientSubscriptionStatus.Trial
-                && SubscriptionTrialEndsAtUtc.HasValue
-                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow
-            )
+            if (CurrentPlan == PlanType.TrialFullAccess)
                 return "Trial — Full Access";
 
             return CurrentPlan switch
             {
-                ClientPlanType.TrialFullAccess => "Foqus trial",
-                ClientPlanType.CloudBYOK => "Foqus BYOK",
-                ClientPlanType.CloudManaged => "Foqus Premium",
+                PlanType.TrialFullAccess => "Foqus trial",
+                PlanType.CloudBYOK => "Foqus BYOK",
+                PlanType.CloudManaged => "Foqus Premium",
                 _ => "Foqus trial",
             };
         }
@@ -124,46 +116,37 @@ public partial class PlanSelectionViewModel : ObservableObject
     {
         get
         {
-            if (
-                CurrentPlan == ClientPlanType.TrialFullAccess
-                && SubscriptionStatus == ClientSubscriptionStatus.Trial
-                && SubscriptionTrialEndsAtUtc.HasValue
-                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow
-            )
+            if (CurrentPlan == PlanType.TrialFullAccess)
                 return "Full access · Choose a plan when the trial ends";
 
             return CurrentPlan switch
             {
-                ClientPlanType.TrialFullAccess => "Sign in for cloud sync and analytics",
-                ClientPlanType.CloudBYOK => "Your own API key · Full analytics · Cross-device sync",
-                ClientPlanType.CloudManaged =>
-                    "Platform API key · Full analytics · Cross-device sync",
+                PlanType.TrialFullAccess => "Sign in for cloud sync and analytics",
+                PlanType.CloudBYOK => "Your own API key · Full analytics · Cross-device sync",
+                PlanType.CloudManaged => "Platform API key · Full analytics · Cross-device sync",
                 _ => string.Empty,
             };
         }
     }
 
-    /// <summary>Human-readable end date for the currently displayed plan state.</summary>
+    /// <summary>
+    /// Shows the expiration or end date for the current plan.
+    /// Trial: "Expires at: Apr 5, 11:59 AM". Paid plans: "Renews: Apr 5, 11:59 AM".
+    /// </summary>
     public string PlanEndDateLabel
     {
         get
         {
-            DateTime? endUtc = null;
+            if (!SubscriptionCurrentPeriodEndsAtUtc.HasValue)
+                return string.Empty;
 
-            if (SubscriptionStatus == ClientSubscriptionStatus.Trial)
-                endUtc = SubscriptionTrialEndsAtUtc;
-            else if (
-                SubscriptionStatus
-                is ClientSubscriptionStatus.Active
-                    or ClientSubscriptionStatus.Canceled
-            )
-                endUtc = SubscriptionCurrentPeriodEndsAtUtc;
+            var local = ToUtc(SubscriptionCurrentPeriodEndsAtUtc.Value).ToLocalTime();
+            var dateStr = local.ToString("MMM d, h:mm tt");
 
-            if (!endUtc.HasValue)
-                return "End date: unavailable";
+            if (CurrentPlan == PlanType.TrialFullAccess)
+                return $"Expires at: {dateStr}";
 
-            var local = ToUtc(endUtc.Value).ToLocalTime();
-            return $"End date: {local:MMM d, h:mm tt}";
+            return $"Renews: {dateStr}";
         }
     }
 
@@ -182,22 +165,6 @@ public partial class PlanSelectionViewModel : ObservableObject
         OpenUrl(url);
     }
 
-    public PlanSelectionViewModel(
-        IPlanService planService,
-        IAuthService authService,
-        ILogger<PlanSelectionViewModel> logger
-    )
-    {
-        _planService = planService;
-        _authService = authService;
-        _logger = logger;
-
-        _planService.PlanChanged += OnPlanChanged;
-        _authService.AuthStateChanged += OnAuthStateChanged;
-
-        _ = LoadAsync();
-    }
-
     /// <summary>Forces a refresh of the plan from the backend.</summary>
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task RefreshPlanAsync()
@@ -206,9 +173,7 @@ public partial class PlanSelectionViewModel : ObservableObject
         StatusMessage = string.Empty;
         try
         {
-            await _planService.RefreshAsync();
-            CurrentPlan = await _planService.GetCurrentPlanAsync();
-            await SyncSubscriptionDetailsAsync();
+            await LoadCurrentPlanAsync();
         }
         catch (Exception ex)
         {
@@ -218,6 +183,22 @@ public partial class PlanSelectionViewModel : ObservableObject
         finally
         {
             IsRefreshing = false;
+        }
+    }
+
+    private async Task LoadCurrentPlanAsync()
+    {
+        var user = await _focusBotApiClient.GetUserInfoAsync();
+        if (user == null)
+            return;
+        CurrentPlan = user!.PlanType;
+        if (CurrentPlan == PlanType.TrialFullAccess)
+        {
+            SubscriptionCurrentPeriodEndsAtUtc = user.CreatedAtUtc + TimeSpan.FromDays(1);
+        }
+        else
+        {
+            SubscriptionCurrentPeriodEndsAtUtc = user.SubscriptionEndDate;
         }
     }
 
@@ -241,8 +222,7 @@ public partial class PlanSelectionViewModel : ObservableObject
         try
         {
             IsSignedIn = _authService.IsAuthenticated;
-            CurrentPlan = await _planService.GetCurrentPlanAsync();
-            await SyncSubscriptionDetailsAsync();
+            await LoadCurrentPlanAsync();
         }
         catch (Exception ex)
         {
@@ -254,20 +234,22 @@ public partial class PlanSelectionViewModel : ObservableObject
         }
     }
 
-    private async Task SyncSubscriptionDetailsAsync()
+    private async void OnAuthStateChanged()
     {
-        SubscriptionStatus = await _planService.GetStatusAsync();
-        SubscriptionTrialEndsAtUtc = await _planService.GetTrialEndsAtAsync();
-        SubscriptionCurrentPeriodEndsAtUtc = await _planService.GetCurrentPeriodEndsAtAsync();
+        IsSignedIn = _authService.IsAuthenticated;
+        if (IsSignedIn)
+        {
+            await LoadCurrentPlanAsync();
+        }
+        else
+            ResetPlanUiAfterSignOut();
     }
 
-    private void OnPlanChanged(object? sender, ClientPlanType newPlan)
+    private void ResetPlanUiAfterSignOut()
     {
-        CurrentPlan = newPlan;
-        _ = SyncSubscriptionDetailsAsync();
+        CurrentPlan = PlanType.TrialFullAccess;
+        SubscriptionCurrentPeriodEndsAtUtc = null;
     }
-
-    private void OnAuthStateChanged() => IsSignedIn = _authService.IsAuthenticated;
 
     private static void OpenUrl(string url)
     {
