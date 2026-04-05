@@ -353,7 +353,7 @@ public class SupabaseAuthService : IAuthService
         }
     }
 
-    public async Task<bool> RefreshTokenAsync()
+    private async Task<bool> RefreshTokenAsync()
     {
         if (string.IsNullOrEmpty(_refreshToken))
         {

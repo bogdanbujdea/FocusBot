@@ -1,5 +1,4 @@
 using System.Text.Json;
-using FocusBot.Core.Entities;
 using FocusBot.Core.Interfaces;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,6 @@ public class SettingsService : ISettingsService
     private Dictionary<string, JsonElement> _settings;
 
     private const string ApiKeySettingName = "OpenAI_ApiKey";
-    private const string ApiKeyModeSettingName = "ApiKeyMode";
     private const string LlmProviderSettingName = "LLM_Provider";
     private const string LlmModelSettingName = "LLM_Model";
 
@@ -86,20 +84,6 @@ public class SettingsService : ISettingsService
         await SaveSettingsAsync();
         _logger.LogInformation("API key cleared");
     }
-
-    public async Task<ApiKeyMode> GetApiKeyModeAsync()
-    {
-        var stored = await GetSettingAsync<string>(ApiKeyModeSettingName);
-        if (string.IsNullOrEmpty(stored))
-            return ApiKeyMode.Own;
-
-        return Enum.TryParse<ApiKeyMode>(stored, out var mode)
-            ? mode
-            : ApiKeyMode.Own;
-    }
-
-    public Task SetApiKeyModeAsync(ApiKeyMode mode) =>
-        SetSettingAsync(ApiKeyModeSettingName, mode.ToString());
 
     public Task<string?> GetProviderAsync() => GetSettingAsync<string>(LlmProviderSettingName);
 

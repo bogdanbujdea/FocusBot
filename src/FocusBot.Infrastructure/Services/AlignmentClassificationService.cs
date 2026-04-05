@@ -7,14 +7,14 @@ namespace FocusBot.Infrastructure.Services;
 
 /// <summary>
 /// Classifies the alignment of the current foreground window with the active task via the WebAPI.
-/// For BYOK users, reads the API key, provider, and model from settings and
-/// passes the key as a header to the backend.
+/// When the cached subscription plan is <see cref="ClientPlanType.CloudBYOK"/>, reads the API key,
+/// provider, and model from settings and passes the key as a header to the backend.
 /// All caching is handled server-side.
 /// </summary>
 public class AlignmentClassificationService(
     IFocusBotApiClient apiClient,
-    IClientService clientService,
     ISettingsService settings,
+    IPlanService planService,
     ILogger<AlignmentClassificationService> logger
 ) : IClassificationService
 {
@@ -29,13 +29,7 @@ public class AlignmentClassificationService(
         if (!apiClient.IsConfigured)
             return Result.Failure<AlignmentResult>("Not authenticated. Sign in to classify.");
 
-        return await ClassifyViaApiAsync(
-            processName,
-            windowTitle,
-            sessionText,
-            sessionContext,
-            ct
-        );
+        return await ClassifyViaApiAsync(processName, windowTitle, sessionText, sessionContext, ct);
     }
 
     private async Task<Result<AlignmentResult>> ClassifyViaApiAsync(
@@ -49,14 +43,12 @@ public class AlignmentClassificationService(
         logger.LogInformation(
             "Desktop app requesting classification | Process: {ProcessName} | Window: {WindowTitle}",
             processName,
-            windowTitle);
+            windowTitle
+        );
 
-        var byokKey = await GetByokApiKeyAsync();
+        var byokKey = await GetByokApiKeyAsync(ct);
         var providerId = await settings.GetProviderAsync();
         var modelId = await settings.GetModelAsync();
-
-        await clientService.EnsureClientIdLoadedAsync(ct);
-        var clientId = clientService.GetClientId();
 
         var payload = new ClassifyPayload(
             sessionTitle,
@@ -64,9 +56,9 @@ public class AlignmentClassificationService(
             processName,
             windowTitle,
             providerId,
-            modelId,
-            clientId
+            modelId
         );
+
         var response = await apiClient.ClassifyAsync(payload, byokKey);
 
         if (response is null)
@@ -74,34 +66,41 @@ public class AlignmentClassificationService(
             logger.LogWarning(
                 "Desktop classification failed | Process: {ProcessName} | Window: {WindowTitle}",
                 processName,
-                windowTitle);
+                windowTitle
+            );
             return Result.Failure<AlignmentResult>(
                 "Classification request failed. Check your connection."
             );
         }
 
-        var classification = response.Score > 5 ? "Aligned" : response.Score < 5 ? "Distracting" : "Neutral";
+        var classification =
+            response.Score > 5 ? "Aligned"
+            : response.Score < 5 ? "Distracting"
+            : "Neutral";
         logger.LogInformation(
             "Desktop classification received: {Classification} (score={Score}) | Process: {ProcessName} | Window: {WindowTitle} | Cached: {Cached}",
             classification,
             response.Score,
             processName,
             windowTitle,
-            response.Cached);
+            response.Cached
+        );
 
         var result = new AlignmentResult { Score = response.Score, Reason = response.Reason };
 
         return Result.Success(result);
     }
 
-    private async Task<string?> GetByokApiKeyAsync()
+    private async Task<string?> GetByokApiKeyAsync(CancellationToken ct)
     {
         try
         {
-            var mode = await settings.GetApiKeyModeAsync();
-            if (mode == ApiKeyMode.Own)
-                return await settings.GetApiKeyAsync();
-            return null;
+            var plan = await planService.GetCurrentPlanAsync(ct);
+            if (plan != ClientPlanType.CloudBYOK)
+                return null;
+
+            var key = await settings.GetApiKeyAsync();
+            return string.IsNullOrWhiteSpace(key) ? null : key;
         }
         catch (Exception ex)
         {
@@ -109,5 +108,4 @@ public class AlignmentClassificationService(
             return null;
         }
     }
-
 }

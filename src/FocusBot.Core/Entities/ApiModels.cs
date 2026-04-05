@@ -1,11 +1,7 @@
 namespace FocusBot.Core.Entities;
 
 /// <summary>Payload sent to POST /sessions.</summary>
-public sealed record StartSessionPayload(
-    string SessionTitle,
-    string? SessionContext,
-    Guid? ClientId
-);
+public sealed record StartSessionPayload(string SessionTitle, string? SessionContext);
 
 /// <summary>Payload sent to POST /sessions/{id}/end.</summary>
 public sealed record EndSessionPayload(
@@ -15,8 +11,7 @@ public sealed record EndSessionPayload(
     int DistractionCount,
     int ContextSwitchCount,
     string? TopDistractingApps,
-    string? TopAlignedApps,
-    Guid? ClientId
+    string? TopAlignedApps
 );
 
 /// <summary>Payload sent to POST /classify. Includes optional BYOK provider/model selection.</summary>
@@ -26,8 +21,7 @@ public sealed record ClassifyPayload(
     string? ProcessName,
     string? WindowTitle,
     string? ProviderId,
-    string? ModelId,
-    Guid? ClientId
+    string? ModelId
 );
 
 /// <summary>Payload sent to POST /classify/validate-key.</summary>
@@ -38,7 +32,6 @@ public sealed record ApiSessionResponse(
     Guid Id,
     string SessionTitle,
     string? SessionContext,
-    Guid? ClientId,
     DateTime StartedAtUtc,
     DateTime? EndedAtUtc
 );
@@ -52,7 +45,8 @@ public sealed record ApiSubscriptionStatus(
     int PlanType,
     DateTime? TrialEndsAt,
     DateTime? CurrentPeriodEndsAt,
-    DateTime? NextBilledAtUtc = null);
+    DateTime? NextBilledAtUtc = null
+);
 
 /// <summary>Payload sent to POST /clients.</summary>
 public sealed record RegisterClientRequest(
@@ -61,7 +55,8 @@ public sealed record RegisterClientRequest(
     string Name,
     string Fingerprint,
     string? AppVersion,
-    string? Platform);
+    string? Platform
+);
 
 /// <summary>Response from POST /clients.</summary>
 /// <remarks>ClientType and Host are integer enums serialized as numbers by the API.</remarks>

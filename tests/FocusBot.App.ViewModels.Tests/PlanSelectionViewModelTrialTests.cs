@@ -8,7 +8,7 @@ public class PlanSelectionViewModelTrialTests
 {
     private sealed class TestPlanService : IPlanService
     {
-        public ClientPlanType Plan { get; set; } = ClientPlanType.FreeBYOK;
+        public ClientPlanType Plan { get; set; } = ClientPlanType.TrialFullAccess;
         public ClientSubscriptionStatus ClientStatus { get; set; } = ClientSubscriptionStatus.Trial;
         public DateTime? TrialEndsAtUtc { get; set; } = DateTime.UtcNow.AddHours(24);
         public DateTime? CurrentPeriodEndsAtUtc { get; set; }
@@ -40,7 +40,7 @@ public class PlanSelectionViewModelTrialTests
     {
         var planSvc = new TestPlanService
         {
-            Plan = ClientPlanType.FreeBYOK,
+            Plan = ClientPlanType.TrialFullAccess,
             ClientStatus = ClientSubscriptionStatus.Trial,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(-1),
         };
@@ -60,7 +60,7 @@ public class PlanSelectionViewModelTrialTests
     {
         var planSvc = new TestPlanService
         {
-            Plan = ClientPlanType.FreeBYOK,
+            Plan = ClientPlanType.TrialFullAccess,
             ClientStatus = ClientSubscriptionStatus.Trial,
             TrialEndsAtUtc = DateTime.UtcNow.AddHours(2),
         };

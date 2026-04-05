@@ -28,7 +28,7 @@ public partial class PlanSelectionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PlanDisplayName))]
     [NotifyPropertyChangedFor(nameof(PlanDescription))]
     [NotifyPropertyChangedFor(nameof(PlanEndDateLabel))]
-    private ClientPlanType _currentPlan = ClientPlanType.FreeBYOK;
+    private ClientPlanType _currentPlan = ClientPlanType.TrialFullAccess;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFullAnalyticsCta))]
@@ -66,7 +66,7 @@ public partial class PlanSelectionViewModel : ObservableObject
     public bool HasStatusMessage => !string.IsNullOrEmpty(StatusMessage);
 
     /// <summary>True when the current plan is Free (BYOK, local-only).</summary>
-    public bool IsFreePlan => CurrentPlan == ClientPlanType.FreeBYOK;
+    public bool IsFreePlan => CurrentPlan == ClientPlanType.TrialFullAccess;
 
     /// <summary>True when the current plan is Foqus BYOK.</summary>
     public bool IsCloudBYOKPlan => CurrentPlan == ClientPlanType.CloudBYOK;
@@ -101,15 +101,17 @@ public partial class PlanSelectionViewModel : ObservableObject
     {
         get
         {
-            if (CurrentPlan == ClientPlanType.FreeBYOK
+            if (
+                CurrentPlan == ClientPlanType.TrialFullAccess
                 && SubscriptionStatus == ClientSubscriptionStatus.Trial
                 && SubscriptionTrialEndsAtUtc.HasValue
-                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow)
+                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow
+            )
                 return "Trial — Full Access";
 
             return CurrentPlan switch
             {
-                ClientPlanType.FreeBYOK => "Foqus trial",
+                ClientPlanType.TrialFullAccess => "Foqus trial",
                 ClientPlanType.CloudBYOK => "Foqus BYOK",
                 ClientPlanType.CloudManaged => "Foqus Premium",
                 _ => "Foqus trial",
@@ -122,17 +124,20 @@ public partial class PlanSelectionViewModel : ObservableObject
     {
         get
         {
-            if (CurrentPlan == ClientPlanType.FreeBYOK
+            if (
+                CurrentPlan == ClientPlanType.TrialFullAccess
                 && SubscriptionStatus == ClientSubscriptionStatus.Trial
                 && SubscriptionTrialEndsAtUtc.HasValue
-                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow)
+                && ToUtc(SubscriptionTrialEndsAtUtc.Value) > DateTime.UtcNow
+            )
                 return "Full access · Choose a plan when the trial ends";
 
             return CurrentPlan switch
             {
-                ClientPlanType.FreeBYOK => "Sign in for cloud sync and analytics",
+                ClientPlanType.TrialFullAccess => "Sign in for cloud sync and analytics",
                 ClientPlanType.CloudBYOK => "Your own API key · Full analytics · Cross-device sync",
-                ClientPlanType.CloudManaged => "Platform API key · Full analytics · Cross-device sync",
+                ClientPlanType.CloudManaged =>
+                    "Platform API key · Full analytics · Cross-device sync",
                 _ => string.Empty,
             };
         }
@@ -147,7 +152,11 @@ public partial class PlanSelectionViewModel : ObservableObject
 
             if (SubscriptionStatus == ClientSubscriptionStatus.Trial)
                 endUtc = SubscriptionTrialEndsAtUtc;
-            else if (SubscriptionStatus is ClientSubscriptionStatus.Active or ClientSubscriptionStatus.Canceled)
+            else if (
+                SubscriptionStatus
+                is ClientSubscriptionStatus.Active
+                    or ClientSubscriptionStatus.Canceled
+            )
                 endUtc = SubscriptionCurrentPeriodEndsAtUtc;
 
             if (!endUtc.HasValue)
@@ -176,7 +185,8 @@ public partial class PlanSelectionViewModel : ObservableObject
     public PlanSelectionViewModel(
         IPlanService planService,
         IAuthService authService,
-        ILogger<PlanSelectionViewModel> logger)
+        ILogger<PlanSelectionViewModel> logger
+    )
     {
         _planService = planService;
         _authService = authService;
@@ -261,10 +271,8 @@ public partial class PlanSelectionViewModel : ObservableObject
 
     private static void OpenUrl(string url)
     {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = url,
-            UseShellExecute = true,
-        });
+        System.Diagnostics.Process.Start(
+            new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true }
+        );
     }
 }

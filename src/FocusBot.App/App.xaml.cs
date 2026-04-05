@@ -2,10 +2,8 @@ using System.Runtime.InteropServices;
 using FocusBot.App.ViewModels;
 using FocusBot.App.Views;
 using FocusBot.Core.Interfaces;
-using FocusBot.Infrastructure.Data;
 using FocusBot.Infrastructure.Services;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
@@ -26,10 +24,13 @@ namespace FocusBot.App
 
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 
+            // Catches exceptions that escape XAML/WinRT event handlers (async void,
+            // binding updates, converters) before they cross the WinRT ABI and become 0xC000027B.
+            this.UnhandledException += OnXamlUnhandledException;
+
             var appDataRoot = ApplicationData.Current.LocalFolder.Path;
             Directory.CreateDirectory(appDataRoot);
 
-            var dataPath = Path.Combine(appDataRoot, "focusbot.db");
             var keysPath = Path.Combine(appDataRoot, "keys");
             Directory.CreateDirectory(keysPath);
 
@@ -39,13 +40,13 @@ namespace FocusBot.App
                 .AddDataProtection()
                 .SetApplicationName("FocusBot")
                 .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
-            services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dataPath}"));
             services.AddSingleton<ISettingsService>(sp => new SettingsService(
                 sp.GetRequiredService<IDataProtectionProvider>(),
                 sp.GetRequiredService<ILogger<SettingsService>>(),
                 appDataRoot
             ));
             services.AddTransient<AccountSettingsViewModel>();
+
             services.AddSingleton<IAuthService>(sp => new SupabaseAuthService(
                 new HttpClient(),
                 sp.GetRequiredService<ISettingsService>(),
@@ -66,18 +67,9 @@ namespace FocusBot.App
                 );
             });
             services.AddScoped<IClassificationService, AlignmentClassificationService>();
-            services.AddSingleton<IClientService, DesktopClientService>();
             services.AddSingleton<IPlanService, PlanService>();
             services.AddSingleton<INavigationService, MainWindowNavigationService>();
-            services.AddSingleton<IFocusHubClient>(sp =>
-            {
-                var baseUrl = GetFocusBotApiBaseUrl();
-                return new FocusHubClientService(
-                    sp.GetRequiredService<IAuthService>(),
-                    sp.GetRequiredService<ILogger<FocusHubClientService>>(),
-                    baseUrl
-                );
-            });
+
             services.AddTransient<ApiKeySettingsViewModel>();
             services.AddSingleton<OverlaySettingsViewModel>();
             services.AddTransient<PlanSelectionViewModel>();
@@ -86,10 +78,6 @@ namespace FocusBot.App
             services.AddTransient<SessionPageViewModel>();
 
             _services = services.BuildServiceProvider();
-
-            using var scope = _services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.Migrate();
         }
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -146,18 +134,6 @@ namespace FocusBot.App
             var uiDispatcher = _services!.GetRequiredService<AppUIThreadDispatcher>();
             uiDispatcher.DispatcherQueue = _window.DispatcherQueue;
 
-            // Connect SignalR only after DispatcherQueue exists. Hub handlers marshal to the UI thread;
-            // if DispatcherQueue was still null, RunOnUIThreadAsync would run work on the SignalR thread
-            // and WinRT/XAML updates throw COMException.
-            var authAfterVm = _services!.GetRequiredService<IAuthService>();
-            if (authAfterVm.IsAuthenticated)
-            {
-                // Do not use ConfigureAwait(false) here: WinUI requires Activate(), overlay, and further
-                // XAML work on the window's UI thread. Continuing on the thread pool leaves no window
-                // in the taskbar.
-                await ConnectFocusHubAsync();
-            }
-
             await ActivateAndShowChromeAsync();
         }
 
@@ -212,8 +188,6 @@ namespace FocusBot.App
         /// </summary>
         private void OnReAuthRequired()
         {
-            _ = DisconnectFocusHubAsync();
-
             if (_services is null)
                 return;
 
@@ -248,13 +222,6 @@ namespace FocusBot.App
             if (_services is null)
                 return;
 
-            var auth = _services.GetRequiredService<IAuthService>();
-            if (!auth.IsAuthenticated)
-            {
-                await DisconnectFocusHubAsync().ConfigureAwait(false);
-                return;
-            }
-
             // Ensure the backend user row exists before any feature calls.
             // /auth/me uses get-or-create, so this is safe on every sign-in and session restore.
             var apiClient = _services.GetRequiredService<IFocusBotApiClient>();
@@ -269,31 +236,6 @@ namespace FocusBot.App
 
             var planService = _services.GetRequiredService<IPlanService>();
             await planService.RefreshAsync();
-
-            var clientService = _services.GetRequiredService<IClientService>();
-            await clientService.EnsureClientIdLoadedAsync();
-            if (clientService.GetClientId() is null)
-                await clientService.RegisterAsync();
-
-            await ConnectFocusHubAsync().ConfigureAwait(false);
-        }
-
-        private async Task ConnectFocusHubAsync()
-        {
-            if (_services is null)
-                return;
-
-            try
-            {
-                var hub = _services.GetRequiredService<IFocusHubClient>();
-                // Preserve UI sync context when called from startup so Activate() stays on the UI thread.
-                await hub.ConnectAsync();
-            }
-            catch (Exception ex)
-            {
-                var logger = _services.GetRequiredService<ILogger<App>>();
-                logger.LogWarning(ex, "Focus hub connect failed");
-            }
         }
 
         /// <summary>
@@ -336,23 +278,6 @@ namespace FocusBot.App
             return tcs.Task;
         }
 
-        private async Task DisconnectFocusHubAsync()
-        {
-            if (_services is null)
-                return;
-
-            try
-            {
-                var hub = _services.GetRequiredService<IFocusHubClient>();
-                await hub.DisconnectAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                var logger = _services.GetRequiredService<ILogger<App>>();
-                logger.LogWarning(ex, "Focus hub disconnect failed");
-            }
-        }
-
         public readonly record struct ActivationRequest(
             ExtendedActivationKind Kind,
             string? ProtocolUri
@@ -380,6 +305,17 @@ namespace FocusBot.App
                     return new ActivationRequest(default, null);
                 }
             }
+        }
+
+        private void OnXamlUnhandledException(
+            object sender,
+            Microsoft.UI.Xaml.UnhandledExceptionEventArgs e
+        )
+        {
+            // Setting Handled = true prevents the WinRT runtime from escalating this
+            // to a native 0xC000027B fatal crash, giving us a chance to log the real cause.
+            e.Handled = true;
+            ShowExceptionMessage("XAML unhandled exception", e.Exception);
         }
 
         private static void OnUnhandledException(

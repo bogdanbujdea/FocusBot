@@ -7,7 +7,7 @@ namespace FocusBot.Core.Interfaces;
 public enum ClientPlanType
 {
     /// <summary>Trial full access (maps to server <c>PlanType.TrialFullAccess</c>).</summary>
-    FreeBYOK = 0,
+    TrialFullAccess = 0,
 
     /// <summary>User provides their own API key plus gets cloud analytics and cross-device sync.</summary>
     CloudBYOK = 1,

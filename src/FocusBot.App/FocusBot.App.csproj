@@ -10,7 +10,9 @@
     <!-- Default to x64 when running without -r so packaged app has a valid architecture -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <!-- Only set PublishProfile when Platform is explicit (avoid win-AnyCPU.pubxml warning) -->
-    <PublishProfile Condition="'$(Platform)' != '' and '$(Platform)' != 'AnyCPU'">win-$(Platform).pubxml</PublishProfile>
+    <PublishProfile Condition="'$(Platform)' != '' and '$(Platform)' != 'AnyCPU'"
+      >win-$(Platform).pubxml</PublishProfile
+    >
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
@@ -41,7 +43,10 @@
     <Content Include="Assets\icon-distracted.svg" />
     <Content Include="Assets\Overlay\circle-focused.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Overlay\circle-neutral.png" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets\Overlay\circle-distracted.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content
+      Include="Assets\Overlay\circle-distracted.png"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
@@ -57,10 +62,6 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />

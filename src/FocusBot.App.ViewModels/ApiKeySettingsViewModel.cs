@@ -20,12 +20,6 @@ public partial class ApiKeySettingsViewModel : ObservableObject
     private bool _isLoading;
 
     [ObservableProperty]
-    private ApiKeyMode _apiKeyMode = ApiKeyMode.Own;
-
-    [ObservableProperty]
-    private bool _isOwnKeyMode = true;
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSave))]
     private string _apiKey = string.Empty;
 
@@ -90,23 +84,11 @@ public partial class ApiKeySettingsViewModel : ObservableObject
         _ = LoadSettingsAsync();
     }
 
-    partial void OnApiKeyModeChanged(ApiKeyMode value) => IsOwnKeyMode = value == ApiKeyMode.Own;
-
-    [RelayCommand]
-    private async Task SelectOwnKeyModeAsync()
-    {
-        ApiKeyMode = ApiKeyMode.Own;
-        await _settingsService.SetApiKeyModeAsync(ApiKeyMode.Own);
-    }
-
-
     private async Task LoadSettingsAsync()
     {
         _isLoading = true;
         try
         {
-            ApiKeyMode = await _settingsService.GetApiKeyModeAsync();
-
             var savedProviderId = await _settingsService.GetProviderAsync();
             SelectedProvider = Providers.FirstOrDefault(p => p.ProviderId == savedProviderId)
                 ?? Providers.First();

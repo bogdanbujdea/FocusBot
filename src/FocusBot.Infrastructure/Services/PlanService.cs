@@ -32,8 +32,8 @@ public class PlanService(
         if (!apiClient.IsConfigured)
         {
             ClearMemoryCache();
-            logger.LogDebug("Not authenticated; returning FreeBYOK without consulting cache");
-            return ClientPlanType.FreeBYOK;
+            logger.LogDebug("Not authenticated; returning TrialFullAccess without consulting cache");
+            return ClientPlanType.TrialFullAccess;
         }
 
         if (IsMemoryCacheFresh())
@@ -167,7 +167,7 @@ public class PlanService(
     {
         if (!apiClient.IsConfigured)
         {
-            var fallback = _memoryCached ?? ClientPlanType.FreeBYOK;
+            var fallback = _memoryCached ?? ClientPlanType.TrialFullAccess;
             logger.LogDebug("Not authenticated; returning fallback plan {Plan}", fallback);
             return fallback;
         }
@@ -178,7 +178,7 @@ public class PlanService(
             if (status is null)
             {
                 logger.LogWarning("GetSubscriptionStatus returned null; keeping existing plan");
-                return _memoryCached ?? ClientPlanType.FreeBYOK;
+                return _memoryCached ?? ClientPlanType.TrialFullAccess;
             }
 
             var newPlan = (ClientPlanType)status.PlanType;
@@ -201,7 +201,7 @@ public class PlanService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to fetch plan from backend; keeping existing plan");
-            return _memoryCached ?? ClientPlanType.FreeBYOK;
+            return _memoryCached ?? ClientPlanType.TrialFullAccess;
         }
     }
 

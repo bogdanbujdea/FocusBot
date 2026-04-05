@@ -10,12 +10,10 @@ public class PlanServiceShould
 {
     private static IPlanService BuildService(
         Mock<IFocusBotApiClient> apiClient,
-        Mock<ISettingsService> settings)
+        Mock<ISettingsService> settings
+    )
     {
-        return new PlanService(
-            apiClient.Object,
-            settings.Object,
-            NullLogger<PlanService>.Instance);
+        return new PlanService(apiClient.Object, settings.Object, NullLogger<PlanService>.Instance);
     }
 
     [Fact]
@@ -27,7 +25,9 @@ public class PlanServiceShould
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
 
@@ -35,7 +35,7 @@ public class PlanServiceShould
         var plan = await sut.GetCurrentPlanAsync();
 
         // Assert
-        plan.Should().Be(ClientPlanType.FreeBYOK);
+        plan.Should().Be(ClientPlanType.TrialFullAccess);
         apiClient.Verify(a => a.GetSubscriptionStatusAsync(), Times.Never);
     }
 
@@ -45,12 +45,17 @@ public class PlanServiceShould
         // Arrange
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
-                 .ReturnsAsync(new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudManaged, null, null));
+        apiClient
+            .Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(
+                new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudManaged, null, null)
+            );
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
 
@@ -68,12 +73,17 @@ public class PlanServiceShould
         // Arrange
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
-                 .ReturnsAsync(new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudBYOK, null, null));
+        apiClient
+            .Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(
+                new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudBYOK, null, null)
+            );
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
 
@@ -91,17 +101,24 @@ public class PlanServiceShould
     {
         // Arrange
         var callCount = 0;
-        var lastPlan = ClientPlanType.FreeBYOK;
+        var lastPlan = ClientPlanType.TrialFullAccess;
 
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.SetupSequence(a => a.GetSubscriptionStatusAsync())
-                 .ReturnsAsync(new ApiSubscriptionStatus("active", (int)ClientPlanType.FreeBYOK, null, null))
-                 .ReturnsAsync(new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudManaged, null, null));
+        apiClient
+            .SetupSequence(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(
+                new ApiSubscriptionStatus("active", (int)ClientPlanType.TrialFullAccess, null, null)
+            )
+            .ReturnsAsync(
+                new ApiSubscriptionStatus("active", (int)ClientPlanType.CloudManaged, null, null)
+            );
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
         sut.PlanChanged += (_, plan) =>
@@ -111,7 +128,7 @@ public class PlanServiceShould
         };
 
         // Act
-        await sut.RefreshAsync(); // establishes FreeBYOK
+        await sut.RefreshAsync(); // establishes TrialFullAccess
         await sut.RefreshAsync(); // upgrades to CloudManaged → fires event
 
         // Assert
@@ -130,7 +147,7 @@ public class PlanServiceShould
         // Act & Assert
         sut.IsCloudPlan(ClientPlanType.CloudBYOK).Should().BeTrue();
         sut.IsCloudPlan(ClientPlanType.CloudManaged).Should().BeTrue();
-        sut.IsCloudPlan(ClientPlanType.FreeBYOK).Should().BeFalse();
+        sut.IsCloudPlan(ClientPlanType.TrialFullAccess).Should().BeFalse();
     }
 
     [Fact]
@@ -139,12 +156,22 @@ public class PlanServiceShould
         var trialEnd = DateTime.UtcNow.AddHours(20);
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
-            .ReturnsAsync(new ApiSubscriptionStatus("trial", (int)ClientPlanType.FreeBYOK, trialEnd, null));
+        apiClient
+            .Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(
+                new ApiSubscriptionStatus(
+                    "trial",
+                    (int)ClientPlanType.TrialFullAccess,
+                    trialEnd,
+                    null
+                )
+            );
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
 
@@ -161,12 +188,22 @@ public class PlanServiceShould
         var trialEnd = DateTime.UtcNow.AddHours(10);
         var apiClient = new Mock<IFocusBotApiClient>();
         apiClient.Setup(a => a.IsConfigured).Returns(true);
-        apiClient.Setup(a => a.GetSubscriptionStatusAsync())
-            .ReturnsAsync(new ApiSubscriptionStatus("trial", (int)ClientPlanType.FreeBYOK, trialEnd, null));
+        apiClient
+            .Setup(a => a.GetSubscriptionStatusAsync())
+            .ReturnsAsync(
+                new ApiSubscriptionStatus(
+                    "trial",
+                    (int)ClientPlanType.TrialFullAccess,
+                    trialEnd,
+                    null
+                )
+            );
 
         var settings = new Mock<ISettingsService>();
         settings.Setup(s => s.GetSettingAsync<int?>("Plan_Type")).ReturnsAsync((int?)null);
-        settings.Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt")).ReturnsAsync((DateTime?)null);
+        settings
+            .Setup(s => s.GetSettingAsync<DateTime?>("Plan_CachedAt"))
+            .ReturnsAsync((DateTime?)null);
 
         var sut = BuildService(apiClient, settings);
 
