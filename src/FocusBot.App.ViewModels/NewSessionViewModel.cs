@@ -20,7 +20,7 @@ public partial class NewSessionViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     private SessionStartState _state = SessionStartState.Idle;
 
-    public Action<ApiSessionResponse>? OnSessionStarted { get; set; }
+    public event Action<ApiSessionResponse>? OnSessionStarted;
 
     public NewSessionViewModel(IFocusBotApiClient apiClient)
     {

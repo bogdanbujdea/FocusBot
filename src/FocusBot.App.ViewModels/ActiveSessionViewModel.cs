@@ -37,9 +37,9 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     private SessionStartState _state = SessionStartState.Idle;
 
-    public Action? OnSessionEnded { get; set; }
-
     public string PauseResumeLabel => IsPaused ? "Resume" : "Pause";
+
+    public event Action? SessionEnded;
 
     public ActiveSessionViewModel(IUIThreadDispatcher dispatcher, IFocusSessionControlService sessionControl)
     {
@@ -50,13 +50,14 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Populates the view model from an API session response and starts the timer.
+    /// Loads the view model from an API session response and starts the timer.
     /// </summary>
-    public void SetSession(ApiSessionResponse session)
+    public async Task LoadAsync(ApiSessionResponse session)
     {
         ApplySession(session);
         UpdateElapsedDisplay();
         StartTimerIfNotPaused();
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -163,7 +164,8 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         var result = await _sessionControl.EndWithPlaceholderMetricsAsync(_sessionId);
         if (result.IsSuccess)
         {
-            OnSessionEnded?.Invoke();
+            State = SessionStartState.Idle;
+            SessionEnded?.Invoke();
         }
         else
         {

@@ -59,7 +59,7 @@ public class StartAsyncShould
         };
 
         ApiSessionResponse? callbackSession = null;
-        vm.OnSessionStarted = session => callbackSession = session;
+        vm.OnSessionStarted += session => callbackSession = session;
 
         // Act
         await vm.StartCommand.ExecuteAsync(null);
@@ -87,7 +87,7 @@ public class StartAsyncShould
         };
 
         ApiSessionResponse? callbackSession = null;
-        vm.OnSessionStarted = session => callbackSession = session;
+        vm.OnSessionStarted += session => callbackSession = session;
 
         // Act
         await vm.StartCommand.ExecuteAsync(null);

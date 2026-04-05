@@ -33,7 +33,7 @@ public partial class SessionPageViewModel : ObservableObject
         _sessionControl = sessionControl;
         _dispatcher = dispatcher;
 
-        NewSession.OnSessionStarted = OnSessionStarted;
+        NewSession.OnSessionStarted += OnNewSessionStarted;
     }
 
     /// <summary>
@@ -44,25 +44,25 @@ public partial class SessionPageViewModel : ObservableObject
         var existing = await _apiClient.GetActiveSessionAsync();
         if (existing != null)
         {
-            SetActiveSession(existing);
+            await StartActiveSessionAsync(existing);
         }
     }
 
-    private void OnSessionStarted(ApiSessionResponse session)
+    private void OnNewSessionStarted(ApiSessionResponse session)
     {
-        SetActiveSession(session);
+        _ = StartActiveSessionAsync(session);
     }
 
-    private void SetActiveSession(ApiSessionResponse session)
+    private async Task StartActiveSessionAsync(ApiSessionResponse session)
     {
         ActiveSession?.Dispose();
         var vm = new ActiveSessionViewModel(_dispatcher, _sessionControl);
-        vm.OnSessionEnded = HandleActiveSessionEnded;
-        vm.SetSession(session);
+        vm.SessionEnded += HandleSessionEnded;
+        await vm.LoadAsync(session);
         ActiveSession = vm;
     }
 
-    private void HandleActiveSessionEnded()
+    private void HandleSessionEnded()
     {
         var previous = ActiveSession;
         ActiveSession = null;

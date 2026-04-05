@@ -19,7 +19,7 @@ public class ActiveSessionViewModelShould
     );
 
     [Fact]
-    public async Task InvokeStopCommand_WhenSessionEnded()
+    public async Task RaiseSessionEnded_WhenStopSucceeds()
     {
         // Arrange
         var sessionId = Guid.NewGuid();
@@ -31,17 +31,17 @@ public class ActiveSessionViewModelShould
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
         var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
-        vm.SetSession(testSession);
+        await vm.LoadAsync(testSession);
 
-        bool onSessionEndedCalled = false;
-        vm.OnSessionEnded = () => onSessionEndedCalled = true;
+        bool sessionEndedRaised = false;
+        vm.SessionEnded += () => sessionEndedRaised = true;
 
         // Act
         await vm.StopCommand.ExecuteAsync(null);
 
         // Assert
         mockService.Verify(x => x.EndWithPlaceholderMetricsAsync(sessionId), Times.Once);
-        onSessionEndedCalled.Should().BeTrue();
+        sessionEndedRaised.Should().BeTrue();
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class ActiveSessionViewModelShould
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
         var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
-        vm.SetSession(initialSession);
+        await vm.LoadAsync(initialSession);
 
         vm.IsPaused.Should().BeFalse();
 
@@ -93,7 +93,7 @@ public class ActiveSessionViewModelShould
 
         var mockDispatcher = new Mock<IUIThreadDispatcher>();
         var vm = new ActiveSessionViewModel(mockDispatcher.Object, mockService.Object);
-        vm.SetSession(testSession);
+        await vm.LoadAsync(testSession);
 
         vm.State.ErrorMessage.Should().BeNull();
 
