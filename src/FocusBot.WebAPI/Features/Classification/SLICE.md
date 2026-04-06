@@ -56,10 +56,11 @@ Classifies whether the user's current window/tab aligns with their active task. 
 
 ## Caching
 
-Results are cached by `(userId, contextHash, taskContentHash)` for 24 hours. The `cached` field in the response indicates whether the result was served from cache.
+Results are cached in-process via `IMemoryCache` keyed by `(userId, contextHash, taskContentHash)` for 24 hours. The `cached` field in the response indicates whether the result was served from cache. Cache is process-local and does not survive restarts.
 
 - `contextHash` = SHA-256 of `processName|windowTitle|url|pageTitle`
 - `taskContentHash` = SHA-256 of `sessionTitle|sessionContext`
+- Cache key format: `clf:{userId}:{contextHash}:{taskContentHash}`
 
 ## API Key Resolution
 

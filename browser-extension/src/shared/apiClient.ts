@@ -201,27 +201,78 @@ export const startCloudSession = async (
     })
   });
 
+/** Server already ended the session (409), or session is missing (404) — local UI should still clear. */
+export type EndCloudSessionResult =
+  | { kind: "ended"; response: EndSessionResponse }
+  | { kind: "alreadyGone" }
+  | { kind: "failed" };
+
 export const endCloudSession = async (
   sessionId: string,
   summary: Record<string, unknown>,
   clientId: string | null
-): Promise<EndSessionResponse | null> => {
+): Promise<EndCloudSessionResult> => {
   const focusPercentage = typeof summary.focusPercentage === "number" ? summary.focusPercentage : 0;
   const alignedSeconds = typeof summary.alignedSeconds === "number" ? summary.alignedSeconds : 0;
   const distractingSeconds = typeof summary.distractingSeconds === "number" ? summary.distractingSeconds : 0;
   const distractionCount = typeof summary.distractionCount === "number" ? summary.distractionCount : 0;
 
-  return apiFetch<EndSessionResponse>(`/sessions/${sessionId}/end`, {
-    method: "POST",
-    body: JSON.stringify({
-      focusScorePercent: Math.round(focusPercentage),
-      focusedSeconds: Math.round(alignedSeconds),
-      distractedSeconds: Math.round(distractingSeconds),
-      distractionCount,
-      contextSwitchCount: 0,
-      clientId: clientId ?? null
-    })
+  const session = await loadFocusbotAuthSession();
+
+  const buildHeaders = (token: string | undefined): Record<string, string> => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
   });
+
+  const path = `/sessions/${encodeURIComponent(sessionId)}/end`;
+  const url = `${getApiBaseUrl()}${path}`;
+  const body = JSON.stringify({
+    focusScorePercent: Math.round(focusPercentage),
+    focusedSeconds: Math.round(alignedSeconds),
+    distractedSeconds: Math.round(distractingSeconds),
+    distractionCount,
+    contextSwitchCount: 0,
+    clientId: clientId ?? null
+  });
+
+  try {
+    let response = await fetch(url, {
+      method: "POST",
+      headers: buildHeaders(session?.accessToken),
+      body
+    });
+
+    if (response.status === 401) {
+      const refreshed = await refreshFocusbotAuthToken();
+      if (refreshed) {
+        const updatedSession = await loadFocusbotAuthSession();
+        response = await fetch(url, {
+          method: "POST",
+          headers: buildHeaders(updatedSession?.accessToken),
+          body
+        });
+      }
+    }
+
+    if (response.ok) {
+      const text = await response.text();
+      if (!text) {
+        return { kind: "failed" };
+      }
+      const parsed = JSON.parse(text) as EndSessionResponse;
+      return { kind: "ended", response: parsed };
+    }
+
+    if (response.status === 409 || response.status === 404) {
+      return { kind: "alreadyGone" };
+    }
+
+    console.warn(`[Foqus API] POST ${path} failed: ${response.status}`);
+    return { kind: "failed" };
+  } catch (error) {
+    console.warn(`[Foqus API] POST ${path} error:`, error);
+    return { kind: "failed" };
+  }
 };
 
 export const getActiveCloudSession = async (): Promise<ActiveSessionResponse | null> =>

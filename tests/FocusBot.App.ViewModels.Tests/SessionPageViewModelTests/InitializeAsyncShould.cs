@@ -38,12 +38,14 @@ public class InitializeAsyncShould
             .Returns<Func<Task>>(f => f());
 
         var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
+        var mockPresenceService = new Mock<IExtensionPresenceService>();
         var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockCoordinator.Object,
             mockClassificationCoordinator.Object,
+            mockPresenceService.Object,
             mockDispatcher.Object);
 
         // Act
@@ -74,12 +76,14 @@ public class InitializeAsyncShould
             .Returns<Func<Task>>(f => f());
 
         var mockClassificationCoordinator = new Mock<IForegroundClassificationCoordinator>();
+        var mockPresenceService = new Mock<IExtensionPresenceService>();
         var newSessionVm = new NewSessionViewModel(mockCoordinator.Object);
         var vm = new SessionPageViewModel(
             newSessionVm,
             mockNavigation.Object,
             mockCoordinator.Object,
             mockClassificationCoordinator.Object,
+            mockPresenceService.Object,
             mockDispatcher.Object);
 
         // Act

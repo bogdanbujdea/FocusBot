@@ -1,11 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using FocusBot.WebAPI.Data;
-using FocusBot.WebAPI.Data.Entities;
 using LlmTornado;
 using LlmTornado.Code;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace FocusBot.WebAPI.Features.Classification;
 
@@ -14,7 +12,7 @@ namespace FocusBot.WebAPI.Features.Classification;
 /// Supports BYOK (bring-your-own-key) and managed API key modes.
 /// </summary>
 public class ClassificationService(
-    ApiDbContext db,
+    IMemoryCache memoryCache,
     IConfiguration configuration,
     ILogger<ClassificationService> logger)
 {
@@ -111,22 +109,15 @@ public class ClassificationService(
         return ComputeHash($"{sessionTitle}|{sessionContext ?? string.Empty}");
     }
 
-    private async Task<ClassifyResponse?> TryGetCachedResultAsync(
+    private static string BuildCacheKey(Guid userId, string contextHash, string taskContentHash)
+        => $"clf:{userId}:{contextHash}:{taskContentHash}";
+
+    private Task<ClassifyResponse?> TryGetCachedResultAsync(
         Guid userId, string contextHash, string taskContentHash, CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
-        var entry = await db.Set<ClassificationCache>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c =>
-                c.UserId == userId &&
-                c.ContextHash == contextHash &&
-                c.TaskContentHash == taskContentHash &&
-                c.ExpiresAtUtc > now, ct);
-
-        if (entry is null)
-            return null;
-
-        return new ClassifyResponse(entry.Score, entry.Reason, Cached: true);
+        var key = BuildCacheKey(userId, contextHash, taskContentHash);
+        memoryCache.TryGetValue(key, out ClassifyResponse? cached);
+        return Task.FromResult(cached);
     }
 
     private (string ApiKey, string ProviderId, string ModelId) ResolveCredentials(
@@ -277,7 +268,7 @@ public class ClassificationService(
         }
     }
 
-    private async Task CacheResultAsync(
+    private Task CacheResultAsync(
         Guid userId,
         string contextHash,
         string taskContentHash,
@@ -285,25 +276,8 @@ public class ClassificationService(
         string reason,
         CancellationToken ct)
     {
-        try
-        {
-            var entry = new ClassificationCache
-            {
-                UserId = userId,
-                ContextHash = contextHash,
-                TaskContentHash = taskContentHash,
-                Score = score,
-                Reason = reason,
-                CreatedAtUtc = DateTime.UtcNow,
-                ExpiresAtUtc = DateTime.UtcNow.Add(CacheDuration)
-            };
-
-            db.Set<ClassificationCache>().Add(entry);
-            await db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex)
-        {
-            logger.LogWarning(ex, "Failed to cache classification result; continuing without cache");
-        }
+        var key = BuildCacheKey(userId, contextHash, taskContentHash);
+        memoryCache.Set(key, new ClassifyResponse(score, reason, Cached: true), CacheDuration);
+        return Task.CompletedTask;
     }
 }

@@ -978,7 +978,7 @@ const endSession = async (): Promise<RuntimeResponse<CompletedSession>> =>
     const clientId = await getStoredClientId();
 
     const endResult = await endCloudSession(session.sessionId, summaryPayload, clientId);
-    if (!endResult) {
+    if (endResult.kind === "failed") {
       return { ok: false, error: "Failed to end session on server. Please try again." };
     }
 

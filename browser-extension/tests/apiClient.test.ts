@@ -119,10 +119,26 @@ describe("endCloudSession", () => {
 
     const result = await endCloudSession("s1", { focusPercentage: 85 }, null);
 
-    expect(result).toEqual(responseBody);
+    expect(result).toEqual({ kind: "ended", response: responseBody });
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe("https://test.foqus.me/sessions/s1/end");
     expect(init?.method).toBe("POST");
+  });
+
+  it("returns alreadyGone on 409 so the client can clear local session", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: "Session is already ended." }), { status: 409 }));
+
+    const result = await endCloudSession("s1", { focusPercentage: 50 }, null);
+
+    expect(result).toEqual({ kind: "alreadyGone" });
+  });
+
+  it("returns alreadyGone on 404", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: "Not found" }), { status: 404 }));
+
+    const result = await endCloudSession("missing", {}, null);
+
+    expect(result).toEqual({ kind: "alreadyGone" });
   });
 });
 

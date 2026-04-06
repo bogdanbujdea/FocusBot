@@ -57,6 +57,7 @@ public static class ClassificationEndpoints
                     try
                     {
                         var remoteIp = GetRemoteIpAddress(ctx);
+                        logger.LogInformation($"Classifying: {request.WindowTitle}\n");
                         var result = await classificationService.ClassifyAsync(
                             userId,
                             request,
@@ -65,13 +66,10 @@ public static class ClassificationEndpoints
                         );
 
                         logger.LogInformation(
-                            "Classification response: UserId={UserId} Score={Score} Cached={Cached} Url={Url} WindowTitle={WindowTitle} PageTitle={PageTitle} Reason={Reason}",
-                            userId,
-                            result.Score,
-                            result.Cached,
+                            "Classification response:\n Url={Url}\nWindowTitle={WindowTitle}\nPageTitle={PageTitle}\nReason={Reason}\n\n",
                             request.Url,
                             request.WindowTitle,
-                            request.PageTitle,
+                            result.Score,
                             result.Reason
                         );
 

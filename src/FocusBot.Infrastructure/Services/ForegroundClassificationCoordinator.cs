@@ -11,23 +11,46 @@ namespace FocusBot.Infrastructure.Services;
 /// </summary>
 public sealed class ForegroundClassificationCoordinator : IForegroundClassificationCoordinator
 {
+    private static readonly HashSet<string> ChromiumBrowserProcesses = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "chrome",
+        "msedge",
+        "brave",
+    };
+
+    private static readonly HashSet<string> ExcludedProcesses = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "Foqus",
+        "Taskmgr",
+        "explorer",
+    };
+
     private readonly IWindowMonitorService _windowMonitor;
     private readonly IClassificationService _classificationService;
+    private readonly IExtensionPresenceService _presenceService;
     private readonly ILogger<ForegroundClassificationCoordinator> _logger;
 
     private string _sessionTitle = string.Empty;
     private string? _sessionContext;
     private bool _isSubscribed;
 
+    public event Action<ForegroundContext>? ForegroundContextChanged;
     public event Action<ClassificationStatus>? ClassificationChanged;
 
     public ForegroundClassificationCoordinator(
         IWindowMonitorService windowMonitor,
         IClassificationService classificationService,
-        ILogger<ForegroundClassificationCoordinator> logger)
+        IExtensionPresenceService presenceService,
+        ILogger<ForegroundClassificationCoordinator> logger
+    )
     {
         _windowMonitor = windowMonitor;
         _classificationService = classificationService;
+        _presenceService = presenceService;
         _logger = logger;
     }
 
@@ -43,7 +66,8 @@ public sealed class ForegroundClassificationCoordinator : IForegroundClassificat
 
         _logger.LogInformation(
             "Starting foreground classification for session: {SessionTitle}",
-            sessionTitle);
+            sessionTitle
+        );
 
         _sessionTitle = sessionTitle;
         _sessionContext = sessionContext;
@@ -63,18 +87,57 @@ public sealed class ForegroundClassificationCoordinator : IForegroundClassificat
         _sessionContext = null;
     }
 
+    public void ApplyRemoteClassification(ClassificationChangedEvent evt)
+    {
+        _logger.LogDebug(
+            "Applying remote classification from {Source}: Score={Score}, Activity={Activity}",
+            evt.Source,
+            evt.Score,
+            evt.ActivityName
+        );
+        var status = ClassificationStatus.FromScore(evt.Score, evt.Reason, evt.Source);
+        ClassificationChanged?.Invoke(status);
+    }
+
     private async void OnForegroundWindowChanged(object? sender, ForegroundWindowChangedEventArgs e)
     {
+        _logger.LogWarning($"Window changed to {e.WindowTitle}");
         if (string.IsNullOrWhiteSpace(e.ProcessName) && string.IsNullOrWhiteSpace(e.WindowTitle))
         {
             _logger.LogDebug("Empty foreground window info, skipping classification");
             return;
         }
 
+        if (ExcludedProcesses.Contains(e.ProcessName))
+        {
+            _logger.LogDebug(
+                "Skipping classification for excluded process: {Process}",
+                e.ProcessName
+            );
+            return;
+        }
+
+        if (ChromiumBrowserProcesses.Contains(e.ProcessName) && _presenceService.IsExtensionOnline)
+        {
+            _logger.LogDebug(
+                "Skipping classification for {Process} - extension is online",
+                e.ProcessName
+            );
+            ForegroundContextChanged?.Invoke(
+                new ForegroundContext(e.ProcessName, e.WindowTitle, IsClassifying: false)
+            );
+            return;
+        }
+
         _logger.LogDebug(
             "Foreground changed: Process={ProcessName}, Window={WindowTitle}",
             e.ProcessName,
-            e.WindowTitle);
+            e.WindowTitle
+        );
+
+        ForegroundContextChanged?.Invoke(
+            new ForegroundContext(e.ProcessName, e.WindowTitle, IsClassifying: true)
+        );
 
         try
         {
@@ -82,20 +145,35 @@ public sealed class ForegroundClassificationCoordinator : IForegroundClassificat
                 e.ProcessName,
                 e.WindowTitle,
                 _sessionTitle,
-                _sessionContext);
+                _sessionContext
+            );
 
             if (result.IsFailure)
             {
                 _logger.LogWarning("Classification failed: {Error}", result.Error);
+                ForegroundContextChanged?.Invoke(
+                    new ForegroundContext(e.ProcessName, e.WindowTitle, IsClassifying: false)
+                );
                 return;
             }
 
-            var status = ClassificationStatus.FromScore(result.Value.Score, result.Value.Reason);
+            ForegroundContextChanged?.Invoke(
+                new ForegroundContext(e.ProcessName, e.WindowTitle, IsClassifying: false)
+            );
+
+            var status = ClassificationStatus.FromScore(
+                result.Value.Score,
+                result.Value.Reason,
+                "desktop"
+            );
             ClassificationChanged?.Invoke(status);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception during classification");
+            ForegroundContextChanged?.Invoke(
+                new ForegroundContext(e.ProcessName, e.WindowTitle, IsClassifying: false)
+            );
         }
     }
 }

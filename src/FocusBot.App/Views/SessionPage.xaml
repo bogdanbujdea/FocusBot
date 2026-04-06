@@ -17,19 +17,35 @@
         <converters:BoolToVisibilityInvertedConverter x:Key="BoolToVisibilityInverted"/>
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="32" Spacing="24">
-            <views:ActiveSession DataContext="{x:Bind ViewModel.ActiveSession, Mode=OneWay}"
-                                 Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <views:NewSession DataContext="{x:Bind ViewModel.NewSession, Mode=OneWay}"
-                              Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibilityInverted}}"/>
-
-            <Button Content="Settings"
-                    Style="{StaticResource FbOutlineButtonStyle}"
-                    Command="{x:Bind ViewModel.OpenSettingsCommand}"
-                    HorizontalAlignment="Left"
-                    automation:AutomationProperties.Name="Open settings"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="32,16,32,0"
+                    Visibility="{x:Bind ViewModel.IsExtensionConnected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+            <Ellipse Width="8" Height="8" Fill="#22C55E" VerticalAlignment="Center"/>
+            <TextBlock Text="Extension connected" Margin="8,0,0,0"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </StackPanel>
-    </ScrollViewer>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32" Spacing="24">
+                <views:ActiveSession DataContext="{x:Bind ViewModel.ActiveSession, Mode=OneWay}"
+                                     Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+                <views:NewSession DataContext="{x:Bind ViewModel.NewSession, Mode=OneWay}"
+                                  Visibility="{x:Bind ViewModel.HasActiveSession, Mode=OneWay, Converter={StaticResource BoolToVisibilityInverted}}"/>
+
+                <Button Content="Settings"
+                        Style="{StaticResource FbOutlineButtonStyle}"
+                        Command="{x:Bind ViewModel.OpenSettingsCommand}"
+                        HorizontalAlignment="Left"
+                        automation:AutomationProperties.Name="Open settings"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </Page>

@@ -68,6 +68,7 @@ namespace FocusBot.App
                 );
             });
             services.AddSingleton<IClassificationService, AlignmentClassificationService>();
+            services.AddSingleton<IExtensionPresenceService, ExtensionPresenceService>();
             services.AddSingleton<IForegroundClassificationCoordinator, ForegroundClassificationCoordinator>();
             services.AddSingleton<ISessionCoordinator, SessionCoordinator>();
             services.AddSingleton<ISessionRealtimeAdapter>(sp =>
@@ -75,6 +76,7 @@ namespace FocusBot.App
                 var hubUrl = $"{GetFocusBotApiBaseUrl()}/hubs/focus";
                 return new SignalRSessionRealtimeAdapter(
                     sp.GetRequiredService<ISessionCoordinator>(),
+                    sp.GetRequiredService<IForegroundClassificationCoordinator>(),
                     sp.GetRequiredService<IAuthService>(),
                     sp.GetRequiredService<ISettingsService>(),
                     sp.GetRequiredService<ILogger<SignalRSessionRealtimeAdapter>>(),
@@ -133,6 +135,9 @@ namespace FocusBot.App
             auth.AuthStateChanged += () => _ = OnAuthStateChangedAsync();
 
             await OnAuthStateChangedAsync();
+
+            var presenceService = _services!.GetRequiredService<IExtensionPresenceService>();
+            _ = presenceService.StartAsync();
 
             var windowMonitor = _services!.GetRequiredService<IWindowMonitorService>();
 

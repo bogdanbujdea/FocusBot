@@ -17,3 +17,16 @@ public sealed record SessionEndedEvent(Guid SessionId, DateTime EndedAtUtc, stri
 public sealed record SessionPausedEvent(Guid SessionId, DateTime PausedAtUtc, string Source);
 
 public sealed record SessionResumedEvent(Guid SessionId, string Source);
+
+/// <summary>
+/// Raised by the hub after a successful classify call.
+/// Source is "extension" or "desktop"; ActivityName is the URL or window context.
+/// </summary>
+public sealed record ClassificationChangedEvent(
+    int Score,
+    string Reason,
+    string Source,
+    string ActivityName,
+    DateTime ClassifiedAtUtc,
+    bool Cached
+);

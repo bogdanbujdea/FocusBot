@@ -10,11 +10,15 @@ public partial class SessionPageViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly ISessionCoordinator _coordinator;
     private readonly IForegroundClassificationCoordinator _classificationCoordinator;
+    private readonly IExtensionPresenceService _presenceService;
     private readonly IUIThreadDispatcher _dispatcher;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasActiveSession))]
     private ActiveSessionViewModel? _activeSession;
+
+    [ObservableProperty]
+    private bool _isExtensionConnected;
 
     public NewSessionViewModel NewSession { get; }
 
@@ -25,15 +29,21 @@ public partial class SessionPageViewModel : ObservableObject
         INavigationService navigationService,
         ISessionCoordinator coordinator,
         IForegroundClassificationCoordinator classificationCoordinator,
+        IExtensionPresenceService presenceService,
         IUIThreadDispatcher dispatcher)
     {
         NewSession = newSession;
         _navigationService = navigationService;
         _coordinator = coordinator;
         _classificationCoordinator = classificationCoordinator;
+        _presenceService = presenceService;
         _dispatcher = dispatcher;
 
         _coordinator.StateChanged += OnCoordinatorStateChanged;
+
+        IsExtensionConnected = _presenceService.IsExtensionOnline;
+        _presenceService.ExtensionConnected += OnExtensionConnected;
+        _presenceService.ExtensionDisconnected += OnExtensionDisconnected;
     }
 
     /// <summary>
@@ -61,6 +71,24 @@ public partial class SessionPageViewModel : ObservableObject
                 previous?.Dispose();
             }
 
+            return Task.CompletedTask;
+        });
+    }
+
+    private void OnExtensionConnected()
+    {
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
+        {
+            IsExtensionConnected = true;
+            return Task.CompletedTask;
+        });
+    }
+
+    private void OnExtensionDisconnected()
+    {
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
+        {
+            IsExtensionConnected = false;
             return Task.CompletedTask;
         });
     }

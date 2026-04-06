@@ -14,6 +14,7 @@ public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAs
     private const string DesktopClientIdSettingKey = "Desktop_ClientId";
 
     private readonly ISessionCoordinator _coordinator;
+    private readonly IForegroundClassificationCoordinator _classificationCoordinator;
     private readonly IAuthService _authService;
     private readonly ISettingsService _settingsService;
     private readonly ILogger<SignalRSessionRealtimeAdapter> _logger;
@@ -26,6 +27,7 @@ public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAs
 
     public SignalRSessionRealtimeAdapter(
         ISessionCoordinator coordinator,
+        IForegroundClassificationCoordinator classificationCoordinator,
         IAuthService authService,
         ISettingsService settingsService,
         ILogger<SignalRSessionRealtimeAdapter> logger,
@@ -33,6 +35,7 @@ public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAs
     )
     {
         _coordinator = coordinator;
+        _classificationCoordinator = classificationCoordinator;
         _authService = authService;
         _settingsService = settingsService;
         _logger = logger;
@@ -111,6 +114,11 @@ public sealed class SignalRSessionRealtimeAdapter : ISessionRealtimeAdapter, IAs
             connection.On<SessionResumedEvent>(
                 "SessionResumed",
                 async evt => await _coordinator.ApplyRemoteSessionResumedAsync(evt)
+            );
+
+            connection.On<ClassificationChangedEvent>(
+                "ClassificationChanged",
+                evt => _classificationCoordinator.ApplyRemoteClassification(evt)
             );
 
             await connection.StartAsync();

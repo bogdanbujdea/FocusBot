@@ -9,9 +9,21 @@ namespace FocusBot.Core.Interfaces;
 public interface IForegroundClassificationCoordinator
 {
     /// <summary>
+    /// Raised when the foreground context changes (app switch, tab change).
+    /// Fires before classification starts; use IsClassifying to show loading state.
+    /// </summary>
+    event Action<ForegroundContext>? ForegroundContextChanged;
+
+    /// <summary>
     /// Raised when a classification result is received.
     /// </summary>
     event Action<ClassificationStatus>? ClassificationChanged;
+
+    /// <summary>
+    /// Apply a remote classification result received from the SignalR hub.
+    /// Fires ClassificationChanged so all local subscribers update.
+    /// </summary>
+    void ApplyRemoteClassification(ClassificationChangedEvent evt);
 
     /// <summary>
     /// Start classifying foreground window changes for the given session.

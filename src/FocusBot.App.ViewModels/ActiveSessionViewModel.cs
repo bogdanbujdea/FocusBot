@@ -43,6 +43,12 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasClassification))]
     private string _classificationLabel = string.Empty;
 
+    [ObservableProperty]
+    private string _currentContextLabel = string.Empty;
+
+    [ObservableProperty]
+    private bool _isClassifying;
+
     public string PauseResumeLabel => IsPaused ? "Resume" : "Pause";
 
     public bool HasClassification => !string.IsNullOrEmpty(ClassificationLabel);
@@ -59,6 +65,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += OnTimerElapsed;
         _coordinator.StateChanged += OnCoordinatorStateChanged;
+        _classificationCoordinator.ForegroundContextChanged += OnForegroundContextChanged;
         _classificationCoordinator.ClassificationChanged += OnClassificationChanged;
     }
 
@@ -73,11 +80,28 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         await Task.CompletedTask;
     }
 
+    private void OnForegroundContextChanged(ForegroundContext context)
+    {
+        _ = _dispatcher.RunOnUIThreadAsync(() =>
+        {
+            CurrentContextLabel = context.DisplayLabel;
+            IsClassifying = context.IsClassifying;
+            return Task.CompletedTask;
+        });
+    }
+
     private void OnClassificationChanged(ClassificationStatus status)
     {
         _ = _dispatcher.RunOnUIThreadAsync(() =>
         {
-            ClassificationLabel = status.Label;
+            var sourceLabel = status.Source switch
+            {
+                "extension" => "Extension",
+                "desktop" => "Desktop",
+                _ => status.Source,
+            };
+            ClassificationLabel = $"{status.Label} · {sourceLabel}";
+            Console.WriteLine($"Classification event: {status.Label} - {sourceLabel}");
             return Task.CompletedTask;
         });
     }
@@ -206,6 +230,7 @@ public partial class ActiveSessionViewModel : ObservableObject, IDisposable
         if (disposing)
         {
             _coordinator.StateChanged -= OnCoordinatorStateChanged;
+            _classificationCoordinator.ForegroundContextChanged -= OnForegroundContextChanged;
             _classificationCoordinator.ClassificationChanged -= OnClassificationChanged;
             _timer.Stop();
             _timer.Elapsed -= OnTimerElapsed;
